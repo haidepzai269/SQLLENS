@@ -9,6 +9,7 @@
     "lint": "eslint",
     "check:i18n": "node scripts/check-i18n.mjs",
     "typecheck": "tsc --noEmit",
+    "e2e": "playwright test",
     "test": "vitest run",
     "check": "npm run check:i18n && npm run lint && npm run typecheck && npm run test"
   },
