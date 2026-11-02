@@ -39,13 +39,13 @@ Deadlock: `SHOW ENGINE INNODB STATUS` (mục LATEST DETECTED DEADLOCK).
 
 | Lần | Kết quả | Độ trễ thấy khóa | Ghi thêm |
 |---|---|---|---|
-| 1 | B chờ A: RECORD X,REC_NOT_GAP trên lab.acct index PRIMARY; A giữ RECORD X,REC_NOT_GAP | 29ms |  |
-| 2 | B chờ A: RECORD X,REC_NOT_GAP trên lab.acct index PRIMARY; A giữ RECORD X,REC_NOT_GAP | 15.7ms |  |
-| 3 | B chờ A: RECORD X,REC_NOT_GAP trên lab.acct index PRIMARY; A giữ RECORD X,REC_NOT_GAP | 53.1ms |  |
-| 4 | B chờ A: RECORD X,REC_NOT_GAP trên lab.acct index PRIMARY; A giữ RECORD X,REC_NOT_GAP | 4.9ms |  |
-| 5 | B chờ A: RECORD X,REC_NOT_GAP trên lab.acct index PRIMARY; A giữ RECORD X,REC_NOT_GAP | 6.1ms |  |
+| 1 | B chờ A: RECORD X,REC_NOT_GAP trên lab.acct index PRIMARY; A giữ RECORD X,REC_NOT_GAP | 16.7ms |  |
+| 2 | B chờ A: RECORD X,REC_NOT_GAP trên lab.acct index PRIMARY; A giữ RECORD X,REC_NOT_GAP | 14.1ms |  |
+| 3 | B chờ A: RECORD X,REC_NOT_GAP trên lab.acct index PRIMARY; A giữ RECORD X,REC_NOT_GAP | 4.3ms |  |
+| 4 | B chờ A: RECORD X,REC_NOT_GAP trên lab.acct index PRIMARY; A giữ RECORD X,REC_NOT_GAP | 10.1ms |  |
+| 5 | B chờ A: RECORD X,REC_NOT_GAP trên lab.acct index PRIMARY; A giữ RECORD X,REC_NOT_GAP | 11.2ms |  |
 
-Độ trễ từ lúc B bắt đầu câu lệnh bị chặn đến lúc connection thứ ba thấy khóa: min 4.9ms, trung vị 15.7ms, max 53.1ms (poll mỗi 5ms, gồm cả thời gian khởi động goroutine B).
+Độ trễ từ lúc B bắt đầu câu lệnh bị chặn đến lúc connection thứ ba thấy khóa: min 4.3ms, trung vị 11.2ms, max 16.7ms (poll mỗi 5ms, gồm cả thời gian khởi động goroutine B).
 
 Ví dụ dữ liệu đọc được (lần 1):
 
@@ -76,53 +76,53 @@ Ví dụ dữ liệu đọc được (lần 1):
 A=conn 20, B=conn 21, bị hủy: B
 LATEST DETECTED DEADLOCK
 ------------------------
-2026-11-02 13:08:54 140478263563840
+2026-11-02 13:12:38 139673234024000
 *** (1) TRANSACTION:
-TRANSACTION 1889, ACTIVE 1 sec starting index read
+TRANSACTION 1884, ACTIVE 0 sec starting index read
 mysql tables in use 1, locked 1
 LOCK WAIT 3 lock struct(s), heap size 1128, 2 row lock(s), undo log entries 1
-MySQL thread id 20, OS thread handle 140478253057600, query id 118 172.17.0.1 lowpriv updating
+MySQL thread id 20, OS thread handle 139673347380800, query id 117 172.17.0.1 lowpriv updating
 UPDATE lab.acct SET bal = bal + 1 WHERE id = 2
 
 *** (1) HOLDS THE LOCK(S):
-RECORD LOCKS space id 2 page no 4 n bits 72 index PRIMARY of table `lab`.`acct` trx id 1889 lock_mode X locks rec but not gap
+RECORD LOCKS space id 2 page no 4 n bits 72 index PRIMARY of table `lab`.`acct` trx id 1884 lock_mode X locks rec but not gap
 Record lock, heap no 2 PHYSICAL RECORD: n_fields 4; compact format; info bits 0
  0: len 4; hex 80000001; asc     ;;
- 1: len 6; hex 000000000761; asc      a;;
+ 1: len 6; hex 00000000075c; asc      \;;
  2: len 7; hex 01000001290151; asc     ) Q;;
  3: len 4; hex 80000065; asc    e;;
 
 
 *** (1) WAITING FOR THIS LOCK TO BE GRANTED:
-RECORD LOCKS space id 2 page no 4 n bits 72 index PRIMARY of table `lab`.`acct` trx id 1889 lock_mode X locks rec but not gap waiting
+RECORD LOCKS space id 2 page no 4 n bits 72 index PRIMARY of table `lab`.`acct` trx id 1884 lock_mode X locks rec but not gap waiting
 Record lock, heap no 3 PHYSICAL RECORD: n_fields 4; compact format; info bits 0
  0: len 4; hex 80000002; asc     ;;
- 1: len 6; hex 000000000762; asc      b;;
- 2: len 7; hex 020000012d0151; asc     - Q;;
+ 1: len 6; hex 00000000075d; asc      ];;
+ 2: len 7; hex 020000012b0151; asc     + Q;;
  3: len 4; hex 80000065; asc    e;;
 
 
 *** (2) TRANSACTION:
-TRANSACTION 1890, ACTIVE 1 sec starting index read
+TRANSACTION 1885, ACTIVE 0 sec starting index read
 mysql tables in use 1, locked 1
 LOCK WAIT 3 lock struct(s), heap size 1128, 2 row lock(s), undo log entries 1
-MySQL thread id 21, OS thread handle 140478254114368, query id 120 172.17.0.1 lowpriv updating
+MySQL thread id 21, OS thread handle 139673348437568, query id 119 172.17.0.1 lowpriv updating
 UPDATE lab.acct SET bal = bal + 1 WHERE id = 1
 
 *** (2) HOLDS THE LOCK(S):
-RECORD LOCKS space id 2 page no 4 n bits 72 index PRIMARY of table `lab`.`acct` trx id 1890 lock_mode X locks rec but not gap
+RECORD LOCKS space id 2 page no 4 n bits 72 index PRIMARY of table `lab`.`acct` trx id 1885 lock_mode X locks rec but not gap
 Record lock, heap no 3 PHYSICAL RECORD: n_fields 4; compact format; info bits 0
  0: len 4; hex 80000002; asc     ;;
- 1: len 6; hex 000000000762; asc      b;;
- 2: len 7; hex 020000012d0151; asc     - Q;;
+ 1: len 6; hex 00000000075d; asc      ];;
+ 2: len 7; hex 020000012b0151; asc     + Q;;
  3: len 4; hex 80000065; asc    e;;
 
 
 *** (2) WAITING FOR THIS LOCK TO BE GRANTED:
-RECORD LOCKS space id 2 page no 4 n bits 72 index PRIMARY of table `lab`.`acct` trx id 1890 lock_mode X locks rec but not gap waiting
+RECORD LOCKS space id 2 page no 4 n bits 72 index PRIMARY of table `lab`.`acct` trx id 1885 lock_mode X locks rec but not gap waiting
 Record lock, heap no 2 PHYSICAL RECORD: n_fields 4; compact format; info bits 0
  0: len 4; hex 80000001; asc     ;;
- 1: len 6; hex 000000000761; asc      a;;
+ 1: len 6; hex 00000000075c; asc      \;;
  2: len 7; hex 01000001290151; asc     ) Q;;
  3: len 4; hex 80000065; asc    e;;
 
@@ -164,7 +164,7 @@ A UPDATE bal=999 chưa commit (gốc 100); B ở READ COMMITTED: SELECT bal => 1
 Ví dụ dữ liệu đọc được (lần 1):
 
 ```text
-snapshot RR: A đọc 100, B đọc 100; sau khi A commit B vẫn thấy snapshot cũ khi đọc; cuối cùng bal=120 (cộng đúng phải là 130)
+snapshot RR: A đọc 100, B đọc 100; sau khi A commit, B đọc lại vẫn thấy 100 (snapshot cũ); cuối cùng bal=120 (cộng đúng phải là 130)
 ```
 
 ## AC4b. Gap lock: SELECT ... FOR UPDATE theo khoảng
@@ -173,13 +173,13 @@ snapshot RR: A đọc 100, B đọc 100; sau khi A commit B vẫn thấy snapsho
 
 | Lần | Kết quả | Độ trễ thấy khóa | Ghi thêm |
 |---|---|---|---|
-| 1 | A giữ RECORD X,GAP trên PRIMARY tại khóa 20; INSERT 15 của B chờ với X,GAP,INSERT_INTENTION | 4.9ms |  |
-| 2 | A giữ RECORD X,GAP trên PRIMARY tại khóa 20; INSERT 15 của B chờ với X,GAP,INSERT_INTENTION | 2.7ms |  |
-| 3 | A giữ RECORD X,GAP trên PRIMARY tại khóa 20; INSERT 15 của B chờ với X,GAP,INSERT_INTENTION | 4.8ms |  |
-| 4 | A giữ RECORD X,GAP trên PRIMARY tại khóa 20; INSERT 15 của B chờ với X,GAP,INSERT_INTENTION | 7.5ms |  |
-| 5 | A giữ RECORD X,GAP trên PRIMARY tại khóa 20; INSERT 15 của B chờ với X,GAP,INSERT_INTENTION | 4.5ms |  |
+| 1 | A giữ RECORD X,GAP trên PRIMARY tại khóa 20; INSERT 15 của B chờ với X,GAP,INSERT_INTENTION | 2.9ms |  |
+| 2 | A giữ RECORD X,GAP trên PRIMARY tại khóa 20; INSERT 15 của B chờ với X,GAP,INSERT_INTENTION | 8.5ms |  |
+| 3 | A giữ RECORD X,GAP trên PRIMARY tại khóa 20; INSERT 15 của B chờ với X,GAP,INSERT_INTENTION | 3.9ms |  |
+| 4 | A giữ RECORD X,GAP trên PRIMARY tại khóa 20; INSERT 15 của B chờ với X,GAP,INSERT_INTENTION | 2.7ms |  |
+| 5 | A giữ RECORD X,GAP trên PRIMARY tại khóa 20; INSERT 15 của B chờ với X,GAP,INSERT_INTENTION | 7ms |  |
 
-Độ trễ từ lúc B bắt đầu câu lệnh bị chặn đến lúc connection thứ ba thấy khóa: min 2.7ms, trung vị 4.8ms, max 7.5ms (poll mỗi 5ms, gồm cả thời gian khởi động goroutine B).
+Độ trễ từ lúc B bắt đầu câu lệnh bị chặn đến lúc connection thứ ba thấy khóa: min 2.7ms, trung vị 3.9ms, max 8.5ms (poll mỗi 5ms, gồm cả thời gian khởi động goroutine B).
 
 Ví dụ dữ liệu đọc được (lần 1):
 

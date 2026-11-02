@@ -87,9 +87,10 @@ func mainErr(out string, keep bool) (err error) {
 	if err != nil {
 		return err
 	}
-	_ = docker("rm", "-f", container) // chỉ t016-*
+	_ = docker("rm", "-f", container)        // chỉ t016-*
+	os.Setenv("MYSQL_ROOT_PASSWORD", rootPW) // docker lấy giá trị từ env của client, không nằm trên dòng lệnh (docker inspect vẫn thấy: chấp nhận cho spike local)
 	if _, err = dockerOut("run", "-d", "--name", container, "-p", fmt.Sprintf("127.0.0.1:%d:3306", port),
-		"-e", "MYSQL_ROOT_PASSWORD="+rootPW, image, fmt.Sprintf("--innodb-lock-wait-timeout=%d", lockTimeout)); err != nil {
+		"-e", "MYSQL_ROOT_PASSWORD", image, fmt.Sprintf("--innodb-lock-wait-timeout=%d", lockTimeout)); err != nil {
 		return err
 	}
 	if !keep {
@@ -110,7 +111,7 @@ func mainErr(out string, keep bool) (err error) {
 		"GRANT SELECT, INSERT, UPDATE, DELETE ON lab.* TO 'lowpriv'@'%'",
 	} {
 		if _, err = e.admin.ExecContext(ctx, q); err != nil {
-			return fmt.Errorf("%s: %w", q, err)
+			return fmt.Errorf("%s: %w", strings.Join(strings.Fields(q)[:2], " "), err) // không in cả câu: CREATE USER chứa mật khẩu
 		}
 	}
 	if e.lowDB, err = sql.Open("mysql", fmt.Sprintf("lowpriv:%s@tcp(127.0.0.1:%d)/lab?timeout=5s", lowPW, port)); err != nil {
@@ -395,11 +396,13 @@ func (e *env) lostUpdate(ctx context.Context) (run, error) {
 	if _, err = a.ExecContext(ctx, "COMMIT"); err != nil {
 		return run{}, err
 	}
+	var bSees int // B đọc lại sau khi A commit, trước khi B ghi: phải vẫn là snapshot cũ
+	if err = b.QueryRowContext(ctx, "SELECT bal FROM lab.acct WHERE id = 1").Scan(&bSees); err != nil || bSees != bv {
+		return run{}, fmt.Errorf("B không còn thấy snapshot cũ: %d (err=%v)", bSees, err)
+	}
 	if _, err = b.ExecContext(ctx, "UPDATE lab.acct SET bal = ? WHERE id = 1", bv+20); err != nil {
 		return run{}, err
 	}
-	var bSees int
-	_ = b.QueryRowContext(ctx, "SELECT bal FROM lab.acct WHERE id = 1").Scan(&bSees)
 	if _, err = b.ExecContext(ctx, "COMMIT"); err != nil {
 		return run{}, err
 	}
@@ -409,7 +412,7 @@ func (e *env) lostUpdate(ctx context.Context) (run, error) {
 	}
 	return run{
 		sig:    fmt.Sprintf("A và B cùng đọc %d, A ghi %d, B ghi %d, kết quả cuối %d (mất +10 của A)", av, av+10, bv+20, final),
-		sample: fmt.Sprintf("snapshot RR: A đọc %d, B đọc %d; sau khi A commit B vẫn thấy snapshot cũ khi đọc; cuối cùng bal=%d (cộng đúng phải là 130)", av, bv, final),
+		sample: fmt.Sprintf("snapshot RR: A đọc %d, B đọc %d; sau khi A commit, B đọc lại vẫn thấy %d (snapshot cũ); cuối cùng bal=%d (cộng đúng phải là 130)", av, bv, bSees, final),
 	}, nil
 }
 
