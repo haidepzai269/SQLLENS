@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: sqllens-api
+    runtime: docker
+    plan: free
+    rootDir: api
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
+    healthCheckPath: /healthz
