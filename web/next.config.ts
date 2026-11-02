@@ -10,7 +10,7 @@ function apiOrigin(): string {
     }
     return "http://localhost:8080"; // dev/test cục bộ
   }
-  if (!/^https?:\/\/[^/\s]+$/.test(v.replace(/\/+$/, ""))) {
+  if (!/^https?:\/\/[^/\s?#]+$/.test(v.replace(/\/+$/, ""))) {
     throw new Error(`API_ORIGIN must be an http(s) origin without a path, got "${v}"`);
   }
   return v.replace(/\/+$/, "");
