@@ -23,16 +23,16 @@ CPU thường (không giới hạn):
 | Dòng | Khởi tạo PGlite | Insert | Tạo index | Level B-Tree | Index (`pg_relation_size`) | Bảng |
 |---:|---:|---:|---:|---:|---:|---:|
 | 10.000 | 1763 / 1777 ms | 58 / 126 ms | 9 / 21 ms | 1 | 112 KB | 672 KB |
-| 100.000 | 1961 / 1972 ms | 1076 / 1224 ms | 87 / 137 ms | 1 | 936 KB | 6,7 MB |
+| 100.000 | 1961 / 1972 ms | 1076 / 1224 ms | 87 / 137 ms | 1 | 936 KB | 6,8 MB |
 | 500.000 | 1944 / 1987 ms | 4933 / 5064 ms | 456 / 580 ms | 2 | 4640 KB | 34,1 MB |
 
 CPU chậm 4 lần (`Emulation.setCPUThrottlingRate` = 4):
 
-| Dòng | Khởi tạo PGlite | Insert | Tạo index | Level | Tổng một lần chạy |
+| Dòng | Khởi tạo PGlite | Insert | Tạo index | Level | Tổng một lần chạy (trung vị / max) |
 |---:|---:|---:|---:|---:|---:|
-| 10.000 | 16086 / 17541 ms | 982 / 1129 ms | 63 / 63 ms | 1 | 19 / 21 s |
-| 100.000 | 16351 / 16833 ms | 7480 / 7750 ms | 566 / 594 ms | 1 | 27 / 28 s |
-| 500.000 | 15996 / 16196 ms | 27465 / 28231 ms | 1668 / 2042 ms | 2 | 45 / 51 s |
+| 10.000 | 16086 / 17541 ms | 982 / 1129 ms | 63 / 63 ms | 1 | 19,8 / 21 s |
+| 100.000 | 16351 / 16833 ms | 7480 / 7750 ms | 566 / 594 ms | 1 | 27,7 / 28 s |
+| 500.000 | 15996 / 16196 ms | 27465 / 28231 ms | 1668 / 2042 ms | 2 | 49,8 / 51 s |
 
 Cả 18 lần chạy (3 mức x 3 lần x 2 chế độ CPU) hoàn tất. Không có tab sập, không có lần nào vượt 2 phút (AC6): lâu nhất là 51 giây ở 500k với CPU chậm 4 lần. Kích thước index và số trang đọc giống hệt nhau giữa mọi lần chạy.
 
@@ -83,9 +83,9 @@ Với CPU 4x các số tương tự (đỉnh 1088 đến 1145 MB, sau index 392 
 ## Độ tin cậy
 
 - Máy chạy đồng thời 5 task khác (2 task MySQL trong Docker, 2 task Playwright). Số bị ảnh hưởng bởi tải.
-- Đã chạy `npm run measure` hai lần. Lần 1 (không lưu file thô, chỉ giữ bảng in ra, trung vị): 1x khởi tạo 2445 / 2379 / 2249 ms, insert 75 / 652 / 4001 ms, index 10 / 85 / 472 ms; 4x khởi tạo 10533 / 11362 / 12236 ms, insert 322 / 4124 / 18828 ms, index 24 / 344 / 1925 ms (10k / 100k / 500k). Lần 2 ở trên: insert 500k 1x là 4,9 giây so với 4,0 giây ở lần 1 (+23%), khởi tạo 4x 10k là 16,1 giây so với 10,5 giây (+53%). Dao động giữa hai lần lên đến 50%, lớn hơn dao động giữa 3 lần trong cùng một lần chạy. Hãy đọc mọi con số thời gian là "cùng bậc độ lớn", không phải giá trị chính xác. Kích thước index, level, số trang không đổi giữa các lần.
+- Đã chạy `npm run measure` hai lần. Lần 1 (không lưu file thô, chỉ giữ bảng in ra, trung vị): 1x khởi tạo 2445 / 2379 / 2249 ms, insert 75 / 652 / 4001 ms, index 10 / 85 / 472 ms; 4x khởi tạo 10533 / 11362 / 12236 ms, insert 322 / 4124 / 18828 ms, index 24 / 344 / 1925 ms (10k / 100k / 500k). Lần 2 ở trên: insert 500k 1x là 4,9 giây so với 4,0 giây ở lần 1 (+23%), khởi tạo 4x 10k là 16,1 giây so với 10,5 giây (+53%). Các ô khác cũng lệch nhiều: 4x insert 10k là 322 ms ở lần 1 so với 982 ms ở lần 2 (3,0 lần), 4x insert 100k là 4124 so với 7480 ms (+81%), 1x insert 100k là 652 so với 1076 ms (+65%). Dao động giữa hai lần chạy từ +23% đến 3 lần, lớn hơn dao động giữa 3 lần trong cùng một lần chạy. Chỉ nên đọc thời gian là cùng bậc độ lớn ở mức 100k trở lên, không phải giá trị chính xác; ở 10k với CPU 4x thì cả bậc độ lớn cũng chưa ổn định. Kích thước index, level, số trang không đổi giữa các lần.
 - Chromium headless, không phải trình duyệt người dùng có tiện ích; chỉ Windows; chưa đo Chrome headed, Safari, Firefox hay điện thoại.
-- Level B-Tree ở 100k là 1 (không phải 2 như số Node trong `CLAUDE.md`). Khác biệt do phân bố `customer_id`: ở đây mỗi giá trị lặp 10 lần nên B-Tree 18 gộp trùng (deduplication) và index nhỏ hơn. Không đưa ra kết luận nào cho schema của người dùng từ chỗ này.
+- Level B-Tree ở 100k là 1 (không phải 2 như số Node trong `CLAUDE.md`). Suy luận (chưa kiểm, không có số Node trên cùng dữ liệu để so): khác biệt do phân bố `customer_id`: ở đây mỗi giá trị lặp 10 lần nên B-Tree 18 gộp trùng (deduplication) và index nhỏ hơn. Không đưa ra kết luận nào cho schema của người dùng từ chỗ này.
 - Insert bằng một câu `generate_series` phía server, khác với nạp dữ liệu từ ứng dụng qua nhiều câu. Insert thật của sản phẩm (Task data-lab) có thể chậm hơn.
 - "Khởi tạo PGlite" gồm tải và biên dịch WASM từ localhost (không qua mạng), `CREATE EXTENSION pageinspect`. Trên Vercel, thời gian tải 5 MB gzip qua mạng cộng thêm vào, chưa đo.
 

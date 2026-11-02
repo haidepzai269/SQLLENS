@@ -39,7 +39,7 @@ for (const throttle of [1, 4]) for (const n of [10000, 100000, 500000]) for (let
   const page = await ctx.newPage();
   const cdp = await ctx.newCDPSession(page);
   const rec = { throttle, n, run: i };
-  let crashed = false;
+  let crashed = false, timer;
   const crash = new Promise((_, j) => page.on("crash", () => { crashed = true; j(new Error("TAB CRASHED")); }));
   try {
     await page.exposeFunction("hold", () => renderer()); // renderer [workingSet, peakWorkingSet] sampled from node while the page waits
@@ -49,7 +49,7 @@ for (const throttle of [1, 4]) for (const n of [10000, 100000, 500000]) for (let
     const t0 = Date.now();
     const out = await Promise.race([
       page.evaluate((n) => window.run(n), n),
-      new Promise((_, j) => setTimeout(() => j(new Error(`TIMEOUT >${LIMIT_MS / 1000}s`)), LIMIT_MS)),
+      new Promise((_, j) => (timer = setTimeout(() => j(new Error(`TIMEOUT >${LIMIT_MS / 1000}s`)), LIMIT_MS))),
       crash,
     ]);
     Object.assign(rec, out, { total_ms: Date.now() - t0 });
@@ -57,6 +57,7 @@ for (const throttle of [1, 4]) for (const n of [10000, 100000, 500000]) for (let
     rec.cdp_jsheap_used = m.metrics.find((x) => x.name === "JSHeapUsedSize")?.value;
     [rec.renderer_ws, rec.renderer_peak_ws] = renderer();
   } catch (e) { rec.error = String(e.message || e); rec.crashed = crashed; }
+  clearTimeout(timer);
   results.push(rec);
   console.error(`[${throttle}x n=${n} #${i}]`, rec.error || `init ${Math.round(rec.init_ms)} ins ${Math.round(rec.insert_ms)} idx ${Math.round(rec.index_ms)} lvl ${rec.btree_level} peakWS ${Math.round(rec.renderer_peak_ws / 1e6)}MB`);
   await ctx.close();
