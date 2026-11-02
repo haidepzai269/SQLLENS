@@ -180,6 +180,18 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 | 500.000 | 6,1 giây | 897 ms | 2 |
 
 - Tiến trình dùng 566 MB RAM sau mốc 500k.
+
+Đo lại trong Chromium 140 headless ngày 2026-11-02 (Task012), máy i5-12450H, 15,7 GB RAM, đang chạy song song nhiều task nên thời gian chỉ đúng bậc độ lớn. Trung vị 3 lần:
+
+| Số dòng | Khởi tạo | Insert | Tạo index | Level | Index | Trang qua index | Trang quét toàn bảng |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 10.000 | 1,8 giây | 58 ms | 9 ms | 1 | 112 KB | 15 | 84 |
+| 100.000 | 2,0 giây | 1,1 giây | 87 ms | 1 | 936 KB | 15 | 834 |
+| 500.000 | 1,9 giây | 4,9 giây | 456 ms | 2 | 4.640 KB | 16 | 4.167 |
+
+- RAM của tab đạt đỉnh khoảng 1,1 GB ngay lúc khởi tạo PGlite, sau đó còn khoảng 385 MB, và khoảng 600 MB sau 500k. Rủi ro lớn nhất là đỉnh lúc khởi tạo trên máy RAM thấp.
+- CPU chậm 4 lần: cả lần chạy 500k mất khoảng 50 giây.
+- Đề xuất của Task012, chờ chủ dự án chốt: mặc định tối đa 100k, 500k là tùy chọn có cảnh báo, trên 500k dùng nhãn Ước lượng.
 - `pageinspect` đọc được root và item của index thật.
 - `node-sql-parser` đọc đúng 8/9 câu MySQL thử, lỗi ở `FORCE INDEX`.
 - Subagent gọi được subagent khác: Amelia đã gọi `task-reviewer` ở Task002.
@@ -210,7 +222,7 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 ## Chưa kiểm chứng
 
 - Số phiên MySQL chạy cùng lúc trên máy ARM của Oracle (Task018).
-- `pgsql-parser` chạy trong trình duyệt thật. RAM và thời gian của PGlite ở 10k, 100k, 500k trên trình duyệt.
+- PGlite trên máy RAM thấp, Firefox, Safari, điện thoại, và khi tải qua mạng trên Vercel.
 - Xin được máy ARM của Oracle ở region gần Việt Nam.
 - Điều khoản của Render có cấm ping giữ thức không. Trang gói free không nhắc đến.
 - Giới hạn kết nối của Neon gói free, thời gian giữ dữ liệu của Gemini gói free, chính sách dữ liệu riêng cho model `:free` của OpenRouter.
