@@ -119,7 +119,8 @@ test.describe("điện thoại 390", () => {
   for (const l of ["vi", "en"]) {
     test(`AC3/AC4 ${l}: bốn tab ở đáy dùng đúng role, bàn phím, không cuộn ngang`, async ({ page }) => {
       await page.goto(`/${l}`);
-      const tabs = page.getByRole("tablist").last().getByRole("tab");
+      const tabs = page.getByRole("tablist", { name: l === "vi" ? "Các vùng làm việc" : "Work panels" }).getByRole("tab");
+      expect((await page.getByRole("tab", { name: "MySQL" }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
       await expect(tabs).toHaveCount(4);
       await expect(tabs.nth(1)).toHaveAttribute("aria-selected", "true");
       await tabs.nth(1).focus();
@@ -138,7 +139,8 @@ test.describe("điện thoại 390", () => {
 test("skip link trên điện thoại đưa focus vào vùng đang hiện", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/en");
-  await page.getByRole("tablist").last().getByRole("tab").first().click();
+  await page.getByRole("tablist", { name: "Work panels" }).getByRole("tab").first().click();
+  await expect(page.locator("#sql")).toBeVisible();
   await page.getByRole("link", { name: "Skip to main content" }).focus();
   await page.keyboard.press("Enter");
   await expect(page.locator("#sql")).toBeFocused();

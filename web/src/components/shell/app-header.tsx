@@ -39,7 +39,7 @@ export function AppHeader() {
           </svg>
           <span>{t("appName")}</span>
         </div>
-        <div className="h-[var(--h-top)] min-w-0 min-[901px]:ml-4 max-[900px]:order-5 max-[900px]:h-11 max-[900px]:w-full max-[900px]:border-t max-[900px]:border-line">
+        <div className="h-[var(--h-top)] min-w-0 min-[901px]:ml-4 max-[900px]:order-5 max-[900px]:h-[45px] max-[900px]:w-full max-[900px]:border-t max-[900px]:border-line">
           <EngineTabs onNote={setNote} />
         </div>
         <div className="flex-1" />
