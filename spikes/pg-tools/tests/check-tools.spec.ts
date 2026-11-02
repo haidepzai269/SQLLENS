@@ -80,16 +80,19 @@ test("check-tools", async ({ page }) => {
   expect(sec.low_bt_metap).toMatch(/^ERR/);
   expect(sec.low_bt_page_stats).toMatch(/^ERR/);
   expect(sec.low_bt_page_items).toMatch(/^ERR/);
+  expect(sec.low_get_raw_page).toMatch(/^ERR/);
+  expect(sec.granted_bt_metap).toMatch(/^ERR/);
+  expect(sec.pg_monitor_bt_metap).toMatch(/^ERR/);
+  // Finding: SET ROLE / RESET ROLE escape works because session_user is the superuser.
+  expect(sec.low_reset_role_then_call).toBe("OK");
+  expect(sec.user_after_escape).toBe("postgres");
 
   // AC5
   const pg = [];
   for (const s of PG) pg.push({ sql: s.slice(0, 60), ...(await call("pgParse", s)) });
   log("AC5", pg);
   expect(pg.filter((r) => r.ok).length).toBe(8);
-  for (const r of pg.slice(8)) {
-    expect(r.ok).toBe(false);
-    expect(r.pos, "error has a position").toBeGreaterThanOrEqual(0);
-  }
+  expect(pg.slice(8).map((r) => [r.ok, r.pos])).toEqual([[false, 13], [false, 0]]);
   expect(await page.evaluate("1+1")).toBe(2); // page still responsive
   const js = readFileSync("dist/pg-parser.js");
   const wasm = readFileSync("dist/libpg-query.wasm");
@@ -99,6 +102,7 @@ test("check-tools", async ({ page }) => {
   const my = [];
   for (const s of MY) my.push({ sql: s.slice(0, 60), ...(await call("myParse", s)) });
   log("AC6", my);
+  expect(my.map((r) => r.ok)).toEqual([true, true, true, true, true, true, true, false, false, true]);
   const myJs = readFileSync("dist/my-parser.js");
   log("AC6.gzip", { js_bytes: myJs.length, js_gzip: gzipSync(myJs).length });
 

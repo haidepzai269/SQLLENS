@@ -39,7 +39,7 @@ Hai quy tắc phải nhớ khi viết `BTreeModel` thật:
 | 100k `int` | 275 | 100.547 | 0,8 giây | 0,4 giây |
 | 300k `int` | 824 | 301.644 | 2,6 giây | 2,2 giây |
 
-Kết luận: đọc hết cây ở 100k khả thi (dưới 1 giây) nhưng tăng gần tuyến tính, và 500k sẽ vào khoảng 4 đến 5 giây (ngoại suy, chưa đo). Vì vậy giao diện nên đọc theo đường đi (3 trang) cho animation, và chỉ đọc hết khi cần vẽ toàn cây. Khi vẽ toàn cây, nên lấy `bt_page_stats` của mọi trang (rẻ) và chỉ lấy `bt_page_items` cho trang cần mở. Chưa đo cách đó riêng. Số item đọc nhiều hơn số dòng vì mỗi trang trừ rightmost có thêm high key và trang internal có thêm con trỏ.
+Kết luận: đọc hết cây ở 100k khả thi (dưới 1 giây) nhưng tăng gần tuyến tính, và 500k sẽ vào khoảng 4 đến 5 giây (ngoại suy, chưa đo; số đo của reviewer cho khoảng 3 giây). Vì vậy giao diện nên đọc theo đường đi (3 trang) cho animation, và chỉ đọc hết khi cần vẽ toàn cây. Khi vẽ toàn cây, nên lấy `bt_page_stats` của mọi trang (rẻ) và chỉ lấy `bt_page_items` cho trang cần mở. Chưa đo cách đó riêng. Số item đọc nhiều hơn số dòng vì mỗi trang trừ rightmost có thêm high key và trang internal có thêm con trỏ.
 
 Lưu ý khi so với số trong `CLAUDE.md`: số "level 2 ở 100k, 500k" đo trước đây khác với kết quả ở đây (int thuần 100k là level 1). Level phụ thuộc độ rộng key, nên số tầng phải lấy từ `bt_metap`, không được giả định theo số dòng.
 
@@ -63,7 +63,7 @@ Lưu ý khi so với số trong `CLAUDE.md`: số "level 2 ở 100k, 500k" đo t
 - Trang không treo: lỗi trả về trong dưới 2 ms và trang vẫn chạy được `page.evaluate` ngay sau đó. Lần parse đầu mất khoảng 60 ms (khởi tạo WASM), các lần sau dưới 1,5 ms.
 - Dung lượng: JS của parser (đã minify) 235.377 byte, gzip **56.981 byte**. File WASM `libpg-query.wasm` 1.717.872 byte, gzip **344.487 byte**. Tổng phần parser phải tải khoảng 400 KB gzip.
 
-Cách nạp WASM (cho `web/` dùng lại): `libpg-query` gọi `PgQueryModule()` không có tham số, và Emscripten tính thư mục WASM từ `document.currentScript.src`. Khi bundle chạy dạng `<script type="module">`, `currentScript` là `null`, nên file `libpg-query.wasm` được tìm **cạnh trang HTML**, không phải cạnh bundle JS. Ở spike này `build.mjs` chép file đó vào cùng thư mục với `index.html`. Với Next.js: phải đặt `libpg-query.wasm` ở đường dẫn tương ứng với URL trang (ví dụ `public/`) hoặc đổi cách nạp; chưa thử trong Next.js, phải kiểm trên `next build` ở STR012. Không thể truyền `locateFile` vì thư viện không cho.
+Cách nạp WASM (cho `web/` dùng lại): `libpg-query` gọi `PgQueryModule()` không có tham số, và Emscripten tính thư mục WASM từ `document.currentScript.src`. Khi bundle chạy dạng `<script type="module">`, `currentScript` là `null`, nên file `libpg-query.wasm` được tìm **cạnh trang HTML**, không phải cạnh bundle JS. Ở spike này `build.mjs` chép file đó vào cùng thư mục với `index.html`. Với Next.js: phải đặt `libpg-query.wasm` ở đường dẫn tương ứng với URL trang (ví dụ `public/`) hoặc đổi cách nạp; chưa thử trong Next.js, phải kiểm trên `next build` ở STR012. Module Emscripten có đọc `Module["locateFile"]`, nhưng `index.js` của `libpg-query` gọi `PgQueryModule()` không tham số và `loadModule()` không nhận tùy chọn, nên không truyền `locateFile` qua API công khai được.
 
 ## AC6: `node-sql-parser` trong trình duyệt (đạt, 8/10 câu parse được)
 
@@ -75,12 +75,12 @@ Hai câu **lỗi**:
 
 Cả hai index hint đều lỗi, không chỉ `FORCE INDEX`. Phù hợp với `CLAUDE.md`: lỗi parse không được chặn việc gửi câu cho MySQL thật.
 
-Dung lượng: import mặc định (`import { Parser } from "node-sql-parser"`) cho bundle 2.609.033 byte, gzip **514.599 byte**, vì chứa mọi dialect. Import riêng dialect (`import mysql from "node-sql-parser/build/mysql"`) cho 292.187 byte, gzip **66.424 byte**, kết quả parse giống hệt. Web nên dùng bản theo dialect.
+Số trang index ở trên không tính metapage (block 0); `pg_relation_size` lớn hơn 1 trang. Dung lượng: import mặc định (`import { Parser } from "node-sql-parser"`, số đo một lần bằng esbuild ngoài test, test hiện chỉ dựng bản theo dialect) cho bundle 2.609.033 byte, gzip **514.599 byte**, vì chứa mọi dialect. Import riêng dialect (`import mysql from "node-sql-parser/build/mysql"`) cho 292.187 byte, gzip **66.424 byte**, kết quả parse giống hệt. Web nên dùng bản theo dialect.
 
 ## AC7 và giới hạn tìm thấy
 
 - Chỉ đo trên Chromium headless trên Windows. Chưa đo Firefox, Safari, trình duyệt thật có giao diện, hay trên Vercel.
-- Một tiến trình, một lần chạy chính, nên thời gian không có độ lệch chuẩn. Chạy lại cho thấy cùng cỡ (đọc hết 100k: 0,80 đến 0,84 giây).
+- Một tiến trình, một lần chạy chính, nên thời gian không có độ lệch chuẩn. Chạy lại cho thấy cùng cỡ nhưng dao động theo máy: reviewer đo đọc hết 100k 0,67 giây và 300k 1,8 giây, seed 300k 1,3 giây. Ngoại suy 500k nên đọc là cận trên, vài giây (chưa đo).
 - Spike không đo RAM của PGlite trong trình duyệt.
 - Spike nạp PGlite qua import map và server tĩnh, không qua bundler của Next.js. Cách nạp trong Next.js đã có ở Task011 (tải tay WASM). Phần `pageinspect.tar.gz` thì chưa thử trong Next.js: `contrib/pageinspect.js` tính đường dẫn `../pageinspect.tar.gz` từ `import.meta.url`, nên cần kiểm tra Turbopack có phát file đó ra hay không trước khi dùng ở `web/`.
 - `bt_page_items` ở trang internal với key `text` có thêm 4 byte tiền tố độ dài (`10 02 00 00`); ở key `int` thì key nằm đầu `data`. Hàm duyệt thật phải giải mã theo kiểu cột.
