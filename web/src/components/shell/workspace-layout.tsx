@@ -30,7 +30,7 @@ function Region({ zone, label, children, className = "" }: { zone: Zone; label: 
     <Tag
       id={zone}
       aria-label={label}
-      tabIndex={zone === "stage" ? -1 : undefined}
+      tabIndex={-1}
       className={`h-full min-h-0 min-w-0 overflow-auto ${BG[zone]} ${className}`}
     >
       {children}

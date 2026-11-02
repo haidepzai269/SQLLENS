@@ -15,6 +15,15 @@ export function AppHeader() {
     <>
       <a
         href={hasWorkspace ? "#stage" : "#content"}
+        onClick={(e) => {
+          // Trên điện thoại vùng giữa có thể đang ẩn: nhảy tới vùng đang hiện đầu tiên.
+          const el = ["#stage", "[role=tabpanel]:not([hidden]) > section", "#content"]
+            .map((q) => document.querySelector<HTMLElement>(q))
+            .find((n) => n && n.offsetParent !== null);
+          if (!el) return;
+          e.preventDefault();
+          el.focus();
+        }}
         className="absolute -top-16 left-2 z-20 bg-text px-3 py-2 text-ground focus:top-2"
       >
         {t("skip")}
@@ -30,7 +39,7 @@ export function AppHeader() {
           </svg>
           <span>{t("appName")}</span>
         </div>
-        <div className="h-[var(--h-top)] min-w-0 min-[901px]:ml-4 max-[900px]:order-5 max-[900px]:h-10 max-[900px]:w-full max-[900px]:border-t max-[900px]:border-line">
+        <div className="h-[var(--h-top)] min-w-0 min-[901px]:ml-4 max-[900px]:order-5 max-[900px]:h-11 max-[900px]:w-full max-[900px]:border-t max-[900px]:border-line">
           <EngineTabs onNote={setNote} />
         </div>
         <div className="flex-1" />

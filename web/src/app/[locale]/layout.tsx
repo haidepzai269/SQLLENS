@@ -38,7 +38,7 @@ export default async function RootLayout({
         <NextIntlClientProvider>
           <ShellProvider>
             <AppHeader />
-            <div id="content" className="flex min-h-0 flex-1 flex-col overflow-auto">
+            <div id="content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col overflow-auto">
               {children}
             </div>
           </ShellProvider>

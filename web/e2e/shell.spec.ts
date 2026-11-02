@@ -134,3 +134,12 @@ test.describe("điện thoại 390", () => {
     });
   }
 });
+
+test("skip link trên điện thoại đưa focus vào vùng đang hiện", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/en");
+  await page.getByRole("tablist").last().getByRole("tab").first().click();
+  await page.getByRole("link", { name: "Skip to main content" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#sql")).toBeFocused();
+});
