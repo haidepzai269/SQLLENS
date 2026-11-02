@@ -1,0 +1,24 @@
+name: keep-awake
+
+on:
+  schedule:
+    # UTC 00:00-16:50 = 07:00-23:50 giờ Việt Nam
+    - cron: "*/10 0-16 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Ping health endpoint
+        env:
+          API_HEALTH_URL: ${{ vars.API_HEALTH_URL }}
+        run: |
+          if [ -z "$API_HEALTH_URL" ]; then
+            echo "Repo variable API_HEALTH_URL is not set" >&2
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 120 --retry 2 --retry-all-errors -o /dev/null "$API_HEALTH_URL"
