@@ -1,0 +1,18 @@
+Image: mysql:8.4.6 (sha256:869218921e61), docker 27.5.1 amd64, CPU 12, RAM docker 6217187328 byte
+Cột: nhãn | dùng my.cnf | --memory | ping ms | ready ms | RAM nhàn rỗi MiB | sau bảng 10k MiB | sau 2 khóa MiB | pid | số dòng data_lock_waits | trạng thái
+## AC1+AC2: 5 lần, my.cnf tối giản, --memory 512m
+min	1	512m	10662	18932	244.2	255.5	258.8	27	1	ok
+min	1	512m	10374	17600	238.7	253.1	255.9	27	1	ok
+min	1	512m	10672	17904	238.7	253.2	256.0	27	1	ok
+min	1	512m	9377	17128	244.7	259.1	261.9	27	1	ok
+min	1	512m	8474	15421	243.7	255.0	257.8	27	1	ok
+## AC3: mặc định (không my.cnf), --memory 512m
+default	0	512m	6903	13618	432.6	445.4	448.4	41	1	ok
+## AC4: quét --memory, my.cnf tối giản
+sweep	1	512m	8316	14725	241.5	255.1	257.9	28	1	ok
+sweep	1	384m	7132	14577	240.7	254.0	256.9	27	1	ok
+sweep	1	256m	-	-	-	-	-	-	-	không lên: oom=true exit=1 ERROR 2013 (HY000) at line 379: Lost connection to MySQL server during query
+sweep	1	192m	-	-	-	-	-	-	-	không lên: oom=true exit=1 2026-11-02 13:16:54+00:00 [ERROR] [Entrypoint]: Unable to start server.
+sweep	1	160m	-	-	-	-	-	-	-	không lên: oom=true exit=1 2026-11-02 13:17:03+00:00 [ERROR] [Entrypoint]: Unable to start server.
+sweep	1	128m	-	-	-	-	-	-	-	không lên: oom=true exit=1 2026-11-02 13:17:11+00:00 [ERROR] [Entrypoint]: Unable to start server.
+sweep	1	96m	-	-	-	-	-	-	-	không lên: oom=true exit=137 /usr/local/bin/docker-entrypoint.sh: line 215:    81 Killed                  "$@" --initialize-insecure --default-time-z
