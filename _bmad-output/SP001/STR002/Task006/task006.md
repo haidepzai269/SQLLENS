@@ -23,6 +23,7 @@ Tiêu chí xong:
 - AC8: Đổi kích thước được bằng chuột và bằng phím mũi tên.
 - AC9: Tắt hết bốn vùng không làm vỡ trang: hiện trạng thái rỗng kèm cách bật lại, hoặc không cho tắt vùng cuối.
 - AC10: `/lab` vẫn chạy đúng trong khung mới, Playwright của Task011 vẫn đạt.
+- AC11: `layout.tsx` bỏ Geist, nạp Public Sans và JetBrains Mono có subset `vietnamese`, gắn vào biến `--sans` và `--mono` của `globals.css`. `<html>` có `className="dark"`.
 
 Ca biên:
 - `engine=abc` trên URL: dùng `postgres`, không crash.
