@@ -3,13 +3,18 @@ import { expect, test, type Page } from "@playwright/test";
 // DOM có thể giữ bản cũ đã ẩn sau khi đổi ngôn ngữ, nên chỉ chọn phần tử đang hiển thị (xem bàn giao Task007).
 const width = async (p: Page, sel: string) => (await p.locator(`${sel}:visible`).boundingBox())!.width;
 const toggle = (p: Page, name: RegExp) => p.getByRole("button", { name }).filter({ visible: true });
+// Vùng làm việc chỉ hiện sau khi hydrate xong, nên đợi nó trước khi bấm để khỏi bấm vào HTML chưa có sự kiện.
+const go = async (p: Page, url: string) => {
+  await p.goto(url);
+  await p.locator("main:visible, #stage:visible").first().waitFor();
+};
 const noHScroll = (p: Page) => p.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
 
 test.describe("máy tính 1440", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test("AC1 đổi ngôn ngữ giữ trang và tham số engine", async ({ page }) => {
-    await page.goto("/vi?engine=mysql");
+    await go(page, "/vi?engine=mysql");
     await expect(page.getByRole("tab", { name: "MySQL" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("button", { name: "Cột SQL" })).toBeVisible();
     await page.getByRole("button", { name: "English" }).click();
@@ -19,7 +24,7 @@ test.describe("máy tính 1440", () => {
   });
 
   test("ca biên engine=abc về PostgreSQL, chọn MySQL ghi lên URL", async ({ page }) => {
-    await page.goto("/en?engine=abc");
+    await go(page, "/en?engine=abc");
     const pg = page.getByRole("tab", { name: "PostgreSQL" });
     await expect(pg).toHaveAttribute("aria-selected", "true");
     await page.getByRole("tab", { name: "MySQL" }).click();
@@ -27,7 +32,7 @@ test.describe("máy tính 1440", () => {
   });
 
   test("AC2 tab khóa không đổi engine và có giải thích (chuột, bàn phím)", async ({ page }) => {
-    await page.goto("/en?engine=postgres");
+    await go(page, "/en?engine=postgres");
     const status = page.getByRole("status").filter({ visible: true });
     await page.getByRole("tab", { name: "NoSQL" }).click({ force: true });
     await expect(page).toHaveURL(/engine=postgres/);
@@ -42,7 +47,7 @@ test.describe("máy tính 1440", () => {
   });
 
   test("AC4/AC7/AC9 tắt vùng thì vùng còn lại giãn, nhớ sau khi tải lại, không tắt vùng cuối", async ({ page }) => {
-    await page.goto("/en");
+    await go(page, "/en");
     const before = await width(page, "#stage");
     await toggle(page, /SQL column/).click();
     await expect(page.locator("#sql")).toHaveCount(0);
@@ -60,7 +65,7 @@ test.describe("máy tính 1440", () => {
   });
 
   test("AC8 đổi kích thước bằng phím mũi tên và chuột, nhớ sau khi tải lại", async ({ page }) => {
-    await page.goto("/en");
+    await go(page, "/en");
     const sep = page.getByRole("separator").first();
     const w0 = await width(page, "#sql");
     await sep.focus();
@@ -88,7 +93,7 @@ test.describe("máy tính 1440", () => {
         throw new Error("blocked");
       };
     });
-    await page.goto("/vi");
+    await go(page, "/vi");
     await expect(page.locator("#sql")).toBeVisible();
     await toggle(page, /Cột SQL/).click();
     await expect(page.locator("#sql")).toHaveCount(0);
@@ -96,13 +101,13 @@ test.describe("máy tính 1440", () => {
 
   test("localStorage chứa rác thì dùng mặc định", async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem("sqllens.layout", '{"open":{"sql":false,"stage":false,"findings":false,"terminal":false},"size":{"sql":-5}}'));
-    await page.goto("/vi");
+    await go(page, "/vi");
     for (const z of ["#sql", "#stage", "#findings", "#terminal"]) await expect(page.locator(z)).toBeVisible();
   });
 
   for (const l of ["vi", "en"]) {
     test(`AC4 ${l}: không cuộn ngang ở 1440, /lab vẫn chạy trong khung`, async ({ page }) => {
-      await page.goto(`/${l}`);
+      await go(page, `/${l}`);
       await expect(page.locator("#sql")).toBeVisible();
       expect(await noHScroll(page)).toBe(true);
       await page.goto(`/${l}/lab`);
@@ -118,10 +123,10 @@ test.describe("điện thoại 390", () => {
 
   for (const l of ["vi", "en"]) {
     test(`AC3/AC4 ${l}: bốn tab ở đáy dùng đúng role, bàn phím, không cuộn ngang`, async ({ page }) => {
-      await page.goto(`/${l}`);
+      await go(page, `/${l}`);
       const tabs = page.getByRole("tablist", { name: l === "vi" ? "Các vùng làm việc" : "Work panels" }).getByRole("tab");
-      expect((await page.getByRole("tab", { name: "MySQL" }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
       await expect(tabs).toHaveCount(4);
+      expect((await page.getByRole("tab", { name: "MySQL" }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
       await expect(tabs.nth(1)).toHaveAttribute("aria-selected", "true");
       await tabs.nth(1).focus();
       await page.keyboard.press("ArrowLeft");
@@ -138,7 +143,7 @@ test.describe("điện thoại 390", () => {
 
 test("skip link trên điện thoại đưa focus vào vùng đang hiện", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/en");
+  await go(page, "/en");
   await page.getByRole("tablist", { name: "Work panels" }).getByRole("tab").first().click();
   await expect(page.locator("#sql")).toBeVisible();
   await page.getByRole("link", { name: "Skip to main content" }).focus();
