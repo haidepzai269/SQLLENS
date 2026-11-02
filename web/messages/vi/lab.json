@@ -1,0 +1,23 @@
+{
+  "title": "Phòng thử SQL",
+  "sqlLabel": "Câu SQL (PostgreSQL)",
+  "sqlPlaceholder": "CREATE TABLE t(id int); INSERT INTO t VALUES (1),(2); SELECT * FROM t;",
+  "run": "Chạy",
+  "retry": "Thử lại",
+  "loading": "Đang tải PostgreSQL trong trình duyệt...",
+  "running": "Đang chạy...",
+  "loadError": "Không tải được PostgreSQL: {message}",
+  "sqlError": "PostgreSQL báo lỗi: {message}",
+  "empty": "Câu cuối không trả dòng nào.",
+  "label": {
+    "real": "Thật",
+    "simulated": "Mô phỏng",
+    "estimated": "Ước lượng"
+  },
+  "evidence": {
+    "executed": "PostgreSQL vừa chạy {statements} câu, câu cuối trả {rows} dòng. Đây là kết quả của dữ liệu và câu lệnh này, chưa nói gì về chất lượng thiết kế."
+  },
+  "notSimulated": {
+    "explain": "Chưa mô phỏng được: EXPLAIN chưa làm."
+  }
+}

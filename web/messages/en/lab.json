@@ -1,0 +1,23 @@
+{
+  "title": "SQL lab",
+  "sqlLabel": "SQL (PostgreSQL)",
+  "sqlPlaceholder": "CREATE TABLE t(id int); INSERT INTO t VALUES (1),(2); SELECT * FROM t;",
+  "run": "Run",
+  "retry": "Retry",
+  "loading": "Loading PostgreSQL in the browser...",
+  "running": "Running...",
+  "loadError": "Could not load PostgreSQL: {message}",
+  "sqlError": "PostgreSQL reported an error: {message}",
+  "empty": "The last statement returned no rows.",
+  "label": {
+    "real": "Real",
+    "simulated": "Simulated",
+    "estimated": "Estimated"
+  },
+  "evidence": {
+    "executed": "PostgreSQL just ran {statements} statements, the last returned {rows} rows. This is the result for this data and these statements, and says nothing about design quality."
+  },
+  "notSimulated": {
+    "explain": "Not simulated yet: EXPLAIN is not built."
+  }
+}
