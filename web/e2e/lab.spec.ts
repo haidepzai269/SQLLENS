@@ -90,3 +90,11 @@ test("hiển thị Date, bytea và số ít đúng", async ({ page }) => {
   await expect(row).toContainText(String.raw`\xdeadbeef`);
   await expect(page.locator('[data-testid="conclusion"]:visible')).toContainText("1 statement,");
 });
+
+test("Date không hợp lệ (infinity) không làm sập trang", async ({ page }) => {
+  await page.goto("/en/lab");
+  await sqlBox(page).fill("SELECT 'infinity'::timestamptz d");
+  await runBtn(page, "en").click();
+  await expect(page.locator('[data-testid="conclusion"]:visible')).toContainText("Real", { timeout: 60_000 });
+  await expect(sqlBox(page)).toBeVisible();
+});

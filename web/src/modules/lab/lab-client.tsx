@@ -20,7 +20,7 @@ type State =
 const cell = (v: unknown) =>
   v === null
     ? "NULL"
-    : v instanceof Date
+    : v instanceof Date && !isNaN(v.getTime())
       ? v.toISOString()
       : v instanceof Uint8Array
         ? "\\x" + Array.from(v, (b) => b.toString(16).padStart(2, "0")).join("")
