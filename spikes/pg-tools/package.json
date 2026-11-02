@@ -1,0 +1,17 @@
+{
+  "name": "pg-tools-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check-tools": "playwright test"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.14",
+    "node-sql-parser": "5.4.0",
+    "pgsql-parser": "18.3.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "esbuild": "0.25.5"
+  }
+}
