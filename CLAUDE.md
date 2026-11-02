@@ -59,8 +59,12 @@ Kèm theo: AI Mentor, đăng nhập, PostgreSQL và MySQL.
 | Postgres của app | Neon free. Không đặt trên Render, không đặt trên máy Oracle vì máy đó chạy SQL không đáng tin |
 | Quota và giới hạn tần suất | Upstash Redis free, kiểm tra ở Gin. Lệnh ping giữ thức không được chạm Neon, để Neon còn tự tắt và tiết kiệm CU-giờ |
 | Trình soạn thảo SQL | CodeMirror 6, qua `@uiw/react-codemirror` và `@codemirror/lang-sql` |
-| Sơ đồ bảng | React Flow, thẻ bảng dùng component shadcn/ui hoặc React, xếp vị trí bằng `@dagrejs/dagre` |
-| Đồ thị | Cytoscape.js cho cây plan và đồ thị chờ khóa, tải riêng theo màn hình |
+| Sơ đồ bảng và cây plan | React Flow, thẻ dùng component shadcn/ui hoặc React, xếp vị trí bằng `@dagrejs/dagre`. Kéo thả và di chuyển canvas tham khảo n8n và `webhook-hub` |
+| Đồ thị chờ khóa | Cytoscape.js, tải riêng theo màn hình |
+| Bố cục màn hình chính | Ba cột cộng panel terminal ở dưới, bật tắt và đổi kích thước được. Trên điện thoại chuyển thành tab. Chuẩn nằm ở `_bmad-output/SP001/STR002/Task004/mau_giao_dien.html` |
+| Animation trong sản phẩm | Chỉ chạy khi người dùng bấm Chạy. Tự chạy chỉ dùng ở landing page |
+| Kiểu di chuyển cây B-Tree | Chọn được "Cố định" hoặc "Kéo tự do". Vị trí kéo chỉ để dễ nhìn, không đổi thứ tự key thật |
+| Màu mức độ ở cột rủi ro | Đỏ là hỏng, vàng là ước lượng hoặc chưa mô phỏng được, xanh là không hỏng trong kịch bản đã chạy. Mức độ tách khỏi nhãn kết luận, và màu xanh không được hàm ý "thiết kế này ổn" |
 | Cây B-Tree | Tự vẽ bằng SVG và GSAP, không dùng Cytoscape.js |
 | Biểu đồ số liệu | Thành phần chart của shadcn/ui khi màn hình thật sự cần, còn lại hiện số bằng thẻ shadcn/ui |
 | Quản lý gói | npm. `web/` và `api/` độc lập, không dùng workspace |

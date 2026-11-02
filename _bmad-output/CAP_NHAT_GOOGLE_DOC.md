@@ -53,4 +53,4 @@ Số mục dưới đây theo bản Doc xuất ngày 2026-11-02. Doc có thể �
 ## Thay đổi công nghệ bổ sung
 
 - Đổi Monaco ở mục 6 thành CodeMirror 6.
-- Mục 4.1: sơ đồ bảng dùng React Flow với component shadcn/ui, đồ thị dùng Cytoscape.js. Bỏ Svelte Flow và D3.js.
+- Mục 4.1: sơ đồ bảng và cây plan dùng React Flow với component shadcn/ui, đồ thị chờ khóa dùng Cytoscape.js. Bỏ Svelte Flow và D3.js.

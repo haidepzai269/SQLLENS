@@ -148,7 +148,7 @@ Chưa đối chiếu từng nơi gọi giữa hai cách. Go đã thử trên m�
 ## 8. Giao diện
 
 - **Next.js và shadcn/ui.** Không tự thiết kế component khi shadcn đã có. Cây B-Tree và các hình mô phỏng được tự vẽ vì shadcn không có.
-- **Sơ đồ và đồ thị.** Sơ đồ bảng dùng React Flow với thẻ bảng từ shadcn/ui. Cây plan và đồ thị chờ khóa dùng Cytoscape.js.
+- **Sơ đồ và đồ thị.** Sơ đồ bảng và cây plan dùng React Flow với thẻ từ shadcn/ui. Đồ thị chờ khóa dùng Cytoscape.js.
 - **taste-skill:** dùng cho hướng thiết kế, và theo phần riêng của skill khi làm màn hình app.
 - **GSAP:** dùng cho landing page, trang quảng bá và animation mô phỏng nếu tiện. Task animation đầu tiên phải báo lại nếu GSAP không hợp với B-Tree.
 

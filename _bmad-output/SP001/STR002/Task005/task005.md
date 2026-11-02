@@ -7,9 +7,9 @@ Phạm vi: `DESIGN.md`, `EXPERIENCE.md`, `web/src/app/globals.css`.
 Không làm: khung ứng dụng và màn hình thật. Không tự đổi quyết định thiết kế đã được duyệt.
 
 Hợp đồng:
-- `globals.css` định nghĩa token shadcn/ui bằng biến CSS theo mẫu đã duyệt, gồm token riêng cho ba nhãn kết luận: `--label-real`, `--label-simulated`, `--label-estimated`.
-- `DESIGN.md`: màu, font, khoảng cách, cách dùng nhãn, cách dùng animation.
-- `EXPERIENCE.md`: luồng từ dán SQL đến kết luận, trạng thái tải, rỗng, lỗi, "chưa mô phỏng được", và hành vi trên điện thoại.
+- `globals.css` định nghĩa token shadcn/ui bằng biến CSS theo mẫu đã duyệt, gồm token riêng cho ba nhãn kết luận: `--label-real`, `--label-simulated`, `--label-estimated`, và ba mức độ ở cột rủi ro: `--severity-broken`, `--severity-uncertain`, `--severity-passed`.
+- `DESIGN.md`: màu, font, khoảng cách, cách dùng nhãn, cách dùng màu mức độ, cách dùng animation.
+- `EXPERIENCE.md`: luồng từ dán SQL đến kết luận, trạng thái tải, rỗng, lỗi, "chưa mô phỏng được", hành vi trên điện thoại, bật tắt và đổi kích thước các cột, kéo thả trên canvas, kiểu di chuyển "Cố định" và "Kéo tự do" của cây B-Tree. Ghi rõ animation chỉ chạy khi người dùng bấm Chạy.
 
 Tiêu chí xong:
 - AC1: Mọi màu trong `DESIGN.md` có token tương ứng trong `globals.css`.
