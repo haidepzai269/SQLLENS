@@ -12,4 +12,6 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task009 | Lỗi do chính `net/http` sinh ra, ví dụ 400 do request hỏng, chưa theo định dạng JSON | Chưa làm |
 | Task009 | `golang:1.25-alpine` và `alpine:3.21` chưa ghim digest | Chưa làm |
 | Task001 | `npm audit` báo 21 lỗ hổng (19 moderate, 2 low), chủ yếu trong chuỗi ESLint và `shadcn`. Cần xem gói nào lên production | Chưa làm |
+| Task003 | Action trong CI chỉ ghim theo tag (`@v4`, `@v5`), chưa ghim SHA | Chưa làm |
+| Task003 | Chưa kiểm CI với pull request từ fork | Chưa làm |
 | Task009 | `HEAD /healthz` trả 405. Chỉ cần sửa nếu ping giữ thức dùng HEAD. Task010 dùng GET | `needs_validation` |
