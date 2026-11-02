@@ -179,12 +179,14 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 - `pageinspect` đọc được root và item của index thật.
 - `node-sql-parser` đọc đúng 8/9 câu MySQL thử, lỗi ở `FORCE INDEX`.
 - Subagent gọi được subagent khác: Amelia đã gọi `task-reviewer` ở Task002.
+- PGlite 0.5.14 chạy được trong Chromium trên bản `next build` của Next.js 16.4.4, kiểm bằng Playwright ở máy và CI (Task011). Chưa kiểm trên Vercel.
+- PGlite 0.5.14 treo mãi, không báo lỗi, khi tải WASM thất bại. Vì vậy `web/src/engines/postgres/adapter.ts` tự tải file rồi truyền vào `PGlite.create`. Khi nâng PGlite hoặc đổi chỗ file này phải kiểm lại đường dẫn.
 
 ## Chưa kiểm chứng
 
 - RAM và thời gian khởi động của mỗi container MySQL, từ đó suy ra số phiên chạy cùng lúc trên Oracle.
 - Bắt lock wait trên MySQL thật.
-- PGlite và `pgsql-parser` chạy trong trình duyệt thật.
+- `pgsql-parser` chạy trong trình duyệt thật. RAM và thời gian của PGlite ở 10k, 100k, 500k trên trình duyệt.
 - Xin được máy ARM của Oracle, và ngưỡng thu hồi máy nhàn rỗi hiện tại.
 - Điều khoản của Render về việc ping giữ thức.
 - Hạn mức CU-giờ của gói free Neon: các nguồn ghi 50 hoặc 100.
@@ -193,7 +195,7 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 ## Cần thử khi dựng
 
 - Cookie đăng nhập: gọi API qua `rewrites` của Next.js để cùng domain, cần thử xem stream có chạy được không.
-- PGlite trong Next.js: chỉ nạp phía client, cần thử việc tải file WASM trên Vercel.
+- PGlite trong Next.js: cần thử việc tải file WASM trên Vercel, Task010 và STR007 kiểm.
 - agent-browser trên Windows: README chưa ghi rõ có hỗ trợ.
 
 ## Mốc kiểm tra

@@ -17,4 +17,7 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task007 | `check-i18n` chỉ lấy tên đầu mỗi cặp ngoặc nhọn, chưa hiểu đầy đủ ICU plural. Object rỗng `{}` ở cả hai ngôn ngữ không bị coi là lỗi | Chưa làm |
 | Task007 | `react/jsx-no-literals` chỉ chặn chữ trong JSX, không chặn chuỗi trong thuộc tính như `aria-label`, nên chuỗi cứng vẫn lọt | Chưa làm |
 | Task007 | Matcher của `web/src/proxy.ts` loại mọi đường dẫn bắt đầu bằng `api`, kể cả trang như `/apiary` | Chưa làm |
+| Task011 | Chưa có test cho `dispose` khi rời trang, reviewer chỉ đọc code | Chưa làm |
+| Task011 | Date không hợp lệ hiện chữ `null` thay vì `NULL`, không crash | Chưa làm |
+| Task011 | CI cảnh báo các action đang dùng Node.js 20 | Chưa làm |
 | Task009 | `HEAD /healthz` trả 405. Chỉ cần sửa nếu ping giữ thức dùng HEAD. Task010 dùng GET | `needs_validation` |
