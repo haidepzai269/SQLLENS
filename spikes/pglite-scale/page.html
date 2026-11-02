@@ -1,0 +1,46 @@
+<!doctype html><meta charset="utf-8"><title>pglite-scale</title>
+<script type="module">
+import { PGlite } from "/pglite/index.js";
+import { pageinspect } from "/pglite/contrib/pageinspect.js";
+const med = (a) => [...a].sort((x, y) => x - y)[a.length >> 1];
+window.run = async (n) => {
+  const r = { n };
+  let t = performance.now();
+  const db = await PGlite.create({ extensions: { pageinspect } });
+  await db.exec("CREATE EXTENSION pageinspect");
+  r.init_ms = performance.now() - t;
+  r.mem_after_init = await window.hold();
+  await db.exec("CREATE TABLE orders(id bigint primary key, customer_id bigint, status text, total numeric(12,2), created_at timestamptz)");
+  t = performance.now();
+  await db.query(`INSERT INTO orders SELECT i, (i % ($1::int / 10)) + 1, (ARRAY['new','paid','shipped','done'])[i % 4 + 1], (i % 100000) / 100.0, now() - (i || ' seconds')::interval FROM generate_series(1, $1::int) i`, [n]);
+  r.insert_ms = performance.now() - t;
+  t = performance.now();
+  await db.exec("CREATE INDEX orders_customer_id_idx ON orders(customer_id)");
+  r.index_ms = performance.now() - t;
+  await db.exec("ANALYZE orders");
+  r.mem_after_index = await window.hold();
+  r.btree_level = (await db.query("SELECT level FROM bt_metap('orders_customer_id_idx')")).rows[0].level;
+  r.index_bytes = Number((await db.query("SELECT pg_relation_size('orders_customer_id_idx') s")).rows[0].s);
+  r.table_bytes = Number((await db.query("SELECT pg_relation_size('orders') s")).rows[0].s);
+  const q = "SELECT * FROM orders WHERE customer_id = $1";
+  const probe = async () => {
+    const ts = [];
+    for (let i = 0; i < 5; i++) { const s = performance.now(); await db.query(q, [42]); ts.push(performance.now() - s); }
+    const plan = (await db.query("EXPLAIN (ANALYZE, BUFFERS) " + q.replace("$1", "42"))).rows.map((x) => x["QUERY PLAN"]);
+    const m = plan.find((l) => l.includes("Buffers:")) || "";
+    const g = (k) => Number((m.match(new RegExp(k + "=(\\d+)")) || [0, 0])[1]);
+    return { median_ms: med(ts), runs_ms: ts, plan_node: plan[0].trim(), pages_hit: g("hit"), pages_read: g("read"), pages_total: g("hit") + g("read"), exec_line: plan.find((l) => l.includes("Execution Time")) };
+  };
+  r.q_index = await probe();
+  await db.exec("SET enable_indexscan=off; SET enable_bitmapscan=off; SET max_parallel_workers_per_gather=0");
+  r.q_seq = await probe();
+  r.uasm = null;
+  if (self.crossOriginIsolated && performance.measureUserAgentSpecificMemory) {
+    try {
+      const m = await Promise.race([performance.measureUserAgentSpecificMemory(), new Promise((_, j) => setTimeout(() => j(new Error("timeout 30s")), 30000))]);
+      r.uasm = m.bytes;
+    } catch (e) { r.uasm_err = String(e); }
+  } else r.uasm_err = "not available, crossOriginIsolated=" + self.crossOriginIsolated;
+  return r;
+};
+</script>
