@@ -10,4 +10,4 @@ export default function proxy(request: NextRequest) {
   return intl(request);
 }
 
-export const config = { matcher: ["/((?!api|_next|_vercel|.*\..*).*)"] };
+export const config = { matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"] };
