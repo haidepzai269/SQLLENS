@@ -29,4 +29,6 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task006 | `/lab` có `<main>` riêng, và tab engine ở thanh trên chưa tác động lên `/lab` | Chưa làm |
 | Task006 | Dòng giải thích tab khóa không tự mất cho đến khi focus hoặc bấm tab khác | `needs_validation` |
 | Task013 | Kiểm trong `next build` xem `libpg-query.wasm` và `pageinspect.tar.gz` có được phát ra đúng chỗ không | Chưa làm |
+| Task016 | `spikes/mysql-lock` không bắt signal, Ctrl-C giữa chừng có thể để sót container `t016-mysql` | Chưa làm |
+| Task016 | Mới kiểm trên MySQL 8.4.13, chưa kiểm 8.0 hay 9.x | Chưa làm |
 | Task009 | `HEAD /healthz` trả 405. Chỉ cần sửa nếu ping giữ thức dùng HEAD. Task010 dùng GET | `needs_validation` |
