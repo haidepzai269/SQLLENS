@@ -28,7 +28,7 @@ Phần riêng của sản phẩm, không mẫu dashboard nào có, là đường
 | `--lamp-ink` | `#17130A` | Chữ trên nền đèn | Giữ tương phản trên thẻ key. |
 | `--negative` | `#EF6B82` | Chữ "Hỏng ở bước N", cột thiếu index | Chỉ dành cho sự thật đang hỏng, luôn đi kèm chữ, không bao giờ chỉ có màu. |
 
-Skill tham khảo đề nghị dùng màu xanh `#4A8AD6` làm điểm nhấn. Tôi thay bằng màu đèn vì màu xanh không gắn gì với hình ảnh phòng thí nghiệm, còn đèn soi thì giải thích được vì sao chỉ có một chỗ sáng. Tôi cũng giữ màu vàng cảnh báo ra khỏi bảng màu để màu đèn không bị đọc thành "cảnh báo".
+Skill tham khảo đề nghị dùng màu xanh `#4A8AD6` làm điểm nhấn. Tôi thay bằng màu đèn vì màu xanh không gắn gì với hình ảnh phòng thí nghiệm, còn đèn soi thì giải thích được vì sao chỉ có một chỗ sáng. Màu vàng của mức độ được tách khỏi màu đèn như ghi ở mục "Mức độ trong cột rủi ro".
 
 Không có gradient, không có glow, không có glass. Lớp được tách bằng bậc sáng và đường 1 px.
 
@@ -90,11 +90,63 @@ Bố cục là ba cột cộng một panel dưới, theo lựa chọn của ch�
 
 Cách đánh dấu lựa chọn là một đường 1 px màu đèn đúng bằng chiều rộng nhãn, nằm trên cạnh gần nhất. Quy tắc này dùng chung cho engine, tab cảnh, tab terminal, ngôn ngữ, nút bật tắt và tab điện thoại.
 
+## Mức độ trong cột rủi ro
+
+Chủ dự án yêu cầu thêm màu xanh, đỏ, vàng ở viền và nền nhẹ của từng thẻ. Mức độ và nhãn là hai thứ riêng: mức độ nói thẻ này cần được chú ý thế nào, nhãn nói con số đến từ đâu. Vì vậy mỗi thẻ vẫn mang đúng một nhãn đơn sắc như cũ.
+
+| Mức | Viền | Nền | Chữ mức độ | Ký hiệu | Câu chữ |
+|---|---|---|---|---|---|
+| Đỏ, trường hợp hỏng | `#EF6B82` | `#2A161C` | `#FF9FAE` | Ô vuông đặc có dấu nhân | "Hỏng ở bước N" |
+| Xanh, không hỏng | `#4FB08E` | `#12261F` | `#86DCBD` | Vòng tròn có gạch ngang | "Không hỏng qua N bước, ở kịch bản và giả định này" |
+| Vàng, ước lượng hoặc chưa mô phỏng được | `#D8DC52` | `#24260E` | `#E6EA78` | Tam giác có dấu chấm than | "Cần xem lại: ..." |
+
+Tôi giữ đúng cách gán đề xuất. Trên ký hiệu xanh, tôi cố ý không dùng dấu tích, vì dấu tích dễ được đọc là "thiết kế này ổn". Màu xanh chỉ nói kịch bản đã chạy không hỏng, và câu chữ luôn ghi rõ phạm vi đó.
+
+Khi xem ảnh xám, ba mức vẫn phân biệt được nhờ ba ký hiệu khác hình và câu chữ khác nhau. Tôi đã xem ảnh chụp xám của phần vàng và phần xanh ở cuối cột, và xem ký hiệu đỏ ở ảnh màu. Tôi chưa chụp riêng thẻ đỏ ở chế độ xám. Ký hiệu đỏ là ô đặc nên khác hình rõ với hai ký hiệu còn lại.
+
+**Tương phản đo thật.** Số dưới đây là tỷ lệ thấp nhất đo trong Chrome bằng màu đã tính của từng phần tử, trên thẻ PostgreSQL ở 1440 px. Thẻ MySQL dùng cùng token, và tôi chưa đo riêng.
+
+| Mức | Chữ mức độ | Tiêu đề và số | Đoạn văn và nhãn dòng | Nhãn viền | Nhãn nền đặc |
+|---|---|---|---|---|---|
+| Đỏ | 8,80:1 | 17,07:1 | 9,90:1 | 17,07:1 | 18,64:1 |
+| Xanh | 9,82:1 | 15,88:1 | 9,21:1 | 15,88:1 | Không có trên thẻ này |
+| Vàng | 12,07:1 | 15,46:1 | 8,96:1 | 15,46:1 | Không có trên thẻ này |
+
+**Tách vàng khỏi màu đèn.** Màu đèn `#F2B84B` ngả cam, màu vàng mức độ `#D8DC52` ngả xanh lục. Khoảng cách màu CIE76 giữa hai màu đo được là 29,9, và với chữ `#E6EA78` là 30,6. Ngoài màu, hai thứ còn khác hình thức: màu đèn là đường 1 px hoặc khối nhỏ trên dữ liệu, còn màu vàng luôn là cả một thẻ có viền, nền, tam giác và chữ "Cần xem lại". Theo ảnh chụp thì đọc tách được. Tuy vậy, cả hai vẫn là màu ấm, nên đây là chỗ chủ dự án nên tự nhìn lại trên màn hình thật.
+
+Bộ kiểm tra của skill cảnh báo viền thẻ quá đậm (`heavy-borders`). Tôi giữ nguyên vì viền màu là yêu cầu của chủ dự án.
+
+## Kéo thả và canvas
+
+Phần kéo thả trong mẫu này tự viết bằng JS thuần, chỉ để chủ dự án đánh giá cách tương tác. Sản phẩm thật sẽ dùng thư viện đã chốt trong `CLAUDE.md`: React Flow cho sơ đồ bảng, Cytoscape.js cho cây plan. Riêng cây B-Tree là SVG và GSAP tự vẽ. Task005 không nên chép bộ điều khiển này sang sản phẩm.
+
+Tôi đọc `topology-canvas.tsx` và `flow.css` của webhook-hub, và giữ theo đó: zoom từ 0,3 đến 1,6, nhớ vị trí trong localStorage có bọc try/catch, nút xếp lại, và vừa màn hình không phóng quá 100%. Tôi không lấy kính mờ, glow và thẻ bo lớn của dự án đó, vì chúng không hợp cảm giác phòng lab. Tôi cũng không làm cạnh chạy liên tục, vì màn hình này không có dữ liệu đang bay. Thay vào đó, các cạnh nối với thẻ đang kéo chuyển sang màu đèn. Tôi chưa mở được trang của n8n, nên cách điều khiển theo n8n làm theo mô tả trong yêu cầu.
+
+| Thao tác | Cách làm |
+|---|---|
+| Di chuyển thẻ | Kéo thẻ, hoặc focus rồi bấm phím mũi tên. Mỗi bước 16 px, Shift cộng mũi tên 64 px |
+| Di chuyển canvas | Kéo khoảng trống, hoặc giữ Space rồi kéo ở bất kỳ đâu |
+| Zoom | Cuộn chuột, pinch, hoặc cụm nút ở góc dưới phải |
+| Về bố cục chuẩn | Nút "Xếp lại", đồng thời xóa bản lưu của canvas đó |
+
+- **Lưới chấm:** chấm 1 px màu `#34343A`, ô 24 px, co giãn theo zoom. Lưới được vẽ bằng ảnh SVG nhúng để không dùng gradient.
+- **Lưu vị trí:** khóa `sqllens.schema.*` và `sqllens.plan.*` tách riêng bản rộng và bản hẹp, vì bố cục chuẩn của hai bản khác nhau. Khóa `sqllens.btree.pg` và `sqllens.btree.my` lưu độ lệch của node, còn `sqllens.btree.mode` lưu kiểu di chuyển.
+- **Bố cục chuẩn:** bản rộng xếp hai cột cho sơ đồ bảng và dạng cây cho plan. Bản hẹp dưới 560 px xếp một cột, và cạnh của plan đi theo đường rail bên trái để không chui sau thẻ khác.
+- **Cây B-Tree ở "Kéo tự do":** mỗi lần node đổi vị trí, cây và timeline được dựng lại từ vị trí hiện tại rồi tua tới đúng thời điểm cũ, nên key không bay về chỗ cũ. Nếu cảnh đang chạy thì chạy tiếp. Node được đặt khóa theo vị trí so với đường đi, nên đổi quy mô dữ liệu vẫn giữ được phần lớn độ lệch.
+- **Giảm chuyển động:** kéo và zoom là thao tác trực tiếp nên không có chuyển tiếp. Cảnh vẫn không tự chạy, và mỗi bước đổi ngay.
+
+Ở "Kéo tự do", câu nhắc "Vị trí kéo chỉ để dễ nhìn, không đổi thứ tự key thật" nằm cùng khối với câu giải thích, nên không bị che khi di chuyển canvas.
+
+## Hai lỗi đã sửa ở cột SQL và terminal
+
+- **Dòng đầu terminal bị cắt:** khoảng đệm trước đây nằm trong vùng cuộn nên lộ một phần dòng trước. Tôi chuyển khoảng đệm ra ngoài vùng cuộn và canh chiều cao theo bội số 20 px của dòng, nên không có dòng nào bị cắt, kể cả khi đổi chiều cao panel.
+- **Dòng SQL dài bị cắt:** ô SQL nay tự xuống dòng. Số dòng ở lề vẫn tính theo dòng logic, nên một câu dài xuống nhiều dòng vẫn chỉ mang một số.
+
 ## Điều học được từ hai trang tham khảo
 
 Tôi đã chụp trang đầu của cả hai trang bằng Chrome thật và xem ảnh. Với drawsql.app, thứ tôi xem là ảnh sản phẩm trên trang chủ, không phải trình soạn thảo chạy thật.
 
-- **database.build:** học cách chia khung phẳng, không đổ bóng, sơ đồ nằm trên nền tối một màu, và điểm neo tròn nhỏ ở hai đầu đường nối. Tôi không dùng lưới chấm ở nền vì bộ quy tắc của skill coi đây là dấu hiệu quen thuộc, và cây cần sự yên tĩnh.
+- **database.build:** học cách chia khung phẳng, không đổ bóng, sơ đồ nằm trên nền tối một màu, và điểm neo tròn nhỏ ở hai đầu đường nối. Lúc đầu tôi không dùng lưới chấm. Sau khi có yêu cầu kéo thả, lưới chấm xuất hiện ở sơ đồ bảng, cây plan và chế độ "Kéo tự do", còn cây ở chế độ "Cố định" vẫn để nền trơn.
 - **drawsql.app:** học cách trình bày thẻ bảng: tên bảng ở đầu thẻ, tên cột bên trái, kiểu dữ liệu bên phải màu nhạt, khóa chính có ký hiệu riêng, đường nối đi vuông góc và chạm đúng dòng cột. Tôi không dùng màu theo nhóm bảng vì màu ở đây dành cho bằng chứng.
 
 Tôi không sao chép logo, màu hay chữ của hai trang này.
@@ -121,7 +173,7 @@ Với các hằng số này, số tầng ở 10k, 100k và 500k dòng khớp v�
 3. Nhật ký terminal ghi số thứ tự, không ghi giờ và không ghi thời gian chạy, và không chép lại nội dung SQL của người dùng, theo nguyên tắc số 3 và số 7.
 4. Terminal được đặt nền tối như vùng giữa để hai vùng "máy đang chạy" trông cùng một họ.
 5. Animation join chưa có trong mẫu, vì đề bài chỉ yêu cầu ba cảnh. Cây plan có ghi loại join.
-6. Cây plan và sơ đồ bảng trong mẫu tự vẽ bằng HTML và SVG để file độc lập. Sản phẩm thật theo `CLAUDE.md` sẽ dùng Cytoscape.js và React Flow, nên Task005 chỉ nên lấy hình thức thẻ và đường nối.
+6. Cây plan, sơ đồ bảng và bộ kéo thả trong mẫu tự viết bằng HTML, SVG và JS thuần để file độc lập. Sản phẩm thật theo `CLAUDE.md` sẽ dùng Cytoscape.js và React Flow, nên Task005 chỉ nên lấy hình thức thẻ và đường nối.
 7. Trình soạn thảo trong mẫu là ô văn bản thường, chưa tô màu cú pháp. Sản phẩm thật dùng CodeMirror 6.
 
 ## Kết quả tự đánh giá

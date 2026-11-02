@@ -13,6 +13,9 @@
   --text: #ffffff; --ink2: #c4c5c9; --muted: #92949a;
   --lamp: #f2b84b; --lamp-ink: #17130a;
   --negative: #ef6b82;
+  --sev-broke-line: #ef6b82; --sev-broke-bg: #2a161c; --sev-broke-ink: #ff9fae;
+  --sev-clear-line: #4fb08e; --sev-clear-bg: #12261f; --sev-clear-ink: #86dcbd;
+  --sev-open-line: #d8dc52; --sev-open-bg: #24260e; --sev-open-ink: #e6ea78;
   --radius: 4px;
   --h-top: 44px; --h-bar: 40px;
   --sp1: 4px; --sp2: 8px; --sp3: 12px; --sp4: 16px; --sp5: 24px;
@@ -105,8 +108,10 @@ body.dragging { user-select: none; }
 
 /* Cột SQL */
 .editor { flex: 1 1 56%; min-height: 150px; display: flex; border-bottom: 1px solid var(--border); }
-.gutter { width: 44px; flex: none; padding: var(--sp3) var(--sp2) var(--sp3) 0; text-align: right; color: var(--muted); font: 400 var(--fs-small)/20px var(--mono); overflow: hidden; user-select: none; white-space: pre; }
-#sql { flex: 1; min-width: 0; resize: none; border: 0; outline-offset: -2px; background: transparent; padding: var(--sp3) var(--sp3) var(--sp3) var(--sp1); font: 400 13px/20px var(--mono); color: var(--ink2); white-space: pre; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--control) transparent; }
+.gutter { width: 44px; flex: none; padding: var(--sp3) var(--sp2) var(--sp3) 0; text-align: right; color: var(--muted); font: 400 var(--fs-small)/20px var(--mono); overflow: hidden; user-select: none; }
+.gutter div { white-space: nowrap; }
+#sqlMirror { position: absolute; visibility: hidden; left: -9999px; top: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+#sql { flex: 1; min-width: 0; resize: none; border: 0; outline-offset: -2px; background: transparent; padding: var(--sp3) var(--sp3) var(--sp3) var(--sp1); font: 400 13px/20px var(--mono); color: var(--ink2); white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--control) transparent; }
 .stmts { flex: 1 1 44%; min-height: 0; }
 .sub { padding: var(--sp3) var(--sp3) var(--sp1); font-size: var(--fs-small); color: var(--muted); }
 .stmt { width: 100%; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 0 var(--sp1); padding: 6px var(--sp3); text-align: left; }
@@ -120,7 +125,17 @@ body.dragging { user-select: none; }
 /* Cảnh giữa */
 .scene { flex: 1; min-height: 0; display: flex; flex-direction: column; container-type: inline-size; }
 .scene[hidden] { display: none; }
-#treeWrap { flex: 1; min-height: 220px; overflow: auto; position: relative; scrollbar-width: thin; scrollbar-color: var(--control) transparent; }
+#treeStage { flex: 1; min-height: 220px; position: relative; display: flex; }
+.modebar { position: absolute; top: 2px; right: var(--edge); z-index: 4; height: 32px; display: flex; background: var(--stage); }
+.modebar[hidden] { display: none; }
+#treeWrap.free { overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+#treeWrap.free .n { cursor: grab; }
+#treeWrap.free .n:focus-visible { outline: none; }
+#treeWrap.free .n:focus-visible .frame, #treeWrap.free .n:focus-visible .clu, #treeWrap.free .n:focus-visible .hf { stroke: var(--lamp); stroke-width: 2; }
+#tree .chip { pointer-events: none; }
+#freeHint { grid-column: 1 / -1; font-size: var(--fs-small); line-height: 18px; color: var(--ink2); }
+#freeHint[hidden] { display: none; }
+#treeWrap { flex: 1; min-width: 0; min-height: 0; overflow: auto; position: relative; scrollbar-width: thin; scrollbar-color: var(--control) transparent; }
 #tree { width: 100%; }
 #tree text { font-family: var(--mono); fill: var(--ink2); font-size: 12.5px; }
 #tree .lane { fill: var(--muted); font-size: 12px; font-family: var(--sans); }
@@ -139,7 +154,7 @@ body.dragging { user-select: none; }
 #tree .chip rect { fill: var(--lamp); }
 #tree .chip text { fill: var(--lamp-ink); font-weight: 700; }
 .say { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp2) var(--sp4); align-items: center; padding: var(--sp2) var(--sp3); border-top: 1px solid var(--border); background: var(--surface); min-height: 72px; }
-#explain { font-size: 14px; line-height: 20px; }
+#explain { font-size: 14px; line-height: 20px; min-height: 40px; }
 #explain code { font-family: var(--mono); font-size: 13px; color: var(--lamp); }
 .steplabel { display: block; color: var(--muted); font-size: var(--fs-small); line-height: 18px; }
 .transport { display: flex; align-items: center; gap: 2px; flex: none; }
@@ -178,15 +193,24 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 15px; background: var(
 .unsimbox p { color: var(--ink2); }
 
 /* Sơ đồ bảng */
-#schemaWrap { position: relative; padding: var(--sp5) var(--sp4); min-height: 100%; }
-@container (min-width: 560px) { #schemaWrap { padding-right: 40px; } }
-#schemaLines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-#schemaLines path { fill: none; stroke: var(--muted); stroke-width: 1; }
-#schemaLines path.warn { stroke: var(--negative); }
-#schemaLines circle { fill: var(--stage); stroke: var(--muted); }
-#schemaLines circle.warn { stroke: var(--negative); }
-.tables { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp5); max-width: 720px; margin: 0 auto; }
-@container (min-width: 560px) { .tables { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 88px; row-gap: 40px; align-items: start; } .fkto { display: none; } }
+.cvlines path { fill: none; stroke: var(--muted); stroke-width: 1; }
+.cvlines path.live { stroke: var(--lamp); }
+.cvlines path.warn { stroke: var(--negative); }
+.cvlines circle { fill: var(--stage); stroke: var(--muted); }
+.cvlines circle.warn { stroke: var(--negative); }
+.cv, #treeWrap.free { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Ccircle cx='1' cy='1' r='1' fill='%2334343a'/%3E%3C/svg%3E"); }
+.cv { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.cv.panning, #treeWrap.free.panning { cursor: grabbing; }
+.cv-world { position: absolute; left: 0; top: 0; width: 1px; height: 1px; transform-origin: 0 0; }
+.cvlines { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
+.cv-item { position: absolute; left: 0; top: 0; width: 280px; cursor: grab; }
+.cv-item.dragging { cursor: grabbing; border-color: var(--lamp); z-index: 3; }
+body.space-pan .cv, body.space-pan .cv-item, body.space-pan #treeWrap.free, body.space-pan #treeWrap.free .n { cursor: grab; }
+.cvbar { position: absolute; right: var(--sp3); bottom: var(--sp3); z-index: 4; display: flex; align-items: center; gap: 2px; padding: 2px; background: var(--surface); border: 1px solid var(--control); border-radius: var(--radius); cursor: default; }
+.cvbar[hidden] { display: none; }
+.cvbar .zr { min-width: 42px; text-align: center; font: 400 var(--fs-small)/20px var(--mono); color: var(--ink2); }
+.cvbar .cvreset { height: 28px; padding: 0 var(--sp2); white-space: nowrap; border-radius: var(--radius); }
+.cvbar .cvreset:hover { background: var(--raised); }
 .tcard { background: var(--surface); border: 1px solid var(--control); border-radius: var(--radius); min-width: 0; }
 .tcard h3 { font: 600 var(--fs-body)/32px var(--mono); padding: 0 var(--sp3); border-bottom: 1px solid var(--control); display: flex; justify-content: space-between; gap: var(--sp2); }
 .tcard h3 span { font-weight: 400; color: var(--muted); font-size: var(--fs-micro); }
@@ -196,14 +220,10 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 15px; background: var(
 .trow .k svg { width: 12px; height: 12px; color: var(--muted); }
 .trow .cn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .trow .noidx { grid-column: 2 / -1; font: 400 var(--fs-micro)/16px var(--sans); color: var(--negative); padding-bottom: 5px; margin-top: -3px; }
-.fkto { grid-column: 2 / -1; font-size: var(--fs-micro); line-height: 16px; color: var(--muted); padding-bottom: 5px; margin-top: -3px; }
+.fkto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
 /* Cây plan */
-.plan { padding: var(--sp4); max-width: 680px; }
-.plan ul { margin-left: 15px; padding-left: 15px; border-left: 1px solid var(--control); }
-.plan li { position: relative; padding-top: var(--sp3); }
-.plan ul > li::before { content: ""; position: absolute; left: -15px; top: 34px; width: 15px; height: 1px; background: var(--control); }
-.plan ul > li:last-child::after { content: ""; position: absolute; left: -16px; top: 35px; bottom: 0; width: 1px; background: var(--stage); }
+.pnode.dragging { border-color: var(--lamp); }
 .pnode { background: var(--surface); border: 1px solid var(--control); border-radius: var(--radius); padding: var(--sp2) var(--sp3); }
 .pnode.hot { border-color: var(--lamp); }
 .pnode header { display: flex; gap: var(--sp2); flex-wrap: wrap; align-items: baseline; }
@@ -211,30 +231,35 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 15px; background: var(
 .pnode header span { font: 400 var(--fs-small)/20px var(--mono); color: var(--muted); }
 .pm { display: flex; flex-wrap: wrap; gap: 2px var(--sp4); font: 400 13px/20px var(--mono); }
 .pm i { font: 400 13px/20px var(--sans); font-style: normal; color: var(--muted); margin-right: var(--sp1); }
-.ptotal { padding: var(--sp3) var(--sp4) 0; display: flex; flex-wrap: wrap; gap: var(--sp2); align-items: center; color: var(--ink2); }
+.ptotal { flex: none; padding: var(--sp2) var(--edge); border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: var(--sp2); align-items: center; color: var(--ink2); }
 
 /* Rủi ro */
 .assume { padding: var(--sp3); border-bottom: 1px solid var(--border); }
 .assume strong { display: block; font-weight: 600; font-size: 14px; }
 .assume p { color: var(--muted); font-size: var(--fs-small); line-height: 18px; margin-top: 2px; }
-.find { padding: var(--sp3); border-bottom: 1px solid var(--border); display: grid; gap: 6px; }
+#finds { padding: var(--sp2) var(--sp3); display: grid; gap: var(--sp2); border-bottom: 1px solid var(--border); }
+.find { padding: var(--sp3); border: 1px solid var(--sev-line); border-radius: var(--radius); background: var(--sev-bg); display: grid; gap: 6px; }
+.find[data-sev="broke"] { --sev-line: var(--sev-broke-line); --sev-bg: var(--sev-broke-bg); --sev-ink: var(--sev-broke-ink); }
+.find[data-sev="clear"] { --sev-line: var(--sev-clear-line); --sev-bg: var(--sev-clear-bg); --sev-ink: var(--sev-clear-ink); }
+.find[data-sev="open"] { --sev-line: var(--sev-open-line); --sev-bg: var(--sev-open-bg); --sev-ink: var(--sev-open-ink); }
 .find .fh { display: flex; align-items: center; justify-content: space-between; gap: var(--sp2); min-height: 24px; }
-.find .verdict { font-size: var(--fs-small); font-weight: 500; color: var(--ink2); }
-.find .verdict.broke { color: var(--negative); }
+.find .verdict { display: flex; align-items: flex-start; gap: 6px; font-size: var(--fs-small); line-height: 18px; font-weight: 600; color: var(--sev-ink); min-width: 0; }
+.find .verdict svg { width: 14px; height: 14px; flex: none; margin-top: 2px; }
 .find h3 { font-size: 14px; line-height: 20px; font-weight: 600; }
 .find p { color: var(--ink2); line-height: 19px; }
 .find dl { display: grid; gap: 0; margin-top: 2px; }
-.find dl div { display: flex; justify-content: space-between; gap: var(--sp3); border-top: 1px solid var(--rule); padding: 3px 0; font-size: 13px; }
-.find dt { color: var(--muted); }
+.find dl div { display: flex; justify-content: space-between; gap: var(--sp3); border-top: 1px solid rgba(255,255,255,.1); padding: 3px 0; font-size: 13px; }
+.find dt { color: var(--ink2); }
 .find dd { font-family: var(--mono); text-align: right; white-space: nowrap; }
-.link { justify-self: start; font-size: var(--fs-small); color: var(--text); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--muted); }
+.link { justify-self: start; font-size: var(--fs-small); color: var(--text); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--ink2); }
 .link:hover { text-decoration-color: var(--text); }
 .mentor { padding: var(--sp3); display: grid; gap: var(--sp2); font-size: var(--fs-small); color: var(--ink2); line-height: 18px; }
 .mentor strong { color: var(--text); font-size: var(--fs-body); font-weight: 600; }
 
 /* Terminal */
-#log { padding-top: var(--sp2); padding-bottom: var(--sp2); font: 400 13px/20px var(--mono); }
-#log li { display: grid; grid-template-columns: 26px 100px minmax(0, 1fr); gap: 0 var(--sp2); color: var(--ink2); }
+#log { font: 400 13px/20px var(--mono); }
+#termBody { scroll-snap-type: y proximity; margin: var(--sp2) 0; }
+#log li { scroll-snap-align: start; display: grid; grid-template-columns: 26px 100px minmax(0, 1fr); gap: 0 var(--sp2); color: var(--ink2); }
 #log .i { color: var(--muted); text-align: right; }
 #log .m { color: var(--muted); }
 #log li.now .t { color: var(--text); }
@@ -246,7 +271,7 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 15px; background: var(
 .rnote { padding: var(--sp1) var(--sp3) var(--sp2); color: var(--muted); font-size: var(--fs-small); }
 .phonetabs { display: none; }
 .termnote { font-size: var(--fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.top, .bar, .sub, .stmt, .assume, .find, .mentor, .cap, .race, .say, #log, .rnote { padding-left: var(--edge); padding-right: var(--edge); }
+.top, .bar, .sub, .stmt, .assume, .mentor, .cap, .race, .say, #log, .rnote { padding-left: var(--edge); padding-right: var(--edge); }
 .gate { margin-left: var(--edge); margin-right: var(--edge); }
 .results th:first-child, .results td:first-child { padding-left: var(--edge); }
 
@@ -294,7 +319,9 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 15px; background: var(
 @media (max-width: 640px) {
   #sceneTree { display: block; overflow-y: auto; }
   #sceneTree[hidden] { display: none; }
+  #treeStage { display: block; min-height: 0; }
   #treeWrap { overflow: visible; min-height: 0; }
+  #treeWrap.free { height: min(56vh, 460px); }
   .say { position: sticky; bottom: 0; z-index: 1; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
@@ -303,6 +330,12 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 15px; background: var(
 <body>
 <a class="skip" href="#pStage" data-i18n="skip"></a>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-zin" viewBox="0 0 16 16"><path d="M3 8h10M8 3v10" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="i-zout" viewBox="0 0 16 16"><path d="M3 8h10" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 16 16"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="s-broke" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" fill="currentColor"/><path d="m4.2 4.2 5.6 5.6M9.8 4.2 4.2 9.8" stroke="#2a161c" stroke-width="1.6"/></symbol>
+  <symbol id="s-clear" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 7h6" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="s-open" viewBox="0 0 14 14"><path d="M7 1.5 13 12.5H1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7 5.5v3.5M7 10.2v1" stroke="currentColor" stroke-width="1.3"/></symbol>
   <symbol id="i-lock" viewBox="0 0 16 16"><path d="M4.5 7V5a3.5 3.5 0 0 1 7 0v2M3.5 7h9v6.5h-9z" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
   <symbol id="i-key" viewBox="0 0 16 16"><circle cx="5" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 8h6M12 8v3" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
   <symbol id="i-fk" viewBox="0 0 16 16"><path d="M2 8h9M8 5l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M14 3v10" stroke="currentColor" stroke-width="1.5"/></symbol>
@@ -350,7 +383,8 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 15px; background: var(
       <div class="bar"><h2>SQL</h2><div class="spacer"></div><button class="btn btn-primary" id="run" data-i18n="run"></button></div>
       <div class="editor">
         <div class="gutter" id="gutter" aria-hidden="true"></div>
-        <textarea id="sql" spellcheck="false" wrap="off" data-i18n-aria="sqlAria" data-i18n-ph="sqlPh"></textarea>
+        <div id="sqlMirror" aria-hidden="true"></div>
+        <textarea id="sql" spellcheck="false" wrap="soft" data-i18n-aria="sqlAria" data-i18n-ph="sqlPh"></textarea>
       </div>
       <div class="stmts scroll">
         <div class="sub" data-i18n="stmtsHead"></div>
@@ -366,7 +400,7 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 15px; background: var(
         <span id="stageTag"></span>
       </div>
       <div class="scene" id="sceneTree">
-        <div id="treeWrap"><svg id="tree" role="img"></svg>
+        <div id="treeStage"><div id="treeWrap"><svg id="tree" role="img"></svg>
           <div class="unsim" id="unsim" hidden>
             <div class="unsimbox">
               <span id="unsimTag"></span>
@@ -375,6 +409,9 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 15px; background: var(
               <p class="muted" data-i18n="unsimNoNum"></p>
             </div>
           </div>
+        </div>
+        <div class="modebar" id="modebar" role="group" data-i18n-aria="moveMode"></div>
+        <div class="cvbar" data-bar="tree" hidden></div>
         </div>
         <div class="say" id="say">
           <div>
@@ -389,6 +426,7 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 15px; background: var(
             <input type="range" id="scrub" min="0" max="1" step="1" value="0">
           </div>
           <p id="rmNote" hidden data-i18n="rmNote"></p>
+          <p id="freeHint" hidden data-i18n="freeHint"></p>
         </div>
         <div class="gauges" id="gauges">
           <div class="cap">
@@ -411,12 +449,12 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 15px; background: var(
           </div>
         </div>
       </div>
-      <div class="scene scroll" id="sceneSchema" hidden>
-        <div id="schemaWrap"><svg id="schemaLines" aria-hidden="true"></svg><div class="tables" id="tables"></div></div>
+      <div class="scene" id="sceneSchema" hidden>
+        <div class="cv" id="cvSchema"><div class="cv-world" id="tables"><svg id="schemaLines" class="cvlines" aria-hidden="true"></svg><div id="tableCards"></div></div><div class="cvbar" data-bar="schema"></div></div>
       </div>
-      <div class="scene scroll" id="scenePlan" hidden>
+      <div class="scene" id="scenePlan" hidden>
         <div class="ptotal" id="planTotal"></div>
-        <div class="plan" id="plan"></div>
+        <div class="cv" id="cvPlan"><div class="cv-world" id="plan"><svg id="planLines" class="cvlines" aria-hidden="true"></svg><div id="planCards"></div></div><div class="cvbar" data-bar="plan"></div></div>
       </div>
     </section>
     <div class="handle v" id="hR" role="separator" tabindex="0" aria-orientation="vertical"></div>
@@ -462,6 +500,11 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 15px; background: var(
 /* ---------- i18n: mỗi chuỗi có đủ hai ngôn ngữ ---------- */
 const T = {
   title: ["SQLLens: mẫu giao diện", "SQLLens: interface sample"],
+  moveMode: ["Kiểu di chuyển của cây", "Tree movement mode"], moveFixed: ["Cố định", "Fixed"], moveFree: ["Kéo tự do", "Free drag"],
+  freeHint: ["Vị trí kéo chỉ để dễ nhìn, không đổi thứ tự key thật.", "Dragged positions only aid viewing, they never change the real key order."],
+  zoomIn: ["Phóng to", "Zoom in"], zoomOut: ["Thu nhỏ", "Zoom out"], zoomFit: ["Vừa màn hình", "Fit to screen"], relayout: ["Xếp lại", "Reset layout"],
+  moveAria: ["{x}. Dùng phím mũi tên để di chuyển.", "{x}. Use the arrow keys to move it."],
+  heapAria: ["Dải trang heap", "Heap page strip"],
   skip: ["Đến vùng mô phỏng", "Skip to the simulation"],
   demo: ["Dữ liệu minh họa", "Illustrative data"],
   demoLong: ["Dữ liệu minh họa, không phải số đo thật.", "Illustrative data, not real measurements."],
@@ -558,9 +601,9 @@ const T = {
   assume: ["Giả định: {r} dòng, {i}. Kết luận chỉ đúng với giả định này. Số trong mẫu là minh họa, nhãn cho thấy cách sản phẩm sẽ gắn.", "Assumption: {r} rows, {i}. Conclusions hold only under this assumption. Numbers in this sample are illustrative, labels show how the product will tag them."],
   vBroke: ["Hỏng ở bước {s}", "Breaks at step {s}"],
   vBrokeScan: ["Hỏng ở bước lập plan", "Breaks at the planning step"],
-  vNot: ["Không hỏng qua {s} bước", "No break across {s} steps"],
-  vScale: ["Thay đổi khi tăng quy mô", "Changes with scale"],
-  vUnsim: ["Dừng ở đây", "Stops here"],
+  vNot: ["Không hỏng qua {s} bước, ở kịch bản và giả định này", "No break across {s} steps, in this scenario under this assumption"],
+  vScale: ["Cần xem lại: số ngoại suy khi tăng quy mô", "Review: extrapolated numbers at larger scale"],
+  vUnsim: ["Cần xem lại: chưa có kết luận", "Review: no conclusion yet"],
   f1t: ["Câu #5 đọc lại cả bảng order_items ở mỗi vòng lặp", "Statement #5 rereads all of order_items on every loop"],
   f1p: ["Cột <span class=\"mono\">order_items.order_id</span> chưa có index, nên Nested Loop quét toàn bảng cho mỗi dòng bên ngoài.", "Column <span class=\"mono\">order_items.order_id</span> has no index, so Nested Loop scans the whole table for each outer row."],
   fPagesNow: ["Trang đọc hiện tại", "Pages read now"],
@@ -675,6 +718,9 @@ const elbow = (x0, y0, x1, y1) => { const my = (y0 + y1) / 2; if (Math.abs(x0 - 
 const fmtKey = (k) => k >= 100000 ? Math.round(k / 1000) + "k" : String(k);
 const pageNo = (d, i) => 3 + (d * 89 + i * 13) % 2789;
 const NH = 30, CAPH = 38, BOT = 14, CW = 48;
+const B = { free: false, off: {} };
+const offOf = (id) => (B.free && B.off[id]) || { x: 0, y: 0 };
+const nodeAttrs = (id, label) => B.free ? { "data-id": id, tabindex: 0, role: "button", "aria-label": t("moveAria", { x: label }) } : { "data-id": id };
 
 function drawTree(root, R, depths, target, dom, opts) {
   const cw = opts.cw, nw = cw * 3, level = depths.length - 1, gap = 12;
@@ -686,9 +732,9 @@ function drawTree(root, R, depths, target, dom, opts) {
   let parent = null;
   depths.forEach((T, d) => {
     const row = el("g", { class: "row" }, root); out.rows.push(row);
-    const y = rowY(d);
+    const y0 = rowY(d);
     const name = d === 0 ? "laneRoot" : (d === level ? "laneLeaf" : "laneInt");
-    if (lane) el("text", { x: R.x, y: y + NH / 2 + 4, class: "lane" }, row, t(name));
+    if (lane) el("text", { x: R.x, y: y0 + NH / 2 + 4, class: "lane" }, row, t(name));
     const p = Math.min(T - 1, Math.floor(T * target / dom));
     const labelOf = (n) => t("more", { n: fmt(n), u: t(n === 1 ? "node" : "nodes") });
     const cluW = (n) => labelOf(n).length * 7.4 + 16;
@@ -703,10 +749,12 @@ function drawTree(root, R, depths, target, dom, opts) {
     if (T - start - vis > 0) items.push({ clu: T - start - vis });
     const widths = items.map((it) => it.clu ? cluW(it.clu) : nw);
     const total = sum(widths) + gap * (items.length - 1);
-    let x = availX + Math.max(0, (avail - total) / 2);
+    let xc = availX + Math.max(0, (avail - total) / 2);
     items.forEach((it, idx) => {
-      const w = widths[idx], cx = x + w / 2;
-      const g = el("g", { class: "n" }, row);
+      const w = widths[idx];
+      const id = opts.tag + d + (it.clu ? (idx === 0 ? ":cL" : ":cR") : ":" + (it.i - p));
+      const o = offOf(id), x = xc + o.x, y = y0 + o.y, cx = x + w / 2;
+      const g = el("g", { class: "n", ...nodeAttrs(id, it.clu ? labelOf(it.clu) : t("page") + " " + pageNo(d, it.i + opts.seed)) }, row);
       const ref = { g, x, y, w, cx, isPath: false, depth: d };
       if (it.clu) {
         el("rect", { x, y, width: w, height: NH, rx: 2, class: "clu" }, g);
@@ -745,10 +793,10 @@ function drawTree(root, R, depths, target, dom, opts) {
         el("path", { d: pth, class: "edge" }, out.edgesG);
         if (ref.isPath) ref.edgeLit = el("path", { d: pth, class: "edgelit", pathLength: 1 }, out.edgesG);
       }
-      x += w + gap;
+      xc += w + gap;
     });
     if (d === level) {
-      out.leafRow.forEach((a, i) => { const b = out.leafRow[i + 1]; if (b) { el("line", { x1: a.x + a.w, x2: b.x, y1: y + NH / 2, y2: y + NH / 2, class: "edge" }, out.edgesG); a.linkLit = el("line", { x1: a.x + a.w, x2: b.x, y1: y + NH / 2, y2: y + NH / 2, class: "edgelit", pathLength: 1 }, out.edgesG); } });
+      out.leafRow.forEach((a, i) => { const b = out.leafRow[i + 1]; if (b) { const x0 = a.x + a.w, y1 = a.y + NH / 2, y2 = b.y + NH / 2, mid = (x0 + b.x) / 2, dp = Math.abs(y1 - y2) < 1 ? `M${x0} ${y1}H${b.x}` : `M${x0} ${y1}H${mid}V${y2}H${b.x}`; el("path", { d: dp, class: "edge" }, out.edgesG); a.linkLit = el("path", { d: dp, class: "edgelit", pathLength: 1 }, out.edgesG); } });
     }
     parent = out.path[out.path.length - 1] || parent;
   });
@@ -757,13 +805,15 @@ function drawTree(root, R, depths, target, dom, opts) {
 }
 const treeNeed = (depths, gapMin) => 22 + CAPH + (depths.length - 1) * gapMin + NH + BOT;
 
-function drawHeap(root, x, y, w, total, litN) {
+function drawHeap(root, x0, y0, w, total, litN) {
+  const ho = offOf("heap"), x = x0 + ho.x, y = y0 + ho.y;
   const size = 14, gapH = 3, lane = w >= 520 ? 58 : 0;
   const moreW = t("more", { n: fmt(total), u: t("pages") }).length * 7.4 + 8;
   const cells = Math.min(total, Math.max(6, Math.floor((w - lane - moreW) / (size + gapH))));
   const out = { cells: [], lit: [], bottom: 0 };
-  const g = el("g", { class: "row" }, root);
+  const g = el("g", { class: "row n", ...nodeAttrs("heap", t("heapAria")) }, root);
   const top = y + 4;
+  if (B.free) el("rect", { x: x - 4, y: top - 4, width: w + 8, height: 50, fill: "transparent", class: "hf" }, g);
   if (lane) el("text", { x, y: top + 16, class: "lane" }, g, t("laneHeap"));
   el("text", { x: x + lane, y: top + 40, class: "ttl" }, g, t("ttlHeap", { n: fmt(total) }));
   for (let i = 0; i < cells; i++) {
@@ -792,7 +842,7 @@ function chipEl(root, text) {
   return { g, tx };
 }
 
-function buildScene(keepStep) {
+function buildScene(keepStep, keepTime) {
   if (scene) scene.tl.kill();
   shown = -1;
   const svg = $("tree"), wrap = $("treeWrap");
@@ -801,6 +851,10 @@ function buildScene(keepStep) {
   $("unsim").hidden = mode !== "unsim";
   svg.style.display = isTree ? "" : "none";
   $("say").hidden = !isTree; $("gauges").style.display = isTree ? "" : "none";
+  $("modebar").hidden = !isTree;
+  $("treeWrap").classList.toggle("free", B.free && isTree);
+  $("freeHint").hidden = !(B.free && isTree);
+  document.querySelector('[data-bar="tree"]').hidden = !(B.free && isTree);
   $("say").style.display = isTree ? "" : "none";
   if (mode === "unsim") {
     $("unsimTag").innerHTML = tagHtml("unsim");
@@ -812,8 +866,11 @@ function buildScene(keepStep) {
 
   const W = Math.max(280, wrap.clientWidth - 32), m = metrics(S.scale), my = S.engine === "my";
   svg.innerHTML = "";
-  const root = el("g", { transform: "translate(16 10)" }, svg);
-  const H0 = matchMedia("(max-width:640px)").matches ? 0 : wrap.clientHeight - 20;
+  const v = treeCv.view;
+  const root = el("g", { transform: B.free ? `translate(${v.x} ${v.y}) scale(${v.k})` : "translate(16 10)" }, svg);
+  const phoneFlow = matchMedia("(max-width:640px)").matches;
+  const H0 = !B.free ? (phoneFlow ? 0 : wrap.clientHeight - 20)
+    : (phoneFlow ? wrap.clientHeight : Math.max(280, $("pStage").clientHeight - 40 - $("gauges").offsetHeight - 118)) - 20 - 44;
   const key = mode === "range" ? KEY_LOW : KEY_POINT;
   const mult = mode === "point" ? MATCH_POINT : 1;
   const side = my && W >= 640;
@@ -827,9 +884,9 @@ function buildScene(keepStep) {
     const gFor = (d) => Math.min(104, gapS / Math.max(1, d.length - 1));
     const offY = side ? Math.max(0, (avail - (22 + CAPH + (Math.max(m.sec.length, m.clu.length) - 1) * Math.max(62, Math.min(gFor(m.sec), gFor(m.clu))) + NH + BOT)) / 2) : 0;
     const Rw = side ? (W - 24) / 2 : W;
-    g1 = drawTree(root, { x: 0, y: offY, w: Rw, gap: Math.max(62, gFor(m.sec)) }, m.sec, key, DOM, { cw: CW, seed: 0, title: t("ttlSec", { x: IDX }), mult });
+    g1 = drawTree(root, { x: 0, y: offY, w: Rw, gap: Math.max(62, gFor(m.sec)) }, m.sec, key, DOM, { cw: CW, seed: 0, tag: "a", title: t("ttlSec", { x: IDX }), mult });
     const y2 = side ? offY : g1.bottom + 24;
-    g2 = drawTree(root, { x: side ? Rw + 24 : 0, y: y2, w: Rw, gap: Math.max(62, gFor(m.clu)) }, m.clu, pk, m.rows, { cw: CW, seed: 41, title: t("ttlClu"), mult: 1 });
+    g2 = drawTree(root, { x: side ? Rw + 24 : 0, y: y2, w: Rw, gap: Math.max(62, gFor(m.clu)) }, m.clu, pk, m.rows, { cw: CW, seed: 41, tag: "b", title: t("ttlClu"), mult: 1 });
     need = Math.max(g1.bottom, g2.bottom) + 16;
   } else {
     need = secH + heapH + 24;
@@ -837,11 +894,11 @@ function buildScene(keepStep) {
     const gapS = Math.min(104, Math.max(62, (avail - heapH - 24 - 22 - CAPH - NH - BOT) / Math.max(1, m.sec.length - 1)));
     const body = 22 + CAPH + (m.sec.length - 1) * gapS + NH + BOT + 24 + heapH;
     const offY = Math.max(0, (avail - body) / 2);
-    g1 = drawTree(root, { x: 0, y: offY, w: W, gap: gapS }, m.sec, key, DOM, { cw: CW, seed: 0, title: t("ttlIdx", { x: IDX }), mult });
+    g1 = drawTree(root, { x: 0, y: offY, w: W, gap: gapS }, m.sec, key, DOM, { cw: CW, seed: 0, tag: "a", title: t("ttlIdx", { x: IDX }), mult });
     heap = drawHeap(root, 0, g1.bottom + 24, W, m.heap, mode === "range" ? Math.min(9, m.rangeHeap) : mode === "point" ? MATCH_POINT : 0);
     need = heap.bottom + 16;
   }
-  const svgH = Math.max(H0, need);
+  const svgH = B.free ? wrap.clientHeight : Math.max(H0, need);
   svg.setAttribute("height", svgH);
   svg.setAttribute("viewBox", `0 0 ${W + 32} ${svgH}`);
 
@@ -932,7 +989,7 @@ function buildScene(keepStep) {
           let a = at, prev = leaf;
           hops.forEach((h) => {
             if (prev.linkLit) tl.to(prev.linkLit, { strokeDashoffset: 0, duration: .3, ease: "none" }, a);
-            tl.to(chip.g, { x: h.cluster ? h.cx : h.x + h.w / 2, duration: .36, ease: "power1.inOut" }, a);
+            tl.to(chip.g, { x: h.cluster ? h.cx : h.x + h.w / 2, y: h.y - 15, duration: .36, ease: "power1.inOut" }, a);
             if (h.lit) tl.to(h.lit, { opacity: 1, duration: .12 }, a + .25);
             prev = h; a += .38;
           });
@@ -1002,7 +1059,7 @@ function buildScene(keepStep) {
   $("scrub").max = steps.length - 1;
   renderStageTag(); renderCapacity();
   const n = keepStep == null ? 0 : Math.min(keepStep, steps.length - 1);
-  tl.seek(ends[n], true);
+  tl.seek(keepTime != null ? Math.min(keepTime, tl.duration()) : ends[n], true);
   syncScene(true);
 }
 
@@ -1018,7 +1075,17 @@ function renderLog(i) {
   const s0 = [{ mod: "data-lab", log: t("lgGen", { n: fmt(m.rows) }) }, { mod: "plan-runner", log: t("lgPlan", { q: S.stmt + 1, x: scene.mode === "noindex" ? t("plNo") : t("plIdx", { x: IDX }) }) }];
   const lines = s0.concat(scene.steps.slice(0, i + 1));
   $("termBody").innerHTML = `<ol id="log">${lines.map((l, k) => `<li class="${k === lines.length - 1 ? "now" : ""}"><span class="i">${k + 1}</span><span class="m">${l.mod}</span><span class="t">${l.log}</span></li>`).join("")}</ol>`;
-  $("termBody").scrollTop = $("termBody").scrollHeight;
+  fitLog();
+}
+function fitLog() {
+  const body = $("termBody"), log = $("log");
+  if (!log || !body.clientHeight) return;
+  const line = 20;
+  log.style.paddingBottom = (body.clientHeight % line) + "px";
+  body.scrollTop = body.scrollHeight;
+  const top = body.getBoundingClientRect().top;
+  const cut = [...log.children].find((li) => { const r = li.getBoundingClientRect(); return r.top < top - .5 && r.bottom > top + .5; });
+  if (cut) body.scrollTop = cut.offsetTop - log.offsetTop + cut.offsetHeight;
 }
 function syncScene(force) {
   if (!scene) return;
@@ -1066,6 +1133,254 @@ function playScene() {
 }
 function startScene() { if (!scene) return; if (REDUCED.matches) { goTo(0); return; } playScene(); }
 
+/* ---------- Canvas kéo thả, tự viết bằng JS thuần cho riêng mẫu này ---------- */
+const LS = {
+  get(k) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* không nhớ được thì thôi */ } },
+  del(k) { try { localStorage.removeItem(k); } catch { /* không xóa được thì thôi */ } },
+};
+const ZMIN = .3, ZMAX = 1.6, GRID = 24;
+const clampZ = (k) => Math.max(ZMIN, Math.min(ZMAX, k));
+let spaceHeld = false;
+function makeCanvas(o) {
+  const c = { view: { ...(o.home || { x: 0, y: 0, k: 1 }) }, dragId: null };
+  const ptrs = new Map();
+  let drag = null, pan = null, pinch = null, wheelT = 0;
+  const el = o.el;
+  c.apply = () => {
+    const v = c.view;
+    o.applyView(v);
+    el.style.backgroundSize = (GRID * v.k) + "px " + (GRID * v.k) + "px";
+    el.style.backgroundPosition = v.x + "px " + v.y + "px";
+    const r = document.querySelector('[data-bar="' + o.name + '"] .zr');
+    if (r) r.textContent = Math.round(v.k * 100) + "%";
+  };
+  c.zoomAt = (cx, cy, k) => { const v = c.view, n = clampZ(k), wx = (cx - v.x) / v.k, wy = (cy - v.y) / v.k; v.k = n; v.x = cx - wx * n; v.y = cy - wy * n; c.apply(); };
+  c.zoomBy = (f) => { c.zoomAt(el.clientWidth / 2, el.clientHeight / 2, c.view.k * f); o.save(); };
+  c.fit = () => {
+    const b = o.bounds(); if (!b || !b.w || !b.h) return;
+    const vw = el.clientWidth, vh = el.clientHeight;
+    const k = clampZ(Math.min((vw - 32) / b.w, (vh - 72) / b.h, 1));
+    c.view = { k, x: (vw - b.w * k) / 2 - b.x * k, y: Math.max(12, (vh - 44 - b.h * k) / 2) - b.y * k };
+    c.apply();
+  };
+  const localXY = (e) => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  const finish = () => { if (drag) { o.mark && o.mark(drag.id, false); c.dragId = null; o.redraw && o.redraw(); o.save(); } else if (pan && pan.moved) o.save(); drag = null; pan = null; el.classList.remove("panning"); };
+  el.addEventListener("pointerdown", (e) => {
+    if (!o.active() || e.target.closest("button, .cvbar, .modebar, input, a")) return;
+    if (e.pointerType === "mouse" && e.button !== 0 && e.button !== 1) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try { el.setPointerCapture(e.pointerId); } catch { /* con trỏ giả lập có thể không bắt được */ }
+    if (ptrs.size === 2) {
+      finish();
+      const [a, b] = [...ptrs.values()];
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, k: c.view.k };
+      return;
+    }
+    const id = !spaceHeld && e.button === 0 ? o.hit(e.target) : null;
+    if (id) {
+      e.preventDefault();
+      const p = o.pos(id) || { x: 0, y: 0 };
+      drag = { id, x0: e.clientX, y0: e.clientY, px: p.x, py: p.y };
+      c.dragId = id; o.mark && o.mark(id, true);
+      const node = e.target.closest("[data-id]");
+      if (node && node.focus) node.focus({ preventScroll: true });
+    } else {
+      pan = { x0: e.clientX, y0: e.clientY, vx: c.view.x, vy: c.view.y, moved: false };
+      el.classList.add("panning");
+    }
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && ptrs.size >= 2) {
+      const [a, b] = [...ptrs.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      const r = el.getBoundingClientRect();
+      c.zoomAt((a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top, pinch.k * d / pinch.d);
+      return;
+    }
+    if (drag) o.move(drag.id, drag.px + (e.clientX - drag.x0) / c.view.k, drag.py + (e.clientY - drag.y0) / c.view.k);
+    else if (pan) { c.view.x = pan.vx + e.clientX - pan.x0; c.view.y = pan.vy + e.clientY - pan.y0; pan.moved = true; c.apply(); }
+  });
+  const up = (e) => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.delete(e.pointerId);
+    if (pinch) { if (ptrs.size < 2) { pinch = null; o.save(); } return; }
+    finish();
+  };
+  el.addEventListener("pointerup", up);
+  el.addEventListener("pointercancel", up);
+  el.addEventListener("wheel", (e) => {
+    if (!o.active()) return;
+    e.preventDefault();
+    const p = localXY(e);
+    c.zoomAt(p.x, p.y, c.view.k * Math.exp(-e.deltaY * (e.ctrlKey ? .01 : .0015)));
+    clearTimeout(wheelT); wheelT = setTimeout(o.save, 200);
+  }, { passive: false });
+  el.addEventListener("keydown", (e) => {
+    if (!o.active()) return;
+    const id = o.hit(e.target);
+    const dirs = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (!id || !dirs) return;
+    e.preventDefault(); e.stopPropagation();
+    const step = e.shiftKey ? 64 : 16, p = o.pos(id) || { x: 0, y: 0 };
+    o.move(id, p.x + dirs[0] * step, p.y + dirs[1] * step);
+    o.save();
+  });
+  return c;
+}
+function cardCanvas(cfg) {
+  let pos = {}, moved = false, bucket = null, viewSaved = false;
+  const key = () => "sqllens." + cfg.name + "." + bucket;
+  const items = () => [...cfg.cards().querySelectorAll(".cv-item")];
+  const place = () => items().forEach((e) => { const p = pos[e.dataset.id]; if (p) { e.style.left = p.x + "px"; e.style.top = p.y + "px"; } });
+  const sizes = () => { const m = {}; items().forEach((e) => { m[e.dataset.id] = { w: e.offsetWidth, h: e.offsetHeight }; }); return m; };
+  const draw = () => cfg.draw(pos, sizes(), api.cv.dragId);
+  const homeView = () => { if (bucket === "narrow") { api.cv.view = { x: 16, y: 16, k: 1 }; api.cv.apply(); } else api.cv.fit(); };
+  const api = {
+    cv: makeCanvas({
+      name: cfg.name, el: cfg.el(), active: () => true,
+      hit: (t) => { const n = t.closest && t.closest(".cv-item"); return n ? n.dataset.id : null; },
+      pos: (id) => pos[id],
+      move: (id, x, y) => { pos[id] = { x: Math.round(x), y: Math.round(y) }; moved = true; place(); draw(); },
+      mark: (id, on) => { const n = items().find((e) => e.dataset.id === id); if (n) n.classList.toggle("dragging", on); },
+      redraw: () => draw(),
+      applyView: (v) => { cfg.world().style.transform = "translate(" + v.x + "px," + v.y + "px) scale(" + v.k + ")"; },
+      bounds: () => { const z = sizes(); let a = 1e9, b = 1e9, c = -1e9, d = -1e9; for (const id in z) { const p = pos[id]; if (!p) continue; a = Math.min(a, p.x); b = Math.min(b, p.y); c = Math.max(c, p.x + z[id].w + cfg.margin); d = Math.max(d, p.y + z[id].h); } return { x: a, y: b, w: c - a, h: d - b }; },
+      save: () => { LS.set(key(), { pos: moved ? pos : null, view: api.cv.view }); viewSaved = true; },
+    }),
+    refresh() {
+      const el = cfg.el();
+      if (!el.clientWidth || !el.clientHeight) return;
+      const nb = el.clientWidth < 560 ? "narrow" : "wide";
+      if (nb !== bucket) {
+        bucket = nb;
+        const saved = LS.get(key());
+        moved = !!(saved && saved.pos); viewSaved = !!(saved && saved.view);
+        pos = moved ? saved.pos : cfg.layout(bucket, sizes());
+        if (viewSaved) api.cv.view = saved.view;
+      } else if (!moved) pos = cfg.layout(bucket, sizes());
+      place(); draw();
+      if (!viewSaved) homeView(); else api.cv.apply();
+    },
+    reset() { LS.del(key()); moved = false; viewSaved = false; pos = cfg.layout(bucket, sizes()); place(); draw(); homeView(); },
+    get pos() { return pos; },
+  };
+  return api;
+}
+const schemaCv = cardCanvas({
+  name: "schema", margin: 30, el: () => $("cvSchema"), world: () => $("tables"), cards: () => $("tableCards"),
+  layout(b, z) {
+    const h = (n) => (z[n] ? z[n].h : 0), w = 280;
+    if (b === "narrow") { let y = 0; const p = {}; ["customers", "orders", "products", "order_items"].forEach((n) => { p[n] = { x: 0, y }; y += h(n) + 24; }); return p; }
+    const y2 = Math.max(h("customers"), h("orders")) + 40;
+    return { customers: { x: 0, y: 0 }, orders: { x: w + 88, y: 0 }, products: { x: 0, y: y2 }, order_items: { x: w + 88, y: y2 } };
+  },
+  draw(pos, z, active) {
+    const svg = $("schemaLines");
+    svg.innerHTML = "";
+    const rowY = (t, c) => { const r = document.querySelector('[data-c="' + t + "." + c + '"]'); return pos[t].y + (r ? r.offsetTop + 13 : 13); };
+    TABLES.forEach((tb) => tb.c.forEach(([c, , kind, to, flag]) => {
+      if (kind !== "fk" || !pos[tb.n]) return;
+      const [tt, tc] = to.split(".");
+      if (!pos[tt] || !z[tb.n] || !z[tt]) return;
+      const ax0 = pos[tb.n].x, ax1 = ax0 + z[tb.n].w, bx0 = pos[tt].x, bx1 = bx0 + z[tt].w, y0 = rowY(tb.n, c), y1 = rowY(tt, tc);
+      let x0, x1, mx;
+      if (ax1 + 24 <= bx0) { x0 = ax1; x1 = bx0; mx = (x0 + x1) / 2; }
+      else if (bx1 + 24 <= ax0) { x0 = ax0; x1 = bx1; mx = (x0 + x1) / 2; }
+      else { x0 = ax1; x1 = bx1; mx = Math.max(ax1, bx1) + 20; }
+      const sy = y1 >= y0 ? 1 : -1, r = Math.min(6, Math.abs(y1 - y0) / 2), s0 = mx >= x0 ? 1 : -1, s1 = x1 >= mx ? 1 : -1;
+      const d = "M" + x0 + " " + y0 + "H" + (mx - s0 * r) + "Q" + mx + " " + y0 + " " + mx + " " + (y0 + sy * r) + "V" + (y1 - sy * r) + "Q" + mx + " " + y1 + " " + (mx + s1 * r) + " " + y1 + "H" + x1;
+      const cls = (flag ? "warn " : "") + (active === tb.n || active === tt ? "live" : "");
+      el("path", { d, class: cls, "data-edge": tb.n + "." + c }, svg);
+      el("circle", { cx: x0, cy: y0, r: 3, class: flag ? "warn" : "" }, svg);
+      el("circle", { cx: x1, cy: y1, r: 3, class: flag ? "warn" : "" }, svg);
+    }));
+  },
+});
+const PLAN_EDGES = [["sort", "nl"], ["nl", "idx"], ["nl", "scan"]];
+const planCv = cardCanvas({
+  name: "plan", margin: 0, el: () => $("cvPlan"), world: () => $("plan"), cards: () => $("planCards"),
+  layout(b, z) {
+    const h = (n) => (z[n] ? z[n].h : 0);
+    if (b === "narrow") { const p = {}; let y = 0; [["sort", 0], ["nl", 16], ["idx", 32], ["scan", 32]].forEach(([n, x]) => { p[n] = { x, y }; y += h(n) + 32; }); return p; }
+    const y1 = h("sort") + 40, y2 = y1 + h("nl") + 40;
+    return { sort: { x: 152, y: 0 }, nl: { x: 152, y: y1 }, idx: { x: 0, y: y2 }, scan: { x: 304, y: y2 } };
+  },
+  draw(pos, z, active) {
+    const svg = $("planLines");
+    svg.innerHTML = "";
+    PLAN_EDGES.forEach(([a, b]) => {
+      if (!pos[a] || !pos[b] || !z[a] || !z[b]) return;
+      const rail = $("cvPlan").clientWidth < 560 && pos[b].x >= pos[a].x + 12 && pos[b].y >= pos[a].y + z[a].h;
+      const x0 = rail ? pos[a].x + 8 : pos[a].x + z[a].w / 2, y0 = pos[a].y + z[a].h;
+      const x1 = rail ? pos[b].x : pos[b].x + z[b].w / 2, y1 = rail ? pos[b].y + 24 : pos[b].y;
+      el("path", { d: rail ? "M" + x0 + " " + y0 + "V" + y1 + "H" + x1 : elbow(x0, y0, x1, y1), class: active === a || active === b ? "live" : "", "data-edge": a + "-" + b }, svg);
+      el("circle", { cx: x0, cy: y0, r: 3 }, svg);
+      el("circle", { cx: x1, cy: y1, r: 3 }, svg);
+    });
+  },
+});
+let treeRaf = 0;
+const treeKey = () => "sqllens.btree." + S.engine;
+const TREE_HOME = { x: 16, y: 10, k: 1 };
+function rebuildLive() {
+  const focusId = document.activeElement && document.activeElement.closest && document.activeElement.closest("#tree .n") ? document.activeElement.dataset.id : null;
+  const playing = scene && scene.tl.isActive() && !scene.tl.paused();
+  const tm = scene ? scene.tl.time() : null;
+  buildScene(null, tm);
+  if (playing && scene) scene.tl.play();
+  if (focusId) { const n = document.querySelector('#tree .n[data-id="' + focusId + '"]'); if (n) n.focus({ preventScroll: true }); }
+}
+const treeCv = makeCanvas({
+  name: "tree", el: $("treeWrap"), home: TREE_HOME, active: () => B.free && !!scene,
+  hit: (t) => { const n = t.closest && t.closest("#tree .n"); return n ? n.dataset.id : null; },
+  pos: (id) => B.off[id],
+  move: (id, x, y) => { B.off[id] = { x: Math.round(x), y: Math.round(y) }; if (!treeRaf) treeRaf = requestAnimationFrame(() => { treeRaf = 0; rebuildLive(); }); },
+  applyView: (v) => { const r = $("tree").firstElementChild; if (r && B.free) r.setAttribute("transform", "translate(" + v.x + " " + v.y + ") scale(" + v.k + ")"); },
+  bounds: () => { const r = $("tree").firstElementChild; if (!r) return null; const b = r.getBBox(); return { x: b.x, y: b.y, w: b.width, h: b.height }; },
+  save: () => { if (B.free) LS.set(treeKey(), { off: B.off, view: treeCv.view }); },
+});
+function treeLoad() {
+  const s = LS.get(treeKey());
+  B.off = (s && s.off) || {};
+  treeCv.view = (s && s.view) ? s.view : { ...TREE_HOME };
+}
+function treeFitIfOverflow() {
+  const b = treeCv.view && $("tree").firstElementChild ? $("tree").firstElementChild.getBBox() : null, w = $("treeWrap");
+  if (b && (b.width + 32 > w.clientWidth || b.height + 20 > w.clientHeight)) treeCv.fit();
+}
+function setMoveMode(free) {
+  B.free = free;
+  LS.set("sqllens.btree.mode", free ? "free" : "fixed");
+  renderModebar();
+  if (free) { treeLoad(); $("treeWrap").scrollTop = 0; }
+  const had = LS.get(treeKey());
+  rebuildLive();
+  if (free) { treeCv.apply(); if (!(had && had.view)) treeFitIfOverflow(); }
+  else { $("treeWrap").style.backgroundSize = ""; $("treeWrap").style.backgroundPosition = ""; }
+}
+function treeReset() {
+  LS.del(treeKey());
+  B.off = {}; treeCv.view = { ...TREE_HOME };
+  rebuildLive(); treeCv.apply(); treeFitIfOverflow();
+}
+const CVS = { schema: { cv: schemaCv.cv, reset: () => schemaCv.reset() }, plan: { cv: planCv.cv, reset: () => planCv.reset() }, tree: { cv: treeCv, reset: treeReset } };
+function renderBars() {
+  document.querySelectorAll(".cvbar").forEach((b) => {
+    const n = b.dataset.bar, btn = (act, ic, k) => '<button class="iconbtn" data-cv="' + n + '" data-cvact="' + act + '" title="' + t(k) + '" aria-label="' + t(k) + '"><svg aria-hidden="true"><use href="#' + ic + '"/></svg></button>';
+    b.innerHTML = btn("out", "i-zout", "zoomOut") + '<span class="zr"></span>' + btn("in", "i-zin", "zoomIn") + btn("fit", "i-fit", "zoomFit") + '<button class="cvreset" data-cv="' + n + '" data-cvact="reset">' + t("relayout") + "</button>";
+    CVS[n].cv.apply();
+  });
+}
+function renderModebar() {
+  $("modebar").innerHTML = [["fixed", "moveFixed"], ["free", "moveFree"]].map(([k, n]) => '<button class="sel" data-bm="' + k + '" aria-pressed="' + ((k === "free") === B.free) + '">' + t(n) + "</button>").join("");
+}
+document.addEventListener("keydown", (e) => { if (e.code === "Space" && !e.target.matches("input, textarea, button, [role=button]") ) { if (!e.target.closest(".cv-item")) e.preventDefault(); spaceHeld = true; document.body.classList.add("space-pan"); } else if (e.code === "Space" && e.target.closest(".cv-item, #tree .n")) { e.preventDefault(); spaceHeld = true; document.body.classList.add("space-pan"); } });
+document.addEventListener("keyup", (e) => { if (e.code === "Space") { spaceHeld = false; document.body.classList.remove("space-pan"); } });
+addEventListener("blur", () => { spaceHeld = false; document.body.classList.remove("space-pan"); });
+
 /* ---------- Các vùng HTML ---------- */
 function renderStageTag() {
   const m = stmt().mode;
@@ -1097,9 +1412,23 @@ function renderSqlBox() {
   $("sql").value = SCHEMA_SQL + STMTS[S.engine].map((q, i) => `-- #${i + 1}\n${q.sql}`).join("\n");
   syncGutter();
 }
-function syncGutter() { const n = $("sql").value.split("\n").length; $("gutter").textContent = Array.from({ length: n }, (_, i) => i + 1).join("\n"); }
+function syncGutter() {
+  const ta = $("sql"), gut = $("gutter"), mir = $("sqlMirror");
+  if (!ta.clientWidth) return;
+  const cs = getComputedStyle(ta);
+  mir.style.font = cs.font; mir.style.lineHeight = cs.lineHeight;
+  mir.style.width = (ta.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) + "px";
+  const lines = ta.value.split("\n");
+  mir.textContent = "";
+  const frag = document.createDocumentFragment();
+  lines.forEach((l) => { const d = document.createElement("div"); d.textContent = l || "\u200b"; frag.appendChild(d); });
+  mir.appendChild(frag);
+  const hs = [...mir.children].map((d) => d.getBoundingClientRect().height);
+  gut.innerHTML = hs.map((h, i) => '<div style="height:' + h + 'px;line-height:' + cs.lineHeight + '">' + (i + 1) + "</div>").join("");
+  gut.scrollTop = ta.scrollTop;
+}
 function renderStmts() {
-  $("stmts").innerHTML = STMTS[S.engine].map((q, i) => `<button class="stmt" data-q="${i}" aria-pressed="${S.stmt === i}"><span class="n">#${i + 1}</span><span style="min-width:0"><b>${t(q.name)}</b><small>${esc(q.sql.replace(/\s+/g, " "))}</small></span></button>`).join("");
+  $("stmts").innerHTML = STMTS[S.engine].map((q, i) => `<button class="stmt" data-q="${i}" aria-pressed="${S.stmt === i}"><span class="n">#${i + 1}</span><span style="min-width:0"><b>${t(q.name)}</b><small title="${esc(q.sql.replace(/\s+/g, " "))}">${esc(q.sql.replace(/\s+/g, " "))}</small></span></button>`).join("");
   $("gate").hidden = S.engine !== "my";
 }
 function renderToggles() {
@@ -1130,50 +1459,19 @@ function renderResults() {
   $("termBody").innerHTML = `<div style="overflow-x:auto"><table class="results"><thead><tr>${heads.map((h, i) => `<th class="${numeric[i] ? "num" : ""}">${h}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c, i) => `<td class="${numeric[i] ? "num" : ""}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="rnote">${t("resNote", { n: fmt(totalRows), s: rows.length })}</p>`;
 }
 function renderSchema() {
-  $("tables").innerHTML = TABLES.map((tb) => `<article class="tcard" data-t="${tb.n}"><h3>${tb.n}<span>${t("tCols", { n: tb.c.length })}</span></h3>${tb.c.map(([c, ty, kind, to, flag]) => `<div class="trow" data-c="${tb.n}.${c}"><span class="k">${kind ? `<svg aria-hidden="true"><use href="#i-${kind === "pk" ? "key" : "fk"}"/></svg>` : ""}</span><span class="cn">${c}</span><span class="ty">${ty}</span>${to ? `<span class="fkto">${t("fk", { x: to })}</span>` : ""}${flag ? `<span class="noidx">${t("noIdx")}</span>` : ""}</div>`).join("")}</article>`).join("");
+  $("tableCards").innerHTML = TABLES.map((tb) => `<article class="tcard cv-item" tabindex="0" data-id="${tb.n}" aria-label="${t("moveAria", { x: tb.n })}"><h3>${tb.n}<span>${t("tCols", { n: tb.c.length })}</span></h3>${tb.c.map(([c, ty, kind, to, flag]) => `<div class="trow" data-c="${tb.n}.${c}"><span class="k">${kind ? `<svg aria-hidden="true"><use href="#i-${kind === "pk" ? "key" : "fk"}"/></svg>` : ""}</span><span class="cn">${c}</span><span class="ty">${ty}</span>${to ? `<span class="fkto">${t("fk", { x: to })}</span>` : ""}${flag ? `<span class="noidx">${t("noIdx")}</span>` : ""}</div>`).join("")}</article>`).join("");
   drawSchemaLines();
 }
-function drawSchemaLines() {
-  const wrap = $("schemaWrap"), svg = $("schemaLines");
-  svg.innerHTML = "";
-  if (S.scene !== "schema") return;
-  const cards = [...document.querySelectorAll(".tcard")];
-  if (cards.length < 2 || cards[0].getBoundingClientRect().left === cards[1].getBoundingClientRect().left) return;
-  const box = wrap.getBoundingClientRect();
-  TABLES.forEach((tb) => tb.c.forEach(([c, , kind, to, flag]) => {
-    if (kind !== "fk") return;
-    const a = document.querySelector(`[data-c="${tb.n}.${c}"]`).getBoundingClientRect();
-    const b = document.querySelector(`[data-c="${to}"]`).getBoundingClientRect();
-    const sameCol = Math.abs(a.left - b.left) < 2;
-    if (sameCol) {
-      const xr = a.right - box.left, ya = a.top + 13 - box.top, yb = b.top + 13 - box.top, xo = xr + 18;
-      const dd = `M${xr} ${ya}H${xo - 6}Q${xo} ${ya} ${xo} ${ya - 6}V${yb + 6}Q${xo} ${yb} ${xo - 6} ${yb}H${xr}`;
-      const cl = flag ? "warn" : "";
-      el("path", { d: dd, class: cl }, svg); el("circle", { cx: xr, cy: ya, r: 3, class: cl }, svg); el("circle", { cx: xr, cy: yb, r: 3, class: cl }, svg);
-      return;
-    }
-    const fromRight = a.left + a.width / 2 < b.left + b.width / 2;
-    const x0 = (fromRight ? a.right : a.left) - box.left, x1 = (fromRight ? b.left : b.right) - box.left;
-    const y0 = a.top + 13 - box.top, y1 = b.top + 13 - box.top;
-    const mx = (x0 + x1) / 2;
-    const r = Math.min(6, Math.abs(y1 - y0) / 2, Math.abs(mx - x0));
-    const sy = y1 > y0 ? 1 : -1, sx = x1 > x0 ? 1 : -1;
-    const d = Math.abs(y1 - y0) < 1 ? `M${x0} ${y0}H${x1}` : `M${x0} ${y0}H${mx - sx * r}Q${mx} ${y0} ${mx} ${y0 + sy * r}V${y1 - sy * r}Q${mx} ${y1} ${mx + sx * r} ${y1}H${x1}`;
-    const cls = flag ? "warn" : "";
-    el("path", { d, class: cls }, svg);
-    el("circle", { cx: x0, cy: y0, r: 3, class: cls }, svg);
-    el("circle", { cx: x1, cy: y1, r: 3, class: cls }, svg);
-  }));
-}
+function drawSchemaLines() { schemaCv.refresh(); planCv.refresh(); }
 function renderPlan() {
   const p = planPages(), my = S.engine === "my";
   const m = metrics(1);
   const outer = my ? m.pointMy : m.pointPg;
   const total = outer + p.inner;
   const scan = my ? "Table scan" : "Seq Scan";
-  const node = (name, sub, mets, hot) => `<div class="pnode${hot ? " hot" : ""}"><header><b>${name}</b><span>${sub}</span></header><div class="pm">${mets.map(([k, v]) => `<span><i>${t(k)}</i>${v}</span>`).join("")}</div>${hot ? `<div class="muted" style="font-size:var(--fs-small)">${t("pHot")}</div>` : ""}</div>`;
+  const node = (id, name, sub, mets, hot) => `<div class="pnode cv-item${hot ? " hot" : ""}" tabindex="0" data-id="${id}" aria-label="${t("moveAria", { x: name })}"><header><b>${name}</b><span>${sub}</span></header><div class="pm">${mets.map(([k, v]) => `<span><i>${t(k)}</i>${v}</span>`).join("")}</div>${hot ? `<div class="muted" style="font-size:var(--fs-small)">${t("pHot")}</div>` : ""}</div>`;
   $("planTotal").innerHTML = `${tagHtml("real")}<span>${t("planTotal", { n: fmt(total), m: PLAN_RET })}</span><span class="muted" style="font-size:var(--fs-small)">${t(my ? "planSrcMy" : "planSrc")}</span>`;
-  $("plan").innerHTML = `<div>${node("Sort", "o.id", [["pRows", PLAN_RET], ["pPages", 0]])}<ul><li>${node("Nested Loop", "i.order_id = o.id", [["pRows", PLAN_RET], ["pPages", 0]])}<ul><li>${node("Index Scan", IDX + " · orders", [["pRows", PLAN_OUTER_ROWS], ["pLoops", 1], ["pPages", fmt(outer)]])}</li><li>${node(scan, "order_items", [["pRows", PLAN_RET], ["pLoops", PLAN_OUTER_ROWS], ["pPages", fmt(p.inner)]], true)}</li></ul></li></ul></div>`;
+  $("planCards").innerHTML = node("sort", "Sort", "o.id", [["pRows", PLAN_RET], ["pPages", 0]]) + node("nl", "Nested Loop", "i.order_id = o.id", [["pRows", PLAN_RET], ["pPages", 0]]) + node("idx", "Index Scan", IDX + " · orders", [["pRows", PLAN_OUTER_ROWS], ["pLoops", 1], ["pPages", fmt(outer)]]) + node("scan", scan, "order_items", [["pRows", PLAN_RET], ["pLoops", PLAN_OUTER_ROWS], ["pPages", fmt(p.inner)]], true);
 }
 function findings() {
   const my = S.engine === "my", p = planPages(), m = metrics(1), big = metrics(4);
@@ -1197,7 +1495,8 @@ function renderRisks() {
   const c = (k) => fs.filter((f) => f.kind === k).length;
   $("summary").textContent = t("sum", { a: c("broke"), b: c("not"), c: c("scale"), d: c("unsim") });
   $("assume").textContent = t("assume", { r: fmt(metrics(1).rows), i: t(S.engine === "pg" ? "iPg" : "iMy") });
-  $("finds").innerHTML = fs.map((f) => `<article class="find"><div class="fh"><span class="verdict ${f.kind === "broke" ? "broke" : ""}">${f.v}</span>${tagHtml(f.label)}</div><h3>${f.h}</h3><p>${f.p}</p>${f.ev.length ? `<dl>${f.ev.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>` : ""}${f.act ? `<button class="link" data-act="${f.act[1]}">${t(f.act[0])}</button>` : ""}</article>`).join("");
+  const SEV = { broke: "broke", not: "clear", scale: "open", unsim: "open" };
+  $("finds").innerHTML = fs.map((f) => `<article class="find" data-sev="${SEV[f.kind]}"><div class="fh"><span class="verdict"><svg aria-hidden="true"><use href="#s-${SEV[f.kind]}"/></svg><span>${f.v}</span></span>${tagHtml(f.label)}</div><h3>${f.h}</h3><p>${f.p}</p>${f.ev.length ? `<dl>${f.ev.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>` : ""}${f.act ? `<button class="link" data-act="${f.act[1]}">${t(f.act[0])}</button>` : ""}</article>`).join("");
 }
 function renderPhoneTabs() {
   const d = [["sql", "i-sql", "phSql"], ["stage", "i-tree", "phStage"], ["risk", "i-risk", "phRisk"], ["term", "i-term", "phTerm"]];
@@ -1213,7 +1512,7 @@ function applyI18n() {
   ["hL", "hR", "hB"].forEach((id) => $(id).setAttribute("aria-label", t(id)));
 }
 function renderAll(keep) {
-  applyI18n(); renderEngines(); renderToggles(); renderStmts(); renderSceneTabs(); renderSchema(); renderPlan(); renderRisks(); renderPhoneTabs();
+  applyI18n(); renderBars(); renderModebar(); renderEngines(); renderToggles(); renderStmts(); renderSceneTabs(); renderSchema(); renderPlan(); renderRisks(); renderPhoneTabs();
   buildScene(keep); renderCapacity(); renderTermTabs(); renderStageTag(); updateMotionNote();
   requestAnimationFrame(drawSchemaLines);
 }
@@ -1276,7 +1575,7 @@ function selectStmt(i, play) {
   S.stmt = i;
   const mode = stmt().mode;
   if (mode === "plan") S.scene = "plan"; else S.scene = "tree";
-  renderStmts(); renderSceneTabs(); renderPlan();
+  renderStmts(); renderSceneTabs(); renderPlan(); drawSchemaLines();
   buildScene(0); renderCapacity(); renderTermTabs(); renderStageTag();
   if (play) startScene();
 }
@@ -1284,7 +1583,15 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b) return;
   if (b.getAttribute("aria-disabled") === "true") return;
   const d = b.dataset;
-  if (d.e && d.e !== S.engine) { S.engine = d.e; renderSqlBox(); renderAll(0); startScene(); }
+  if (d.cvact) {
+    const c = CVS[d.cv];
+    if (d.cvact === "in") c.cv.zoomBy(1.2);
+    else if (d.cvact === "out") c.cv.zoomBy(1 / 1.2);
+    else if (d.cvact === "fit") { c.cv.fit(); if (d.cv === "tree") LS.set(treeKey(), { off: B.off, view: treeCv.view }); }
+    else c.reset();
+  }
+  else if (d.bm) setMoveMode(d.bm === "free");
+  else if (d.e && d.e !== S.engine) { S.engine = d.e; treeLoad(); renderSqlBox(); renderAll(0); if (B.free) treeCv.apply(); startScene(); }
   else if (d.l && d.l !== lang) { const k = curStep(); lang = d.l; renderAll(k); }
   else if (d.q != null) { selectStmt(+d.q, true); if (matchMedia("(max-width:900px)").matches) setTab("stage"); }
   else if (d.sc) { S.scene = d.sc; renderSceneTabs(); renderStageTag(); if (d.sc === "tree") { buildScene(0); renderTermTabs(); startScene(); } else requestAnimationFrame(drawSchemaLines); }
@@ -1304,7 +1611,7 @@ document.addEventListener("click", (e) => {
   else if (b.id === "tNext") goTo(curStep() + 1);
   else if (b.id === "tPlay") { if (scene && scene.tl.isActive() && !scene.tl.paused()) scene.tl.pause(); else playScene(); }
 });
-function setTab(k) { S.tab = k; $("work").dataset.tab = k; renderPhoneTabs(); requestAnimationFrame(() => { if (k === "stage" && S.scene === "tree" && lastW !== $("treeWrap").clientWidth) rebuildKeep(); drawSchemaLines(); }); }
+function setTab(k) { S.tab = k; $("work").dataset.tab = k; renderPhoneTabs(); requestAnimationFrame(() => { if (k === "stage" && S.scene === "tree" && lastW !== $("treeWrap").clientWidth) rebuildKeep(); drawSchemaLines(); syncGutter(); if (S.term === "log") fitLog(); }); }
 function setScale(v) {
   const k = curStep();
   S.scale = v; buildScene(k); renderTermTabs();
@@ -1315,9 +1622,11 @@ function setScale(v) {
 $("scale").addEventListener("input", (e) => setScale(+e.target.value));
 $("scrub").addEventListener("input", (e) => { if (!scene) return; if (moveTw) moveTw.kill(); scene.tl.pause(); scene.tl.seek(scene.ends[+e.target.value], false); syncScene(true); });
 $("sql").addEventListener("input", syncGutter);
+new ResizeObserver(syncGutter).observe($("sql"));
+new ResizeObserver(() => { if (S.term === "log") fitLog(); }).observe($("termBody"));
 $("sql").addEventListener("scroll", () => { $("gutter").scrollTop = $("sql").scrollTop; });
 $("pStage").addEventListener("keydown", (e) => {
-  if (e.target.matches("input,textarea")) return;
+  if (e.target.matches("input,textarea") || e.target.closest(".cv-item, #tree .n")) return;
   if (e.key === "ArrowRight") { e.preventDefault(); goTo(curStep() + 1); }
   if (e.key === "ArrowLeft") { e.preventDefault(); goTo(curStep() - 1); }
 });
@@ -1335,13 +1644,15 @@ new ResizeObserver(() => {
 REDUCED.addEventListener("change", () => { const k = curStep(); updateMotionNote(); buildScene(k); });
 
 /* ---------- Khởi động ---------- */
+B.free = LS.get("sqllens.btree.mode") === "free";
+treeLoad();
 renderSqlBox();
 layoutPanels();
 renderAll(0);
 lastW = $("treeWrap").clientWidth; lastH = $("treeWrap").clientHeight;
-const boot = () => { rebuildKeep(); drawSchemaLines(); if (!REDUCED.matches && !location.hash.includes("nostart")) startScene(); };
+const boot = () => { rebuildKeep(); drawSchemaLines(); syncGutter(); if (B.free) treeCv.apply(); if (!REDUCED.matches && !location.hash.includes("nostart")) startScene(); };
 if (document.fonts && document.fonts.ready) Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]).then(boot); else boot();
-window.__sqllens = { S, T, goTo, curStep, setScale, selectStmt, get scene() { return scene; } };
+window.__sqllens = { S, T, B, CVS, schemaCv, planCv, goTo, curStep, setScale, selectStmt, get scene() { return scene; } };
 </script>
 </body>
 </html>
