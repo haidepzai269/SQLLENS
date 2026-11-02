@@ -33,4 +33,7 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task016 | Mới kiểm trên MySQL 8.4.13, chưa kiểm 8.0 hay 9.x | Chưa làm |
 | Task012 | Đo PGlite trên máy RAM thấp thật trước khi chốt mức 500k, vì đỉnh RAM lúc khởi tạo khoảng 1,1 GB | Chưa làm |
 | Task012 | Chưa chạy lại `npm run measure` sau bản sửa `clearTimeout`, chưa thử `npm ci` từ thư mục sạch | Chưa làm |
+| Task010 | `compress: false` của Task014 chưa đưa vào `web/next.config.ts`. Chỉ cần nếu tự host bằng `next start` | Chưa làm |
+| Task010 | `next start` thiếu `API_ORIGIN` lúc chạy vẫn rơi về `localhost:8080`, không báo lỗi | Chưa làm |
+| Task010 | GitHub tắt workflow theo lịch sau 60 ngày repo không có hoạt động, làm `keep-awake` ngừng | Chưa làm |
 | Task009 | `HEAD /healthz` trả 405. Chỉ cần sửa nếu ping giữ thức dùng HEAD. Task010 dùng GET | `needs_validation` |
