@@ -69,7 +69,7 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | Story | Hành vi khi xong | GD | Nhãn |
 |---|---|---|---|
 | STR029 Chuẩn hóa plan | `EXPLAIN` của hai engine đưa về cùng kiểu `PlanNode`, có số dòng và số trang đọc khi engine cung cấp | | Thật |
-| STR030 Sơ đồ bảng | React Flow và thẻ shadcn/ui hiện cột, PK, FK, tự xếp bằng `dagre`, gom bớt khi quá nhiều bảng. Kéo thẻ, đường nối chạy theo, kéo khoảng trống hoặc Space để di chuyển canvas, cuộn để zoom, có nút vừa màn hình và xếp lại, nhớ vị trí | Có | |
+| STR030 Sơ đồ bảng | React Flow và thẻ shadcn/ui hiện cột, PK, FK, tự xếp bằng `dagre`, gom bớt khi quá nhiều bảng. Kéo thẻ, đường nối chạy theo, kéo khoảng trống hoặc Space để di chuyển canvas, cuộn để zoom, có nút vừa màn hình và xếp lại, nhớ vị trí. Cụm nút không được che thẻ trên điện thoại, mẫu HTML còn lỗi này | Có | |
 | STR031 Cây plan | React Flow vẽ tổng quan các bước, kéo được thẻ và di chuyển canvas như sơ đồ bảng, bấm một bước thì mở chi tiết | Có | Thật |
 | STR032 Animation join | Nested Loop, Hash Join, Merge Join theo loại join và số dòng của plan thật, ghi rõ là mẫu minh họa. MySQL không có Merge Join | Có | Mô phỏng |
 
@@ -79,7 +79,7 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 |---|---|---|---|
 | STR033 Đọc cây PostgreSQL | Đọc cây thật bằng `pageinspect` qua thành phần quản trị, đưa về `BTreeModel` | | Thật |
 | STR034 Dựng cây MySQL | Dựng lại từ dữ liệu thật, đối chiếu `mysql.innodb_index_stats`, lệch thì báo | | Mô phỏng |
-| STR035 Vẽ cây | Nền tối kiểu phòng lab, gom node thành `+206 node`, chạy được khi cây lớn. Chọn được kiểu "Cố định" hoặc "Kéo tự do", animation chạy theo vị trí node hiện tại | Có | Theo nguồn |
+| STR035 Vẽ cây | Nền tối kiểu phòng lab, gom node thành `+206 node`, chạy được khi cây lớn. Chọn được kiểu "Cố định" hoặc "Kéo tự do", animation chạy theo vị trí node hiện tại. Node kéo sát nhau không được chồng chữ lên nhau, mẫu HTML còn lỗi này | Có | Theo nguồn |
 | STR036 Key rơi | Key rơi từ root qua internal xuống leaf, chạy từng bước, tua lại, kèm câu giải thích. Báo lại nếu GSAP không hợp | Có | Theo nguồn |
 | STR037 Range scan và khác biệt engine | Range scan trượt ngang leaf, MySQL secondary index rơi hai lần, PostgreSQL nhảy từ index sang heap | Có | Theo nguồn |
 | STR038 Cuộc đua và cây tối | Seq Scan đua với Index Scan bằng số dòng và số trang, không bằng thời gian. Query không dùng được index thì cây tối đi | Có | Thật |

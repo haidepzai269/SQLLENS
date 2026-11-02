@@ -118,7 +118,7 @@ Bộ kiểm tra của skill cảnh báo viền thẻ quá đậm (`heavy-borders
 
 ## Kéo thả và canvas
 
-Phần kéo thả trong mẫu này tự viết bằng JS thuần, chỉ để chủ dự án đánh giá cách tương tác. Sản phẩm thật sẽ dùng thư viện đã chốt trong `CLAUDE.md`: React Flow cho sơ đồ bảng, Cytoscape.js cho cây plan. Riêng cây B-Tree là SVG và GSAP tự vẽ. Task005 không nên chép bộ điều khiển này sang sản phẩm.
+Phần kéo thả trong mẫu này tự viết bằng JS thuần, chỉ để chủ dự án đánh giá cách tương tác. Sản phẩm thật sẽ dùng thư viện đã chốt trong `CLAUDE.md`: React Flow cho sơ đồ bảng và cây plan. Riêng cây B-Tree là SVG và GSAP tự vẽ. Task005 không nên chép bộ điều khiển này sang sản phẩm.
 
 Tôi đọc `topology-canvas.tsx` và `flow.css` của webhook-hub, và giữ theo đó: zoom từ 0,3 đến 1,6, nhớ vị trí trong localStorage có bọc try/catch, nút xếp lại, và vừa màn hình không phóng quá 100%. Tôi không lấy kính mờ, glow và thẻ bo lớn của dự án đó, vì chúng không hợp cảm giác phòng lab. Tôi cũng không làm cạnh chạy liên tục, vì màn hình này không có dữ liệu đang bay. Thay vào đó, các cạnh nối với thẻ đang kéo chuyển sang màu đèn. Tôi chưa mở được trang của n8n, nên cách điều khiển theo n8n làm theo mô tả trong yêu cầu.
 
@@ -173,7 +173,7 @@ Với các hằng số này, số tầng ở 10k, 100k và 500k dòng khớp v�
 3. Nhật ký terminal ghi số thứ tự, không ghi giờ và không ghi thời gian chạy, và không chép lại nội dung SQL của người dùng, theo nguyên tắc số 3 và số 7.
 4. Terminal được đặt nền tối như vùng giữa để hai vùng "máy đang chạy" trông cùng một họ.
 5. Animation join chưa có trong mẫu, vì đề bài chỉ yêu cầu ba cảnh. Cây plan có ghi loại join.
-6. Cây plan, sơ đồ bảng và bộ kéo thả trong mẫu tự viết bằng HTML, SVG và JS thuần để file độc lập. Sản phẩm thật theo `CLAUDE.md` sẽ dùng Cytoscape.js và React Flow, nên Task005 chỉ nên lấy hình thức thẻ và đường nối.
+6. Cây plan, sơ đồ bảng và bộ kéo thả trong mẫu tự viết bằng HTML, SVG và JS thuần để file độc lập. Sản phẩm thật theo `CLAUDE.md` sẽ dùng React Flow, nên Task005 chỉ nên lấy hình thức thẻ và đường nối.
 7. Trình soạn thảo trong mẫu là ô văn bản thường, chưa tô màu cú pháp. Sản phẩm thật dùng CodeMirror 6.
 
 ## Kết quả tự đánh giá

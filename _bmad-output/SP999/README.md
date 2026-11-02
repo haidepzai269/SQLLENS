@@ -20,4 +20,6 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task011 | Chưa có test cho `dispose` khi rời trang, reviewer chỉ đọc code | Chưa làm |
 | Task011 | Date không hợp lệ hiện chữ `null` thay vì `NULL`, không crash | Chưa làm |
 | Task011 | CI cảnh báo các action đang dùng Node.js 20 | Chưa làm |
+| Task004 | Mẫu HTML mới kiểm trên Chrome headless, chưa kiểm cửa sổ thật, Firefox, Safari, điện thoại thật và trình đọc màn hình | Chưa làm |
+| Task004 | `inspect.mjs` của skill `design-taste-frontend` không khởi động được trên máy này vì launcher Chrome thoát sớm | Chưa làm |
 | Task009 | `HEAD /healthz` trả 405. Chỉ cần sửa nếu ping giữ thức dùng HEAD. Task010 dùng GET | `needs_validation` |
