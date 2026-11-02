@@ -1,7 +1,5 @@
 .git
 .gitignore
-Dockerfile
-.dockerignore
 server
 server.exe
 *_test.go
