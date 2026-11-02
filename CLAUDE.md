@@ -184,6 +184,14 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 - `node-sql-parser` đọc đúng 8/9 câu MySQL thử, lỗi ở `FORCE INDEX`.
 - Subagent gọi được subagent khác: Amelia đã gọi `task-reviewer` ở Task002.
 - PGlite 0.5.14 chạy được trong Chromium trên bản `next build` của Next.js 16.4.4, kiểm bằng Playwright ở máy và CI (Task011). Chưa kiểm trên Vercel.
+- Gói free của dịch vụ ngoài, tra ngày 2026-11-02, chi tiết và nguồn ở `_bmad-output/SP002/STR011/Task017/ket_qua.md`:
+  - **Oracle A1:** chỉ còn 2 OCPU và 12 GB RAM, không còn 4 OCPU và 24 GB. Máy bị coi là nhàn rỗi khi trong 7 ngày CPU p95, mạng và bộ nhớ đều dưới 20%.
+  - **Render:** 750 giờ mỗi tháng cho cả workspace, ngủ sau 15 phút. Lịch 7:00 đến 24:00 dùng khoảng 510 đến 527 giờ.
+  - **Neon:** 100 CU-giờ mỗi project mỗi tháng, 1 GB mỗi project, tự tắt sau 5 phút.
+  - **Upstash:** 500.000 lệnh mỗi tháng, khoảng 250 MB.
+  - **Gemini gói free:** Google dùng dữ liệu để cải thiện sản phẩm và người duyệt có thể đọc. Theo nguyên tắc 7, không gửi SQL người dùng qua gói free.
+  - **Groq:** mặc định không giữ dữ liệu suy luận, có thể giữ tạm tối đa 30 ngày. Có tùy chọn Zero Data Retention.
+  - **OpenRouter:** mặc định cho phép provider thu dữ liệu. Phải gửi `data_collection: "deny"` và nên thêm `zdr: true`.
 - PGlite 0.5.14 treo mãi, không báo lỗi, khi tải WASM thất bại. Vì vậy `web/src/engines/postgres/adapter.ts` tự tải file rồi truyền vào `PGlite.create`. Khi nâng PGlite hoặc đổi chỗ file này phải kiểm lại đường dẫn.
 
 ## Chưa kiểm chứng
@@ -191,10 +199,10 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 - RAM và thời gian khởi động của mỗi container MySQL, từ đó suy ra số phiên chạy cùng lúc trên Oracle.
 - Bắt lock wait trên MySQL thật.
 - `pgsql-parser` chạy trong trình duyệt thật. RAM và thời gian của PGlite ở 10k, 100k, 500k trên trình duyệt.
-- Xin được máy ARM của Oracle, và ngưỡng thu hồi máy nhàn rỗi hiện tại.
-- Điều khoản của Render về việc ping giữ thức.
-- Hạn mức CU-giờ của gói free Neon: các nguồn ghi 50 hoặc 100.
-- Điều khoản về việc các gói LLM free dùng dữ liệu gửi lên để huấn luyện model. Phải rõ trước khi gửi SQL của người dùng cho AI.
+- Xin được máy ARM của Oracle ở region gần Việt Nam.
+- Điều khoản của Render có cấm ping giữ thức không. Trang gói free không nhắc đến.
+- Giới hạn kết nối của Neon gói free, thời gian giữ dữ liệu của Gemini gói free, chính sách dữ liệu riêng cho model `:free` của OpenRouter.
+- agent-browser chạy thật trên Windows của dự án.
 
 ## Cần thử khi dựng
 
