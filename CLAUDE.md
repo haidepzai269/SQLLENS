@@ -198,11 +198,18 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 - `pgsql-parser` chạy được trong Chromium: phần JS khoảng 57 KB gzip, WASM khoảng 344 KB gzip, `libpg-query.wasm` được tìm cạnh trang HTML. `node-sql-parser` nên import `node-sql-parser/build/mysql` (66 KB gzip thay vì 515 KB).
 - MySQL 8.4.13 trong Docker cho lock wait, deadlock, dirty read, lost update và gap lock quan sát được qua `performance_schema.data_lock_waits` và `data_locks`, 5/5 lần giống nhau (Task016). Chỉ connection quản trị đọc được các bảng này: user quyền thấp bị từ chối. Bên bị hủy trong deadlock không cố định, nên `conflict-sim` không được giả định bên nào. Mật khẩu truyền qua biến môi trường vẫn lộ qua `docker inspect`, sandbox agent phải dùng cách khác.
 - Gọi Gin qua `rewrites` của Next.js giữ được cookie `HttpOnly` và stream SSE, kiểm trên `next start` ở máy (Task014). Điều kiện: `next start` mặc định nén gzip và gom cả stream, nên phải đặt `compress: false`. Chưa kiểm trên Vercel, Task010 đo lại.
+- Container MySQL 8.4 cho sandbox, đo trên amd64 ở máy (Task015):
+  - Cấu hình tối giản dùng khoảng 240 đến 260 MiB, so với khoảng 440 MiB khi để mặc định. `--memory` thấp nhất chạy được là 288m, khuyến nghị 384m.
+  - Khởi động lạnh đến khi nhận kết nối mất khoảng 13 đến 19 giây. Người dùng sẽ phải chờ, nên SP004 cần thư mục dữ liệu dựng sẵn hoặc giữ sẵn container chờ.
+  - Ước tính trên máy Oracle 12 GB: khoảng 20 đến 25 phiên cùng lúc, tối đa 2 phiên khởi động đồng thời vì chỉ có 2 OCPU. Task018 đo lại trên ARM.
+  - Cô lập bằng `--network none --read-only --cap-drop ALL` cộng 5 capability tối thiểu. `INTO OUTFILE` bị chặn.
+  - File cấu hình mount từ Windows bị mysqld bỏ qua vì quyền 0777, phải kiểm cảnh báo trong log.
+  - Task015 dùng `mysql:8.4.6`, Task016 dùng `mysql:8.4.13`. SP004 thống nhất một bản.
 - PGlite 0.5.14 treo mãi, không báo lỗi, khi tải WASM thất bại. Vì vậy `web/src/engines/postgres/adapter.ts` tự tải file rồi truyền vào `PGlite.create`. Khi nâng PGlite hoặc đổi chỗ file này phải kiểm lại đường dẫn.
 
 ## Chưa kiểm chứng
 
-- RAM và thời gian khởi động của mỗi container MySQL, từ đó suy ra số phiên chạy cùng lúc trên Oracle.
+- Số phiên MySQL chạy cùng lúc trên máy ARM của Oracle (Task018).
 - `pgsql-parser` chạy trong trình duyệt thật. RAM và thời gian của PGlite ở 10k, 100k, 500k trên trình duyệt.
 - Xin được máy ARM của Oracle ở region gần Việt Nam.
 - Điều khoản của Render có cấm ping giữ thức không. Trang gói free không nhắc đến.

@@ -41,7 +41,7 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | Story | Hành vi khi xong | GD | Nhãn |
 |---|---|---|---|
 | STR016 Sandbox agent | Agent có API tạo, chạy, hủy phiên, xác thực bằng token. Trạng thái phiên nằm ở agent nên Render restart không mất phiên | | |
-| STR017 Container theo phiên | Mỗi phiên một container, giới hạn CPU và RAM, không có mạng ra ngoài, tự hủy khi hết hạn, có trần số phiên | | |
+| STR017 Container theo phiên | Mỗi phiên một container, giới hạn CPU và RAM, không có mạng ra ngoài, tự hủy khi hết hạn, có trần số phiên. Mật khẩu root ngẫu nhiên mỗi phiên, không truyền qua biến môi trường. Giảm thời gian chờ khởi động 13 đến 19 giây bằng dữ liệu dựng sẵn hoặc container chờ sẵn. Cấu hình theo Task015 | | |
 | STR018 Quyền thấp | SQL người dùng chạy bằng role quyền thấp, không đọc được thông tin hệ thống và không đọc ghi được file | | |
 | STR019 Nối vào sản phẩm | Gin chuyển tiếp đến agent, có `EngineAdapter` cho MySQL, có màn hình đang khởi động, hết hạn, hết chỗ. Không ghi log SQL | Có | Thật |
 | STR020 Kiểm tra bảo mật | Chạy `security-audit` trong Docker tắt mạng, sửa hết lỗi nghiêm trọng trước mốc ngày 3 | | |
