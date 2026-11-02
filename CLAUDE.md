@@ -192,6 +192,10 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
   - **Gemini gói free:** Google dùng dữ liệu để cải thiện sản phẩm và người duyệt có thể đọc. Theo nguyên tắc 7, không gửi SQL người dùng qua gói free.
   - **Groq:** mặc định không giữ dữ liệu suy luận, có thể giữ tạm tối đa 30 ngày. Có tùy chọn Zero Data Retention.
   - **OpenRouter:** mặc định cho phép provider thu dữ liệu. Phải gửi `data_collection: "deny"` và nên thêm `zdr: true`.
+- Trong Chromium, `pageinspect` đọc được root, internal, leaf và đi đúng đường từ root xuống leaf. Đọc hết cây 100k dòng mất khoảng 0,8 giây, nên cây lớn đọc theo đường đi (Task013).
+- Level của B-Tree phụ thuộc độ rộng key. Index `int` 100k dòng vẫn là level 1, nên số "level 2 ở 100k" trong bảng trên chỉ đúng với key rộng hơn.
+- **PGlite không có ranh giới quyền thật:** `session_user` là superuser, nên SQL chạy dưới role quyền thấp vẫn gọi được `RESET ROLE` hoặc `SET ROLE postgres` (Task013). Với PostgreSQL, nguyên tắc 8 phải thực hiện bằng cách chặn `SET ROLE`, `RESET ROLE`, `SET SESSION AUTHORIZATION` trong SQL người dùng bằng parser, và đọc B-Tree qua đường riêng không đi chung với SQL người dùng. Rủi ro hiện thấp vì PGlite chạy trong trình duyệt của chính người dùng.
+- `pgsql-parser` chạy được trong Chromium: phần JS khoảng 57 KB gzip, WASM khoảng 344 KB gzip, `libpg-query.wasm` được tìm cạnh trang HTML. `node-sql-parser` nên import `node-sql-parser/build/mysql` (66 KB gzip thay vì 515 KB).
 - PGlite 0.5.14 treo mãi, không báo lỗi, khi tải WASM thất bại. Vì vậy `web/src/engines/postgres/adapter.ts` tự tải file rồi truyền vào `PGlite.create`. Khi nâng PGlite hoặc đổi chỗ file này phải kiểm lại đường dẫn.
 
 ## Chưa kiểm chứng

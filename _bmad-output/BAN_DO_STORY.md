@@ -32,7 +32,7 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | Story | Hành vi khi xong | GD | Nhãn |
 |---|---|---|---|
 | STR012 Nạp PGlite | PGlite chạy trong worker, chỉ tải khi chọn PostgreSQL, có tiến trình tải và màn hình lỗi | Có | |
-| STR013 Chạy SQL an toàn | SQL người dùng chạy bằng role quyền thấp, có timeout và nút hủy. Treo query không làm treo giao diện. Hiện lưới kết quả | Có | Thật |
+| STR013 Chạy SQL an toàn | SQL người dùng chạy bằng role quyền thấp và bị chặn `SET ROLE`, `RESET ROLE`, `SET SESSION AUTHORIZATION` bằng parser, vì PGlite cho thoát role (Task013), có timeout và nút hủy. Treo query không làm treo giao diện. Hiện lưới kết quả | Có | Thật |
 | STR014 `data-lab` | Sinh dữ liệu theo tên cột và kiểu dữ liệu, chỉnh được độ lệch dữ liệu, chọn mức 10k, 100k, 500k, có tiến trình và nút hủy | Có | |
 | STR015 Thử rồi hoàn tác | Thử thay đổi trong transaction rồi rollback, trạng thái dữ liệu trở lại như cũ | | |
 

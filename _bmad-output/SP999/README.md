@@ -25,4 +25,8 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task005 | Bảng tương phản trong `DESIGN.md` là số ghi tay, test chỉ chặn cặp chữ dưới 4,5:1 | Chưa làm |
 | Task005 | `control` trên `stage` (1,70:1) và `line` trên `ground` (1,25:1) dưới 3:1 cho phần tử giao diện, giữ theo mẫu | `needs_validation` |
 | Task005 | Chưa có giao diện sáng, `.dark` trùng `:root` | Chưa làm |
+| Task006 | Đổi qua lại mốc 900 px thì nội dung các vùng bị mount lại. Task đặt nội dung thật phải giữ trạng thái ở trên `WorkspaceLayout` | Chưa làm |
+| Task006 | `/lab` có `<main>` riêng, và tab engine ở thanh trên chưa tác động lên `/lab` | Chưa làm |
+| Task006 | Dòng giải thích tab khóa không tự mất cho đến khi focus hoặc bấm tab khác | `needs_validation` |
+| Task013 | Kiểm trong `next build` xem `libpg-query.wasm` và `pageinspect.tar.gz` có được phát ra đúng chỗ không | Chưa làm |
 | Task009 | `HEAD /healthz` trả 405. Chỉ cần sửa nếu ping giữ thức dùng HEAD. Task010 dùng GET | `needs_validation` |
