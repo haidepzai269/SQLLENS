@@ -18,6 +18,7 @@ Tiêu chí xong:
 - AC3: Bundle phía client không chứa giá trị `API_ORIGIN`. Kiểm bằng grep trong `web/.next/static`.
 - AC4: Chạy tay `keep-awake.yml` bằng `workflow_dispatch` và thành công. URL lỗi thì job đỏ, dùng `curl --fail`.
 - AC5: `actionlint` sạch.
+- AC7: Chạy lại AC1 và AC2 của Task014 trên Vercel và Render theo các bước trong `_bmad-output/SP002/STR008/Task014/ket_qua.md`. Nếu Vercel gom stream thì thử Route Handler làm proxy và ghi so sánh.
 - AC6: `curl https://<vercel>/en` hiện đúng tiếng Anh. Task007 thêm `outputFileTracingIncludes` cho `messages/**` nhưng chưa kiểm trên Vercel.
 
 Ca biên:

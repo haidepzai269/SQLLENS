@@ -197,6 +197,7 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 - **PGlite không có ranh giới quyền thật:** `session_user` là superuser, nên SQL chạy dưới role quyền thấp vẫn gọi được `RESET ROLE` hoặc `SET ROLE postgres` (Task013). Với PostgreSQL, nguyên tắc 8 phải thực hiện bằng cách chặn `SET ROLE`, `RESET ROLE`, `SET SESSION AUTHORIZATION` trong SQL người dùng bằng parser, và đọc B-Tree qua đường riêng không đi chung với SQL người dùng. Rủi ro hiện thấp vì PGlite chạy trong trình duyệt của chính người dùng.
 - `pgsql-parser` chạy được trong Chromium: phần JS khoảng 57 KB gzip, WASM khoảng 344 KB gzip, `libpg-query.wasm` được tìm cạnh trang HTML. `node-sql-parser` nên import `node-sql-parser/build/mysql` (66 KB gzip thay vì 515 KB).
 - MySQL 8.4.13 trong Docker cho lock wait, deadlock, dirty read, lost update và gap lock quan sát được qua `performance_schema.data_lock_waits` và `data_locks`, 5/5 lần giống nhau (Task016). Chỉ connection quản trị đọc được các bảng này: user quyền thấp bị từ chối. Bên bị hủy trong deadlock không cố định, nên `conflict-sim` không được giả định bên nào. Mật khẩu truyền qua biến môi trường vẫn lộ qua `docker inspect`, sandbox agent phải dùng cách khác.
+- Gọi Gin qua `rewrites` của Next.js giữ được cookie `HttpOnly` và stream SSE, kiểm trên `next start` ở máy (Task014). Điều kiện: `next start` mặc định nén gzip và gom cả stream, nên phải đặt `compress: false`. Chưa kiểm trên Vercel, Task010 đo lại.
 - PGlite 0.5.14 treo mãi, không báo lỗi, khi tải WASM thất bại. Vì vậy `web/src/engines/postgres/adapter.ts` tự tải file rồi truyền vào `PGlite.create`. Khi nâng PGlite hoặc đổi chỗ file này phải kiểm lại đường dẫn.
 
 ## Chưa kiểm chứng
@@ -210,7 +211,7 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 
 ## Cần thử khi dựng
 
-- Cookie đăng nhập: gọi API qua `rewrites` của Next.js để cùng domain, cần thử xem stream có chạy được không.
+- Cookie và stream qua `rewrites` trên Vercel và Render thật.
 - PGlite trong Next.js: cần thử việc tải file WASM trên Vercel, Task010 và STR007 kiểm.
 - agent-browser trên Windows: README chưa ghi rõ có hỗ trợ.
 

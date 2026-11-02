@@ -51,7 +51,7 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | Story | Hành vi khi xong | GD | Nhãn |
 |---|---|---|---|
 | STR021 CSDL của app | Schema và migration trên Neon cho tài khoản và phiên đăng nhập | | |
-| STR022 OAuth | Đăng nhập, đăng xuất bằng Google và GitHub, cookie an toàn | Có | |
+| STR022 OAuth | Đăng nhập, đăng xuất bằng Google và GitHub, cookie an toàn. Kiểm Origin chống CSRF vì `SameSite=Lax` vẫn gửi cookie khi điều hướng GET từ trang khác. Gin chỉ đọc cookie `sid` vì `rewrites` chuyển nguyên header Cookie | Có | |
 | STR023 Quota | Gin kiểm tra quyền và quota bằng Upstash, không tin dữ liệu từ frontend. Có màn hình khi hết quota | Có | |
 | STR024 Cổng đăng nhập | PostgreSQL dùng tự do. Chọn MySQL hoặc AI thì được mời đăng nhập, đăng nhập xong quay lại đúng chỗ và không mất SQL đã dán | Có | |
 
