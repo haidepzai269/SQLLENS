@@ -44,11 +44,16 @@ describe("token màu", () => {
     for (const n of ["label-real", "label-simulated", "label-estimated", "severity-broken", "severity-uncertain", "severity-passed"]) hex(n);
   });
 
-  it("mọi màu hex trong DESIGN.md đều có token trong globals.css (AC1)", () => {
+  it("màu khai báo trong DESIGN.md khớp token cùng tên trong globals.css (AC1)", () => {
     const md = readFileSync("../DESIGN.md", "utf8");
-    const used = new Set(md.match(/#[0-9a-fA-F]{6}\b/g)?.map((h) => h.toLowerCase()));
-    const defined = new Set(css.match(/#[0-9a-f]{6}\b/g));
-    expect([...used].filter((h) => !defined.has(h))).toEqual([]);
-    expect(used.size).toBeGreaterThan(10);
+    const entries = [...md.matchAll(/^  ([a-z0-9-]+): '(#[0-9a-fA-F]{6})'$/gm)];
+    expect(entries.length).toBeGreaterThan(20);
+    for (const [, name, value] of entries) expect(hex(name), name).toBe(value.toLowerCase());
+  });
+
+  it("mọi màu hex trong thân DESIGN.md có trong globals.css", () => {
+    const md = readFileSync("../DESIGN.md", "utf8");
+    const defined = new Set(css.match(/#[0-9a-f]{6}/g));
+    expect([...new Set(md.match(/#[0-9a-fA-F]{6}/g)?.map((h) => h.toLowerCase()))].filter((h) => !defined.has(h))).toEqual([]);
   });
 });

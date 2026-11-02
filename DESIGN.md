@@ -213,7 +213,7 @@ Bo góc 4 px (`--radius`) cho nút và thẻ. Nhãn kết luận 2 px. Không c�
 - Key rơi bằng `power2.in` (trọng lực), nhảy sang heap bằng `back.in`.
 - Màu đèn là thứ duy nhất sáng lên khi chạy. Nhánh chưa đi qua giữ `control`. Query không dùng được index thì cây tối đi.
 - Kéo và zoom canvas là thao tác trực tiếp, không có chuyển tiếp.
-- `prefers-reduced-motion: reduce`: cảnh không tự chạy, mỗi bước đổi ngay, không chuyển tiếp, có một dòng báo rõ. `globals.css` đã tắt `transition` và `scroll-behavior`.
+- `prefers-reduced-motion: reduce`: cảnh không tự chạy, mỗi bước đổi ngay, không chuyển tiếp, có một dòng báo rõ. `globals.css` đã tắt `transition`, `animation` và `scroll-behavior`.
 
 ## Components
 
@@ -221,7 +221,8 @@ Bo góc 4 px (`--radius`) cho nút và thẻ. Nhãn kết luận 2 px. Không c�
 - Cây B-Tree, hình mô phỏng, nhãn kết luận và thẻ mức độ tự vẽ vì shadcn không có. Sơ đồ bảng và cây plan dùng React Flow với thẻ shadcn/ui. Đồ thị chờ khóa dùng Cytoscape.js.
 - Thẻ node trên React Flow: nền `surface`, viền `control`, bo 4 px, tên ở đầu, kiểu dữ liệu bên phải màu `dim`. Đường nối vuông góc. Cạnh nối với thẻ đang kéo đổi sang `lamp`.
 - Lưới canvas: chấm 1 px `canvas-dot`, ô 24 px, co giãn theo zoom, vẽ bằng ảnh SVG nhúng. Cây ở chế độ "Cố định" để nền trơn.
-- Focus: `outline: 2px solid var(--lamp); outline-offset: 1px`, đặt toàn cục.
+- Focus: `outline: 2px solid var(--lamp); outline-offset: 1px`, đặt toàn cục. Component shadcn/ui có sẵn `focus-visible:ring-3 ring-ring/50` (như `button.tsx`) thì giữ vòng đó, vì `--ring` đã là màu đèn; hai kiểu cùng một màu.
+- Bo góc: `globals.css` đặt mọi bậc `--radius-lg` đến `--radius-4xl` bằng 4 px, nên Badge và Card của shadcn/ui không thành viên thuốc.
 
 ## Do's and Don'ts
 

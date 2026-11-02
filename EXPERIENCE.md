@@ -69,7 +69,7 @@ Ba cột cộng panel terminal ở dưới.
 
 ### Hai điểm yếu của mẫu, thành yêu cầu bắt buộc
 
-**Y1. Node kéo sát nhau không được chồng chữ.** Khi hai thẻ hoặc node trên canvas (sơ đồ bảng, cây plan, cây B-Tree ở "Kéo tự do") đặt sát hoặc chồng lên nhau, chữ của thẻ này không được đè lên chữ của thẻ kia, và không được che mất tên bảng, tên cột, khóa. Cách đạt: thẻ đang kéo nổi lên trên (`z-index`) và các thẻ còn lại giữ nguyên; thẻ không co chữ, chữ cắt bằng dấu ba chấm có `title`; khoảng cách tối thiểu giữa hai thẻ khi thả là 8 px, nếu chồng thì đẩy thẻ vừa thả ra khỏi vùng chồng; nút "Xếp lại" luôn về bố cục chuẩn không chồng. Kiểm bằng ảnh chụp sau khi kéo hai thẻ chạm nhau.
+**Y1. Node kéo sát nhau không được chồng chữ.** Khi hai thẻ hoặc node trên canvas (sơ đồ bảng, cây plan, cây B-Tree ở "Kéo tự do") đặt sát hoặc chồng lên nhau, chữ của thẻ này không được đè lên chữ của thẻ kia, và không được che mất tên bảng, tên cột, khóa. Cách đạt: trong lúc kéo thẻ đang kéo nổi lên trên và có thể tạm che thẻ khác, còn yêu cầu không chồng chữ áp dụng sau khi thả; thẻ không co chữ, chữ cắt bằng dấu ba chấm có `title`; khoảng cách tối thiểu giữa hai thẻ khi thả là 8 px, nếu chồng thì đẩy thẻ vừa thả ra khỏi vùng chồng; nút "Xếp lại" luôn về bố cục chuẩn không chồng. Kiểm bằng ảnh chụp sau khi kéo hai thẻ chạm nhau.
 
 **Y2. Cụm nút canvas không che thẻ trên điện thoại.** Cụm nút zoom, vừa màn hình, xếp lại ở góc dưới phải không được nằm đè lên thẻ hoặc câu giải thích dính ở đáy. Cách đạt: dưới 640 px cụm nút thu thành một hàng ngang gọn nằm trên vùng canvas (không đè lên nội dung), chừa khoảng đệm cuối vùng canvas bằng chiều cao cụm nút để thẻ cuối cuộn ra khỏi chỗ cụm nút, và cụm nút không bao giờ nằm trên câu giải thích dính. Kiểm ở 390 px với thẻ cuối cùng.
 
