@@ -14,6 +14,9 @@ test("AC1 cookie sid nằm trên domain Next và /me nhận lại", async ({ pag
   const c = (await context.cookies()).find((x) => x.name === "sid")!;
   console.log("cookie", JSON.stringify(c));
   expect(c.domain).toBe("localhost");
+  // Cổng không nằm trong cookie, nên domain một mình không phân biệt Next với Go. Bằng chứng thật: Go không đặt Domain.
+  const sc = (await page.request.get("/api/login")).headersArray().find((h) => h.name.toLowerCase() === "set-cookie")!.value;
+  expect(sc).not.toMatch(/domain=/i);
   expect(c.httpOnly).toBe(true);
   expect(c.sameSite).toBe("Lax");
   expect(c.path).toBe("/");
