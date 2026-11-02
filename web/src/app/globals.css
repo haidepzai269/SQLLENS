@@ -7,9 +7,33 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--sans);
+  --font-mono: var(--mono);
+  --font-heading: var(--sans);
+  --color-stage: var(--stage);
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-rule: var(--rule);
+  --color-control: var(--control);
+  --color-ink2: var(--ink2);
+  --color-lamp: var(--lamp);
+  --color-lamp-ink: var(--lamp-ink);
+  --color-negative: var(--negative);
+  --color-label-real: var(--label-real);
+  --color-label-real-foreground: var(--label-real-foreground);
+  --color-label-simulated: var(--label-simulated);
+  --color-label-estimated: var(--label-estimated);
+  --color-label-unsimulated: var(--label-unsimulated);
+  --color-severity-broken: var(--severity-broken);
+  --color-severity-broken-bg: var(--severity-broken-bg);
+  --color-severity-broken-foreground: var(--severity-broken-foreground);
+  --color-severity-passed: var(--severity-passed);
+  --color-severity-passed-bg: var(--severity-passed-bg);
+  --color-severity-passed-foreground: var(--severity-passed-foreground);
+  --color-severity-uncertain: var(--severity-uncertain);
+  --color-severity-uncertain-bg: var(--severity-uncertain-bg);
+  --color-severity-uncertain-foreground: var(--severity-uncertain-foreground);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,7 +63,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-sm: 2px;
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
@@ -48,73 +72,98 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
+/* Giao diện chính là tối kiểu phòng lab. Chưa có giao diện sáng; .dark trùng :root để `dark:` của shadcn/ui chạy đúng. */
+:root,
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  color-scheme: dark;
+
+  /* Bề mặt, từ tối nhất đến sáng nhất */
+  --stage: #0e0e10;
+  --ground: #171719;
+  --surface: #131217;
+  --raised: #212023;
+  --rule: #1f1e23;
+  --line: #2a2a2e;
+  --control: #3a3a3e;
+
+  /* Chữ */
+  --text: #ffffff;
+  --ink2: #c4c5c9;
+  --dim: #92949a;
+
+  /* Màu đèn: chỗ đang đọc hoặc đang chọn. Không dùng cho mức độ. */
+  --lamp: #f2b84b;
+  --lamp-ink: #17130a;
+  --negative: #ef6b82;
+
+  /* Nhãn kết luận: phân biệt bằng hình, chữ và kiểu viền, không bằng màu. */
+  --label-real: #ffffff;
+  --label-real-foreground: #131217;
+  --label-simulated: #c4c5c9;
+  --label-estimated: #c4c5c9;
+  --label-unsimulated: #c4c5c9;
+  --label-foreground: #ffffff;
+
+  /* Mức độ ở cột rủi ro: viền, nền, chữ */
+  --severity-broken: #ef6b82;
+  --severity-broken-bg: #2a161c;
+  --severity-broken-foreground: #ff9fae;
+  --severity-passed: #4fb08e;
+  --severity-passed-bg: #12261f;
+  --severity-passed-foreground: #86dcbd;
+  --severity-uncertain: #d8dc52;
+  --severity-uncertain-bg: #24260e;
+  --severity-uncertain-foreground: #e6ea78;
+
+  --canvas-dot: #34343a;
+
+  /* Khoảng cách và kích thước */
+  --sp1: 4px;
+  --sp2: 8px;
+  --sp3: 12px;
+  --sp4: 16px;
+  --sp5: 24px;
+  --edge: 16px;
+  --h-top: 44px;
+  --h-bar: 40px;
+  --radius: 4px;
+
+  /* Font. Webfont Public Sans và JetBrains Mono do khung ứng dụng nạp. */
+  --sans: "Public Sans", "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", Consolas, "DejaVu Sans Mono", "Noto Sans Mono", monospace;
+
+  /* Token shadcn/ui */
+  --background: var(--ground);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface);
+  --popover-foreground: var(--text);
+  --primary: var(--lamp);
+  --primary-foreground: var(--lamp-ink);
+  --secondary: var(--raised);
+  --secondary-foreground: var(--text);
+  --muted: var(--raised);
+  --muted-foreground: var(--dim);
+  --accent: var(--raised);
+  --accent-foreground: var(--text);
+  --destructive: var(--negative);
+  --border: var(--line);
+  --input: var(--control);
+  --ring: var(--lamp);
+  --chart-1: var(--lamp);
+  --chart-2: var(--ink2);
+  --chart-3: var(--dim);
+  --chart-4: var(--control);
+  --chart-5: var(--raised);
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--text);
+  --sidebar-primary: var(--lamp);
+  --sidebar-primary-foreground: var(--lamp-ink);
+  --sidebar-accent: var(--raised);
+  --sidebar-accent-foreground: var(--text);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--lamp);
 }
 
 @layer base {
@@ -123,6 +172,19 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-size: 13px;
+    line-height: 20px;
+    font-variant-numeric: tabular-nums;
+  }
+  :focus-visible {
+    outline: 2px solid var(--lamp);
+    outline-offset: 1px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      scroll-behavior: auto !important;
+      transition: none !important;
+    }
   }
   html {
     @apply font-sans;
