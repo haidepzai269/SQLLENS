@@ -45,7 +45,7 @@ Tiêu chí xong:
 - AC6: Hàm `isApiError(value: unknown): value is ApiError` có test cho đúng dạng, thiếu trường, `null`.
 - AC7: `npm run check` thoát với mã 0.
 
-Ca biên: `ApiError` không có trường chứa SQL hay nội dung người dùng gửi lên.
+Ca biên: `ApiError` không có trường chứa SQL hay nội dung người dùng gửi lên. Gin đã trả đúng định dạng này ở Task009, với `code` là `not_found`, `method_not_allowed`, `payload_too_large`, `internal`, nên không được đổi tên trường.
 Kiểm tra: `cd web && npm run check`
 Góc review thêm: nhãn kết luận.
 Đọc thêm: `CLAUDE.md` mục "Nguyên tắc không được phá"; bàn giao Task001.

@@ -21,6 +21,7 @@ Tiêu chí xong:
 - AC6: Viết chữ cứng trong JSX ở `web/src/app` hoặc `web/src/components`: `npm run lint` báo lỗi. Thư mục `web/src/components/ui` được miễn. Dùng rule có sẵn nếu có, ví dụ `react/jsx-no-literals`.
 - AC7: Test cho `check-i18n.mjs` phủ AC3, AC4, AC5.
 - AC8: `npm run check` và `npm run build` thoát với mã 0.
+- AC9: Có `web/messages/<locale>/error.json` với các key `notFound`, `methodNotAllowed`, `payloadTooLarge`, `internal`. Đây là các `messageKey` dạng `error.*` mà Gin đã trả ở Task009.
 
 Ca biên:
 - Locale không hỗ trợ như `/fr`: trả 404, không crash.
