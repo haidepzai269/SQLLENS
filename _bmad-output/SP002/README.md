@@ -11,7 +11,7 @@ Code thử nằm trong `spikes/<tên>/` ở gốc repo, mỗi thư mục có `pa
 | STR007 PGlite trên trình duyệt | Task012 | Thời gian và RAM của PGlite ở 10k, 100k, 500k trong Chromium | Không | 1 |
 | STR007 PGlite trên trình duyệt | Task013 | `pageinspect` và `pgsql-parser` có chạy trong Chromium không | Không | 1 |
 | STR008 Cookie và stream | Task014 | Gọi qua `rewrites` có giữ cookie và stream không | Không, phần Vercel cần Task010 | 1 |
-| STR009 Máy Oracle | Task015 | Một container MySQL tốn bao nhiêu RAM, khởi động mất bao lâu | Không | 1 |
+| STR009 Máy sandbox | Task015 | Một container MySQL tốn bao nhiêu RAM, khởi động mất bao lâu | Không | 1 |
 | STR010 Lock wait MySQL | Task016 | Hai connection thật có bắt được lock wait và deadlock không | Không | 1 |
 | STR011 Điều khoản và công cụ | Task017 | Điều khoản Render, Neon, LLM free, agent-browser trên Windows | Không | 1 |
 | STR009 Máy sandbox | Task018 | Máy Azure chạy được bao nhiêu phiên cùng lúc | Máy Azure do chủ dự án tạo, Task015, Task016 | 2 |
