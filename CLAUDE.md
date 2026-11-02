@@ -5,7 +5,7 @@
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
 - **Khi Google Doc và file này khác nhau:** file này đúng hơn, cho đến khi Google Doc được cập nhật.
 - **Giai đoạn hiện tại:** đã chốt định hướng, đang bàn về công cụ và quy trình cho agent, rồi chia SPEC, STORY, TASK. Chưa có code.
-- **Việc đang chờ:** cập nhật Google Doc theo file này, giữ nguyên phần còn đúng và giữ nguyên link. Google Drive đã kết nối, nhưng Drive không sửa được file tại chỗ. Vẫn cần connector Google Docs.
+- **Việc tạm gác:** cập nhật Google Doc. Chỉ làm khi chủ dự án yêu cầu, theo `_bmad-output/CAP_NHAT_GOOGLE_DOC.md`.
 
 ## Quy trình làm việc của agent
 
