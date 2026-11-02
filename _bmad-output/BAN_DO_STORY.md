@@ -23,7 +23,7 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 |---|---|---|---|
 | STR007 PGlite trên trình duyệt thật | WASM có tải được trên Vercel không? Thời gian khởi động và RAM ở 10k, 100k, 500k là bao nhiêu? `pageinspect` và `pgsql-parser` có chạy không? | | |
 | STR008 Cookie và stream | Gọi qua `rewrites` có giữ được cookie và stream không? | | |
-| STR009 Máy Oracle | Xin được máy ARM không? Mỗi container MySQL tốn bao nhiêu RAM và khởi động mất bao lâu? Chạy được bao nhiêu phiên cùng lúc? Ngưỡng thu hồi máy nhàn rỗi là gì? | | |
+| STR009 Máy sandbox | Mỗi container MySQL tốn bao nhiêu RAM và khởi động mất bao lâu? Máy Azure chạy được bao nhiêu phiên cùng lúc? | | |
 | STR010 Lock wait MySQL | Hai connection thật có bắt được lock wait qua `performance_schema.data_lock_waits` không? | | |
 | STR011 Điều khoản và công cụ | Điều khoản ping của Render, hạn mức CU-giờ của Neon, chính sách dữ liệu của các gói LLM free, agent-browser trên Windows | | |
 

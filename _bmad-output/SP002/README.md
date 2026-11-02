@@ -14,7 +14,7 @@ Code thử nằm trong `spikes/<tên>/` ở gốc repo, mỗi thư mục có `pa
 | STR009 Máy Oracle | Task015 | Một container MySQL tốn bao nhiêu RAM, khởi động mất bao lâu | Không | 1 |
 | STR010 Lock wait MySQL | Task016 | Hai connection thật có bắt được lock wait và deadlock không | Không | 1 |
 | STR011 Điều khoản và công cụ | Task017 | Điều khoản Render, Neon, LLM free, agent-browser trên Windows | Không | 1 |
-| STR009 Máy Oracle | Task018 | Máy ARM của Oracle chạy được bao nhiêu phiên cùng lúc | Tài khoản Oracle của chủ dự án, Task015, Task016 | 2 |
+| STR009 Máy sandbox | Task018 | Máy Azure chạy được bao nhiêu phiên cùng lúc | Máy Azure do chủ dự án tạo, Task015, Task016 | 2 |
 
 ## Các file bị đụng
 
@@ -26,6 +26,6 @@ Code thử nằm trong `spikes/<tên>/` ở gốc repo, mỗi thư mục có `pa
 | Task015 | `spikes/mysql-container/**` |
 | Task016 | `spikes/mysql-lock/**` |
 | Task017 | Chỉ thư mục task |
-| Task018 | `spikes/oracle-vm/**` |
+| Task018 | `spikes/azure-vm/**` |
 
 Task015 và Task016 cùng chạy MySQL trong Docker: Task015 dùng tên container `t015-*` và cổng 33150 trở lên, Task016 dùng `t016-*` và cổng 33160 trở lên. Mỗi task xóa container của mình khi xong.

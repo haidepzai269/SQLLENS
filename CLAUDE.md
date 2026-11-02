@@ -45,7 +45,7 @@ Kèm theo: AI Mentor, đăng nhập, PostgreSQL và MySQL.
 | Backend | Gin (Go), Docker image trên Render free |
 | Giờ chạy backend | Giữ thức từ 7:00 đến 24:00 giờ Việt Nam, chấp nhận ban đêm kém ổn định |
 | PostgreSQL | PGlite chạy trong trình duyệt, không cần server |
-| MySQL | MySQL thật, mỗi phiên một container trên Oracle Always Free |
+| MySQL | MySQL thật, mỗi phiên một container trên máy Azure B2ats v2 (2 vCPU, 1 GB RAM, x64) của Azure for Students, region Southeast Asia. Oracle bị bỏ vì từ chối đăng ký. Khi cần nhiều phiên hơn thì đổi kích thước sang B2als v2 (4 GB) |
 | Ngân sách | 0 đồng |
 | AI | Key nằm ở Gin, xoay tua nhiều model, tối ưu sau |
 | Đăng nhập | PostgreSQL dùng tự do. MySQL và AI phải đăng nhập bằng Google hoặc GitHub |
@@ -54,9 +54,9 @@ Kèm theo: AI Mentor, đăng nhập, PostgreSQL và MySQL.
 | Capacity Advisor | Làm bản gọn trong V1, xem mục riêng bên dưới |
 | Khi chỉ dán query | Suy ra schema từ query, người dùng xác nhận rồi mới chạy |
 | Tiêu chí "hỏng" | Kịch bản mẫu có sẵn điều kiện, người dùng tự viết thêm bằng `SELECT`. Không có điều kiện thì chỉ báo deadlock và chờ khóa |
-| Trạng thái phiên MySQL | Nằm ở sandbox agent trên Oracle, vì Render có thể restart |
+| Trạng thái phiên MySQL | Nằm ở sandbox agent trên máy Azure, vì Render có thể restart |
 | Tên sản phẩm | Tạm dùng SQLLens. Đã có SQLLens.AI và một SQLLens mã nguồn mở cùng lĩnh vực, xem lại trước khi mua domain |
-| Postgres của app | Neon free. Không đặt trên Render, không đặt trên máy Oracle vì máy đó chạy SQL không đáng tin |
+| Postgres của app | Neon free. Không đặt trên Render, không đặt trên máy sandbox vì máy đó chạy SQL không đáng tin |
 | Quota và giới hạn tần suất | Upstash Redis free, kiểm tra ở Gin. Lệnh ping giữ thức không được chạm Neon, để Neon còn tự tắt và tiết kiệm CU-giờ |
 | Trình soạn thảo SQL | CodeMirror 6, qua `@uiw/react-codemirror` và `@codemirror/lang-sql` |
 | Sơ đồ bảng và cây plan | React Flow, thẻ dùng component shadcn/ui hoặc React, xếp vị trí bằng `@dagrejs/dagre`. Kéo thả và di chuyển canvas tham khảo n8n và `webhook-hub` |
@@ -79,7 +79,7 @@ Epic nào có màn hình thì phải có Story giao diện riêng. Không Epic n
 | SP001 Nền móng | Repo, hệ thống giao diện, i18n và CI, Gin, deploy, hợp đồng chung, luồng mỏng chạy xuyên suốt | Không |
 | SP002 Thử rủi ro | Số đo thật cho PGlite, stream qua `rewrites`, RAM container, lock wait | Không |
 | SP003 Engine PostgreSQL | PGlite trong worker, tải khi cần, dữ liệu 10k, 100k, 500k | SP001, SP002 |
-| SP004 Sandbox MySQL | Agent trên Oracle, mỗi phiên một container, role quyền thấp | SP002 |
+| SP004 Sandbox MySQL | Agent trên máy Azure, mỗi phiên một container, role quyền thấp | SP002 |
 | SP005 Đăng nhập và quota | Google, GitHub, Neon, Upstash, quota ở Gin | SP001 |
 | SP006 `sql-intake` | Dán SQL, parser hai engine, suy ra schema rồi xác nhận | SP001 |
 | SP007 `plan-runner` | Luồng thực thi, sơ đồ schema, animation join | SP003, SP006 |
@@ -110,7 +110,7 @@ Vercel: Next.js + PGlite (PostgreSQL chạy tại trình duyệt)
                                ├─► Neon: Postgres của app
                                ├─► Upstash Redis: quota
                                ├─► Các model AI
-                               └─► Oracle VM: sandbox agent ──► MySQL theo từng phiên
+                               └─► Azure VM: sandbox agent ──► MySQL theo từng phiên
 ```
 
 Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung cho hai engine. Gin không tin dữ liệu từ frontend: quota và kiểm tra quyền nằm ở Gin.
@@ -213,17 +213,19 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 - Container MySQL 8.4 cho sandbox, đo trên amd64 ở máy (Task015):
   - Cấu hình tối giản dùng khoảng 240 đến 260 MiB, so với khoảng 440 MiB khi để mặc định. `--memory` thấp nhất chạy được là 288m, khuyến nghị 384m.
   - Khởi động lạnh đến khi nhận kết nối mất khoảng 13 đến 19 giây. Người dùng sẽ phải chờ, nên SP004 cần thư mục dữ liệu dựng sẵn hoặc giữ sẵn container chờ.
-  - Ước tính trên máy Oracle 12 GB: khoảng 20 đến 25 phiên cùng lúc, tối đa 2 phiên khởi động đồng thời vì chỉ có 2 OCPU. Task018 đo lại trên ARM.
+  - Ước tính trên máy Azure 1 GB: khoảng 1 đến 2 phiên cùng lúc. Trên B2als v2 4 GB: khoảng 8 đến 10 phiên. Task018 đo lại trên máy thật.
   - Cô lập bằng `--network none --read-only --cap-drop ALL` cộng 5 capability tối thiểu. `INTO OUTFILE` bị chặn.
   - File cấu hình mount từ Windows bị mysqld bỏ qua vì quyền 0777, phải kiểm cảnh báo trong log.
   - Task015 dùng `mysql:8.4.6`, Task016 dùng `mysql:8.4.13`. SP004 thống nhất một bản.
+- Deploy chạy ngày 2026-11-02: Vercel `https://sqllens-bice.vercel.app`, Render `https://sqllens.onrender.com`. `/api/healthz` qua `rewrites` trả 200, `keep-awake` chạy tay thành công (Task010). Trong Chromium, `/vi/lab` trên Vercel không tải WASM khi mở trang; bấm Chạy thì tải 3 file WASM và ra kết quả nhãn Thật sau khoảng 4,9 giây.
+- Ngân sách Azure: máy B2ats v2 dùng 750 giờ miễn phí mỗi tháng, đủ chạy liên tục. Phần tốn tín dụng chủ yếu là IP công khai, khoảng 3,6 USD mỗi tháng theo giá tham khảo chưa xác minh. Như vậy 100 USD dư cho cả 12 tháng, và hạn 02/11/2027 của tín dụng mới là giới hạn. Nếu đổi sang B2als v2 thì khoảng 34 đến 41 USD mỗi tháng, tín dụng đủ khoảng 2,5 tháng.
 - PGlite 0.5.14 treo mãi, không báo lỗi, khi tải WASM thất bại. Vì vậy `web/src/engines/postgres/adapter.ts` tự tải file rồi truyền vào `PGlite.create`. Khi nâng PGlite hoặc đổi chỗ file này phải kiểm lại đường dẫn.
 
 ## Chưa kiểm chứng
 
-- Số phiên MySQL chạy cùng lúc trên máy ARM của Oracle (Task018).
+- Số phiên MySQL chạy cùng lúc trên máy Azure (Task018).
+- Máy B2ats v2 có thật sự nằm trong 750 giờ miễn phí của gói sinh viên không. Trang Education của tài khoản chỉ ghi B1s.
 - PGlite trên máy RAM thấp, Firefox, Safari, điện thoại, và khi tải qua mạng trên Vercel.
-- Xin được máy ARM của Oracle ở region gần Việt Nam.
 - Điều khoản của Render có cấm ping giữ thức không. Trang gói free không nhắc đến.
 - Giới hạn kết nối của Neon gói free, thời gian giữ dữ liệu của Gemini gói free, chính sách dữ liệu riêng cho model `:free` của OpenRouter.
 - agent-browser chạy thật trên Windows của dự án.
@@ -236,4 +238,4 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 
 ## Mốc kiểm tra
 
-Cuối ngày 3 phải có MySQL chạy an toàn trên Oracle và PGlite chạy trong trình duyệt thật. Chưa đạt thì cắt phạm vi ngay. Thứ tự dự kiến: animation join, Capacity Advisor, rồi rút 5 kịch bản PostgreSQL còn 3. Chủ dự án quyết định lần cuối tại thời điểm đó. V1 không có parser `.ibd`.
+Cuối ngày 3 phải có MySQL chạy an toàn trên máy Azure và PGlite chạy trong trình duyệt thật. PGlite trên Vercel thật đã đạt ngày 2026-11-02. Chưa đạt thì cắt phạm vi ngay. Thứ tự dự kiến: animation join, Capacity Advisor, rồi rút 5 kịch bản PostgreSQL còn 3. Chủ dự án quyết định lần cuối tại thời điểm đó. V1 không có parser `.ibd`.
