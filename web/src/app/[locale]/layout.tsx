@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { JetBrains_Mono, Public_Sans } from "next/font/google";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { AppHeader } from "@/components/shell/app-header";
+import { ShellProvider } from "@/components/shell/shell-provider";
 import { routing } from "@/i18n/routing";
 import "../globals.css";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin", "vietnamese"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const publicSans = Public_Sans({ variable: "--font-public-sans", subsets: ["latin", "vietnamese"] });
+const jetbrainsMono = JetBrains_Mono({ variable: "--font-jetbrains-mono", subsets: ["latin", "vietnamese"] });
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -31,9 +33,16 @@ export default async function RootLayout({
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
   return (
-    <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+    <html lang={locale} className={`dark ${publicSans.variable} ${jetbrainsMono.variable} h-full antialiased`}>
+      <body className="relative flex h-dvh flex-col overflow-hidden">
+        <NextIntlClientProvider>
+          <ShellProvider>
+            <AppHeader />
+            <div id="content" className="flex min-h-0 flex-1 flex-col overflow-auto">
+              {children}
+            </div>
+          </ShellProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

@@ -1,0 +1,31 @@
+{
+  "appName": "SQLLens",
+  "skip": "Bỏ qua tới nội dung chính",
+  "engines": {
+    "label": "Chọn engine",
+    "postgres": "PostgreSQL",
+    "mysql": "MySQL",
+    "nosql": "NoSQL",
+    "lsm": "LSM-Tree"
+  },
+  "lockedReason": "{engine} chưa có trong phiên bản này, sẽ làm sau. Đang giữ engine hiện tại.",
+  "toggles": { "label": "Bật tắt các vùng", "lastOpen": "Vùng cuối cùng còn bật, không thể tắt" },
+  "zone": {
+    "label": "Các vùng làm việc",
+    "sql": "Cột SQL",
+    "stage": "Vùng mô phỏng",
+    "findings": "Cột rủi ro",
+    "terminal": "Terminal"
+  },
+  "tab": { "sql": "SQL", "stage": "Mô phỏng", "findings": "Rủi ro", "terminal": "Terminal" },
+  "resize": {
+    "columns": "Đổi kích thước cột, dùng phím mũi tên",
+    "terminal": "Đổi chiều cao terminal, dùng phím mũi tên"
+  },
+  "placeholder": {
+    "sql": "Dán SQL để bắt đầu.",
+    "stage": "Chưa có cảnh để hiện. Bấm Chạy sau khi dán SQL.",
+    "findings": "Chưa có kết luận. Bấm Chạy.",
+    "terminal": "Nhật ký chạy sẽ hiện ở đây."
+  }
+}

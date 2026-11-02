@@ -132,9 +132,9 @@
   --h-bar: 40px;
   --radius: 4px;
 
-  /* Font. Webfont Public Sans và JetBrains Mono do khung ứng dụng nạp. */
-  --sans: "Public Sans", "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif;
-  --mono: "JetBrains Mono", "Cascadia Mono", Consolas, "DejaVu Sans Mono", "Noto Sans Mono", monospace;
+  /* Font. Webfont Public Sans và JetBrains Mono do layout.tsx nạp qua next/font, biến --font-public-sans và --font-jetbrains-mono. */
+  --sans: var(--font-public-sans), "Public Sans", "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif;
+  --mono: var(--font-jetbrains-mono), "JetBrains Mono", "Cascadia Mono", Consolas, "DejaVu Sans Mono", "Noto Sans Mono", monospace;
 
   /* Token shadcn/ui */
   --background: var(--ground);
