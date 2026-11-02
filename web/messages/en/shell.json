@@ -1,0 +1,31 @@
+{
+  "appName": "SQLLens",
+  "skip": "Skip to main content",
+  "engines": {
+    "label": "Choose engine",
+    "postgres": "PostgreSQL",
+    "mysql": "MySQL",
+    "nosql": "NoSQL",
+    "lsm": "LSM-Tree"
+  },
+  "lockedReason": "{engine} is not available in this version yet, planned for later. The current engine stays selected.",
+  "toggles": { "label": "Show or hide panels", "lastOpen": "Last visible panel, it cannot be hidden" },
+  "zone": {
+    "label": "Work panels",
+    "sql": "SQL column",
+    "stage": "Simulation area",
+    "findings": "Risk column",
+    "terminal": "Terminal"
+  },
+  "tab": { "sql": "SQL", "stage": "Simulation", "findings": "Risks", "terminal": "Terminal" },
+  "resize": {
+    "columns": "Resize columns, use the arrow keys",
+    "terminal": "Resize terminal height, use the arrow keys"
+  },
+  "placeholder": {
+    "sql": "Paste SQL to get started.",
+    "stage": "Nothing to show yet. Press Run after pasting SQL.",
+    "findings": "No findings yet. Press Run.",
+    "terminal": "The run log will appear here."
+  }
+}

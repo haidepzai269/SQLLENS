@@ -1,7 +1,6 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 
@@ -11,23 +10,24 @@ export function LanguageSwitcher() {
   const pathname = usePathname();
   const router = useRouter();
 
-  // Đọc query lúc bấm để khỏi cần Suspense cho useSearchParams.
+  // Đọc query lúc bấm để khỏi cần Suspense cho useSearchParams. Giữ cả tham số engine và hash.
   const change = (next: (typeof routing.locales)[number]) =>
     router.replace(`${pathname}${window.location.search}${window.location.hash}`, { locale: next });
 
   return (
-    <div role="group" aria-label={t("label")} className="flex gap-1">
+    <div role="group" aria-label={t("label")} className="flex h-full">
       {routing.locales.map((l) => (
-        <Button
+        <button
           key={l}
-          size="sm"
-          variant={l === locale ? "default" : "outline"}
+          type="button"
           aria-pressed={l === locale}
+          aria-label={t(l)}
           lang={l}
           onClick={() => change(l)}
+          className="relative min-h-9 px-2 text-dim hover:text-text aria-pressed:font-medium aria-pressed:text-text aria-pressed:after:absolute aria-pressed:after:inset-x-2 aria-pressed:after:bottom-0 aria-pressed:after:h-px aria-pressed:after:bg-lamp"
         >
-          {t(l)}
-        </Button>
+          {l.toUpperCase()}
+        </button>
       ))}
     </div>
   );

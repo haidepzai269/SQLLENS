@@ -1,0 +1,13 @@
+import { chromium } from "file:///C:/SQLLens/.worktrees/Task006/web/node_modules/@playwright/test/index.mjs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+const out = path.dirname(fileURLToPath(import.meta.url));
+const b = await chromium.launch();
+let p = await b.newPage({ viewport: { width: 1440, height: 900 } });
+await p.goto("http://localhost:3101/vi/lab"); await p.waitForTimeout(500);
+await p.screenshot({ path: path.join(out, "anh_lab_vi_1440.png") });
+await p.goto("http://localhost:3101/vi"); await p.waitForTimeout(500);
+await p.getByRole("tab", { name: "NoSQL" }).click({ force: true });
+await p.getByRole("button", { name: "Cột rủi ro" }).click();
+await p.screenshot({ path: path.join(out, "anh_khoa_tat_vung_vi_1440.png") });
+await b.close();
