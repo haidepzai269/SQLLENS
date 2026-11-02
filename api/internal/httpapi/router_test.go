@@ -21,6 +21,8 @@ func TestHealthz(t *testing.T) {
 
 func TestReleaseModeByDefault(t *testing.T) {
 	t.Setenv("GIN_MODE", "")
+	prev := gin.Mode()
+	t.Cleanup(func() { gin.SetMode(prev) })
 	gin.SetMode(gin.DebugMode)
 	NewRouter()
 	if gin.Mode() != gin.ReleaseMode {

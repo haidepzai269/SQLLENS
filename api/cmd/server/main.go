@@ -17,7 +17,7 @@ func port() (string, error) {
 	if p == "" {
 		return "8080", nil
 	}
-	if n, err := strconv.Atoi(p); err != nil || n < 1 || n > 65535 {
+	if n, err := strconv.Atoi(p); err != nil || n < 1 || n > 65535 || strconv.Itoa(n) != p {
 		return "", fmt.Errorf("invalid PORT %q: want an integer 1-65535", p)
 	}
 	return p, nil

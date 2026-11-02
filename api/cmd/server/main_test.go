@@ -9,7 +9,7 @@ func TestPort(t *testing.T) {
 			t.Errorf("%q: %q %v", in, got, err)
 		}
 	}
-	for _, in := range []string{"abc", "0", "70000", "-1", "80 "} {
+	for _, in := range []string{"abc", "0", "70000", "-1", "80 ", "+80", "080"} {
 		t.Setenv("PORT", in)
 		if _, err := port(); err == nil {
 			t.Errorf("%q should fail", in)
