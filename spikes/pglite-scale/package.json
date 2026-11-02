@@ -1,0 +1,8 @@
+{
+  "name": "pglite-scale-spike",
+  "private": true,
+  "type": "module",
+  "scripts": { "measure": "node measure.mjs" },
+  "dependencies": { "@electric-sql/pglite": "0.5.14" },
+  "devDependencies": { "@playwright/test": "1.55.0" }
+}

@@ -1,0 +1,1002 @@
+{
+ "cfg": {
+  "cpu": "12th Gen Intel(R) Core(TM) i5-12450H x12",
+  "ram_gb": "15.7",
+  "chromium": "140.0.7339.16",
+  "node": "v22.15.0",
+  "os": "Windows_NT 10.0.26200",
+  "pglite": "0.5.14"
+ },
+ "results": [
+  {
+   "throttle": 1,
+   "n": 10000,
+   "run": 1,
+   "init_ms": 1776.6850000023842,
+   "mem_after_init": [
+    382439424,
+    1080684544
+   ],
+   "insert_ms": 126.31499999761581,
+   "index_ms": 20.86999999731779,
+   "mem_after_index": [
+    385900544,
+    1080684544
+   ],
+   "btree_level": 1,
+   "index_bytes": 114688,
+   "table_bytes": 688128,
+   "q_index": {
+    "median_ms": 2.0449999943375587,
+    "runs_ms": [
+     4.5,
+     1.6400000005960464,
+     1.9149999991059303,
+     2.0449999943375587,
+     2.0750000029802322
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.36..34.14 rows=10 width=35) (actual time=0.365..0.495 rows=10.00 loops=1)",
+    "pages_hit": 15,
+    "pages_read": 0,
+    "pages_total": 15,
+    "exec_line": "Execution Time: 0.910 ms"
+   },
+   "q_seq": {
+    "median_ms": 5.774999998509884,
+    "runs_ms": [
+     5.774999998509884,
+     6.719999998807907,
+     5.035000003874302,
+     5.850000001490116,
+     4.625
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..209.00 rows=10 width=35) (actual time=0.060..2.070 rows=10.00 loops=1)",
+    "pages_hit": 84,
+    "pages_read": 0,
+    "pages_total": 84,
+    "exec_line": "Execution Time: 2.210 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 4266,
+   "cdp_jsheap_used": 7799576,
+   "renderer_ws": 386543616,
+   "renderer_peak_ws": 1080684544
+  },
+  {
+   "throttle": 1,
+   "n": 10000,
+   "run": 2,
+   "init_ms": 1762.5249999985099,
+   "mem_after_init": [
+    387497984,
+    1074360320
+   ],
+   "insert_ms": 55.625,
+   "index_ms": 8.840000003576279,
+   "mem_after_index": [
+    392327168,
+    1074360320
+   ],
+   "btree_level": 1,
+   "index_bytes": 114688,
+   "table_bytes": 688128,
+   "q_index": {
+    "median_ms": 1.5499999970197678,
+    "runs_ms": [
+     2.9600000008940697,
+     1.8849999979138374,
+     1.2700000032782555,
+     1.2950000017881393,
+     1.5499999970197678
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.36..34.14 rows=10 width=35) (actual time=0.245..0.330 rows=10.00 loops=1)",
+    "pages_hit": 15,
+    "pages_read": 0,
+    "pages_total": 15,
+    "exec_line": "Execution Time: 0.665 ms"
+   },
+   "q_seq": {
+    "median_ms": 3.0549999997019768,
+    "runs_ms": [
+     2.790000006556511,
+     3.7400000020861626,
+     4.060000002384186,
+     3,
+     3.0549999997019768
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..209.00 rows=10 width=35) (actual time=0.050..2.705 rows=10.00 loops=1)",
+    "pages_hit": 84,
+    "pages_read": 0,
+    "pages_total": 84,
+    "exec_line": "Execution Time: 2.830 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 3987,
+   "cdp_jsheap_used": 7799180,
+   "renderer_ws": 392843264,
+   "renderer_peak_ws": 1074360320
+  },
+  {
+   "throttle": 1,
+   "n": 10000,
+   "run": 3,
+   "init_ms": 1712.4049999937415,
+   "mem_after_init": [
+    385064960,
+    1108529152
+   ],
+   "insert_ms": 57.55499999970198,
+   "index_ms": 5.845000006258488,
+   "mem_after_index": [
+    390688768,
+    1108529152
+   ],
+   "btree_level": 1,
+   "index_bytes": 114688,
+   "table_bytes": 688128,
+   "q_index": {
+    "median_ms": 1.630000002682209,
+    "runs_ms": [
+     2.869999997317791,
+     1.3200000002980232,
+     1.744999997317791,
+     1.630000002682209,
+     1.589999996125698
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.36..34.14 rows=10 width=35) (actual time=0.395..0.560 rows=10.00 loops=1)",
+    "pages_hit": 15,
+    "pages_read": 0,
+    "pages_total": 15,
+    "exec_line": "Execution Time: 0.930 ms"
+   },
+   "q_seq": {
+    "median_ms": 6.435000002384186,
+    "runs_ms": [
+     4.939999997615814,
+     5.3599999994039536,
+     7.385000005364418,
+     6.509999997913837,
+     6.435000002384186
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..209.00 rows=10 width=35) (actual time=0.075..4.030 rows=10.00 loops=1)",
+    "pages_hit": 84,
+    "pages_read": 0,
+    "pages_total": 84,
+    "exec_line": "Execution Time: 4.250 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 3964,
+   "cdp_jsheap_used": 7830120,
+   "renderer_ws": 389623808,
+   "renderer_peak_ws": 1108529152
+  },
+  {
+   "throttle": 1,
+   "n": 100000,
+   "run": 1,
+   "init_ms": 1833.679999999702,
+   "mem_after_init": [
+    389005312,
+    1097236480
+   ],
+   "insert_ms": 1223.7749999985099,
+   "index_ms": 86.54999999701977,
+   "mem_after_index": [
+    464646144,
+    1097236480
+   ],
+   "btree_level": 1,
+   "index_bytes": 958464,
+   "table_bytes": 6832128,
+   "q_index": {
+    "median_ms": 1.040000006556511,
+    "runs_ms": [
+     2.269999995827675,
+     1.130000002682209,
+     1.0199999958276749,
+     1.005000002682209,
+     1.040000006556511
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.37..41.21 rows=10 width=35) (actual time=0.180..0.275 rows=10.00 loops=1)",
+    "pages_hit": 15,
+    "pages_read": 0,
+    "pages_total": 15,
+    "exec_line": "Execution Time: 0.475 ms"
+   },
+   "q_seq": {
+    "median_ms": 13.92000000178814,
+    "runs_ms": [
+     13.92000000178814,
+     13.265000000596046,
+     13.214999996125698,
+     13.990000002086163,
+     14.66499999910593
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..2084.00 rows=10 width=35) (actual time=0.040..17.055 rows=10.00 loops=1)",
+    "pages_hit": 834,
+    "pages_read": 0,
+    "pages_total": 834,
+    "exec_line": "Execution Time: 17.230 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 6151,
+   "cdp_jsheap_used": 6541132,
+   "renderer_ws": 463478784,
+   "renderer_peak_ws": 1097236480
+  },
+  {
+   "throttle": 1,
+   "n": 100000,
+   "run": 2,
+   "init_ms": 1961.2700000032783,
+   "mem_after_init": [
+    387727360,
+    1086767104
+   ],
+   "insert_ms": 1075.9049999937415,
+   "index_ms": 136.89499999582767,
+   "mem_after_index": [
+    451411968,
+    1086767104
+   ],
+   "btree_level": 1,
+   "index_bytes": 958464,
+   "table_bytes": 6832128,
+   "q_index": {
+    "median_ms": 1.9849999994039536,
+    "runs_ms": [
+     2.9299999997019768,
+     1.8049999997019768,
+     1.9849999994039536,
+     2.1400000005960464,
+     1.6599999964237213
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.37..41.21 rows=10 width=35) (actual time=0.245..0.310 rows=10.00 loops=1)",
+    "pages_hit": 15,
+    "pages_read": 0,
+    "pages_total": 15,
+    "exec_line": "Execution Time: 0.685 ms"
+   },
+   "q_seq": {
+    "median_ms": 24.445000000298023,
+    "runs_ms": [
+     27.354999996721745,
+     24.445000000298023,
+     19.065000005066395,
+     20.855000004172325,
+     25
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..2084.00 rows=10 width=35) (actual time=0.050..20.185 rows=10.00 loops=1)",
+    "pages_hit": 834,
+    "pages_read": 0,
+    "pages_total": 834,
+    "exec_line": "Execution Time: 20.370 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 5553,
+   "cdp_jsheap_used": 6489152,
+   "renderer_ws": 451989504,
+   "renderer_peak_ws": 1086767104
+  },
+  {
+   "throttle": 1,
+   "n": 100000,
+   "run": 3,
+   "init_ms": 1972.030000001192,
+   "mem_after_init": [
+    388136960,
+    1074888704
+   ],
+   "insert_ms": 967.8249999955297,
+   "index_ms": 84.04999999701977,
+   "mem_after_index": [
+    433115136,
+    1074888704
+   ],
+   "btree_level": 1,
+   "index_bytes": 958464,
+   "table_bytes": 6832128,
+   "q_index": {
+    "median_ms": 1.375,
+    "runs_ms": [
+     2.3299999982118607,
+     1.375,
+     1.0850000008940697,
+     1.505000002682209,
+     0.9799999967217445
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.37..41.21 rows=10 width=35) (actual time=0.160..0.210 rows=10.00 loops=1)",
+    "pages_hit": 15,
+    "pages_read": 0,
+    "pages_total": 15,
+    "exec_line": "Execution Time: 0.400 ms"
+   },
+   "q_seq": {
+    "median_ms": 14.625,
+    "runs_ms": [
+     16.54500000178814,
+     14.625,
+     14.79500000178814,
+     13.83500000089407,
+     13.700000002980232
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..2084.00 rows=10 width=35) (actual time=0.040..12.620 rows=10.00 loops=1)",
+    "pages_hit": 834,
+    "pages_read": 0,
+    "pages_total": 834,
+    "exec_line": "Execution Time: 12.750 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 5231,
+   "cdp_jsheap_used": 6476452,
+   "renderer_ws": 433729536,
+   "renderer_peak_ws": 1074888704
+  },
+  {
+   "throttle": 1,
+   "n": 500000,
+   "run": 1,
+   "init_ms": 1986.640000000596,
+   "mem_after_init": [
+    391639040,
+    1074839552
+   ],
+   "insert_ms": 4731.17499999702,
+   "index_ms": 437.20000000298023,
+   "mem_after_index": [
+    543248384,
+    1074839552
+   ],
+   "btree_level": 2,
+   "index_bytes": 4751360,
+   "table_bytes": 34136064,
+   "q_index": {
+    "median_ms": 1.3599999994039536,
+    "runs_ms": [
+     2.755000002682209,
+     1.9200000017881393,
+     1.244999997317791,
+     1.2299999967217445,
+     1.3599999994039536
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.50..43.16 rows=10 width=35) (actual time=0.145..0.210 rows=10.00 loops=1)",
+    "pages_hit": 16,
+    "pages_read": 0,
+    "pages_total": 16,
+    "exec_line": "Execution Time: 0.500 ms"
+   },
+   "q_seq": {
+    "median_ms": 65.19500000029802,
+    "runs_ms": [
+     65.72000000625849,
+     64.875,
+     65.19500000029802,
+     64.38499999791384,
+     65.91499999910593
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..10417.00 rows=10 width=35) (actual time=0.025..64.545 rows=10.00 loops=1)",
+    "pages_hit": 4167,
+    "pages_read": 0,
+    "pages_total": 4167,
+    "exec_line": "Execution Time: 64.675 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 10024,
+   "cdp_jsheap_used": 6282232,
+   "renderer_ws": 543887360,
+   "renderer_peak_ws": 1074839552
+  },
+  {
+   "throttle": 1,
+   "n": 500000,
+   "run": 2,
+   "init_ms": 1944.2999999970198,
+   "mem_after_init": [
+    385441792,
+    1117888512
+   ],
+   "insert_ms": 4932.559999994934,
+   "index_ms": 579.6749999970198,
+   "mem_after_index": [
+    599449600,
+    1117888512
+   ],
+   "btree_level": 2,
+   "index_bytes": 4751360,
+   "table_bytes": 34136064,
+   "q_index": {
+    "median_ms": 2.810000002384186,
+    "runs_ms": [
+     3.2750000059604645,
+     1.7899999991059303,
+     1.3099999949336052,
+     2.810000002384186,
+     3.3249999955296516
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.50..43.16 rows=10 width=35) (actual time=0.195..0.265 rows=10.00 loops=1)",
+    "pages_hit": 16,
+    "pages_read": 0,
+    "pages_total": 16,
+    "exec_line": "Execution Time: 0.595 ms"
+   },
+   "q_seq": {
+    "median_ms": 65.48000000417233,
+    "runs_ms": [
+     63.815000005066395,
+     65.48000000417233,
+     70.52499999850988,
+     64.34000000357628,
+     67.87000000476837
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..10417.00 rows=10 width=35) (actual time=0.030..62.955 rows=10.00 loops=1)",
+    "pages_hit": 4167,
+    "pages_read": 0,
+    "pages_total": 4167,
+    "exec_line": "Execution Time: 63.080 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 9998,
+   "cdp_jsheap_used": 5971720,
+   "renderer_ws": 544829440,
+   "renderer_peak_ws": 1117888512
+  },
+  {
+   "throttle": 1,
+   "n": 500000,
+   "run": 3,
+   "init_ms": 1771.554999999702,
+   "mem_after_init": [
+    385765376,
+    1103462400
+   ],
+   "insert_ms": 5064.019999995828,
+   "index_ms": 455.67499999701977,
+   "mem_after_index": [
+    602435584,
+    1103462400
+   ],
+   "btree_level": 2,
+   "index_bytes": 4751360,
+   "table_bytes": 34136064,
+   "q_index": {
+    "median_ms": 1.4900000020861626,
+    "runs_ms": [
+     4.884999997913837,
+     2.0049999952316284,
+     1.4900000020861626,
+     1.3599999994039536,
+     1.2650000005960464
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.50..43.16 rows=10 width=35) (actual time=0.175..0.255 rows=10.00 loops=1)",
+    "pages_hit": 16,
+    "pages_read": 0,
+    "pages_total": 16,
+    "exec_line": "Execution Time: 0.590 ms"
+   },
+   "q_seq": {
+    "median_ms": 89.92999999970198,
+    "runs_ms": [
+     120.43999999761581,
+     89.92999999970198,
+     67.43500000238419,
+     84.9649999961257,
+     99.77000000327826
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..10417.00 rows=10 width=35) (actual time=0.035..100.295 rows=10.00 loops=1)",
+    "pages_hit": 4167,
+    "pages_read": 0,
+    "pages_total": 4167,
+    "exec_line": "Execution Time: 100.490 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 9984,
+   "cdp_jsheap_used": 5808208,
+   "renderer_ws": 544567296,
+   "renderer_peak_ws": 1103462400
+  },
+  {
+   "throttle": 4,
+   "n": 10000,
+   "run": 1,
+   "init_ms": 15742.89999999851,
+   "mem_after_init": [
+    392744960,
+    1095155712
+   ],
+   "insert_ms": 722.320000000298,
+   "index_ms": 63.25,
+   "mem_after_index": [
+    398409728,
+    1095155712
+   ],
+   "btree_level": 1,
+   "index_bytes": 114688,
+   "table_bytes": 688128,
+   "q_index": {
+    "median_ms": 13.429999999701977,
+    "runs_ms": [
+     14.424999997019768,
+     9.474999994039536,
+     8.774999998509884,
+     13.429999999701977,
+     13.824999995529652
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.36..34.14 rows=10 width=35) (actual time=4.065..5.270 rows=10.00 loops=1)",
+    "pages_hit": 15,
+    "pages_read": 0,
+    "pages_total": 15,
+    "exec_line": "Execution Time: 12.250 ms"
+   },
+   "q_seq": {
+    "median_ms": 16.41499999910593,
+    "runs_ms": [
+     16.41499999910593,
+     19.405000001192093,
+     21.28999999910593,
+     6.699999995529652,
+     16.29500000178814
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..209.00 rows=10 width=35) (actual time=0.230..9.495 rows=10.00 loops=1)",
+    "pages_hit": 84,
+    "pages_read": 0,
+    "pages_total": 84,
+    "exec_line": "Execution Time: 10.525 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 18881,
+   "cdp_jsheap_used": 7823336,
+   "renderer_ws": 398958592,
+   "renderer_peak_ws": 1095155712
+  },
+  {
+   "throttle": 4,
+   "n": 10000,
+   "run": 2,
+   "init_ms": 17541.47999999672,
+   "mem_after_init": [
+    381358080,
+    1088114688
+   ],
+   "insert_ms": 982.0450000017881,
+   "index_ms": 46.89000000059605,
+   "mem_after_index": [
+    387457024,
+    1088114688
+   ],
+   "btree_level": 1,
+   "index_bytes": 114688,
+   "table_bytes": 688128,
+   "q_index": {
+    "median_ms": 13.125,
+    "runs_ms": [
+     18.95499999821186,
+     11.965000003576279,
+     13.125,
+     14.25,
+     11.239999994635582
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.36..34.14 rows=10 width=35) (actual time=1.055..1.130 rows=10.00 loops=1)",
+    "pages_hit": 15,
+    "pages_read": 0,
+    "pages_total": 15,
+    "exec_line": "Execution Time: 3.515 ms"
+   },
+   "q_seq": {
+    "median_ms": 32.13000000268221,
+    "runs_ms": [
+     18.780000001192093,
+     37.20499999821186,
+     26.285000003874302,
+     43.29500000178814,
+     32.13000000268221
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..209.00 rows=10 width=35) (actual time=0.440..14.425 rows=10.00 loops=1)",
+    "pages_hit": 84,
+    "pages_read": 0,
+    "pages_total": 84,
+    "exec_line": "Execution Time: 15.640 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 21143,
+   "cdp_jsheap_used": 6094652,
+   "renderer_ws": 385523712,
+   "renderer_peak_ws": 1088114688
+  },
+  {
+   "throttle": 4,
+   "n": 10000,
+   "run": 3,
+   "init_ms": 16085.72500000149,
+   "mem_after_init": [
+    386756608,
+    1070374912
+   ],
+   "insert_ms": 1128.6749999970198,
+   "index_ms": 63.38000000268221,
+   "mem_after_index": [
+    391798784,
+    1070374912
+   ],
+   "btree_level": 1,
+   "index_bytes": 114688,
+   "table_bytes": 688128,
+   "q_index": {
+    "median_ms": 7.41499999910593,
+    "runs_ms": [
+     14.675000004470348,
+     7.41499999910593,
+     7.125,
+     8.215000003576279,
+     6.990000002086163
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.36..34.14 rows=10 width=35) (actual time=1.880..2.350 rows=10.00 loops=1)",
+    "pages_hit": 15,
+    "pages_read": 0,
+    "pages_total": 15,
+    "exec_line": "Execution Time: 4.755 ms"
+   },
+   "q_seq": {
+    "median_ms": 16.359999999403954,
+    "runs_ms": [
+     18.604999996721745,
+     19.03499999642372,
+     13.339999996125698,
+     16.32999999821186,
+     16.359999999403954
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..209.00 rows=10 width=35) (actual time=0.200..11.450 rows=10.00 loops=1)",
+    "pages_hit": 84,
+    "pages_read": 0,
+    "pages_total": 84,
+    "exec_line": "Execution Time: 12.165 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 19786,
+   "cdp_jsheap_used": 7822840,
+   "renderer_ws": 392318976,
+   "renderer_peak_ws": 1070374912
+  },
+  {
+   "throttle": 4,
+   "n": 100000,
+   "run": 1,
+   "init_ms": 16833.435000002384,
+   "mem_after_init": [
+    382648320,
+    1145081856
+   ],
+   "insert_ms": 7067.414999999106,
+   "index_ms": 566.1450000032783,
+   "mem_after_index": [
+    471437312,
+    1145081856
+   ],
+   "btree_level": 1,
+   "index_bytes": 958464,
+   "table_bytes": 6832128,
+   "q_index": {
+    "median_ms": 1.2899999991059303,
+    "runs_ms": [
+     4.3900000005960464,
+     1.1749999970197678,
+     3.399999998509884,
+     1.2899999991059303,
+     1.0700000002980232
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.37..41.21 rows=10 width=35) (actual time=0.495..0.565 rows=10.00 loops=1)",
+    "pages_hit": 15,
+    "pages_read": 0,
+    "pages_total": 15,
+    "exec_line": "Execution Time: 4.835 ms"
+   },
+   "q_seq": {
+    "median_ms": 68.57999999821186,
+    "runs_ms": [
+     52.28000000119209,
+     42.354999996721745,
+     70.25999999791384,
+     68.57999999821186,
+     75.42500000447035
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..2084.00 rows=10 width=35) (actual time=0.030..67.410 rows=10.00 loops=1)",
+    "pages_hit": 834,
+    "pages_read": 0,
+    "pages_total": 834,
+    "exec_line": "Execution Time: 68.305 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 27730,
+   "cdp_jsheap_used": 6574304,
+   "renderer_ws": 471805952,
+   "renderer_peak_ws": 1145081856
+  },
+  {
+   "throttle": 4,
+   "n": 100000,
+   "run": 2,
+   "init_ms": 16351.240000002086,
+   "mem_after_init": [
+    389357568,
+    1084526592
+   ],
+   "insert_ms": 7749.685000002384,
+   "index_ms": 444.14500000327826,
+   "mem_after_index": [
+    474816512,
+    1084526592
+   ],
+   "btree_level": 1,
+   "index_bytes": 958464,
+   "table_bytes": 6832128,
+   "q_index": {
+    "median_ms": 15.255000002682209,
+    "runs_ms": [
+     32.32999999821186,
+     12.390000000596046,
+     11.395000003278255,
+     18.570000000298023,
+     15.255000002682209
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.37..41.21 rows=10 width=35) (actual time=1.025..1.600 rows=10.00 loops=1)",
+    "pages_hit": 15,
+    "pages_read": 0,
+    "pages_total": 15,
+    "exec_line": "Execution Time: 2.680 ms"
+   },
+   "q_seq": {
+    "median_ms": 113.52499999850988,
+    "runs_ms": [
+     120.8449999988079,
+     97.93999999761581,
+     113.52499999850988,
+     127.94999999552965,
+     93.5350000038743
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..2084.00 rows=10 width=35) (actual time=0.035..75.020 rows=10.00 loops=1)",
+    "pages_hit": 834,
+    "pages_read": 0,
+    "pages_total": 834,
+    "exec_line": "Execution Time: 76.280 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 28184,
+   "cdp_jsheap_used": 6586040,
+   "renderer_ws": 475152384,
+   "renderer_peak_ws": 1084526592
+  },
+  {
+   "throttle": 4,
+   "n": 100000,
+   "run": 3,
+   "init_ms": 15319.109999999404,
+   "mem_after_init": [
+    384290816,
+    1090412544
+   ],
+   "insert_ms": 7480.045000001788,
+   "index_ms": 593.9350000023842,
+   "mem_after_index": [
+    443850752,
+    1090412544
+   ],
+   "btree_level": 1,
+   "index_bytes": 958464,
+   "table_bytes": 6832128,
+   "q_index": {
+    "median_ms": 11.400000005960464,
+    "runs_ms": [
+     18.850000001490116,
+     10.695000000298023,
+     12.255000002682209,
+     8.959999993443489,
+     11.400000005960464
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.37..41.21 rows=10 width=35) (actual time=1.150..1.595 rows=10.00 loops=1)",
+    "pages_hit": 15,
+    "pages_read": 0,
+    "pages_total": 15,
+    "exec_line": "Execution Time: 3.250 ms"
+   },
+   "q_seq": {
+    "median_ms": 134.125,
+    "runs_ms": [
+     147.5650000050664,
+     103.67499999701977,
+     95.375,
+     134.125,
+     137.32000000029802
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..2084.00 rows=10 width=35) (actual time=0.445..128.595 rows=10.00 loops=1)",
+    "pages_hit": 834,
+    "pages_read": 0,
+    "pages_total": 834,
+    "exec_line": "Execution Time: 129.995 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 27019,
+   "cdp_jsheap_used": 5764892,
+   "renderer_ws": 441888768,
+   "renderer_peak_ws": 1090412544
+  },
+  {
+   "throttle": 4,
+   "n": 500000,
+   "run": 1,
+   "init_ms": 15996.005000002682,
+   "mem_after_init": [
+    382570496,
+    1103630336
+   ],
+   "insert_ms": 28230.80000000447,
+   "index_ms": 845.9200000017881,
+   "mem_after_index": [
+    509194240,
+    1103630336
+   ],
+   "btree_level": 2,
+   "index_bytes": 4751360,
+   "table_bytes": 34136064,
+   "q_index": {
+    "median_ms": 12.510000005364418,
+    "runs_ms": [
+     19.969999998807907,
+     12.609999999403954,
+     12.510000005364418,
+     9.940000005066395,
+     9.869999997317791
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.50..43.16 rows=10 width=35) (actual time=1.060..1.485 rows=10.00 loops=1)",
+    "pages_hit": 16,
+    "pages_read": 0,
+    "pages_total": 16,
+    "exec_line": "Execution Time: 3.085 ms"
+   },
+   "q_seq": {
+    "median_ms": 339.5300000011921,
+    "runs_ms": [
+     293.4350000023842,
+     339.5300000011921,
+     265.3800000026822,
+     362.44999999552965,
+     381.17000000178814
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..10417.00 rows=10 width=35) (actual time=0.040..490.970 rows=10.00 loops=1)",
+    "pages_hit": 4167,
+    "pages_read": 0,
+    "pages_total": 4167,
+    "exec_line": "Execution Time: 491.910 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 49839,
+   "cdp_jsheap_used": 5970952,
+   "renderer_ws": 440647680,
+   "renderer_peak_ws": 1103630336
+  },
+  {
+   "throttle": 4,
+   "n": 500000,
+   "run": 2,
+   "init_ms": 16196.434999994934,
+   "mem_after_init": [
+    382119936,
+    1085530112
+   ],
+   "insert_ms": 27465.219999998808,
+   "index_ms": 2041.5499999970198,
+   "mem_after_index": [
+    610041856,
+    1085530112
+   ],
+   "btree_level": 2,
+   "index_bytes": 4751360,
+   "table_bytes": 34136064,
+   "q_index": {
+    "median_ms": 9.934999994933605,
+    "runs_ms": [
+     19.564999997615814,
+     9.934999994933605,
+     7.875,
+     11.240000002086163,
+     6.590000003576279
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.50..43.16 rows=10 width=35) (actual time=1.625..2.445 rows=10.00 loops=1)",
+    "pages_hit": 16,
+    "pages_read": 0,
+    "pages_total": 16,
+    "exec_line": "Execution Time: 3.975 ms"
+   },
+   "q_seq": {
+    "median_ms": 354.3449999988079,
+    "runs_ms": [
+     404.39500000327826,
+     373.5949999988079,
+     354.3449999988079,
+     279.445000000298,
+     311.929999999702
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..10417.00 rows=10 width=35) (actual time=0.055..411.720 rows=10.00 loops=1)",
+    "pages_hit": 4167,
+    "pages_read": 0,
+    "pages_total": 4167,
+    "exec_line": "Execution Time: 412.265 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 50732,
+   "cdp_jsheap_used": 6508488,
+   "renderer_ws": 610373632,
+   "renderer_peak_ws": 1085530112
+  },
+  {
+   "throttle": 4,
+   "n": 500000,
+   "run": 3,
+   "init_ms": 13981.719999998808,
+   "mem_after_init": [
+    382574592,
+    1089052672
+   ],
+   "insert_ms": 24459.954999998212,
+   "index_ms": 1668.1849999949336,
+   "mem_after_index": [
+    570482688,
+    1089052672
+   ],
+   "btree_level": 2,
+   "index_bytes": 4751360,
+   "table_bytes": 34136064,
+   "q_index": {
+    "median_ms": 9.675000004470348,
+    "runs_ms": [
+     23.450000002980232,
+     10.850000001490116,
+     8.990000002086163,
+     8.21000000089407,
+     9.675000004470348
+    ],
+    "plan_node": "Bitmap Heap Scan on orders  (cost=4.50..43.16 rows=10 width=35) (actual time=1.840..2.700 rows=10.00 loops=1)",
+    "pages_hit": 16,
+    "pages_read": 0,
+    "pages_total": 16,
+    "exec_line": "Execution Time: 4.180 ms"
+   },
+   "q_seq": {
+    "median_ms": 255.48000000417233,
+    "runs_ms": [
+     317.6300000026822,
+     255.48000000417233,
+     290.5300000011921,
+     231.76500000059605,
+     170.35000000149012
+    ],
+    "plan_node": "Seq Scan on orders  (cost=0.00..10417.00 rows=10 width=35) (actual time=0.200..307.315 rows=10.00 loops=1)",
+    "pages_hit": 4167,
+    "pages_read": 0,
+    "pages_total": 4167,
+    "exec_line": "Execution Time: 308.165 ms"
+   },
+   "uasm": null,
+   "uasm_err": "SecurityError: Failed to execute 'measureUserAgentSpecificMemory' on 'Performance': performance.measureUserAgentSpecificMemory is not available.",
+   "total_ms": 44574,
+   "cdp_jsheap_used": 6354276,
+   "renderer_ws": 570822656,
+   "renderer_peak_ws": 1089052672
+  }
+ ]
+}
