@@ -27,6 +27,7 @@ Ca biên:
 - Chạy lại lần hai trên cùng trang: dùng lại instance PGlite, không tải lại. `CREATE TABLE t` lần hai báo lỗi đúng của PostgreSQL.
 - Câu lệnh trả 0 dòng như `SELECT 1 WHERE false`: hiện trạng thái rỗng, không crash.
 - Rời trang: gọi `dispose`.
+- Sau khi đổi ngôn ngữ phía client, DOM có thể giữ cả bản cũ đã ẩn. Test E2E phải lọc phần tử đang hiển thị.
 
 Kiểm tra: `cd web && npm run check && npm run build && npx playwright test`
 Góc review thêm: nhãn kết luận, giao diện.
