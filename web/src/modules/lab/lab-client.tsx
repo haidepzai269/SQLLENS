@@ -17,7 +17,16 @@ type State =
   | { phase: "load_error" | "sql_error"; message: string }
   | { phase: "done"; last: QueryResult; conclusion: Conclusion<RunData> };
 
-const cell = (v: unknown) => (v === null ? "NULL" : typeof v === "object" ? JSON.stringify(v) : String(v));
+const cell = (v: unknown) =>
+  v === null
+    ? "NULL"
+    : v instanceof Date
+      ? v.toISOString()
+      : v instanceof Uint8Array
+        ? "\\x" + Array.from(v, (b) => b.toString(16).padStart(2, "0")).join("")
+        : typeof v === "object"
+          ? JSON.stringify(v)
+          : String(v);
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export function LabClient() {
@@ -107,7 +116,7 @@ export function LabClient() {
       )}
       {state.phase === "done" && (
         <>
-          {state.last.rows.length === 0 ? (
+          {state.last.columns.length === 0 ? null : state.last.rows.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("empty")}</p>
           ) : (
             <div className="overflow-x-auto">

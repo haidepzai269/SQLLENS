@@ -80,3 +80,13 @@ test("AC4 tải thất bại hiện lỗi và cho thử lại", async ({ page })
   await page.locator("button:visible", { hasText: "Retry" }).click();
   await expect(page.locator('[data-testid="conclusion"]:visible')).toContainText("Real", { timeout: 60_000 });
 });
+
+test("hiển thị Date, bytea và số ít đúng", async ({ page }) => {
+  await page.goto("/en/lab");
+  await sqlBox(page).fill(String.raw`SELECT '2026-01-02 03:04:05+00'::timestamptz d, '\xdeadbeef'::bytea b`);
+  await runBtn(page, "en").click();
+  const row = page.locator("tbody:visible tr");
+  await expect(row).toContainText("2026-01-02T03:04:05.000Z", { timeout: 60_000 });
+  await expect(row).toContainText(String.raw`\xdeadbeef`);
+  await expect(page.locator('[data-testid="conclusion"]:visible')).toContainText("1 statement,");
+});
