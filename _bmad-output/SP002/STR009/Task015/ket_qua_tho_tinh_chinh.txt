@@ -1,0 +1,6 @@
+## AC1+AC2: 0 lần, my.cnf tối giản, --memory 512m
+## AC3: mặc định (không my.cnf), --memory 512m
+## AC4: quét --memory, my.cnf tối giản
+sweep	1	320m	6685	12753	238.7	253.2	256.0	27	1	ok
+sweep	1	288m	6585	12833	244.7	259.1	261.9	27	1	ok
+sweep	1	256m	-	-	-	-	-	-	-	không lên: oom=true exit=137 /usr/local/bin/docker-entrypoint.sh: line 247:   203 Killed                  mysql --defaults-extra-file=<( _mysql_passf
