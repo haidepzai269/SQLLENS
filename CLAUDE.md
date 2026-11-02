@@ -4,7 +4,7 @@
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
 - **Khi Google Doc và file này khác nhau:** file này đúng hơn, cho đến khi Google Doc được cập nhật.
-- **Giai đoạn hiện tại:** đã chốt 13 Epic và 61 Story (`_bmad-output/BAN_DO_STORY.md`). Đang làm SP001 và SP002, tiến độ ở `_bmad-output/SP001/README.md` và `_bmad-output/SP002/README.md`.
+- **Giai đoạn hiện tại:** đã chốt 13 Epic và 61 Story (`_bmad-output/BAN_DO_STORY.md`). SP001 xong. SP002 còn Task018 chờ máy Azure. SP003 đã chia task (Task019 đến Task025), tiến độ ở `_bmad-output/SP00x/README.md`.
 - **Việc tạm gác:** cập nhật Google Doc. Chỉ làm khi chủ dự án yêu cầu, theo `_bmad-output/CAP_NHAT_GOOGLE_DOC.md`.
 - **Key của bên thứ 3:** danh sách ở `KEY_CAN_LAY.md`, file này không được commit. Sau khi chủ dự án điền giá trị, agent không đọc file đó. Cần thêm key thì báo chủ dự án.
 
@@ -47,7 +47,8 @@ Kèm theo: AI Mentor, đăng nhập, PostgreSQL và MySQL.
 | PostgreSQL | PGlite chạy trong trình duyệt, không cần server |
 | MySQL | MySQL thật, mỗi phiên một container trên máy Azure B2ats v2 (2 vCPU, 1 GB RAM, x64) của Azure for Students, region Southeast Asia. Oracle bị bỏ vì từ chối đăng ký. Khi cần nhiều phiên hơn thì đổi kích thước sang B2als v2 (4 GB) |
 | Ngân sách | 0 đồng |
-| AI | Key nằm ở Gin, xoay tua nhiều model, tối ưu sau |
+| AI | Key nằm ở Gin, xoay tua nhiều model, tối ưu sau. Yêu cầu chứa SQL hoặc dữ liệu người dùng chỉ đi đến nhà cung cấp không dùng dữ liệu để huấn luyện: Groq có Zero Data Retention, OpenRouter với `data_collection: "deny"`. Gemini gói free chỉ nhận yêu cầu không chứa dữ liệu người dùng |
+| Giới hạn số dòng PGlite | Mặc định tối đa 100k. 500k là tùy chọn có cảnh báo về RAM và thời gian. Trên 500k không chạy thật, chỉ tính và gắn nhãn Ước lượng |
 | Đăng nhập | PostgreSQL dùng tự do. MySQL và AI phải đăng nhập bằng Google hoặc GitHub |
 | Ngôn ngữ | Tiếng Việt và tiếng Anh làm song song từ dòng code đầu tiên. Không viết chuỗi giao diện cứng trong code. Thiếu bản dịch ở một ngôn ngữ thì CI báo lỗi |
 | Animation join | Làm trong V1: Nested Loop, Hash Join, Merge Join. MySQL không có Merge Join |
@@ -191,7 +192,7 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 
 - RAM của tab đạt đỉnh khoảng 1,1 GB ngay lúc khởi tạo PGlite, sau đó còn khoảng 385 MB, và khoảng 600 MB sau 500k. Rủi ro lớn nhất là đỉnh lúc khởi tạo trên máy RAM thấp.
 - CPU chậm 4 lần: cả lần chạy 500k mất khoảng 50 giây.
-- Đề xuất của Task012, chờ chủ dự án chốt: mặc định tối đa 100k, 500k là tùy chọn có cảnh báo, trên 500k dùng nhãn Ước lượng.
+- Từ số đo này, chủ dự án chốt giới hạn số dòng, xem dòng "Giới hạn số dòng PGlite" trong mục "Quyết định đã chốt".
 - `pageinspect` đọc được root và item của index thật.
 - `node-sql-parser` đọc đúng 8/9 câu MySQL thử, lỗi ở `FORCE INDEX`.
 - Subagent gọi được subagent khác: Amelia đã gọi `task-reviewer` ở Task002.
