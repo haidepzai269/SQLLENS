@@ -39,6 +39,7 @@ _bmad-output/
 - Amelia và reviewer đều dùng Sonnet 5.5, định nghĩa ở `.claude/agents/amelia-dev.md` và `.claude/agents/task-reviewer.md`.
 - Mỗi task một reviewer mới. Chủ dự án quyết định task sau dùng Amelia mới hay Amelia cũ, tùy độ dài task.
 - Sau 2 vòng vẫn còn lỗi thì dừng và báo chủ dự án.
+- Server mở ra để kiểm tra phải được tắt trước khi báo cáo, vì trên Windows nó khóa file và làm `npm ci` lỗi `EPERM`.
 - Các task chạy song song không được sửa cùng file. Phiên chính kiểm tra việc này trước khi giao.
 
 ## 4. Mẫu file
