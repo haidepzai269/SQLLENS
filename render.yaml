@@ -4,6 +4,7 @@ services:
     runtime: docker
     plan: free
     rootDir: api
-    dockerfilePath: ./api/Dockerfile
-    dockerContext: ./api
+    # Render tính hai đường dẫn này từ rootDir.
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /healthz
