@@ -1,0 +1,6 @@
+{
+  "notFound": "The requested resource was not found.",
+  "methodNotAllowed": "This method is not allowed.",
+  "payloadTooLarge": "The request payload is too large.",
+  "internal": "Something went wrong on the server."
+}

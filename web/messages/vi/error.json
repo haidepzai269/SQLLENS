@@ -1,0 +1,6 @@
+{
+  "notFound": "Không tìm thấy nội dung yêu cầu.",
+  "methodNotAllowed": "Phương thức này không được phép.",
+  "payloadTooLarge": "Dữ liệu gửi lên quá lớn.",
+  "internal": "Đã có lỗi xảy ra phía máy chủ."
+}
