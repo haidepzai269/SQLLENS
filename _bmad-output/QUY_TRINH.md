@@ -50,14 +50,25 @@ _bmad-output/
 
 Thuộc: SP0xx / STR0xx
 Mục tiêu: <một câu>
-Phạm vi: <file hoặc module được sửa>
+Phạm vi: <đường dẫn file được tạo hoặc sửa>
 Không làm: <ranh giới>
+Hợp đồng: <chữ ký hàm, kiểu dữ liệu, API hoặc route mà task khác dựa vào>
 Tiêu chí xong:
-- <điều kiện có thể kiểm tra được>
+- AC1: <đầu vào cụ thể cho ra kết quả cụ thể>
+- AC2: <...>
+Ca biên: <đầu vào bất thường và kết quả mong đợi>
+Giao diện (nếu có màn hình): <trạng thái tải, rỗng, lỗi; đủ tiếng Việt và tiếng Anh; chiều rộng điện thoại>
 Kiểm tra: <lệnh hoặc thao tác>
 Góc review thêm: bảo mật / nhãn kết luận / giao diện
 Đọc thêm: <mục trong CLAUDE.md hoặc bàn giao liên quan>
 ```
+
+Task mô tả hành vi và hợp đồng, không viết sẵn code. Reviewer chấm theo từng mã AC. Giới hạn đề xuất là tối đa 5 file và một vòng review, sẽ chỉnh lại sau 3 task đầu.
+
+Để task song song không sửa cùng file:
+
+- Bản dịch tách theo module: `messages/<ngôn ngữ>/<module>.json`.
+- SP001 cài sẵn các thư viện đã biết. Thư viện mới do phiên chính thêm.
 
 ### `ban_giao_task0xx.md`
 
@@ -136,6 +147,7 @@ Chưa đối chiếu từng nơi gọi giữa hai cách. Go đã thử trên m�
 ## 8. Giao diện
 
 - **Next.js và shadcn/ui.** Không tự thiết kế component khi shadcn đã có. Cây B-Tree và các hình mô phỏng được tự vẽ vì shadcn không có.
+- **Sơ đồ và đồ thị.** Sơ đồ bảng dùng React Flow với thẻ bảng từ shadcn/ui. Cây plan và đồ thị chờ khóa dùng Cytoscape.js.
 - **taste-skill:** dùng cho hướng thiết kế, và theo phần riêng của skill khi làm màn hình app.
 - **GSAP:** dùng cho landing page, trang quảng bá và animation mô phỏng nếu tiện. Task animation đầu tiên phải báo lại nếu GSAP không hợp với B-Tree.
 

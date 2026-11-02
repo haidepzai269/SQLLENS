@@ -25,7 +25,7 @@ Số mục dưới đây theo bản Doc xuất ngày 2026-11-02. Doc có thể �
 | 3.3 Tranh chấp | Tách theo engine: PostgreSQL có 5 kịch bản giả lập, đối chiếu Postgres thật trong CI. MySQL chạy hai connection thật và đọc `performance_schema.data_lock_waits`. Dirty Read chỉ demo trên MySQL |
 | 3.4 Bắt lỗi | Giữ nguyên danh sách lỗi, thêm: mỗi kết luận mang một nhãn và có bằng chứng, không bao giờ nói "thiết kế này ổn" |
 | 3.5 AI Mentor | Key nằm ở Gin, xoay tua model. AI chỉ nhận dữ liệu làm bằng chứng và không gọi công cụ. SQL của AI phải chạy thử trước khi hiển thị |
-| 3.5 AI Chaos Generator | Chưa có trong phạm vi đã chốt. Không tự xóa, hỏi chủ dự án |
+| 3.5 AI Chaos Generator | Giữ, ghi rõ: có trong V1 nhưng linh hoạt, chưa xong thì đẩy ra sau. Kịch bản AI dựng phải chạy qua `conflict-sim` trước khi hiển thị |
 | 3.5 Capacity Advisor | Viết lại theo mục "Capacity Advisor" trong `CLAUDE.md`: AI chỉ giải thích số đã tính, không tự đưa ra số |
 | 3.6 Giả lập quy mô | Bỏ việc can thiệp `pg_class`. Thay bằng dữ liệu thật ở mức 10k, 100k, tối đa 500k, trên mức đó dùng công thức và gắn nhãn Ước lượng. Đồng hồ đo chỉ còn số tầng, dung lượng index và số trang đọc. Bỏ latency và QPS |
 | 3.7 Đa mô hình | Giữ nguyên, các tab NoSQL và LSM-Tree vẫn khóa |
@@ -48,6 +48,9 @@ Số mục dưới đây theo bản Doc xuất ngày 2026-11-02. Doc có thể �
 
 ## Chưa chốt, không tự quyết
 
-- Trình soạn thảo SQL: Doc ghi Monaco, chưa có quyết định trong `CLAUDE.md`.
-- Thư viện vẽ sơ đồ: Doc ghi React Flow, chưa có quyết định trong `CLAUDE.md`.
 - Tên sản phẩm: vẫn tạm dùng SQLLens.
+
+## Thay đổi công nghệ bổ sung
+
+- Đổi Monaco ở mục 6 thành CodeMirror 6.
+- Mục 4.1: sơ đồ bảng dùng React Flow với component shadcn/ui, đồ thị dùng Cytoscape.js. Bỏ Svelte Flow và D3.js.

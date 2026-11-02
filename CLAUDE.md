@@ -4,8 +4,9 @@
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
 - **Khi Google Doc và file này khác nhau:** file này đúng hơn, cho đến khi Google Doc được cập nhật.
-- **Giai đoạn hiện tại:** đã chốt định hướng, đang bàn về công cụ và quy trình cho agent, rồi chia SPEC, STORY, TASK. Chưa có code.
+- **Giai đoạn hiện tại:** đã chốt 13 Epic và 61 Story (`_bmad-output/BAN_DO_STORY.md`). Đang làm SP001, tiến độ ở `_bmad-output/SP001/README.md`.
 - **Việc tạm gác:** cập nhật Google Doc. Chỉ làm khi chủ dự án yêu cầu, theo `_bmad-output/CAP_NHAT_GOOGLE_DOC.md`.
+- **Key của bên thứ 3:** danh sách ở `KEY_CAN_LAY.md`, file này không được commit. Sau khi chủ dự án điền giá trị, agent không đọc file đó. Cần thêm key thì báo chủ dự án.
 
 ## Quy trình làm việc của agent
 
@@ -55,6 +56,35 @@ Kèm theo: AI Mentor, đăng nhập, PostgreSQL và MySQL.
 | Tiêu chí "hỏng" | Kịch bản mẫu có sẵn điều kiện, người dùng tự viết thêm bằng `SELECT`. Không có điều kiện thì chỉ báo deadlock và chờ khóa |
 | Trạng thái phiên MySQL | Nằm ở sandbox agent trên Oracle, vì Render có thể restart |
 | Tên sản phẩm | Tạm dùng SQLLens. Đã có SQLLens.AI và một SQLLens mã nguồn mở cùng lĩnh vực, xem lại trước khi mua domain |
+| Postgres của app | Neon free. Không đặt trên Render, không đặt trên máy Oracle vì máy đó chạy SQL không đáng tin |
+| Quota và giới hạn tần suất | Upstash Redis free, kiểm tra ở Gin. Lệnh ping giữ thức không được chạm Neon, để Neon còn tự tắt và tiết kiệm CU-giờ |
+| Trình soạn thảo SQL | CodeMirror 6, qua `@uiw/react-codemirror` và `@codemirror/lang-sql` |
+| Sơ đồ bảng | React Flow, thẻ bảng dùng component shadcn/ui hoặc React, xếp vị trí bằng `@dagrejs/dagre` |
+| Đồ thị | Cytoscape.js cho cây plan và đồ thị chờ khóa, tải riêng theo màn hình |
+| Cây B-Tree | Tự vẽ bằng SVG và GSAP, không dùng Cytoscape.js |
+| Biểu đồ số liệu | Thành phần chart của shadcn/ui khi màn hình thật sự cần, còn lại hiện số bằng thẻ shadcn/ui |
+| Quản lý gói | npm. `web/` và `api/` độc lập, không dùng workspace |
+| AI Chaos Generator | Có trong V1 nhưng linh hoạt: chưa xong thì đẩy ra sau, không chặn phát hành. Kịch bản AI dựng phải chạy qua `conflict-sim` trước khi hiển thị, không để AI tự kết luận |
+
+## Danh sách Epic
+
+Epic nào có màn hình thì phải có Story giao diện riêng. Không Epic nào được xong khi chỉ có logic.
+
+| Epic | Kết quả | Phụ thuộc |
+|---|---|---|
+| SP001 Nền móng | Repo, hệ thống giao diện, i18n và CI, Gin, deploy, hợp đồng chung, luồng mỏng chạy xuyên suốt | Không |
+| SP002 Thử rủi ro | Số đo thật cho PGlite, stream qua `rewrites`, RAM container, lock wait | Không |
+| SP003 Engine PostgreSQL | PGlite trong worker, tải khi cần, dữ liệu 10k, 100k, 500k | SP001, SP002 |
+| SP004 Sandbox MySQL | Agent trên Oracle, mỗi phiên một container, role quyền thấp | SP002 |
+| SP005 Đăng nhập và quota | Google, GitHub, Neon, Upstash, quota ở Gin | SP001 |
+| SP006 `sql-intake` | Dán SQL, parser hai engine, suy ra schema rồi xác nhận | SP001 |
+| SP007 `plan-runner` | Luồng thực thi, sơ đồ schema, animation join | SP003, SP006 |
+| SP008 `btree-reader` | Cây thật và toàn bộ giao diện B-Tree | SP003 |
+| SP009 `findings` | Danh sách rủi ro kèm bằng chứng | SP006, SP007 |
+| SP010 `what-if` | Sửa rồi chạy lại, Capacity Advisor | SP003, SP008 |
+| SP011 `conflict-sim` | 5 kịch bản PostgreSQL, hai connection thật trên MySQL | SP003, SP004 |
+| SP012 AI Mentor | AI proxy xoay model, SQL của AI được chạy thử trước, AI Chaos Generator | SP005, SP009, SP011 |
+| SP013 Phát hành | Đánh bóng luồng, landing, E2E, `security-audit` | Tất cả |
 
 ## Capacity Advisor
 
@@ -73,7 +103,8 @@ Trả lời câu hỏi: khi dữ liệu tăng lên, thiết kế này bắt đ�
 Vercel: Next.js + PGlite (PostgreSQL chạy tại trình duyệt)
   │
   └── Cần MySQL hoặc AI ──► Render free: Gin (auth, quota, AI proxy)
-                               ├─► Postgres của app, không đặt trên Render
+                               ├─► Neon: Postgres của app
+                               ├─► Upstash Redis: quota
                                ├─► Các model AI
                                └─► Oracle VM: sandbox agent ──► MySQL theo từng phiên
 ```
@@ -155,6 +186,8 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 - PGlite và `pgsql-parser` chạy trong trình duyệt thật.
 - Xin được máy ARM của Oracle, và ngưỡng thu hồi máy nhàn rỗi hiện tại.
 - Điều khoản của Render về việc ping giữ thức.
+- Hạn mức CU-giờ của gói free Neon: các nguồn ghi 50 hoặc 100.
+- Điều khoản về việc các gói LLM free dùng dữ liệu gửi lên để huấn luyện model. Phải rõ trước khi gửi SQL của người dùng cho AI.
 
 ## Cần thử khi dựng
 
@@ -165,4 +198,4 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 
 ## Mốc kiểm tra
 
-Cuối ngày 3 phải có MySQL chạy an toàn trên Oracle và PGlite chạy trong trình duyệt thật. Chưa đạt thì cắt phạm vi ngay, bắt đầu từ parser `.ibd`.
+Cuối ngày 3 phải có MySQL chạy an toàn trên Oracle và PGlite chạy trong trình duyệt thật. Chưa đạt thì cắt phạm vi ngay. Thứ tự dự kiến: animation join, Capacity Advisor, rồi rút 5 kịch bản PostgreSQL còn 3. Chủ dự án quyết định lần cuối tại thời điểm đó. V1 không có parser `.ibd`.
