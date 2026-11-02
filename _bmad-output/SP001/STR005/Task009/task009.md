@@ -22,6 +22,9 @@ Tiêu chí xong:
 - AC6: `docker run --rm --entrypoint id sqllens-api` không phải `uid=0`, hoặc nếu image không có `id` thì `docker inspect` cho thấy `User` không phải root.
 - AC7: `gofmt`, `go vet`, `go test ./...` đều sạch.
 
+- AC8: Gửi SIGTERM vào container đang chạy: server tắt an toàn và thoát mã 0. Task002 chưa kiểm được việc này trên Windows.
+- AC9: `api/.gitignore` chặn file `server` và `server.exe` do `go build ./cmd/server` tạo ra.
+
 Ca biên: route không khớp mẫu thì log ghi là không khớp, không ghi đường dẫn thô, vì đường dẫn có thể chứa dữ liệu người dùng.
 Kiểm tra: `cd api && go vet ./... && go test ./... && docker build -t sqllens-api .`
 Góc review thêm: bảo mật.

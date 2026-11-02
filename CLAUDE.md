@@ -178,6 +178,7 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 - Tiến trình dùng 566 MB RAM sau mốc 500k.
 - `pageinspect` đọc được root và item của index thật.
 - `node-sql-parser` đọc đúng 8/9 câu MySQL thử, lỗi ở `FORCE INDEX`.
+- Subagent gọi được subagent khác: Amelia đã gọi `task-reviewer` ở Task002.
 
 ## Chưa kiểm chứng
 
@@ -194,7 +195,6 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 - Cookie đăng nhập: gọi API qua `rewrites` của Next.js để cùng domain, cần thử xem stream có chạy được không.
 - PGlite trong Next.js: chỉ nạp phía client, cần thử việc tải file WASM trên Vercel.
 - agent-browser trên Windows: README chưa ghi rõ có hỗ trợ.
-- Subagent có gọi được subagent khác không: thử ở task đầu tiên.
 
 ## Mốc kiểm tra
 
