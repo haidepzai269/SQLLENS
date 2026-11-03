@@ -89,3 +89,4 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task024 | `lab.spec.ts` ghi đè ảnh của Task020 mỗi lần chạy. Gộp với mục ảnh của Task029 | Chưa làm |
 | Task024 | Liên kết thật tới Capacity Advisor khi SP010 có | Chưa làm |
 | Task036 | Routine hoặc view `SQL SECURITY INVOKER` do người dùng tạo chạy bằng quyền người gọi, nên root không được gọi chúng. Tham số `--pager`, `--tee`, `--plugin-dir` của `session.sh exec` chưa bị chặn | `needs_validation` |
+| Chủ dự án | Key OpenRouter chưa lấy, chủ dự án nói tạm chưa cần. Cần trước SP012 | Chờ chủ dự án |
