@@ -6,10 +6,11 @@ set -euo pipefail
 [ "$(id -u)" = 0 ] || { echo "cần chạy bằng root (sudo)" >&2; exit 1; }
 export DEBIAN_FRONTEND=noninteractive
 
-apt-get update -qq
-apt-get -y -qq upgrade
+# </dev/null: script đi qua stdin của ssh, apt không được ăn phần còn lại
+apt-get update -qq </dev/null
+apt-get -y -qq upgrade </dev/null
 # docker.io của Ubuntu: đủ cho sandbox, ít phần phải tin hơn thêm kho ngoài
-apt-get -y -qq install docker.io ufw
+apt-get -y -qq install docker.io ufw </dev/null
 systemctl enable --now docker >/dev/null
 
 # Swap 1G: máy chỉ 1 GB RAM, không swap thì một lần đo quá tay làm treo cả máy (OOM kill sshd).

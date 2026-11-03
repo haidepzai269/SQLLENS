@@ -9,7 +9,7 @@
 | Size | `Standard_B2ats_v2`, 2 vCPU, RAM thấy được 836 MiB (docker báo 877.649.920 byte) |
 | Region | East Asia (Southeast Asia báo `NotAvailableForSubscription` với size này) |
 | HĐH | Ubuntu 24.04.5 LTS, kernel 7.0.0-azure, cgroup v2 |
-| Đĩa OS | 29 GB, dùng 1,9 GB trước khi cài, 4,7 GB sau khi kéo image MySQL và chạy đo (còn 24 GB) |
+| Đĩa OS | 29 GB (đĩa mặc định của image, khác task yêu cầu P6 64 GiB theo chỉ đạo của chủ dự án), dùng 1,9 GB trước khi cài, 4,7 GB sau khi kéo image MySQL và chạy đo (còn 24 GB) |
 | Docker | `docker.io` của Ubuntu, 29.1.3 |
 | Swap | không có sẵn; `setup.sh` thêm 1 GiB `/swapfile` làm lưới an toàn cho máy chủ |
 | Image | `mysql:8.4.13`, cấu hình `spikes/mysql-container/my.cnf` truyền bằng tham số mysqld |
@@ -61,9 +61,9 @@ Lần 1:
 
 Lần 2 (lặp lại): n=1 15.642 ms, 331 MiB trống (39%), tổng 343 MiB; n=2 48.628 ms, 162 MiB trống (19%), tổng 503 MiB, swap 186 MiB.
 
-Kết quả: dừng ở n=2 vì thời gian sẵn sàng gấp 2,9 đến 3,1 lần container đầu (lần 1: 51,8 giây so với 17,4 giây; lần 2: 48,6 giây so với 15,6 giây). Hai container cùng chạy không có OOM, RAM trống còn 18 đến 19%, nhưng container thứ hai phải chờ gần 50 giây mới dùng được. Chưa thử container thứ ba vì điều kiện dừng đã kích hoạt và RAM trống chỉ còn khoảng 160 MiB trong khi mỗi container cần khoảng 270 đến 340 MiB. Con số đo được: **1 phiên chạy trong ngưỡng, 2 phiên chạy được nhưng chậm gấp 3 lần ở phiên thứ hai**.
+Kết quả: dừng ở n=2 vì thời gian sẵn sàng gấp khoảng 3 lần container đầu (lần 1: 51,8 giây so với 17,4 giây; lần 2: 48,6 giây so với 15,6 giây). Hai container cùng chạy không có OOM, RAM trống còn 18 đến 19%, nhưng container thứ hai phải chờ gần 50 giây mới dùng được. Chưa thử container thứ ba vì điều kiện dừng đã kích hoạt và RAM trống chỉ còn khoảng 160 MiB trong khi mỗi container cần khoảng 270 đến 340 MiB. Con số đo được: **1 phiên chạy trong ngưỡng, 2 phiên chạy được nhưng chậm gấp 3 lần ở phiên thứ hai**.
 
-Lưu ý: máy đã dùng khoảng 140 MiB swap (do đợt cài đặt và nâng cấp) trước khi đo, nên "RAM trống" trên đây tính cả page cache. Thời gian khởi động của container thứ hai tăng chủ yếu vì CPU và đĩa của máy B2ats_v2 (hạng burstable) bị hai container tranh nhau; chưa tách riêng yếu tố CPU credit, cần đo nếu muốn kết luận chắc.
+Lưu ý: máy đã dùng khoảng 140 MiB swap (do đợt cài đặt và nâng cấp) trước khi đo, nên máy không thật sự trống. "RAM trống" là `MemAvailable`, vốn đã tính cả page cache có thể thu hồi. Thời gian khởi động của container thứ hai tăng chủ yếu vì CPU và đĩa của máy B2ats_v2 (hạng burstable) bị hai container tranh nhau; chưa tách riêng yếu tố CPU credit, cần đo nếu muốn kết luận chắc.
 
 ## AC4: kịch bản Task016 trên máy Azure
 
@@ -80,7 +80,7 @@ Kết quả giống `_bmad-output/SP002/STR010/Task016/ket_qua.md` ở phần k�
 ## AC5: đề xuất trần số phiên cho STR017 (SP004)
 
 Số đo cho phép đề xuất:
-- **Trần cứng: 2 phiên cùng lúc** trên B2ats_v2 1 GB. Dưới 2 vẫn chạy; trên 2 chưa đo và RAM không đủ chỗ an toàn.
+- **Đo được: 2 phiên cùng lúc** chạy trên B2ats_v2 1 GB. Phiên thứ 3 chưa thử, nên chưa biết trần thật; RAM trống còn 18 đến 19% sau phiên thứ 2, và dưới 150 MiB thì container kế sẽ ép máy vào swap sâu (ước tính từ mức dùng 270 đến 340 MiB mỗi container, không phải số đo).
 - **Trần phục vụ nên dùng: 1 phiên đang khởi động tại một thời điểm.** Container thứ hai khởi động trong 49 đến 52 giây khi container đầu đang giữ khóa, nên hàng đợi khởi động phải tuần tự, và người dùng sẽ thấy chờ.
 - SP004 cần phương án giảm thời gian chờ: thư mục dữ liệu dựng sẵn hoặc container giữ sẵn (Task015 đã khuyến nghị), đo lại sau đó. Nếu mục tiêu là nhiều hơn 2 phiên thì cần B2als v2 (4 GB), CLAUDE.md đã nêu; số phiên trên máy đó chưa đo, không suy ra từ đây.
 - Đặt `--memory 384m` mỗi phiên như Task015 khuyến nghị. 288m chạy được ở một phiên nhưng chưa thử dưới tải đồng thời.
