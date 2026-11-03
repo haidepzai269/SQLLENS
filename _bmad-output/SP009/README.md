@@ -10,7 +10,7 @@ Hợp đồng chung: `web/src/contracts/finding.ts` (`RuleHit`). Luật chỉ tr
 |---|---|---|---|---|
 | STR039 Luật schema | Task052 | Thiếu PK, FK không có index, FLOAT lưu tiền, VARCHAR quá lớn | Không | 1 |
 | STR040 Luật query | Task053 | Bọc hàm lên cột có index, `LIKE '%x'`, sai tiền tố trái, ép kiểu ngầm | Không | 1 |
-| STR041 Bằng chứng | chưa chia | | Task046, Task052, Task053 | 2 |
+| STR041 Bằng chứng | chưa chia. Phải truyền `sql` cho `checkQueries` để tô đúng biểu thức, và câu dịch `implicit-cast` phân biệt `values.effect` (Task053) | | Task046, Task052, Task053 | 2 |
 | STR042 Màn hình rủi ro | chưa chia | | STR041 | 3 |
 
 ## Các file bị đụng
