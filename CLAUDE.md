@@ -4,7 +4,7 @@
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
 - **Khi Google Doc và file này khác nhau:** file này đúng hơn, cho đến khi Google Doc được cập nhật.
-- **Giai đoạn hiện tại:** đã chốt 13 Epic và 61 Story (`_bmad-output/BAN_DO_STORY.md`). SP001 xong. SP002 còn Task018 chờ máy Azure. SP003 đã chia task (Task019 đến Task025), tiến độ ở `_bmad-output/SP00x/README.md`.
+- **Giai đoạn hiện tại:** đã chốt 13 Epic và 61 Story (`_bmad-output/BAN_DO_STORY.md`). SP001 xong. SP002 còn Task018 chờ máy Azure. SP003 đã chia task (Task019 đến Task025), SP006 đã chia task (Task028 đến Task033), việc phát sinh đang làm ở `SP999/STR062` (Task026, Task027), tiến độ ở `_bmad-output/SP00x/README.md`.
 - **Việc tạm gác:** cập nhật Google Doc. Chỉ làm khi chủ dự án yêu cầu, theo `_bmad-output/CAP_NHAT_GOOGLE_DOC.md`.
 - **Key của bên thứ 3:** danh sách ở `KEY_CAN_LAY.md`, file này không được commit. Sau khi chủ dự án điền giá trị, agent không đọc file đó. Cần thêm key thì báo chủ dự án.
 
@@ -42,10 +42,10 @@ Kèm theo: AI Mentor, đăng nhập, PostgreSQL và MySQL.
 |---|---|
 | Frontend | Next.js + TypeScript + shadcn/ui, deploy trên Vercel |
 | Animation | GSAP cho landing page, trang quảng bá và mô phỏng nếu tiện |
-| Backend | Gin (Go), Docker image trên Render free |
+| Backend | Gin (Go), Docker image trên Render free, region Singapore |
 | Giờ chạy backend | Giữ thức từ 7:00 đến 24:00 giờ Việt Nam, chấp nhận ban đêm kém ổn định |
 | PostgreSQL | PGlite chạy trong trình duyệt, không cần server |
-| MySQL | MySQL thật, mỗi phiên một container trên máy Azure B2ats v2 (2 vCPU, 1 GB RAM, x64) của Azure for Students, region Southeast Asia. Oracle bị bỏ vì từ chối đăng ký. Khi cần nhiều phiên hơn thì đổi kích thước sang B2als v2 (4 GB) |
+| MySQL | MySQL thật, mỗi phiên một container trên máy Azure B2ats v2 (2 vCPU, 1 GB RAM, x64) của Azure for Students, region East Asia vì Southeast Asia báo `NotAvailableForSubscription` với size này. Oracle bị bỏ vì từ chối đăng ký. Khi cần nhiều phiên hơn thì đổi kích thước sang B2als v2 (4 GB) |
 | Ngân sách | 0 đồng |
 | AI | Key nằm ở Gin, xoay tua nhiều model, tối ưu sau. Yêu cầu chứa SQL hoặc dữ liệu người dùng chỉ đi đến nhà cung cấp không dùng dữ liệu để huấn luyện: Groq có Zero Data Retention, OpenRouter với `data_collection: "deny"`. Gemini gói free chỉ nhận yêu cầu không chứa dữ liệu người dùng |
 | Giới hạn số dòng PGlite | Mặc định tối đa 100k. 500k là tùy chọn có cảnh báo về RAM và thời gian. Trên 500k không chạy thật, chỉ tính và gắn nhãn Ước lượng |
@@ -219,13 +219,13 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
   - File cấu hình mount từ Windows bị mysqld bỏ qua vì quyền 0777, phải kiểm cảnh báo trong log.
   - Task015 dùng `mysql:8.4.6`, Task016 dùng `mysql:8.4.13`. SP004 thống nhất một bản.
 - Deploy chạy ngày 2026-11-02: Vercel `https://sqllens-bice.vercel.app`, Render `https://sqllens.onrender.com`. `/api/healthz` qua `rewrites` trả 200, `keep-awake` chạy tay thành công (Task010). Trong Chromium, `/vi/lab` trên Vercel không tải WASM khi mở trang; bấm Chạy thì tải 3 file WASM và ra kết quả nhãn Thật sau khoảng 4,9 giây.
-- Ngân sách Azure: máy B2ats v2 dùng 750 giờ miễn phí mỗi tháng, đủ chạy liên tục. Phần tốn tín dụng chủ yếu là IP công khai, khoảng 3,6 USD mỗi tháng theo giá tham khảo chưa xác minh. Như vậy 100 USD dư cho cả 12 tháng, và hạn 02/11/2027 của tín dụng mới là giới hạn. Nếu đổi sang B2als v2 thì khoảng 34 đến 41 USD mỗi tháng, tín dụng đủ khoảng 2,5 tháng.
+- Ngân sách Azure: màn hình tạo máy ghi `Standard_B2ats_v2` giá 0,0131 USD mỗi giờ, trừ vào tín dụng, không thấy dấu hiệu miễn phí 750 giờ. Tức khoảng 9,6 USD mỗi tháng, cộng IP công khai khoảng 3,6 USD theo giá tham khảo và phí ổ đĩa. Ước tính 100 USD đủ khoảng 6 đến 7 tháng, chưa xác minh bằng Cost Management. Hạn tín dụng là 02/11/2027. Nếu đổi sang B2als v2 thì khoảng 34 đến 41 USD mỗi tháng, tín dụng đủ khoảng 2,5 tháng.
 - PGlite 0.5.14 treo mãi, không báo lỗi, khi tải WASM thất bại. Vì vậy `web/src/engines/postgres/adapter.ts` tự tải file rồi truyền vào `PGlite.create`. Khi nâng PGlite hoặc đổi chỗ file này phải kiểm lại đường dẫn.
 
 ## Chưa kiểm chứng
 
 - Số phiên MySQL chạy cùng lúc trên máy Azure (Task018).
-- Máy B2ats v2 có thật sự nằm trong 750 giờ miễn phí của gói sinh viên không. Trang Education của tài khoản chỉ ghi B1s.
+- Chi phí thật của máy Azure trên Cost Management, và máy B2ats v2 có được trừ vào 750 giờ miễn phí của gói sinh viên không.
 - PGlite trên máy RAM thấp, Firefox, Safari, điện thoại, và khi tải qua mạng trên Vercel.
 - Điều khoản của Render có cấm ping giữ thức không. Trang gói free không nhắc đến.
 - Giới hạn kết nối của Neon gói free, thời gian giữ dữ liệu của Gemini gói free, chính sách dữ liệu riêng cho model `:free` của OpenRouter.

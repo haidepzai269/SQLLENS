@@ -1,5 +1,4 @@
 {
-  "title": "Phòng thử SQL",
   "sqlLabel": "Câu SQL (PostgreSQL)",
   "sqlPlaceholder": "CREATE TABLE t(id int); INSERT INTO t VALUES (1),(2); SELECT * FROM t;",
   "run": "Chạy",
@@ -7,7 +6,6 @@
   "loading": "Đang tải PostgreSQL trong trình duyệt...",
   "running": "Đang chạy...",
   "loadError": "Không tải được PostgreSQL: {message}",
-  "sqlError": "PostgreSQL báo lỗi: {message}",
   "empty": "Câu cuối không trả dòng nào.",
   "label": {
     "real": "Thật",
@@ -19,5 +17,29 @@
   },
   "notSimulated": {
     "explain": "Chưa mô phỏng được: EXPLAIN chưa làm."
+  },
+  "initializing": "Đang khởi tạo PostgreSQL...",
+  "downloaded": "Đã tải {loaded} MB",
+  "downloadedOf": "Đã tải {loaded} / {total} MB",
+  "cancel": "Hủy",
+  "rebuild": "Dựng lại",
+  "rebuilding": "Đang dựng lại...",
+  "rebuildHint": "Dựng lại sẽ chạy lại {count, plural, one {# câu} other {# câu}} đã thành công trước đó theo đúng thứ tự. Câu có kết quả ngẫu nhiên như random() có thể cho dữ liệu khác lần trước.",
+  "rebuildError": "Dựng lại không thành công: {message}",
+  "mysqlNeedsLogin": "MySQL cần đăng nhập, sẽ có ở SP004.",
+  "stopped": {
+    "cancelled": "Đã hủy câu đang chạy. Phiên PostgreSQL đã bị dừng nên dữ liệu tạo bởi các câu trước đã mất.",
+    "timeout": "Câu chạy quá thời gian nên đã bị dừng. Phiên PostgreSQL đã bị dừng nên dữ liệu tạo bởi các câu trước đã mất.",
+    "worker_crashed": "Phiên PostgreSQL đã dừng bất ngờ nên dữ liệu tạo bởi các câu trước đã mất."
+  },
+  "log": {
+    "title": "Nhật ký chạy",
+    "loaded": "Đã tải PostgreSQL.",
+    "ran": "Đã chạy {n, plural, one {# câu} other {# câu}}.",
+    "error": "Gặp lỗi.",
+    "cancelled": "Đã hủy.",
+    "timeout": "Quá thời gian.",
+    "worker_crashed": "Phiên dừng bất ngờ.",
+    "rebuilt": "Đã dựng lại, chạy lại {n, plural, one {# câu} other {# câu}}."
   }
 }

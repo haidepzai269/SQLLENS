@@ -1,5 +1,4 @@
 {
-  "title": "SQL lab",
   "sqlLabel": "SQL (PostgreSQL)",
   "sqlPlaceholder": "CREATE TABLE t(id int); INSERT INTO t VALUES (1),(2); SELECT * FROM t;",
   "run": "Run",
@@ -7,7 +6,6 @@
   "loading": "Loading PostgreSQL in the browser...",
   "running": "Running...",
   "loadError": "Could not load PostgreSQL: {message}",
-  "sqlError": "PostgreSQL reported an error: {message}",
   "empty": "The last statement returned no rows.",
   "label": {
     "real": "Real",
@@ -19,5 +17,29 @@
   },
   "notSimulated": {
     "explain": "Not simulated yet: EXPLAIN is not built."
+  },
+  "initializing": "Initializing PostgreSQL...",
+  "downloaded": "Downloaded {loaded} MB",
+  "downloadedOf": "Downloaded {loaded} / {total} MB",
+  "cancel": "Cancel",
+  "rebuild": "Rebuild",
+  "rebuilding": "Rebuilding...",
+  "rebuildHint": "Rebuild re-runs the {count, plural, one {# statement} other {# statements}} that succeeded earlier, in order. Statements with random results such as random() may produce different data this time.",
+  "rebuildError": "Rebuild failed: {message}",
+  "mysqlNeedsLogin": "MySQL requires sign-in, coming in SP004.",
+  "stopped": {
+    "cancelled": "The running statement was cancelled. The PostgreSQL session was stopped, so data created by earlier statements is gone.",
+    "timeout": "The statement took too long and was stopped. The PostgreSQL session was stopped, so data created by earlier statements is gone.",
+    "worker_crashed": "The PostgreSQL session stopped unexpectedly, so data created by earlier statements is gone."
+  },
+  "log": {
+    "title": "Run log",
+    "loaded": "PostgreSQL loaded.",
+    "ran": "Ran {n, plural, one {# statement} other {# statements}}.",
+    "error": "Error.",
+    "cancelled": "Cancelled.",
+    "timeout": "Timed out.",
+    "worker_crashed": "Session stopped unexpectedly.",
+    "rebuilt": "Rebuilt, re-ran {n, plural, one {# statement} other {# statements}}."
   }
 }
