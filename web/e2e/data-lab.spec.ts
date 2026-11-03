@@ -114,10 +114,12 @@ for (const l of ["vi", "en"] as const) {
       await start(page, l).click();
       await expect(dialog(page)).toHaveCount(0, { timeout: 90_000 });
       expect(await count(page, l, "SELECT count(*) FROM g")).toBe("10000");
-      await runSql(page, l, "SELECT pg_sleep(60)");
+      // runSql đợi nhật ký đổi dòng, mà câu này chỉ kết thúc khi bị hủy, nên bấm Chạy trực tiếp.
+      await sqlBox(page).fill("SELECT pg_sleep(60)");
+      await page.getByRole("button", { name: T[l].run, exact: true }).click();
       await page.getByRole("button", { name: T[l].cancel, exact: true }).click();
       const stopped = page.locator('[data-testid="stopped"]:visible');
-      await expect(stopped).toContainText(l === "vi" ? /chạy lại 2 câu/ : /replay 2 statements/); // CREATE và SELECT count; không tính BEGIN, INSERT, COMMIT hay kiểm bảng
+      await expect(stopped).toContainText(l === "vi" ? /chạy lại 2 câu/ : /re-runs the 2 statements/); // CREATE và SELECT count; không tính BEGIN, INSERT, COMMIT hay kiểm bảng
       await stopped.getByRole("button", { name: l === "vi" ? "Dựng lại" : "Rebuild", exact: true }).click();
       await expect(page.locator("#terminal ol:visible")).toContainText(l === "vi" ? "không được giữ lại" : "is not kept", { timeout: 60_000 });
       expect(await count(page, l, "SELECT count(*) FROM g")).toBe("0");
