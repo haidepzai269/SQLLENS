@@ -8,5 +8,5 @@ export type WorkerRequest = { id: number; type: "init" } | { id: number; type: "
 
 export type WorkerResponse =
   | { id: number; type: "progress"; progress: LoadProgress }
-  | { id: number; type: "done"; results?: QueryResult[]; tried?: Outcome<TryChangeResult>; btree?: BTreeRead }
+  | { id: number; type: "done"; guardActive?: boolean; results?: QueryResult[]; tried?: Outcome<TryChangeResult>; btree?: BTreeRead }
   | { id: number; type: "error"; error: EngineErrorData };

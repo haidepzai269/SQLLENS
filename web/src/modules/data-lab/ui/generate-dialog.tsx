@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { EngineError, type EngineAdapter } from "@/contracts/engine";
 import { parseSchema, planData, SCHEMA_QUERY, type ColumnRule, type TableInfo } from "../generate/plan-data";
 
+// Câu của ứng dụng, không vào history() nên dựng lại không chạy lại chúng.
+const INTERNAL = { internal: true } as const;
 export type StopCode = "timeout" | "worker_crashed";
 const SIZES = [10_000, 100_000, 500_000] as const;
 const selectCls =
@@ -30,9 +32,8 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   getAdapter: () => Promise<EngineAdapter> | null;
-  /** Báo giao dịch sinh dữ liệu đang mở; còn mở khi worker bị dừng thì: LabWorkspace phải ROLLBACK sau khi dựng lại. */
-  setTxnOpen: (open: boolean) => void;
-  onSummary: (text: string) => void;
+  /** `generated`: dữ liệu đã được ghi vào bảng (true), hay đã hoàn tác (false). */
+  onSummary: (text: string, generated: boolean) => void;
   onStopped: (code: StopCode) => void;
 };
 
@@ -41,7 +42,7 @@ export function GenerateDialog(props: Props) {
   return props.open ? <Inner {...props} /> : null;
 }
 
-function Inner({ open, onOpenChange, getAdapter, setTxnOpen, onSummary, onStopped }: Props) {
+function Inner({ open, onOpenChange, getAdapter, onSummary, onStopped }: Props) {
   const t = useTranslations("data-lab");
   const locale = useLocale();
   const [phase, setPhase] = useState<Phase>({ p: "loading" });
@@ -57,7 +58,7 @@ function Inner({ open, onOpenChange, getAdapter, setTxnOpen, onSummary, onStoppe
       try {
         const db = await getAdapter();
         if (!db) throw new Error("no engine");
-        const res = await db.execute(SCHEMA_QUERY);
+        const res = await db.execute(SCHEMA_QUERY, INTERNAL);
         const ts = parseSchema(res[0]);
         if (!live) return;
         setTables(ts);
@@ -105,36 +106,32 @@ function Inner({ open, onOpenChange, getAdapter, setTxnOpen, onSummary, onStoppe
     setPhase({ p: "running", done: 0, total });
     const t0 = performance.now();
     try {
-      await db.execute("BEGIN");
-      setTxnOpen(true);
+      await db.execute("BEGIN", INTERNAL);
       for (let i = 0; i < total; i++) {
         if (cancelled.current) {
-          await db.execute("ROLLBACK");
-          setTxnOpen(false);
-          onSummary(t("cancelledSummary"));
+          await db.execute("ROLLBACK", INTERNAL);
+          onSummary(t("cancelledSummary"), false);
           return onOpenChange(false);
         }
-        await db.execute(plan.batches[i]);
+        await db.execute(plan.batches[i], INTERNAL);
         setPhase({ p: "running", done: i + 1, total });
       }
-      await db.execute("COMMIT");
-      setTxnOpen(false);
+      await db.execute("COMMIT", INTERNAL);
       const list = plan.order
         .filter((n) => rows[n] > 0)
         .map((n) => `${n}: ${rows[n].toLocaleString(locale)}`)
         .join(", ");
-      onSummary(t("summary", { tables: list, seconds: ((performance.now() - t0) / 1000).toFixed(1) }));
+      onSummary(t("summary", { tables: list, seconds: ((performance.now() - t0) / 1000).toFixed(1) }), true);
       onOpenChange(false);
     } catch (e) {
       if (e instanceof EngineError && (e.code === "timeout" || e.code === "worker_crashed")) {
-        onStopped(e.code); // worker đã bị dừng; LabWorkspace dựng lại rồi ROLLBACK nếu txnOpen
+        onStopped(e.code); // worker đã bị dừng; dựng lại cho phiên mới, không còn dữ liệu sinh dở
         return onOpenChange(false);
       }
       try {
-        await db.execute("ROLLBACK");
-        setTxnOpen(false);
+        await db.execute("ROLLBACK", INTERNAL);
       } catch {
-        /* giữ txnOpen để LabWorkspace dọn */
+        /* worker có thể đã chết; rebuild() dựng phiên mới nên không còn transaction */
       }
       setPhase({ p: "error", message: e instanceof Error ? e.message : String(e) });
     }

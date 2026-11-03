@@ -12,6 +12,7 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
   let worker: Worker | undefined;
   let nextId = 1;
   let needsRebuild = false;
+  let guardActive = false;
   let disposed = false;
   let chain: Promise<unknown> = Promise.resolve();
   let activeExec: number | undefined; // id của exec đang chạy, để cancel biết có gì để dừng
@@ -36,7 +37,7 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
       if (m.type === "progress") return p.onProgress?.(m.progress);
       pending.delete(m.id);
       if (m.type === "done") p.resolve(m);
-      else p.reject(new EngineError(m.error.code, m.error.message, m.error.position, m.error.guard));
+      else p.reject(new EngineError(m.error.code, m.error.message, m.error.position, m.error.guard, m.error.statementIndex));
     };
     const crashed = (msg: string) => w === worker && kill(new EngineError("worker_crashed", msg));
     w.onerror = (e) => crashed(e.message || "worker error");
@@ -66,7 +67,7 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
   async function start() {
     spawn();
     try {
-      await call({ type: "init" }, "load_failed", onProgress);
+      guardActive = !!(await call({ type: "init" }, "load_failed", onProgress)).guardActive;
       needsRebuild = false;
     } catch (e) {
       worker?.terminate();
@@ -101,6 +102,9 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
 
   return {
     engine: "postgres",
+    get guardActive() {
+      return guardActive;
+    },
     execute: async (sql, options) => {
       const aborted = () => options?.signal?.aborted && new EngineError("cancelled", "Cancelled");
       let e = aborted();
@@ -116,7 +120,7 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
         options?.signal?.addEventListener("abort", onAbort, { once: true });
         try {
           const r = await p;
-          ran.push(sql);
+          if (!options?.internal) ran.push(sql);
           return r.results ?? [];
         } catch (err) {
           // Lớp bảo vệ phát hiện phiên đổi role: bỏ worker, dựng lại từ history rồi báo lỗi.

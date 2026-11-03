@@ -178,17 +178,67 @@ test("SQL trống thì nút Chạy bị vô hiệu", async ({ page }) => {
   await expect(runBtn(page, "vi")).toBeEnabled();
 });
 
-test("0 dòng hiện câu rỗng; infinity của timestamptz không làm sập trang (ghi chữ thật)", async ({ page }) => {
+test("0 dòng hiện câu rỗng", async ({ page }) => {
   await page.goto("/en");
   await runSql(page, "en", "SELECT 1 WHERE false");
   await expect(page.getByText(T.en.empty)).toBeVisible({ timeout: 60_000 });
-  await runSql(page, "en", "SELECT 'infinity'::timestamptz AS a, '-infinity'::timestamptz AS b");
-  const cells = page.locator("tbody:visible td");
-  await expect(cells).toHaveCount(2, { timeout: 60_000 });
-  console.log("INFINITY_CELLS", JSON.stringify(await cells.allTextContents()));
-  await expect(conclusion(page)).toContainText("Real");
   await expect(sqlBox(page)).toBeVisible();
 });
+
+// Task027: các câu mẫu lấy chữ thật hiện ra trên màn hình, không đọc code.
+const G = {
+  vi: { role: "Câu thứ 1 bị chặn: không được đổi role hay quyền của phiên", role2: "Câu thứ 2 bị chặn", at3: "Lỗi ở câu 3.", blocked2: "Câu 2 bị chặn.", affected: /bị ảnh hưởng/ },
+  en: { role: "Statement 1 was blocked: it may not change the session role or privileges", role2: "Statement 2 was blocked", at3: "Error in statement 3.", blocked2: "Statement 2 blocked.", affected: /rows? affected/ },
+} as const;
+for (const l of ["vi", "en"] as const) {
+  test.describe(`Task027 ${l}`, () => {
+    test("AC1+AC2 infinity hiện chữ infinity và -infinity, ngày hợp lệ vẫn ISO, mảng không sập", async ({ page }) => {
+      await page.goto(`/${l}`);
+      await runSql(
+        page,
+        l,
+        `SELECT 'infinity'::timestamptz AS a, '-infinity'::timestamptz AS b, 'infinity'::date AS c, 'infinity'::timestamp AS d,
+                ARRAY['infinity'::timestamptz, '2020-01-02 03:04:05+00'] AS e, '2020-01-02 03:04:05+00'::timestamptz AS f`,
+      );
+      const cells = page.locator("tbody:visible td");
+      await expect(cells).toHaveCount(6, { timeout: 60_000 });
+      const text = (await cells.allTextContents()).map((x) => x.trim());
+      console.log(`Task027 ${l} INFINITY_CELLS`, JSON.stringify(text));
+      expect(text).toEqual(["infinity", "-infinity", "infinity", "infinity", '["infinity","2020-01-02T03:04:05.000Z"]', "2020-01-02T03:04:05.000Z"]);
+      await expect(page.getByText("Invalid date")).toHaveCount(0);
+      await expect(conclusion(page)).toContainText(T[l].real);
+    });
+
+    test("AC3 INSERT 2 dòng rồi SELECT trong cùng lần chạy: kết quả SELECT không hiện số dòng bị ảnh hưởng", async ({ page }) => {
+      await page.goto(`/${l}`);
+      await runSql(page, l, "CREATE TABLE t(id int); INSERT INTO t VALUES (1),(2); SELECT * FROM t;");
+      await expect(page.locator("tbody:visible tr")).toHaveCount(2, { timeout: 60_000 });
+      await expect(page.getByText(G[l].affected).filter({ visible: true })).toHaveCount(0);
+      await page.getByRole("button", { name: l === "vi" ? "Câu 2" : "Statement 2", exact: true }).click(); // câu INSERT
+      await expect(page.getByText(l === "vi" ? "2 dòng bị ảnh hưởng" : "2 rows affected").filter({ visible: true })).toHaveCount(1);
+    });
+
+    test("AC4 lỗi ở câu 3: nhật ký ghi số câu, không chứa nội dung SQL", async ({ page }) => {
+      await page.goto(`/${l}`);
+      await runSql(page, l, "SELECT 1;\nSELECT 2;\nSELECT * FROM bang_khong_co_xyz;");
+      await expect(page.locator('[data-testid="error"]:visible')).toContainText(/bang_khong_co_xyz/, { timeout: 60_000 });
+      const log = page.locator("#terminal ol:visible");
+      await expect(log).toContainText(G[l].at3);
+      expect(await log.innerText()).not.toMatch(/SELECT|bang_khong_co/);
+    });
+
+    test("AC5 SET ROLE postgres hiện câu chặn đúng ngôn ngữ, kèm số câu", async ({ page }) => {
+      await page.goto(`/${l}`);
+      await runSql(page, l, "SET ROLE postgres");
+      const err = page.locator('[data-testid="error"]:visible');
+      await expect(err).toContainText(G[l].role, { timeout: 60_000 });
+      console.log(`Task027 ${l} GUARD_TEXT`, JSON.stringify(await err.innerText()));
+      await runSql(page, l, "SELECT 1;\nSET ROLE postgres");
+      await expect(err).toContainText(G[l].role2);
+      await expect(page.locator("#terminal ol:visible")).toContainText(G[l].blocked2);
+    });
+  });
+}
 
 test("terminal đang tắt thì bấm Chạy mở lại để thấy kết quả", async ({ page }) => {
   await page.goto("/en");

@@ -1,5 +1,5 @@
 import type { QueryResult } from "@/contracts/engine";
-import type { PGlite } from "@electric-sql/pglite";
+import { types, type PGlite } from "@electric-sql/pglite";
 import { checkUserSql, type GuardReason } from "./guard";
 
 export const USER_ROLE = "sqllens_user";
@@ -15,8 +15,25 @@ export class GuardError extends Error {
   }
 }
 
-const toResults = (rs: { fields: { name: string }[]; rows: unknown[]; affectedRows?: number }[]): QueryResult[] =>
-  rs.map((r) => ({ columns: r.fields.map((f) => f.name), rows: r.rows as unknown[][], affectedRows: r.affectedRows }));
+// date, timestamp, timestamptz và mảng của chúng: PGlite làm `new Date("infinity")` ra Invalid Date, mất cả dấu. Chuỗi mà JS không đọc được (infinity, -infinity, năm ngoài giới hạn Date) giữ nguyên chữ của PostgreSQL.
+const toDate = (s: string) => {
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? s : d;
+};
+const DATE_PARSERS: Record<number, (x: string) => unknown> = {};
+for (const [el, arr] of [[types.DATE, 1182], [types.TIMESTAMP, 1115], [types.TIMESTAMPTZ, 1185]] as const) {
+  DATE_PARSERS[el] = toDate;
+  DATE_PARSERS[arr] = (x) => types.arrayParser(x, toDate, arr);
+}
+
+// PGlite cộng dồn `affectedRows` qua các câu trong một lần exec, nên lấy `rowCount` của chính câu đó (từ command tag).
+const DML = new Set(["INSERT", "UPDATE", "DELETE", "COPY", "MERGE"]);
+const toResults = (rs: { fields: { name: string }[]; rows: unknown[]; command?: string; rowCount?: number }[]): QueryResult[] =>
+  rs.map((r) => ({
+    columns: r.fields.map((f) => f.name),
+    rows: r.rows as unknown[][],
+    affectedRows: DML.has(r.command ?? "") ? r.rowCount ?? 0 : r.command === "SELECT" ? undefined : 0,
+  }));
 
 /** Gọi sau PGlite.create (đã nạp extension pageinspect). Mọi SQL của người dùng chạy qua `run`. */
 export async function createSession(db: PGlite) {
@@ -97,7 +114,7 @@ export async function createSession(db: PGlite) {
       if (!g.ok) throw new GuardError(g.reasonKey, g.statementIndex);
       let out: QueryResult[];
       try {
-        out = toResults(await db.exec(sql, { rowMode: "array" }));
+        out = toResults(await db.exec(sql, { rowMode: "array", parsers: DATE_PARSERS }));
       } catch (e) {
         await verify();
         throw e;

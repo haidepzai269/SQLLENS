@@ -40,3 +40,33 @@ test("Task021: role quyền thấp, lớp một, lớp hai và dựng lại tron
   expect(await run(page, "SELECT set_config('role', 'postgres', false)")).toMatchObject({ code: "sql" });
   expect(await run(page, "SELECT current_user")).toEqual({ rows: [["sqllens_user"]] });
 });
+
+test("Task027 AC4+AC6+AC8: lớp một bật, câu lỗi có statementIndex, câu internal không vào history", async ({ page }) => {
+  await page.goto("/en/e2e-adapter");
+  await page.waitForFunction(() => typeof window.createPostgresAdapter === "function");
+  const r = await page.evaluate(async () => {
+    const a = (window.a = await window.createPostgresAdapter()) as unknown as {
+      guardActive: boolean;
+      execute(sql: string, o?: { internal?: boolean }): Promise<unknown>;
+      history(): string[];
+    };
+    await a.execute("CREATE TABLE t(id int)");
+    await a.execute("INSERT INTO t VALUES (1)", { internal: true });
+    const err = async (sql: string) => {
+      try {
+        await a.execute(sql);
+      } catch (e) {
+        return (e as { statementIndex?: number }).statementIndex ?? null;
+      }
+    };
+    return {
+      guardActive: a.guardActive,
+      history: a.history(),
+      n1: await err("SELECT * FROM nope"),
+      n3: await err("SELECT 1;\nSELECT 2;\nSELECT * FROM nope"),
+      syn: await err("SELECT 1; SELEC 2"),
+      noPos: await err("SELECT 1; SELECT 1/0"),
+    };
+  });
+  expect(r).toEqual({ guardActive: true, history: ["CREATE TABLE t(id int)"], n1: 1, n3: 3, syn: 2, noPos: null });
+});
