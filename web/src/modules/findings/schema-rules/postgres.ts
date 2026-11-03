@@ -29,7 +29,7 @@ export function postgresEvents(ast: J): Ev[] {
     const cols = elts.filter((e) => e.ColumnDef).map((e) => colOf(e.ColumnDef));
     const opaque = elts.some((e) => e.TableLikeClause) || !!s.inhRelations?.length || !!s.partbound;
     return [
-      { k: "table", t, cols, opaque },
+      { k: "table", t, cols, opaque, skipIfExists: !!s.if_not_exists },
       ...elts.flatMap((e) => (e.ColumnDef ? colDef(e.ColumnDef, t) : e.Constraint ? constraint(e.Constraint, t) : [])),
     ];
   }
@@ -50,7 +50,7 @@ export function postgresEvents(ast: J): Ev[] {
         case "AT_AddColumn":
           return c.def?.ColumnDef ? [{ k: "col", t, col: colOf(c.def.ColumnDef) }, ...colDef(c.def.ColumnDef, t)] : [];
         case "AT_AlterColumnType":
-          return c.def?.ColumnDef ? [{ k: "col", t, col: colOf({ ...c.def.ColumnDef, colname: c.name }) }] : [];
+          return c.def?.ColumnDef ? [{ k: "col", t, col: colOf({ ...c.def.ColumnDef, colname: c.name }), mod: true }] : [];
         case "AT_DropColumn":
           return [{ k: "dropcol", t, c: c.name }];
         case "AT_DropConstraint":

@@ -17,6 +17,7 @@ type Table = {
   opaque: boolean;
   pk: boolean;
   pkName?: string;
+  pkCols?: string[];
   cols: Map<string, { col: Col; at: Where }>;
   idx: string[][];
   fks: { cols: string[]; at: Where }[];
@@ -46,6 +47,7 @@ export function checkSchema(statements: ParsedStatement[], engine: EngineId): Ru
     for (const e of evs) {
       const key = fold(e.t);
       if (e.k === "table") {
+        if (e.skipIfExists && tables.has(key)) continue; // CREATE TABLE IF NOT EXISTS trên bảng đã có là no-op
         const cols = new Map<string, { col: Col; at: Where }>();
         e.cols.forEach((col) => cols.set(fold(col.name), { col, at }));
         tables.set(key, { name: e.t, at, opaque: e.opaque, pk: false, cols, idx: [], fks: [] });
@@ -57,7 +59,11 @@ export function checkSchema(statements: ParsedStatement[], engine: EngineId): Ru
       }
       const t = tables.get(key);
       if (!t) continue; // bảng không khai báo trong đoạn SQL này nên chưa biết gì về nó
-      if (e.k === "col") t.cols.set(fold(e.col.name), { col: e.col, at });
+      if (e.k === "col") {
+        const c = fold(e.col.name);
+        // ADD COLUMN IF NOT EXISTS trên cột đã có là no-op; chỉ ALTER TYPE/MODIFY/CHANGE mới đổi kiểu.
+        if (e.mod || !t.cols.has(c)) t.cols.set(c, { col: e.col, at });
+      }
       else if (e.k === "dropcol") {
         const c = fold(e.c);
         t.cols.delete(c);
@@ -65,11 +71,16 @@ export function checkSchema(statements: ParsedStatement[], engine: EngineId): Ru
       } else if (e.k === "pk") {
         t.pk = true;
         t.pkName = e.name ?? `${e.t.split(".").pop()}_pkey`;
-        t.idx.push(e.cols.map(fold));
+        t.pkCols = e.cols.map(fold);
+        t.idx.push(t.pkCols);
       } else if (e.k === "droppk") {
-        if (!e.name || e.name === t.pkName) t.pk = false;
+        if (!e.name || e.name === t.pkName) {
+          t.pk = false;
+          const i = t.idx.findIndex((x) => x === t.pkCols); // index của khóa chính biến mất theo nó
+          if (i >= 0) t.idx.splice(i, 1);
+        }
       } else if (e.k === "idx") t.idx.push(e.cols.map(fold));
-      else if (e.k === "fk") t.fks.push({ cols: e.cols, at });
+      else if (e.k === "fk" && !t.fks.some((f) => f.cols.join() === e.cols.join())) t.fks.push({ cols: e.cols, at });
     }
   }
 

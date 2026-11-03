@@ -35,7 +35,7 @@ export function mysqlEvents(ast: J): Ev[] {
     const t = tbl(ast.table[0]);
     const defs: J[] = ast.create_definitions ?? [];
     const cols = defs.filter((d) => d.resource === "column").map((d) => colOf(d.column, d.definition));
-    return [{ k: "table", t, cols, opaque: !defs.length }, ...defs.flatMap((d) => def(d, t))];
+    return [{ k: "table", t, cols, opaque: !defs.length, skipIfExists: !!ast.if_not_exists }, ...defs.flatMap((d) => def(d, t))];
   }
   if (ast.type === "create" && ast.keyword === "index") {
     if (/fulltext|spatial/i.test(String(ast.index_type ?? ""))) return [];
@@ -50,7 +50,7 @@ export function mysqlEvents(ast: J): Ev[] {
       if (e.action === "modify" || e.action === "change") {
         const col = colOf(e.column, e.definition);
         // CHANGE đổi tên: cột cũ biến mất, cột mới mang kiểu mới.
-        return [...(e.action === "change" ? [{ k: "dropcol", t, c: name(e.old_column) } as Ev] : []), { k: "col", t, col }, ...colExtras(e, t)];
+        return [...(e.action === "change" ? [{ k: "dropcol", t, c: name(e.old_column) } as Ev] : []), { k: "col", t, col, mod: true }, ...colExtras(e, t)];
       }
       if (e.action === "drop" && e.resource === "column") return [{ k: "dropcol", t, c: name(e.column) }];
       if (e.action === "drop" && e.keyword === "primary key") return [{ k: "droppk", t }];

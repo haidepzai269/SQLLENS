@@ -2,8 +2,8 @@
 export type Col = { name: string; type: string; len?: number };
 
 export type Ev =
-  | { k: "table"; t: string; cols: Col[]; opaque: boolean } // opaque: LIKE/INHERITS... không biết hết cột và khóa
-  | { k: "col"; t: string; col: Col }
+  | { k: "table"; t: string; cols: Col[]; opaque: boolean; skipIfExists?: boolean } // opaque: LIKE/INHERITS... không biết hết cột và khóa
+  | { k: "col"; t: string; col: Col; mod?: boolean } // mod: đổi kiểu cột đã có; không có mod thì là ADD COLUMN
   | { k: "dropcol"; t: string; c: string }
   | { k: "pk"; t: string; cols: string[]; name?: string }
   | { k: "droppk"; t: string; name?: string } // name bỏ trống: bỏ khóa chính bất kể tên

@@ -134,3 +134,20 @@ it("AST lạ không ném lỗi", () => {
   expect(() => checkSchema([st] as never, "postgres")).not.toThrow();
   expect(checkSchema([{ ...st, ast: null }] as never, "mysql")).toEqual([]);
 });
+
+describe.each(both)("%s sau review", (e) => {
+  it("IF NOT EXISTS là no-op khi đã có", () => {
+    expect(ids(e, "CREATE TABLE t (id int PRIMARY KEY); CREATE TABLE IF NOT EXISTS t (b int)")).toEqual([]);
+    expect(ids(e, "CREATE TABLE IF NOT EXISTS t (b int)")).toEqual(["missing-pk:t"]);
+  });
+});
+
+describe("sau review, PostgreSQL", () => {
+  it("ADD COLUMN IF NOT EXISTS không đổi kiểu cột đã có (MySQL không có cú pháp này)", () => {
+    expect(ids("postgres", "CREATE TABLE t (id int PRIMARY KEY, price float); ALTER TABLE t ADD COLUMN IF NOT EXISTS price numeric")).toEqual(["float-money:t.price"]);
+  });
+  it("bỏ PK thì index của PK cũng mất, FK trùng chỉ báo một lần", () => {
+    expect(ids("postgres", "CREATE TABLE o (id int PRIMARY KEY); CREATE TABLE t (o_id int PRIMARY KEY REFERENCES o); ALTER TABLE t DROP CONSTRAINT t_pkey")).toEqual(["missing-pk:t", "fk-no-index:t.o_id"]);
+    expect(ids("postgres", "CREATE TABLE o (id int PRIMARY KEY); CREATE TABLE t (a int PRIMARY KEY, o_id int, FOREIGN KEY (o_id) REFERENCES o(id), FOREIGN KEY (o_id) REFERENCES o(id))", "fk-no-index")).toEqual(["fk-no-index:t.o_id"]);
+  });
+});
