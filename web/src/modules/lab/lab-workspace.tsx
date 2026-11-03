@@ -12,11 +12,14 @@ import { ZonePlaceholder } from "@/components/shell/zone-placeholder";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { SampleButton } from "@/components/sql-editor/sample-button";
+import { SqlEditor } from "@/components/sql-editor/sql-editor";
 import type { Conclusion } from "@/contracts/conclusion";
 import { EngineError, type EngineAdapter, type LoadProgress, type QueryResult } from "@/contracts/engine";
 import { createPostgresAdapter } from "@/engines/postgres/adapter";
 import { GenerateDialog, type StopCode } from "@/modules/data-lab/ui/generate-dialog";
+import { disposeParser, parseSql, type ParseOutcome } from "@/modules/sql-intake/parser";
+import { StatementList } from "./statement-list";
 
 type RunData = { statements: number; rows: number };
 type Stop = "cancelled" | "timeout" | "worker_crashed";
@@ -29,6 +32,8 @@ type State =
 // Nhật ký chỉ có loại sự kiện và số liệu, không bao giờ có nội dung SQL.
 type Log = { kind: "loaded" | "ran" | "error" | "cancelled" | "timeout" | "worker_crashed" | "rebuilt" | "note"; n?: number; text?: string };
 
+// Engine báo position 1-based theo code point; ô soạn cần chỉ số 0-based theo UTF-16.
+const engineToEditorPos = (sql: string, p: number) => Array.from(sql).slice(0, p - 1).join("").length;
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const mb = (b?: number) => (b === undefined ? undefined : (b / 1048576).toFixed(1));
 const stopCode = (e: unknown): Stop | null =>
@@ -50,6 +55,9 @@ export function LabWorkspace() {
   const engine = parseEngine(useSearchParams().get("engine"));
   // Toàn bộ trạng thái phiên nằm ở đây, trên WorkspaceLayout, nên đổi qua mốc 900 px không mất gì.
   const [sql, setSql] = useState("");
+  const [parsed, setParsed] = useState<{ sql: string; engine: typeof engine; outcome: ParseOutcome } | null>(null);
+  const [selected, setSelected] = useState(0);
+  const [pendingSample, setPendingSample] = useState<string | null>(null);
   const [state, setState] = useState<State>({ phase: "idle" });
   const [progress, setProgress] = useState<LoadProgress | null>(null);
   const [log, setLog] = useState<Log[]>([]);
@@ -78,9 +86,23 @@ export function LabWorkspace() {
     () => () => {
       adapter.current?.then((a) => a.dispose(), () => {});
       adapter.current = null;
+      disposeParser();
     },
     [],
   );
+
+  // Parse sau 300 ms yên lặng. Cleanup đặt cờ nên kết quả của lần gõ cũ không bao giờ đè lần mới.
+  useEffect(() => {
+    if (sql.trim() === "") return; // outcome tự về null vì parsed.sql không còn khớp
+    let live = true;
+    const h = setTimeout(() => {
+      parseSql(sql, engine).then((outcome) => live && setParsed({ sql, engine, outcome }));
+    }, 300);
+    return () => {
+      live = false;
+      clearTimeout(h);
+    };
+  }, [sql, engine]);
 
   async function run() {
     if (busy.current) return;
@@ -164,20 +186,53 @@ export function LabWorkspace() {
 
   const working = state.phase === "loading" || state.phase === "running" || state.phase === "rebuilding";
   const mysql = engine === "mysql";
+  const outcome = parsed && parsed.sql === sql && parsed.engine === engine ? parsed.outcome : null;
+  const statements = outcome?.ok ? outcome.statements : [];
+  // Dấu lỗi gắn với đúng nội dung đã sinh ra nó: sửa chữ là dấu tự biến mất.
+  const editorError =
+    state.phase === "sql_error" && state.sql === sql && state.position !== undefined
+      ? { position: engineToEditorPos(sql, state.position), message: state.message }
+      : outcome && !outcome.ok && outcome.error.position !== undefined
+        ? { position: outcome.error.position, message: outcome.error.message }
+        : undefined;
+  // Lỗi parse không vị trí là parser không chạy được (tải hỏng, worker chết), không phải SQL sai.
+  const parserDown = Boolean(outcome && !outcome.ok && outcome.error.position === undefined);
+  const loadSample = (text: string) => (sql.trim() === "" || sql === text ? setSql(text) : setPendingSample(text));
 
   const sqlZone = (
     <Pane title={ts("tab.sql")}>
-      <label htmlFor="sql-input" className="text-sm font-medium">
-        {t("sqlLabel")}
-      </label>
-      <Textarea
-        id="sql-input"
-        value={sql}
-        onChange={(e) => setSql(e.target.value)}
-        placeholder={t("sqlPlaceholder")}
-        className="max-h-72 min-h-40 font-mono"
-        spellCheck={false}
-      />
+      <span className="text-sm font-medium">{t("sqlLabel")}</span>
+      <div className="h-56 border border-line" id="sql-input">
+        <SqlEditor value={sql} onChange={setSql} engine={engine} error={editorError} ariaLabel={t("sqlLabel")} />
+      </div>
+      {sql.trim() === "" && (
+        <div className="flex flex-col items-start gap-2">
+          <p className="text-sm text-muted-foreground">{t("editorEmpty")}</p>
+          <SampleButton engine={engine} onLoad={loadSample} />
+        </div>
+      )}
+      {sql.trim() !== "" && <SampleButton engine={engine} onLoad={loadSample} />}
+      {pendingSample !== null && (
+        <div role="alertdialog" aria-label={t("sampleAsk")} className="flex flex-col items-start gap-2 border border-line p-2 text-sm">
+          <p>{t("sampleAsk")}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => (setSql(pendingSample), setPendingSample(null))}>
+              {t("sampleReplace")}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setPendingSample(null)}>
+              {t("sampleKeep")}
+            </Button>
+          </div>
+        </div>
+      )}
+      {parserDown && (
+        <p role="status" className="text-xs text-muted-foreground">
+          {t("parserDown")}
+        </p>
+      )}
+      {statements.length > 0 && (
+        <StatementList sql={sql} statements={statements} selected={Math.min(selected, statements.length - 1)} onSelect={setSelected} />
+      )}
       <div>
         <Button onClick={run} disabled={sql.trim() === "" || working || state.phase === "stopped" || mysql}>
           {t("run")}
