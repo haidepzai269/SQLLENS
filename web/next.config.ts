@@ -17,6 +17,8 @@ function apiOrigin(): string {
 }
 
 const nextConfig: NextConfig = {
+  // /lab cũ về màn hình chính; Next giữ nguyên query khi chuyển hướng.
+  redirects: async () => [{ source: "/:locale(vi|en)/lab", destination: "/:locale", permanent: false }],
   rewrites: async () => [{ source: "/api/:path*", destination: `${apiOrigin()}/:path*` }],
   // request.ts đọc messages/ bằng fs lúc chạy, nên phải kèm vào bản deploy.
   outputFileTracingIncludes: { "/**": ["./messages/**/*.json"] },
