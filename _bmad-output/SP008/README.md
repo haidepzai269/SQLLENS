@@ -10,7 +10,7 @@ Hợp đồng chung: `web/src/contracts/btree.ts` (`BTreeModel`, `BTreeNode`, `B
 |---|---|---|---|---|
 | STR033 Đọc cây PostgreSQL | Task039 | `readBTree` qua kênh quản trị, đường đi của một khóa | Không | 1 |
 | STR035 Vẽ cây | Task040 | Component SVG, gom node, hai kiểu di chuyển | Không | 1 |
-| STR036 Key rơi | chưa chia | Key rơi từng bước, tua lại, câu giải thích, gắn vào vùng `stage` | Task039, Task040, Task027 | 2 |
+| STR036 Key rơi | Task045 | Key rơi từng bước, tua lại, câu giải thích. Gắn vào vùng `stage` ở task sau | Task039, Task040 | 2 |
 | STR037 Range scan và khác biệt engine | chưa chia | | STR036 | 3 |
 | STR038 Cuộc đua và cây tối | chưa chia | | STR036, SP007 STR029 | 3 |
 | STR034 Dựng cây MySQL | chưa chia | | SP004 STR019 | sau |
