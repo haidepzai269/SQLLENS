@@ -1,0 +1,58 @@
+{
+  "title": "Xác nhận bản nháp schema",
+  "draftNote": "Đây là bản nháp suy từ query của bạn, chưa phải schema thật. Hệ thống chỉ thấy những bảng và cột query nhắc tới, nên cột thiếu, kiểu và khóa chính đều có thể sai so với thiết kế bạn nghĩ. Hãy sửa rồi xác nhận: hệ thống tạo các bảng này trước, sau đó mới chạy query.",
+  "schemaError": "Không tạo được bảng: {message}. Các phần bạn đã sửa vẫn còn, hãy sửa tiếp rồi xác nhận lại.",
+  "warn": {
+    "star": "Bảng {table} được dùng với SELECT *, nên chưa biết đủ cột của nó.",
+    "insert-without-columns": "Bảng {table} có INSERT không liệt kê cột, nên chưa biết đủ cột của nó.",
+    "ambiguous-column": "Có cột không có tên bảng đứng trước trong câu có nhiều bảng, nên không xác định được cột đó thuộc bảng nào. Cột này không được đưa vào bản nháp.",
+    "type-conflict": "Bảng {table} có cột được so sánh với nhiều kiểu giá trị khác nhau, nên kiểu của cột đó đặt tạm là text.",
+    "schema-ignored": "Bảng {table} được gọi kèm tên schema. Bản nháp bỏ phần schema và tạo bảng trong schema mặc định."
+  },
+  "manualLabel": "CREATE TABLE do bạn tự viết",
+  "backToForm": "Quay lại bảng sửa",
+  "writeSql": "Tự viết CREATE TABLE",
+  "tableN": "Bảng {n}",
+  "unnamedTable": "bảng {n}",
+  "tableName": "Tên bảng {n}",
+  "incomplete": "Chưa đủ cột",
+  "incompleteHint": "Query dùng bảng này theo cách không liệt kê cột (SELECT * hoặc INSERT không có danh sách cột). Nếu thiếu cột bạn cần, hãy thêm vào.",
+  "noColumnsHint": "Bảng này chưa có cột nào. Thêm ít nhất một cột trước khi xác nhận.",
+  "columnName": "Tên cột {c} của {table}",
+  "columnType": "Kiểu cột {c} của {table}",
+  "columnPk": "Khóa chính của cột {c} của {table}",
+  "pk": "Khóa chính",
+  "addColumn": "Thêm cột",
+  "remove": "Xóa",
+  "removeColumn": "Xóa cột {c} của {table}",
+  "reason": {
+    "literal": "Đoán: kiểu lấy từ giá trị đứng cạnh cột trong query",
+    "name": "Đoán: kiểu lấy từ tên cột",
+    "default": "Đoán: không có manh mối nên đặt text",
+    "user": "Bạn đã đặt",
+    "pk": "khóa chính vì cột tên id"
+  },
+  "fkGuess": "Gợi ý khóa ngoại (chỉ là gợi ý, không tạo ràng buộc): {column} tham chiếu {table}.{ref}",
+  "removeFk": "Bỏ gợi ý khóa ngoại của cột {column} của {table}",
+  "issue": {
+    "empty-name": "Bảng {table} chưa có tên.",
+    "duplicate-table": "Tên {table} bị trùng với một bảng khác.",
+    "no-columns": "Bảng {table} không còn cột nào, nên chưa thể tạo. Thêm cột hoặc dùng ô tự viết CREATE TABLE.",
+    "empty-column": "Cột {c} của {table} chưa có tên.",
+    "duplicate-column": "Cột {c} của {table} bị trùng tên với cột khác.",
+    "multi-pk": "Bảng {table} có nhiều hơn một cột khóa chính. Bản nháp chưa hỗ trợ khóa chính gồm nhiều cột, hãy chọn một cột hoặc tự viết CREATE TABLE.",
+    "placeholder": "Cột {c} của {table} là cột giữ chỗ do hệ thống thêm. Hãy đổi thành cột thật hoặc xóa.",
+    "manual-empty": "Ô CREATE TABLE đang trống."
+  },
+  "cancel": "Hủy",
+  "confirm": "Xác nhận và chạy",
+  "log": {
+    "applied": "Đã tạo {n} bảng từ bản nháp bạn xác nhận.",
+    "cancelled": "Đã hủy xác nhận schema, chưa chạy gì."
+  },
+  "removeTable": "Xóa bảng {n}",
+  "skip": "Bỏ qua, chỉ chạy query",
+  "dumpCopy": "Đã bỏ qua {copyBlocks} khối dữ liệu COPY khi đọc file. Dữ liệu trong các khối này không được nạp.",
+  "dumpLock": "Đã bỏ qua {lockStatements} câu LOCK/UNLOCK TABLES khi đọc file.",
+  "removeTableBtn": "Xóa bảng"
+}
