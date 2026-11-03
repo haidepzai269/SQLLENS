@@ -59,6 +59,14 @@ func safeNext(s string) string {
 	return s
 }
 
+// bindName: mỗi lần start một cookie riêng theo state, để hai tab đăng nhập cùng lúc không ghi đè nhau.
+func bindName(state string) string {
+	if len(state) > 16 {
+		state = state[:16]
+	}
+	return bindCookie + "_" + state
+}
+
 func (a *Auth) redirectURI(provider string) string {
 	return a.origin + "/api/auth/" + provider + "/callback"
 }
@@ -88,7 +96,7 @@ func (a *Auth) start(c *gin.Context) {
 		return
 	}
 	// Gắn state với trình duyệt đã bấm đăng nhập, để kẻ khác không đưa được link callback của họ cho nạn nhân.
-	http.SetCookie(c.Writer, &http.Cookie{Name: bindCookie, Value: bind, Path: "/", MaxAge: int(stateTTL.Seconds()), HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(c.Writer, &http.Cookie{Name: bindName(state), Value: bind, Path: "/", MaxAge: int(stateTTL.Seconds()), HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteLaxMode})
 	ch := sha256.Sum256([]byte(verifier))
 	q := url.Values{
 		"response_type": {"code"}, "client_id": {p.ClientID}, "redirect_uri": {a.redirectURI(name)},
@@ -118,8 +126,9 @@ func (a *Auth) callback(c *gin.Context) {
 		return
 	}
 	st, valid := a.takeState(c.Query("state"))
-	bind, _ := c.Cookie(bindCookie)
-	http.SetCookie(c.Writer, &http.Cookie{Name: bindCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteLaxMode})
+	bn := bindName(c.Query("state"))
+	bind, _ := c.Cookie(bn)
+	http.SetCookie(c.Writer, &http.Cookie{Name: bn, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteLaxMode})
 	if !valid || st.provider != name || !eq(sum(bind), st.bind) {
 		httpapi.Abort(c, http.StatusBadRequest, "invalid_state", "error.invalidState")
 		return

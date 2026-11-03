@@ -147,14 +147,15 @@ func (e *env) start(provider, next string) (state string, bind *http.Cookie, w *
 		e.t.Fatalf("start query %v", q)
 	}
 	e.challenge = q.Get("code_challenge")
-	return q.Get("state"), cookie(w, bindCookie), w
+	return q.Get("state"), cookie(w, bindName(q.Get("state"))), w
 }
 
-func (e *env) callback(provider, query string, bind *http.Cookie) *httptest.ResponseRecorder {
-	if bind == nil {
+// callback gửi các cookie bind; trình duyệt thật gửi mọi cookie đang giữ.
+func (e *env) callback(provider, query string, bind ...*http.Cookie) *httptest.ResponseRecorder {
+	if len(bind) == 0 || bind[0] == nil {
 		return e.do("GET", "/auth/"+provider+"/callback?"+query, nil)
 	}
-	return e.do("GET", "/auth/"+provider+"/callback?"+query, nil, bind)
+	return e.do("GET", "/auth/"+provider+"/callback?"+query, nil, bind...)
 }
 
 func (e *env) login(provider, next string) (*http.Cookie, *httptest.ResponseRecorder) {
@@ -222,7 +223,7 @@ func TestStateFailures(t *testing.T) { // AC2
 		t.Errorf("thiếu state: %d", w.Code)
 	}
 	// state ở trên chưa bị dùng: thiếu cookie gắn trình duyệt vẫn bị từ chối, và state bị đốt.
-	w := e.callback("google", "state="+state+"&code=CODE1", nil)
+	w := e.callback("google", "state="+state+"&code=CODE1")
 	if w.Code != 400 || cookie(w, cookieName) != nil {
 		t.Errorf("thiếu bind: %d", w.Code)
 	}
@@ -372,9 +373,9 @@ func TestTwoTabs(t *testing.T) { // ca biên: hai tab cùng đăng nhập
 	s1, b1, _ := e.start("google", "/a")
 	ch1 := e.challenge
 	s2, b2, _ := e.start("google", "/b")
-	w2 := e.callback("google", "state="+s2+"&code=CODE1", b2)
+	w2 := e.callback("google", "state="+s2+"&code=CODE1", b1, b2)
 	e.challenge = ch1 // nhà cung cấp giả chỉ nhớ một challenge: trả về challenge của tab 1
-	w1 := e.callback("google", "state="+s1+"&code=CODE1", b1)
+	w1 := e.callback("google", "state="+s1+"&code=CODE1", b1, b2)
 	c1, c2 := cookie(w1, cookieName), cookie(w2, cookieName)
 	if c1 == nil || c2 == nil || c1.Value == c2.Value {
 		t.Fatal("hai phiên độc lập")
