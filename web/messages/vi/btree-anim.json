@@ -1,0 +1,28 @@
+{
+  "run": "Chạy",
+  "runAgain": "Chạy lại",
+  "pause": "Tạm dừng",
+  "back": "Bước lùi",
+  "next": "Bước tới",
+  "reset": "Về đầu",
+  "scrub": "Tua đường đi của khóa",
+  "counter": "Đã đọc {read} / {total} trang",
+  "idle": "Chưa chạy. Bấm Chạy hoặc Bước tới để xem khóa {key} đi từ root xuống leaf.",
+  "noPath": "Chưa có đường đi của khóa trong dữ liệu đã đọc, nên chưa chạy được animation. Cây vẫn hiển thị đúng.",
+  "reducedNote": "Giảm chuyển động đang bật: mỗi bước đổi ngay, không có chuyển tiếp.",
+  "log": "Nhật ký các bước",
+  "keyTitle": "Khóa đang tìm: {key}",
+  "heapName": "Heap · trang {page}",
+  "summary": "Đường đi của khóa {key}: trang {pages}.",
+  "summaryHeap": "Đường đi của khóa {key}: trang {pages}, rồi nhảy sang trang heap {heap}.",
+  "kind": { "root": "root", "internal": "internal", "leaf": "leaf", "rootLeaf": "root, cũng là leaf" },
+  "step": {
+    "internal": "Bước {n}: đọc trang {page} ({kind}). Khóa {key} thuộc nhánh từ {lo} đến trước {hi}, nên đi xuống trang {child}.",
+    "internalOpen": "Bước {n}: đọc trang {page} ({kind}). Khóa {key} thuộc nhánh bắt đầu từ {lo} trở đi, nên đi xuống trang {child}.",
+    "internalNoRange": "Bước {n}: đọc trang {page} ({kind}), rồi đi xuống trang {child}. Khoảng khóa của nhánh này không có trong phần trang đã đọc.",
+    "hidden": "Bước {n}: đọc trang {page} ({kind}). Trang này nằm trong khối node chưa vẽ, khóa {key} đi vào khối đó.",
+    "leafFound": "Bước {n}: đọc trang {page} ({kind}). Khóa {key} có trong trang này, trang có tất cả {total, number} khóa.",
+    "leafMissing": "Bước {n}: đọc trang {page} ({kind}). Trang có {total, number} khóa, khóa {key} không nằm trong phần khóa đã đọc.",
+    "heap": "Bước {n}: nhảy từ index sang heap, đọc trang {page} để lấy dòng đầy đủ."
+  }
+}
