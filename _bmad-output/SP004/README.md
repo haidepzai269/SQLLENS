@@ -2,7 +2,7 @@
 
 Kết quả: MySQL thật chạy an toàn trên máy Azure, mỗi phiên một container, SQL người dùng chạy bằng role quyền thấp.
 
-STR019 (nối vào sản phẩm) chờ SP005 vì MySQL cần đăng nhập, và chờ chủ dự án chốt đường mạng từ Render tới máy Azure. STR020 (kiểm tra bảo mật) chạy sau Task035.
+STR019 (nối vào sản phẩm) chờ SP005 vì MySQL cần đăng nhập, Đường mạng đã chốt: HTTPS mở cho dải IP ra ngoài của Render Singapore, cộng token, xem `CLAUDE.md`. STR020 (kiểm tra bảo mật) chạy sau Task035.
 
 ## Story và Task
 
