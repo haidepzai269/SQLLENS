@@ -1,0 +1,20 @@
+{
+  "region": "B-Tree",
+  "scroll": "B-Tree area, scrollable",
+  "title": "Index {index} on {table}({columns})",
+  "label": { "real": "Real", "simulated": "Simulated", "estimated": "Estimated" },
+  "mode": { "label": "Tree movement mode", "fixed": "Fixed", "free": "Free drag" },
+  "reset": "Reset layout",
+  "freeHint": "Dragged positions are only for readability and do not change the real key order. Use the arrow keys to move the focused node.",
+  "laneRoot": "Root",
+  "laneInternal": "Internal",
+  "laneLeaf": "Leaf",
+  "laneSingle": "Root, leaf",
+  "hidden": "{count, plural, one {+# node} other {+# nodes}}",
+  "pageName": "page {page}",
+  "pageCaption": "Page {page} · {total, number} keys",
+  "nodeTitle": "Page {page}, {total, number} keys. Keys shown: {keys}",
+  "moveAria": "Move node {name}",
+  "summary": "The B-Tree has {levels, plural, one {# level} other {# levels}}, {pages, number} pages, {shown, number} pages read.",
+  "summaryPath": "Path of key {key}: pages {pages}."
+}

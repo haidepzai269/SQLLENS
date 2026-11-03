@@ -8,9 +8,46 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
+	"github.com/gin-gonic/gin"
+
+	"github.com/haidepzai269/SQLLENS/api/internal/auth"
 	"github.com/haidepzai269/SQLLENS/api/internal/httpapi"
+	"github.com/haidepzai269/SQLLENS/api/internal/quota"
+	"github.com/haidepzai269/SQLLENS/api/internal/store"
 )
+
+// cleanupEvery thưa để Neon còn tự tắt giữa hai lần dọn.
+const cleanupEvery = 6 * time.Hour
+
+// build dựng router. Thiếu biến môi trường nào thì phần cần biến đó trả 503, server vẫn chạy và /healthz vẫn ổn.
+func build(ctx context.Context) *gin.Engine {
+	cfg := auth.Config{
+		PublicOrigin: os.Getenv("PUBLIC_ORIGIN"),
+		Google:       auth.Provider{ClientID: os.Getenv("GOOGLE_CLIENT_ID"), ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET")},
+		GitHub:       auth.Provider{ClientID: os.Getenv("GITHUB_CLIENT_ID"), ClientSecret: os.Getenv("GITHUB_CLIENT_SECRET")},
+	}
+	d := auth.Deps{Config: cfg}
+	if u := os.Getenv("DATABASE_URL"); u != "" {
+		s, err := store.Open(ctx, u)
+		if err == nil {
+			err = s.Migrate(ctx)
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "database:", err) // lỗi store không chứa mật khẩu
+		} else {
+			d.Store = s
+			go auth.CleanupExpired(ctx, s, cleanupEvery)
+		}
+	}
+	if u, t := os.Getenv("UPSTASH_REDIS_REST_URL"), os.Getenv("UPSTASH_REDIS_REST_TOKEN"); u != "" && t != "" {
+		d.Limiter = quota.New(u, t, nil)
+	}
+	r := httpapi.NewRouter()
+	auth.Mount(r, d)
+	return r
+}
 
 func port() (string, error) {
 	p := os.Getenv("PORT")
@@ -29,14 +66,14 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	ln, err := net.Listen("tcp", ":"+p)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	if err := httpapi.Serve(ctx, ln, httpapi.NewRouter(), httpapi.ShutdownTimeout); err != nil {
+	if err := httpapi.Serve(ctx, ln, build(ctx), httpapi.ShutdownTimeout); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

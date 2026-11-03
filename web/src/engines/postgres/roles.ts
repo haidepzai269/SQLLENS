@@ -15,7 +15,7 @@ export class GuardError extends Error {
   }
 }
 
-const toResults = (rs: Awaited<ReturnType<PGlite["exec"]>>): QueryResult[] =>
+const toResults = (rs: { fields: { name: string }[]; rows: unknown[]; affectedRows?: number }[]): QueryResult[] =>
   rs.map((r) => ({ columns: r.fields.map((f) => f.name), rows: r.rows as unknown[][], affectedRows: r.affectedRows }));
 
 /** Gọi sau PGlite.create (đã nạp extension pageinspect). Mọi SQL của người dùng chạy qua `run`. */
@@ -56,7 +56,42 @@ export async function createSession(db: PGlite) {
     throw new GuardError("guard.escaped", undefined, true);
   }
 
+  /**
+   * Kênh quản trị có tham số, cho code đọc cây B-Tree. Chỉ dùng trong code của engine, không đưa ra module giao diện. Chạy dưới superuser rồi trả về USER_ROLE.
+   * search_path bị ghim về pg_catalog, pg_temp (pg_temp luôn phải ở cuối, nếu không bảng tạm tên pg_class sẽ che catalog) trong lúc chạy, để hàm hay toán tử người dùng tạo trong public không chen vào câu quản trị. Gọi hàm pageinspect bằng `public.`.
+   */
+  async function adminSession<T>(fn: (q: (sql: string, params?: unknown[]) => Promise<QueryResult[]>) => Promise<T>): Promise<T> {
+    await db.exec("RESET ROLE");
+    try {
+      // Trong transaction của người dùng, một lỗi sẽ làm transaction hỏng và SET ROLE bên dưới cũng hỏng theo, nên bọc bằng savepoint. Ngoài transaction, SAVEPOINT báo lỗi và bỏ qua.
+      const inTxn = await db.exec("SAVEPOINT sqllens_admin").then(() => true, () => false);
+      try {
+        const sp = (await db.query<{ s: string }>("SELECT pg_catalog.current_setting('search_path') AS s")).rows[0].s;
+        await db.exec("SET search_path = pg_catalog, pg_temp"); // pg_temp để cuối: bảng tạm của người dùng không che được catalog
+        const restore = () => db.query("SELECT pg_catalog.set_config('search_path', $1, false)", [sp]);
+        let out: T;
+        try {
+          out = await fn(async (sql, params) =>
+            params ? toResults([await db.query(sql, params, { rowMode: "array" })]) : toResults(await db.exec(sql, { rowMode: "array" })),
+          );
+        } catch (e) {
+          if (!inTxn) await restore(); // trong transaction, ROLLBACK TO bên dưới tự trả search_path
+          throw e;
+        }
+        await restore();
+        if (inTxn) await db.exec("RELEASE SAVEPOINT sqllens_admin");
+        return out;
+      } catch (e) {
+        if (inTxn) await db.exec("ROLLBACK TO SAVEPOINT sqllens_admin; RELEASE SAVEPOINT sqllens_admin");
+        throw e;
+      }
+    } finally {
+      await db.exec(`SET ROLE ${USER_ROLE}`);
+    }
+  }
+
   return {
+    adminSession,
     async run(sql: string): Promise<QueryResult[]> {
       const g = checkUserSql(sql);
       if (!g.ok) throw new GuardError(g.reasonKey, g.statementIndex);

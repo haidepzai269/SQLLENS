@@ -4,7 +4,7 @@
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
 - **Khi Google Doc và file này khác nhau:** file này đúng hơn, cho đến khi Google Doc được cập nhật.
-- **Giai đoạn hiện tại:** đã chốt 13 Epic và 61 Story (`_bmad-output/BAN_DO_STORY.md`). SP001 xong. SP002 xong. SP003 đã chia task (Task019 đến Task025), SP006 đã chia task (Task028 đến Task033), SP004 mới chia Task034, việc phát sinh đang làm ở `SP999/STR062` (Task026, Task027), tiến độ ở `_bmad-output/SP00x/README.md`.
+- **Giai đoạn hiện tại:** đã chốt 13 Epic và 61 Story (`_bmad-output/BAN_DO_STORY.md`). SP001 xong. SP002 xong. SP003 đã chia task (Task019 đến Task025), SP006 đã chia task (Task028 đến Task033), SP004 đã chia Task034 đến Task036, SP008 đã chia Task039 và Task040 (hợp đồng ở `web/src/contracts/btree.ts`), SP005 đã chia Task041 đến Task044, SP003 xong, việc phát sinh đang làm ở `SP999/STR062` (Task026, Task027), tiến độ ở `_bmad-output/SP00x/README.md`.
 - **Việc tạm gác:** cập nhật Google Doc. Chỉ làm khi chủ dự án yêu cầu, theo `_bmad-output/CAP_NHAT_GOOGLE_DOC.md`.
 - **Key của bên thứ 3:** danh sách ở `KEY_CAN_LAY.md`, file này không được commit. Sau khi chủ dự án điền giá trị, agent không đọc file đó. Cần thêm key thì báo chủ dự án.
 
@@ -72,6 +72,7 @@ Kèm theo: AI Mentor, đăng nhập, PostgreSQL và MySQL.
 | Sinh dữ liệu với khóa ngoại | Không tắt trigger FK khi nạp, chấp nhận 100k dòng có FK mất khoảng 5 giây (Task023), để dữ liệu sai vẫn bị phát hiện và không phải dùng quyền superuser |
 | Rủi ro thoát role trong PGlite | Chấp nhận: SQL dùng `DO` với `EXECUTE` vẫn có thể tạm lên superuser, tạo đối tượng rồi quay về mà lớp kiểm thứ hai không thấy (Task021). Không chặn `DO` và `EXECUTE` để giữ plpgsql và trigger. Ảnh hưởng chỉ trong tab của chính người dùng, nhưng có thể làm sai số liệu hiển thị. Xem lại ở cuối SP012, vì SQL do AI đề xuất cũng chạy qua đường này |
 | Thời gian chờ phiên MySQL | Dùng thư mục dữ liệu dựng sẵn (Task034), phiên đầu còn khoảng 3 giây. Giữ sẵn container chờ là phương án để dành, chỉ làm khi số đo hoặc người dùng thật cho thấy vẫn chờ quá lâu, ghi ở `SP999` |
+| Đường mạng Render tới máy Azure | Mở một cổng HTTPS trên máy Azure, NSG chỉ cho dải IP ra ngoài của Render Singapore, cộng token. Dải IP này dùng chung cho nhiều khách hàng Render nên token là lớp bảo vệ chính. Không có tên miền nên chứng chỉ phải xử lý riêng, ví dụ chứng chỉ tự ký được Gin ghim. STR020 đánh giá lại |
 | AI Chaos Generator | Có trong V1 nhưng linh hoạt: chưa xong thì đẩy ra sau, không chặn phát hành. Kịch bản AI dựng phải chạy qua `conflict-sim` trước khi hiển thị, không để AI tự kết luận |
 
 ## Danh sách Epic
@@ -209,6 +210,7 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
   - **Groq:** mặc định không giữ dữ liệu suy luận, có thể giữ tạm tối đa 30 ngày. Có tùy chọn Zero Data Retention.
   - **OpenRouter:** mặc định cho phép provider thu dữ liệu. Phải gửi `data_collection: "deny"` và nên thêm `zdr: true`.
 - Trong Chromium, `pageinspect` đọc được root, internal, leaf và đi đúng đường từ root xuống leaf. Đọc hết cây 100k dòng mất khoảng 0,8 giây, nên cây lớn đọc theo đường đi (Task013).
+- `readBTree` đọc cây 500k dòng theo đường đi của một khóa mất khoảng 166 ms trong Chromium (Task039). Với index cột đầu `DESC` hoặc `NULLS FIRST`, hoặc text có collation khác C, không dựng đường đi vì dễ sai, `path` để trống. Kênh quản trị dùng `search_path = pg_catalog, pg_temp` để bảng tạm trùng tên không che được catalog.
 - Level của B-Tree phụ thuộc độ rộng key. Index `int` 100k dòng vẫn là level 1, nên số "level 2 ở 100k" trong bảng trên chỉ đúng với key rộng hơn.
 - **PGlite không có ranh giới quyền thật:** `session_user` là superuser, nên SQL chạy dưới role quyền thấp vẫn gọi được `RESET ROLE` hoặc `SET ROLE postgres` (Task013). Với PostgreSQL, nguyên tắc 8 phải thực hiện bằng cách chặn `SET ROLE`, `RESET ROLE`, `SET SESSION AUTHORIZATION` trong SQL người dùng bằng parser, và đọc B-Tree qua đường riêng không đi chung với SQL người dùng. Rủi ro hiện thấp vì PGlite chạy trong trình duyệt của chính người dùng.
 - `cursorPosition` của `libpg-query` đếm từ 0 theo code point, không theo byte hay đơn vị UTF-16. `parseSql` (Task028) đã đổi sang chỉ số chuỗi JS.
@@ -229,6 +231,9 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
   - Với thư mục dữ liệu dựng sẵn (Task034, bản mẫu 103 MiB sao chép cho mỗi phiên, mỗi phiên thêm khoảng 117 MiB đĩa): một phiên sẵn sàng sau trung vị 2,87 giây thay vì 16,2 giây. Phiên thứ hai khi phiên đầu đang giữ khóa mất 11,9 đến 14,3 giây. Trần vẫn là 2 phiên, RAM trống 17 đến 18%, không OOM. Nguyên nhân phiên thứ hai chậm và phiên thứ ba đo lại khi đổi sang B2als v2.
   - Trần phiên cho SP004: 2 phiên trên máy này, `--memory 384m`, khởi động từ bản mẫu. Mật khẩu root mỗi phiên đặt bằng `--init-file` rồi xóa, nên `docker start` lại phiên cũ không chạy được, STR016 phải tạo phiên mới.
   - Lock wait và deadlock của Task016 chạy lại 5/5 lần giống nhau trên máy này.
+  - Mỗi phiên có tài khoản `sqllens_user` chỉ có quyền trên database `app`, không có quyền toàn cục, tối đa 6 kết nối (Task036). Không đọc được `performance_schema.data_locks`, `mysql.user`, không `INTO OUTFILE`, `LOAD DATA`, `SET GLOBAL`, `GRANT`. `LOAD_FILE()` trả NULL. Thời gian khởi động không đổi (2,86 giây).
+  - Sandbox agent (Task035) chạy như service systemd trên máy Azure, chỉ nghe `127.0.0.1`, token ở `/etc/sqllens-agent`. Tạo phiên qua API mất 2,9 đến 4,3 giây. Trần 2 phiên, phiên thứ ba trả 429 `sandbox_full`. Khởi động lại agent thì phiên cũ bị xóa, API trả 404. Câu quá 15 giây bị cắt kể cả `UPDATE`. Kết quả trên 10.000 dòng bị cắt. Hạn mức đĩa 512 MiB mỗi phiên, vượt thì hủy phiên.
+  - `max_execution_time` chỉ giới hạn `SELECT` và người dùng đặt lại được bằng `SET SESSION`, nên agent phải tự `KILL QUERY` bằng root. Client `mysql` cho chạy shell bằng `\!`, nên SQL người dùng phải đi qua driver, không qua client.
   - Docker bỏ qua `ufw` với cổng publish, nên sandbox agent chỉ được bind `127.0.0.1` hoặc dùng `--network none`.
 - Ngân sách Azure: màn hình tạo máy ghi `Standard_B2ats_v2` giá 0,0131 USD mỗi giờ, trừ vào tín dụng, không thấy dấu hiệu miễn phí 750 giờ. Tức khoảng 9,6 USD mỗi tháng, cộng IP công khai khoảng 3,6 USD theo giá tham khảo và phí ổ đĩa. Ước tính 100 USD đủ khoảng 6 đến 7 tháng, chưa xác minh bằng Cost Management. Hạn tín dụng là 02/11/2027. Nếu đổi sang B2als v2 thì khoảng 34 đến 41 USD mỗi tháng, tín dụng đủ khoảng 2,5 tháng.
 - PGlite 0.5.14 treo mãi, không báo lỗi, khi tải WASM thất bại. Vì vậy `web/src/engines/postgres/adapter.ts` tự tải file rồi truyền vào `PGlite.create`. Khi nâng PGlite hoặc đổi chỗ file này phải kiểm lại đường dẫn.

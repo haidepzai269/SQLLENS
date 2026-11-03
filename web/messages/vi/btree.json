@@ -1,0 +1,20 @@
+{
+  "region": "Cây B-Tree",
+  "scroll": "Vùng cây B-Tree, cuộn được",
+  "title": "Index {index} trên {table}({columns})",
+  "label": { "real": "Thật", "simulated": "Mô phỏng", "estimated": "Ước lượng" },
+  "mode": { "label": "Kiểu di chuyển cây", "fixed": "Cố định", "free": "Kéo tự do" },
+  "reset": "Xếp lại",
+  "freeHint": "Vị trí kéo chỉ để dễ nhìn, không đổi thứ tự key thật. Dùng phím mũi tên để dời node đang chọn.",
+  "laneRoot": "Root",
+  "laneInternal": "Internal",
+  "laneLeaf": "Leaf",
+  "laneSingle": "Root, leaf",
+  "hidden": "+{count, number} node",
+  "pageName": "trang {page}",
+  "pageCaption": "Trang {page} · {total, number} khóa",
+  "nodeTitle": "Trang {page}, {total, number} khóa. Khóa đang hiện: {keys}",
+  "moveAria": "Dời node {name}",
+  "summary": "Cây B-Tree có {levels, plural, other {# tầng}}, {pages, number} trang, đã đọc {shown, number} trang.",
+  "summaryPath": "Đường đi của khóa {key}: trang {pages}."
+}

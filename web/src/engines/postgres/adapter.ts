@@ -4,7 +4,8 @@ import type { WorkerRequest, WorkerResponse } from "./protocol";
 type Options = { onProgress?: (p: LoadProgress) => void; timeoutMs?: number };
 type Done = Extract<WorkerResponse, { type: "done" }>;
 type Pending = { resolve: (r: Done) => void; reject: (e: EngineError) => void; onProgress?: (p: LoadProgress) => void };
-type Req = { type: "init" } | { type: "exec"; sql: string } | { type: "try"; change: string; probe: string };
+type Req = { type: "init" } | { type: "exec"; sql: string } | { type: "try"; change: string; probe: string }
+  | { type: "btree"; index: string; probeKey?: string; maxNodes?: number };
 
 // PGlite chạy trong Web Worker, chỉ nạp khi gọi hàm này, nên mở trang không tải WASM.
 export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: Options = {}): Promise<EngineAdapter> {
@@ -137,6 +138,13 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
           if (err instanceof EngineError && err.guard?.rebuilt) await rebuildNow().catch(() => {});
           throw err;
         }
+      }),
+    // Như tryChange: trong hàng đợi, không vào history. Chỉ đọc, qua kênh quản trị của worker.
+    readBTree: (index, options) =>
+      enqueue(async () => {
+        if (disposed) throw new EngineError("worker_crashed", "Engine disposed");
+        if (needsRebuild) throw new EngineError("worker_crashed", "Engine stopped, call rebuild() first");
+        return (await call({ type: "btree", index, ...options }, "timeout")).btree!;
       }),
     // shortcut: chưa làm EXPLAIN, trả NotSimulated đến SP007.
     explain: async () => ({ kind: "not_simulated", reasonKey: "lab.notSimulated.explain" }),

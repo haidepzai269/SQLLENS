@@ -1,3 +1,4 @@
+import type { BTreeModel, BTreePath } from "./btree";
 import type { Outcome } from "./conclusion";
 
 export type EngineId = "postgres" | "mysql";
@@ -30,6 +31,8 @@ export interface EngineAdapter {
   explain(sql: string, options?: { signal?: AbortSignal }): Promise<Outcome<unknown>>;
   /** Đo `probe`, áp `change` trong transaction, đo lại rồi ROLLBACK. Không đổi dữ liệu, không vào history(). */
   tryChange(change: string, probe: string): Promise<Outcome<TryChangeResult>>;
+  /** Đọc cây B-Tree thật của một index trong schema public. Chỉ đọc, không vào history(). `maxNodes` mặc định 200. */
+  readBTree(index: string, options?: { probeKey?: string; maxNodes?: number }): Promise<{ model: Outcome<BTreeModel>; path?: BTreePath }>;
   /** Dừng câu đang chạy bằng terminate worker; sau đó phải gọi rebuild(). */
   cancel(): Promise<void>;
   /** Các câu đã chạy thành công từ lúc khởi tạo. */
