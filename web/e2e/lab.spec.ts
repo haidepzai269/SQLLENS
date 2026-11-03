@@ -155,14 +155,18 @@ for (const l of ["vi", "en"] as const) {
   });
 }
 
-test("bấm Chạy liên tục chỉ tạo một worker", async ({ page }) => {
-  const workers: string[] = [];
-  page.on("worker", (w) => workers.push(w.url()));
+test("bấm Chạy liên tục chỉ tạo một adapter (parser worker đếm riêng)", async ({ page }) => {
+  // Ô soạn tự mở worker parser, nên đếm adapter bằng số lần tải pglite.wasm (mỗi adapter tải đúng một lần).
+  const pglite: string[] = [];
+  page.on("request", (r) => /pglite.*.wasm/.test(r.url()) && pglite.push(r.url()));
   await page.goto("/en");
   await sqlBox(page).fill("SELECT 1");
   await runBtn(page, "en").dblclick();
   await expect(conclusion(page)).toBeVisible({ timeout: 60_000 });
-  expect(workers).toHaveLength(1);
+  expect(pglite.length).toBeGreaterThan(0);
+  expect(new Set(pglite).size).toBe(pglite.length);
+  const adapters = pglite.filter((u) => !/initdb/.test(u));
+  expect(adapters).toHaveLength(1);
 });
 
 test("SQL trống thì nút Chạy bị vô hiệu", async ({ page }) => {
