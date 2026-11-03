@@ -139,6 +139,7 @@ describe.each(both)("%s sau review", (e) => {
   it("IF NOT EXISTS là no-op khi đã có", () => {
     expect(ids(e, "CREATE TABLE t (id int PRIMARY KEY); CREATE TABLE IF NOT EXISTS t (b int)")).toEqual([]);
     expect(ids(e, "CREATE TABLE IF NOT EXISTS t (b int)")).toEqual(["missing-pk:t"]);
+    expect(ids(e, "CREATE TABLE t (b int); CREATE TABLE IF NOT EXISTS t (id int, PRIMARY KEY (id))")).toEqual(["missing-pk:t"]);
   });
 });
 

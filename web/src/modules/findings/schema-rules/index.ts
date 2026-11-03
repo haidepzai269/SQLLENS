@@ -47,7 +47,7 @@ export function checkSchema(statements: ParsedStatement[], engine: EngineId): Ru
     for (const e of evs) {
       const key = fold(e.t);
       if (e.k === "table") {
-        if (e.skipIfExists && tables.has(key)) continue; // CREATE TABLE IF NOT EXISTS trên bảng đã có là no-op
+        if (e.skipIfExists && tables.has(key)) break; // bỏ cả các sự kiện còn lại của câu; CREATE TABLE IF NOT EXISTS trên bảng đã có là no-op
         const cols = new Map<string, { col: Col; at: Where }>();
         e.cols.forEach((col) => cols.set(fold(col.name), { col, at }));
         tables.set(key, { name: e.t, at, opaque: e.opaque, pk: false, cols, idx: [], fks: [] });
