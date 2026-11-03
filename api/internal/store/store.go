@@ -30,6 +30,7 @@ type User struct {
 	Email       string
 	AvatarURL   string
 	CreatedAt   time.Time
+	Provider    string // chỉ SessionUser điền; mỗi user có đúng một identity vì không gộp theo email
 }
 
 type Store struct{ pool *pgxpool.Pool }
@@ -203,15 +204,25 @@ func (s *Store) CreateSession(ctx context.Context, userID string, ttl time.Durat
 	return token, nil
 }
 
-// SessionUser trả user của phiên còn hạn và cập nhật lần dùng cuối. Token sai hoặc hết hạn: ErrNotFound.
+// lastUsedGranularity: chỉ ghi last_used_at khi giá trị cũ hơn mức này, để mỗi request không tạo thao tác ghi lên Neon.
+const lastUsedGranularity = 5 * time.Minute
+
+// SessionUser trả user của phiên còn hạn. Token sai hoặc hết hạn: ErrNotFound.
 func (s *Store) SessionUser(ctx context.Context, token string) (User, error) {
-	u, err := scanUser(s.pool.QueryRow(ctx, `WITH s AS (
-		UPDATE sessions SET last_used_at = now() WHERE token_hash = $1 AND expires_at > now() RETURNING user_id)
-		SELECT `+userCols+` FROM users u JOIN s ON s.user_id = u.id`, hashToken(token)))
-	if err != nil && !errors.Is(err, ErrNotFound) {
+	var u User
+	err := s.pool.QueryRow(ctx, `WITH s AS (SELECT user_id FROM sessions WHERE token_hash = $1 AND expires_at > now()),
+		_touch AS (UPDATE sessions SET last_used_at = now() WHERE token_hash = $1 AND expires_at > now()
+			AND last_used_at < now() - $2::interval)
+		SELECT `+userCols+`, COALESCE((SELECT provider FROM identities WHERE user_id = u.id LIMIT 1), '')
+		FROM users u JOIN s ON s.user_id = u.id`, hashToken(token), fmt.Sprintf("%d microseconds", lastUsedGranularity.Microseconds())).
+		Scan(&u.ID, &u.DisplayName, &u.Email, &u.AvatarURL, &u.CreatedAt, &u.Provider)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return User{}, ErrNotFound
+	}
+	if err != nil {
 		return User{}, fmt.Errorf("store: tra phiên: %w", err)
 	}
-	return u, err
+	return u, nil
 }
 
 func (s *Store) DeleteSession(ctx context.Context, token string) error {
