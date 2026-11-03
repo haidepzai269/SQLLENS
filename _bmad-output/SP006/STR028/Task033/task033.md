@@ -17,6 +17,8 @@ Tiêu chí xong:
 - AC8: Bàn phím đi hết được, focus quay về nút Chạy khi đóng. Ở 390 px không cuộn ngang. Đủ `vi` và `en`.
 - AC9: Playwright phủ AC1, AC2, AC4, AC5 ở `vi` và `en`, chụp ảnh 390 px và 1440 px. `npm run check`, `npm run build`, `npx playwright test` đều đạt.
 
+Ghi chú từ Task031: các cảnh báo của `inferSchema` cần bản dịch theo key `star`, `insert-without-columns`, `ambiguous-column`, `type-conflict`, `schema-ignored`. Cột `_sqllens_placeholder` (bảng MySQL chỉ có `SELECT *`) phải hiện rõ là chỗ giữ, người dùng phải sửa trước khi xác nhận.
+
 Ca biên: query không có bảng nào; tên bảng trùng; xóa hết cột của một bảng thì không cho xác nhận và nói rõ lý do; đang chạy thì không mở màn hình thứ hai.
 Kiểm tra: `cd web && npm run check && npm run build && npx playwright test`
 Góc review thêm: giao diện, chạy thử thật, nhãn kết luận, không ghi log SQL.

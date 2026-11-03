@@ -81,3 +81,6 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task025 | `EngineAdapter` có thêm `tryChange` bắt buộc, adapter MySQL của SP010 phải cài | Đã biết |
 | Task030 | `prepareDump` chưa xử lý: `$tag$` trong identifier có `$`, `ELSE'x'` bị nhầm thành chuỗi `E'...'`, block comment lồng nhau của PostgreSQL, comment `#` của MySQL, `LOCK TABLES` giữa câu nhiều dòng. SQL luôn được giữ nguyên, không bị cắt nhầm | `needs_validation` |
 | Task030 | Chỉ thử với dump dựng mẫu, chưa thử dump thật từ `pg_dump` và `mysqldump`. Dòng lệnh `psql` bị bỏ nhưng không được đếm, `lockStatements` đếm cả `UNLOCK TABLES` | `needs_validation` |
+| Task031 | Cột của `JOIN ... USING` bị thêm vào mọi bảng trong cùng SELECT, nên 3 bảng trở lên có cột thừa (query vẫn chạy). Do bản sửa review gây ra, chưa sửa | Chưa làm |
+| Task031 | Hàm trong FROM như `generate_series(1,3) g` bị bỏ qua, `g` có thể bị gán cho bảng khác | `needs_validation` |
+| Task031 | Không sinh `REFERENCES`, FK chỉ là gợi ý. Tên có schema như `a.t` bị bỏ phần schema. Bảng chỉ dùng `SELECT *` trên MySQL có cột giữ chỗ `_sqllens_placeholder`. Phần MySQL chưa chạy MySQL thật | Đã biết |
