@@ -182,3 +182,35 @@ func TestOpenErrors(t *testing.T) {
 		t.Fatalf("lỗi = %v", err)
 	}
 }
+
+func TestSessionUserTouchAndProvider(t *testing.T) { // AC7d
+	s := newStore(t)
+	ctx := context.Background()
+	u, _ := s.UpsertIdentity(ctx, "github", "9", Profile{DisplayName: "A"})
+	tok, _ := s.CreateSession(ctx, u.ID, time.Hour)
+	last := func() time.Time {
+		var ts time.Time
+		if err := s.pool.QueryRow(ctx, `SELECT last_used_at FROM sessions`).Scan(&ts); err != nil {
+			t.Fatal(err)
+		}
+		return ts
+	}
+	t0 := last()
+	got, err := s.SessionUser(ctx, tok)
+	if err != nil || got.Provider != "github" {
+		t.Fatalf("%+v %v", got, err)
+	}
+	if !last().Equal(t0) {
+		t.Fatal("lần dùng gần đây không được ghi lại")
+	}
+	if _, err := s.pool.Exec(ctx, `UPDATE sessions SET last_used_at = now() - interval '10 minutes'`); err != nil {
+		t.Fatal(err)
+	}
+	old := last()
+	if _, err := s.SessionUser(ctx, tok); err != nil {
+		t.Fatal(err)
+	}
+	if !last().After(old.Add(9 * time.Minute)) {
+		t.Fatal("lần dùng cũ hơn 5 phút phải được cập nhật")
+	}
+}
