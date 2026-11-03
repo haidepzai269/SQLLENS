@@ -16,7 +16,7 @@ Hợp đồng:
 - Không ghi SQL người dùng vào log. Log chỉ có loại sự kiện, id phiên rút gọn, thời gian.
 
 Ràng buộc từ Task036:
-- SQL người dùng gửi qua driver MySQL của Go, không qua client `mysql` (`-e` hay stdin), vì client cho chạy shell bằng `!`. `session.sh exec` chỉ dùng cho quản trị, không đưa tham số hay SQL người dùng vào.
+- SQL người dùng gửi qua driver MySQL của Go, không qua client `mysql` (`-e` hay stdin), vì client cho chạy shell bằng `\!`. `session.sh exec` chỉ dùng cho quản trị, không đưa tham số hay SQL người dùng vào.
 - `sqllens_user` chỉ có host `@localhost` và container chạy `--network none`. Kết nối bằng unix socket của phiên. Không mở mạng cho container. Nếu buộc phải đổi thì dừng và báo phiên chính.
 - `max_execution_time` chỉ giới hạn `SELECT` và người dùng đặt lại được, nên agent tự `KILL QUERY` bằng root khi quá hạn, với mọi loại câu.
 - Chưa có hạn mức đĩa theo phiên. Agent phải chặn được một phiên làm đầy đĩa máy, ví dụ theo dõi dung lượng thư mục phiên và hủy phiên khi vượt mức. Ghi mức đã chọn.
