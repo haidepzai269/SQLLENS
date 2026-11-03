@@ -1,0 +1,49 @@
+{
+  "region": "Cây plan",
+  "canvasLabel": "Cây các bước của plan, {count, plural, other {# bước}}",
+  "label": { "real": "Thật", "simulated": "Mô phỏng", "estimated": "Ước lượng" },
+  "notAnalyzed": "Đây là ước tính của engine, chưa chạy thật. Số dòng thật và số trang đã đọc chưa có.",
+  "none": "không có",
+  "fields": {
+    "table": "Bảng",
+    "index": "Index",
+    "condition": "Điều kiện",
+    "estRows": "Dòng ước tính (mỗi lần chạy)",
+    "loops": "Số lần chạy",
+    "estTotal": "Dòng ước tính (cả các lần)",
+    "actualRows": "Dòng thật (tổng)",
+    "pages": "Trang đã đọc (riêng bước này)"
+  },
+  "card": { "estRows": "Dòng ước tính", "actualRows": "Dòng thật", "pages": "Trang đọc" },
+  "skew": {
+    "more": "Lệch lớn: thật nhiều hơn ước tính",
+    "less": "Lệch lớn: thật ít hơn ước tính",
+    "detail": "Engine ước tính {est} dòng cho cả các lần chạy, nhưng thật là {actual} dòng."
+  },
+  "open": "Mở chi tiết bước {name}",
+  "detailTitle": "Chi tiết bước {name}",
+  "close": "Đóng",
+  "explainTitle": "Bước này làm gì",
+  "toolbar": { "label": "Điều khiển canvas", "zoomIn": "Phóng to", "zoomOut": "Thu nhỏ", "fit": "Vừa màn hình", "reset": "Xếp lại" },
+  "hint": "Kéo thẻ hoặc dùng phím mũi tên khi đang chọn thẻ (Shift để đi xa hơn). Kéo khoảng trống hoặc giữ Space rồi kéo để di chuyển canvas.",
+  "summary": {
+    "title": "Tóm tắt dạng văn bản",
+    "item": "{name}{table}: dòng ước tính {est}, dòng thật {actual}, trang đã đọc {pages}.",
+    "onTable": " trên {table}"
+  },
+  "loading": "Đang tải cây plan",
+  "kind": {
+    "seq_scan": "Seq Scan là đọc cả bảng từ đầu đến cuối, từng trang một, rồi giữ lại các dòng khớp điều kiện.",
+    "index_scan": "Index Scan đi theo index để tìm đúng các dòng cần, rồi nhảy sang bảng lấy dòng đó.",
+    "index_only_scan": "Index Only Scan lấy kết quả ngay từ index, không cần mở bảng nếu index đã có đủ các cột cần.",
+    "bitmap_scan": "Bitmap Scan dùng index để gom danh sách các trang cần đọc trước, rồi đọc những trang đó một lượt.",
+    "nested_loop": "Nested Loop lấy từng dòng của bảng ngoài, rồi đi dò bảng trong để tìm dòng khớp.",
+    "hash_join": "Hash Join dựng một bảng băm từ một bảng, rồi dò từng dòng của bảng còn lại vào đó.",
+    "merge_join": "Merge Join sắp xếp hai bên theo khóa join rồi cho hai con trỏ trượt song song để ghép dòng.",
+    "hash": "Hash dựng bảng băm trong bộ nhớ từ các dòng nhận vào, để bước join phía trên dò vào.",
+    "sort": "Sort sắp xếp các dòng nhận vào theo thứ tự được yêu cầu.",
+    "aggregate": "Aggregate gom nhiều dòng thành ít dòng hơn, ví dụ đếm hoặc cộng theo nhóm.",
+    "limit": "Limit chỉ giữ lại số dòng đầu tiên được yêu cầu rồi dừng.",
+    "other": "Đây là bước engine báo mà SQLLens chưa có lời giải thích riêng. Hãy xem tên gốc của engine và các số liệu."
+  }
+}
