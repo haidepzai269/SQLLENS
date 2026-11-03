@@ -11,12 +11,12 @@ Phạm vi kiểm: agent (xác thực, id, body, thời gian, cạn tài nguyên,
 | F1 | Trung bình | Đã sửa | `KILL QUERY` không dừng được mọi câu, agent không có điểm dừng thứ hai |
 | F2 | Trung bình | Đã sửa | Một dòng kết quả 60 MB làm agent chiếm 279 MB RAM |
 | F3 | Thấp | Đã sửa | Người dùng tự đổi mật khẩu `sqllens_user`, khóa chính phiên của mình |
-| F4 | Thấp | Đã sửa | `ORDER BY RAND()` trên tích Descartes làm mysqld chết vì hết RAM trong khoảng 1 giây |
+| F4 | Thấp | Đã sửa một phần | `ORDER BY RAND()` trên tích Descartes làm mysqld chết vì hết RAM trong khoảng 1 giây |
 | F5 | Thấp | Đã sửa một phần | SQL người dùng đẩy RAM chung của máy xuống 61 MiB trống |
-| F6 | Thấp | Đã sửa | Script chạy bằng root nằm trong thư mục thuộc `azureuser` |
+| F6 | Thấp | Đã chỉnh trên máy, repo chưa ép được | Script chạy bằng root nằm trong thư mục thuộc `azureuser` |
 | F7 | Thông tin | Chưa sửa | `init.sql` (mật khẩu root phiên) vẫn đọc được trong container |
 | F8 | Thấp | Chưa sửa, cần Gin | Người có token giữ được cả hai chỗ và đốt CPU liên tục |
-| F9 | Thấp | `needs_validation` | Không giới hạn kết nối và không giới hạn tần suất cho yêu cầu chưa có token |
+| F9 | Thấp | Chưa sửa; phần tải HTTPS là `needs_validation` | Không giới hạn kết nối và không giới hạn tần suất cho yêu cầu chưa có token |
 | F10 | Thông tin | Chưa sửa | Lô hàng trăm nghìn câu trả `connection_lost` (lỗi chức năng, không phải bảo mật) |
 
 Mức độ theo mốc của skill: không có lỗi nghiêm trọng hay cao. Mọi thứ cần token thì ảnh hưởng nằm trong sandbox hoặc là từ chối dịch vụ.
@@ -44,7 +44,7 @@ Mức độ theo mốc của skill: không có lỗi nghiêm trọng hay cao. M�
 - **Tác động:** chỉ phá phiên của chính người dùng. Không vượt ranh giới.
 - **Sửa:** `CREATE USER ... PASSWORD REQUIRE CURRENT`; người dùng không biết mật khẩu hiện tại nên không đổi được. Kiểm sau sửa: lỗi 3892; `lowpriv.sh edge` có dòng deny mới.
 
-### F4. `ORDER BY RAND()` trên tích Descartes giết mysqld (Thấp, đã sửa)
+### F4. `ORDER BY RAND()` trên tích Descartes giết mysqld (Thấp, đã sửa một phần)
 
 - **File:** `sandbox/mysql-seed/my.cnf` (không đặt `temptable_max_ram`, mặc định 1 GiB), `session.sh:65` (`--tmpfs /tmp` không có `size`).
 - **Tái hiện:** bảng 2000 dòng, `SELECT * FROM n a, n b ORDER BY RAND()`: sau 1 giây `connection_lost`, mọi câu sau cũng lỗi (`dmesg`: `Memory cgroup out of memory: Killed process (mysqld)`).
@@ -58,7 +58,7 @@ Mức độ theo mốc của skill: không có lỗi nghiêm trọng hay cao. M�
 - **Tác động đã chứng minh:** làm chậm cả máy (26 giây một câu) và tự giết phiên mình. Tác động giữa hai người dùng (hết RAM toàn máy, kernel chọn nạn nhân) là `needs_validation`, vì cần cả hai phiên cùng đẩy tới giới hạn.
 - **Đã làm:** F4 bỏ hai đường đốt RAM không cần người dùng chỉnh biến. **Chưa sửa** phần còn lại vì bản chất là kích thước máy: `--memory` của các phiên cộng phần máy dùng (khoảng 230 MiB) vượt RAM. Chỉ cần ghi lại quy tắc (đã ghi ở `sandbox/agent/README.md`) và chọn `MEM` khi đổi sang B2als v2.
 
-### F6. Script chạy bằng root nằm trong thư mục thuộc `azureuser` (Thấp, đã sửa)
+### F6. Script chạy bằng root nằm trong thư mục thuộc `azureuser` (Thấp, đã chỉnh trên máy)
 
 - **File:** máy Azure `/opt/sqllens/mysql-seed/*` thuộc `azureuser:azureuser`, agent root gọi `session.sh` từ đó.
 - **Tái hiện:** `ls -l /opt/sqllens/mysql-seed`.
@@ -125,3 +125,10 @@ Với bản đã sửa trong task này, những gì đã đo cho thấy:
 Trên máy Azure, với agent và script mới: `lowpriv.sh` ac1, ac2, ac3, ac4, ac5, edge đều thoát 0, không dòng FAIL. Qua API: tạo phiên 3,4 giây; kết quả bị cắt đúng 10.000 dòng; chờ khóa giữa `a` và `b` thấy trong `/locks`; khởi động lại agent làm phiên cũ trả 404 và không còn container hay thư mục; ba lần tạo cho 201, 201, 429. Cuối cùng 0 container, 0 thư mục phiên, agent vẫn `active`.
 
 Các lệnh tái hiện nằm trong lịch sử làm việc; để chạy lại cần token và quyền root trên máy Azure, ví dụ F1: tạo phiên, tạo `spin2`, `CALL spin2()`, đo thời gian trả về.
+
+## Điều chỉnh sau review (vòng 1)
+
+- **F4:** bản sửa chỉ đúng với người không đổi biến session. `internal_tmp_mem_storage_engine`, `tmp_table_size`, `max_heap_table_size` người dùng đặt lại được (F5 đã chứng minh với `max_heap_table_size`). Nghi cách lách `SET SESSION internal_tmp_mem_storage_engine=MEMORY` đưa bảng tạm lại vào RAM: `needs_validation`, chưa chạy. Hậu quả nếu đúng vẫn chỉ là mysqld của phiên đó chết (`--memory` cùng `--memory-swap`), như F5.
+- **F6:** `chown` chạy tay trên máy Azure và README; repo không có cơ chế ép quyền root cho `/opt/sqllens`. Phát sinh: bước triển khai (STR019) phải kiểm quyền này.
+- **F1, rủi ro của bản sửa:** `KILL QUERY` lên một câu DML lớn phải rollback và có thể mất hơn `KillGrace` (5 giây); khi đó agent hủy phiên dù câu đang dừng đúng cách, và client vẫn nhận `query_timeout` 422, chỉ lần gọi sau mới thấy 404. Chỉ mất phiên của chính người dùng. Chưa đo thời gian rollback; `needs_validation`. Cân nhắc mã lỗi riêng ở Phát sinh. Test chỉ gọi thẳng `escalate`; đường timer đến `Remove` được bù bằng bốn lần chạy `spin2` trên máy thật.
+- **Kết luận Render, bổ sung:** (a) HTTPS là điều kiện chặn: chưa có thì token đi qua mạng dạng chữ rõ, không được mở. (b) Gin phải chặn cả F1 lẫn F8 cùng lúc, vì một token đủ chiếm hai phiên và hai vCPU: giới hạn số phiên, tần suất và tổng thời gian câu lệnh theo người dùng.
