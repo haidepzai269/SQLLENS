@@ -86,6 +86,8 @@ func (m *manager) cleanupStale() {
 	for _, id := range m.be.list() {
 		if m.be.destroy(id) != nil {
 			log.Printf("event=stale_destroy_failed sid=%s", short(id))
+			// giữ lại như phiên đã đóng để sweep thử hủy tiếp và slot không bị trả sớm
+			m.s[id] = &session{id: id, closed: true, reason: "stale", cn: map[string]*userConn{}}
 			continue
 		}
 		log.Printf("event=stale_removed sid=%s", short(id))
@@ -242,9 +244,9 @@ func (m *manager) sweep() {
 		ready, closed, idle, reason := s.ready, s.closed, time.Since(s.lastActive) > m.cfg.IdleTTL, s.reason
 		s.mu.Unlock()
 		switch {
-		case !ready:
-		case closed:
+		case closed: // gồm phiên Create thất bại mà destroy lỗi (ready=false)
 			go m.finish(s, reason+"_retry")
+		case !ready:
 		case idle:
 			go m.Remove(s.id, "expired")
 		default:

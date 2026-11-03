@@ -154,8 +154,11 @@ func (m *manager) Query(s *session, name, query string) (*queryResponse, error) 
 		}
 		var me *mysql.MySQLError
 		if !errors.As(err, &me) { // đứt kết nối: bỏ kết nối này, lần sau mở lại
-			cn.c.Close()
+			s.mu.Lock()
+			c := cn.c
 			cn.c = nil
+			s.mu.Unlock()
+			c.Close()
 			return nil, errLost
 		}
 		return nil, err

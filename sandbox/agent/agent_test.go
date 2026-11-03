@@ -228,3 +228,31 @@ func TestDestroyFailureKeepsSlot(t *testing.T) {
 		t.Fatalf("slot không được trả sau khi dọn xong: %d", w.Code)
 	}
 }
+
+// N1/N3: phiên Create lỗi mà destroy lỗi, và phiên sót lúc khởi động mà destroy lỗi, đều được sweep dọn lại.
+func TestStaleAndFailedCreateRetried(t *testing.T) {
+	f, m, _ := newTest(t, testCfg())
+	f.stale = []string{"old1"}
+	f.mu.Lock()
+	f.failDestroy = true
+	f.mu.Unlock()
+	m.cleanupStale()
+	if len(m.s) != 1 {
+		t.Fatal("phiên sót không được giữ lại")
+	}
+	f.mu.Lock()
+	f.failDestroy = false
+	f.mu.Unlock()
+	m.sweep()
+	time.Sleep(100 * time.Millisecond)
+	if len(m.s) != 0 || f.destroyedCount() != 1 {
+		t.Fatalf("sweep không dọn: %d %d", len(m.s), f.destroyedCount())
+	}
+	s := &session{id: "x", closed: true, cn: map[string]*userConn{}} // ready=false, closed=true
+	m.s["x"] = s
+	m.sweep()
+	time.Sleep(100 * time.Millisecond)
+	if len(m.s) != 0 {
+		t.Fatal("phiên Create lỗi không được dọn")
+	}
+}
