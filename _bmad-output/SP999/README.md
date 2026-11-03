@@ -92,3 +92,4 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Chủ dự án | Key OpenRouter chưa lấy, chủ dự án nói tạm chưa cần. Cần trước SP012 | Chờ chủ dự án |
 | Task043 | Quota dùng cửa sổ cố định, nên quanh ranh giới cửa sổ người dùng có thể dùng tối đa gấp đôi hạn mức. Gói free 500.000 lệnh đủ khoảng 330 người dùng hết hạn mức mỗi ngày | Đã biết |
 | Task041 | Hai `Migrate` đồng thời trên hai instance chưa có test. Chưa thử với Neon thật. Test chặn `DROP TABLE` trên database không ở localhost bằng so chuỗi URL, lách được nếu cố ý. `-race` chưa chạy vì máy không có cgo | `needs_validation` |
+| Task039 | `bt_page_stats` quét mọi trang: 500k dòng (khoảng 1,4k trang) còn ổn, cây vài chục nghìn trang cần cách khác. Probe `timestamptz` không có múi giờ coi là UTC. Khóa NULL trong index nhiều cột trả `NotSimulated` | Đã biết |

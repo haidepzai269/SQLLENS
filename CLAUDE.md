@@ -210,6 +210,7 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
   - **Groq:** mặc định không giữ dữ liệu suy luận, có thể giữ tạm tối đa 30 ngày. Có tùy chọn Zero Data Retention.
   - **OpenRouter:** mặc định cho phép provider thu dữ liệu. Phải gửi `data_collection: "deny"` và nên thêm `zdr: true`.
 - Trong Chromium, `pageinspect` đọc được root, internal, leaf và đi đúng đường từ root xuống leaf. Đọc hết cây 100k dòng mất khoảng 0,8 giây, nên cây lớn đọc theo đường đi (Task013).
+- `readBTree` đọc cây 500k dòng theo đường đi của một khóa mất khoảng 166 ms trong Chromium (Task039). Với index cột đầu `DESC` hoặc `NULLS FIRST`, hoặc text có collation khác C, không dựng đường đi vì dễ sai, `path` để trống. Kênh quản trị dùng `search_path = pg_catalog, pg_temp` để bảng tạm trùng tên không che được catalog.
 - Level của B-Tree phụ thuộc độ rộng key. Index `int` 100k dòng vẫn là level 1, nên số "level 2 ở 100k" trong bảng trên chỉ đúng với key rộng hơn.
 - **PGlite không có ranh giới quyền thật:** `session_user` là superuser, nên SQL chạy dưới role quyền thấp vẫn gọi được `RESET ROLE` hoặc `SET ROLE postgres` (Task013). Với PostgreSQL, nguyên tắc 8 phải thực hiện bằng cách chặn `SET ROLE`, `RESET ROLE`, `SET SESSION AUTHORIZATION` trong SQL người dùng bằng parser, và đọc B-Tree qua đường riêng không đi chung với SQL người dùng. Rủi ro hiện thấp vì PGlite chạy trong trình duyệt của chính người dùng.
 - `cursorPosition` của `libpg-query` đếm từ 0 theo code point, không theo byte hay đơn vị UTF-16. `parseSql` (Task028) đã đổi sang chỉ số chuỗi JS.
