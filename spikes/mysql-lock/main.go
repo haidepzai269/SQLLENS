@@ -75,6 +75,14 @@ func main() {
 	keep := flag.Bool("keep", false, "giữ container sau khi chạy")
 	attach := flag.Int("attach", 0, "dùng MySQL đã chạy ở 127.0.0.1:PORT (root, mật khẩu trong env T016_ROOT_PW, innodb_lock_wait_timeout=8), không tự dựng container")
 	flag.Parse()
+	if *attach > 0 {
+		set := false
+		flag.Visit(func(f *flag.Flag) { set = set || f.Name == "out" })
+		if !set || os.Getenv("T016_ROOT_PW") == "" {
+			fmt.Fprintln(os.Stderr, "LỖI: -attach cần -out (tránh ghi đè ket_qua.md của Task016) và env T016_ROOT_PW")
+			os.Exit(2)
+		}
+	}
 	if err := mainErr(*out, *keep, *attach); err != nil {
 		fmt.Fprintln(os.Stderr, "LỖI:", err)
 		os.Exit(1)

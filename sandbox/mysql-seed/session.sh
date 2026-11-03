@@ -22,16 +22,20 @@ path) echo "$D" ;;
 exec) [ -f "$D/pw" ] || { echo "không có phiên $name" >&2; exit 1; }; cli "$@" ;;
 create)
   t0=$(now_ms)
-  [ ! -e "$D" ] && ! docker inspect "$C" >/dev/null 2>&1 || { echo "phiên $name đã tồn tại" >&2; exit 2; }
   "$HERE/seed.sh" verify >/dev/null   # bản mẫu bị sửa thì không tạo phiên
+  [ "$(cat "$SEED_ROOT/IMAGE")" = "$IMAGE" ] || { echo "bản mẫu dựng từ image khác $IMAGE, chạy REBUILD=1 seed.sh build" >&2; exit 1; }
   seed_mb=$(du -sm "$SEED_ROOT/data" | cut -f1)
   mkdir -p "$SESS_ROOT"; chmod 711 "$SESS_ROOT"
   avail_mb=$(df -Pm "$SESS_ROOT" | awk 'NR==2{print $4}')
   [ "$avail_mb" -ge $(( seed_mb * 2 + 1024 )) ] || { echo "đĩa còn $avail_mb MiB, cần ít nhất $(( seed_mb * 2 + 1024 )) MiB" >&2; exit 3; }
+  # mkdir là bước chiếm tên nguyên tử: hai create cùng tên thì một bên thoát 2 mà chưa đụng vào phiên của bên kia
+  ! docker inspect "$C" >/dev/null 2>&1 && mkdir -m 700 "$D" 2>/dev/null || { echo "phiên $name đã tồn tại" >&2; exit 2; }
   trap 'destroy' ERR; trap 'destroy; exit 1' INT TERM
-  # uid riêng cho mỗi phiên: phiên khác không đọc được thư mục này kể cả khi lộ đường dẫn
-  uid=$(( 20000 + $(od -An -N2 -tu2 /dev/urandom | tr -d ' ') % 40000 ))
-  mkdir -m 700 "$D"
+  # uid riêng cho mỗi phiên, không trùng phiên đang có: phiên khác không đọc được thư mục này kể cả khi lộ đường dẫn
+  while :; do
+    uid=$(( 20000 + $(od -An -N2 -tu2 /dev/urandom | tr -d " ") % 40000 ))
+    stat -c %u "$SESS_ROOT"/*/data 2>/dev/null | grep -qx "$uid" || break
+  done
   cp -a "$SEED_ROOT/data" "$D/data"; chown -R "$uid:$uid" "$D/data"; chmod 700 "$D/data"
   pw=$(head -c 24 /dev/urandom | base64 | tr -d '+/=\n')
   (umask 077; printf '%s' "$pw" > "$D/pw")

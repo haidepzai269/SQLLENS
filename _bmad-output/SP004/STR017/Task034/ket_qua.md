@@ -60,9 +60,9 @@ Cùng cách và cùng điều kiện dừng với Task018 AC3 (bảng 10k dòng,
 | 3 (bỏ điều kiện thời gian) | 1 | 4.186 | 370 MiB (44%) | 155 | 285 |
 | 3 | 2 | 11.881 | 155 MiB (18%) | 199 | 512 |
 
-- Hai lần đầu dừng ở n=2 vì thời gian sẵn sàng gấp 2,6 đến 3,2 lần phiên đầu. Không có OOM.
+- Hai lần đầu dừng ở n=2 vì thời gian sẵn sàng gấp 2,7 đến 5,3 lần phiên đầu. Không có OOM.
 - Lần 3 đặt `IGNORE_TIME=1` để xem giới hạn RAM. Script dừng **trước** n=3 vì lưới an toàn do tôi đặt (RAM trống 149 MiB, dưới 150 MiB). **Phiên thứ ba chưa được thử**, nên không biết nó chạy được hay không. Sau phiên 2, RAM trống 17 đến 18% vẫn trên ngưỡng 15% của Task018, còn mỗi phiên dùng khoảng 250 đến 290 MiB (tổng RAM container ở bảng chia hai).
-- **Số phiên tối đa theo điều kiện dừng: 2**, bằng Task018. Phiên đầu nhanh gấp 4 đến 6 lần, phiên thứ hai chờ 11 đến 14 giây thay vì 49 đến 52 giây. Chưa tách nguyên nhân phiên thứ hai chậm (RAM bị ép sang swap, page cache hay CPU credit).
+- **Số phiên tối đa theo điều kiện dừng: 2**, bằng Task018. Phiên đầu nhanh gấp 3,6 đến 6 lần (2,7 đến 4,5 giây so với 16,2 giây), phiên thứ hai chờ 11 đến 14 giây thay vì 49 đến 52 giây. Chưa tách nguyên nhân phiên thứ hai chậm (RAM bị ép sang swap, page cache hay CPU credit).
 
 ## AC3: cô lập giữa các phiên
 
@@ -107,5 +107,10 @@ Chương trình Go của Task016 chạy với cờ mới `-attach` vào một ph
 
 - Phiên thứ ba chưa thử trên máy 1 GB.
 - Chưa tách nguyên nhân phiên thứ hai chậm.
-- Chưa kiểm hai lệnh `create` cùng tên chạy đồng thời (không có khóa).
+- Hai lệnh `create` cùng tên chạy đồng thời: sau review đã chiếm tên bằng `mkdir` nguyên tử, xem phần "Sau review".
+- Phiên không khởi động lại được bằng `docker start`: `--init-file` trỏ tới `init.sql` đã bị xóa. Sandbox agent (STR016) phải tạo phiên mới, không restart.
 - Cô lập giữa phiên chỉ kiểm bằng uid, quyền thư mục và `--network none`. Chưa thử tấn công từ SQL (role quyền thấp là việc của STR018).
+
+## Sau review
+
+Reviewer sonnet (góc bảo mật) báo 1 số liệu sai, 1 race, 1 thiếu kiểm image, 1 trùng uid, 1 nguy cơ ghi đè kết quả Task016. Đã sửa: số lần chậm hơn ở AC2 (2,7 đến 5,3); `create` chiếm tên bằng `mkdir` trước khi đặt bẫy dọn nên bên thứ hai thoát 2 mà không xóa phiên của bên thứ nhất; `create` từ chối khi `IMAGE` khác image dựng bản mẫu; uid chọn không trùng uid của phiên đang có; `-attach` bắt buộc có `-out` và `T016_ROOT_PW`. Giới hạn còn lại: SHA256 chỉ phủ nội dung file thường, không phủ quyền hay symlink; khoảng hở giữa `verify` và `cp` không bảo vệ.
