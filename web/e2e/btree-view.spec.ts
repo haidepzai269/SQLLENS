@@ -159,6 +159,14 @@ test.describe("máy tính 1440", () => {
     await expect(page.getByTestId("btree-summary")).toHaveText("Cây B-Tree có 3 tầng, 5 trang, đã đọc 5 trang. Đường đi của khóa 121: trang 1 → 2 → 5.");
   });
 
+  test("ca biên: không có path vẫn vẽ cây, không tô đường đi", async ({ page }) => {
+    await open(page);
+    await pick(page, "path"); // tắt path
+    await expect(page.locator("g[data-page]")).toHaveCount(5);
+    await expect(page.locator("[data-lit='true']")).toHaveCount(0);
+    await expect(page.getByTestId("btree-summary")).toHaveText("Cây B-Tree có 3 tầng, 5 trang, đã đọc 5 trang.");
+  });
+
   test("ca biên: một node, localStorage bị chặn", async ({ page }) => {
     await page.addInitScript(() => {
       Storage.prototype.getItem = () => {
