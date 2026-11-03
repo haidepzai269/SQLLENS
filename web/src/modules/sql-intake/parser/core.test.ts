@@ -76,6 +76,17 @@ describe("ca biên", () => {
     const m = mysqlParse("SELECT * FROM `db`.`MyT`");
     expect(m.ok && m.statements[0].tables).toEqual(["db.MyT"]);
   });
+  it("CTE trùng tên bảng: thân không đệ quy là bảng thật, RECURSIVE thì không", () => {
+    for (const fn of [pg, mysqlParse]) {
+      const a = fn("WITH t AS (SELECT * FROM t) SELECT * FROM t");
+      expect(a.ok && a.statements[0].tables).toEqual(["t"]);
+      const b = fn("WITH RECURSIVE r AS (SELECT 1 FROM r) SELECT * FROM r");
+      expect(b.ok && b.statements[0].tables).toEqual([]);
+    }
+  });
+  it("vị trí lỗi PG đúng sau emoji (ký tự ngoài BMP)", () => {
+    expect(pg("SELECT '😀'; SELEC 2")).toMatchObject({ ok: false, error: { position: 13, line: 1, column: 14 } });
+  });
   it("splitMysql bỏ qua ; trong chuỗi, backtick, comment", () => {
     const sql = "SELECT 'a;b', `c;d` FROM t; -- x;\nSELECT 2 /* ; */";
     expect(splitMysql(sql).map(([s, e]) => sql.slice(s, e))).toEqual(["SELECT 'a;b', `c;d` FROM t", "SELECT 2 /* ; */"]);

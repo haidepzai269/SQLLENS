@@ -33,6 +33,12 @@ function byteToChar(sql: string): (b: number) => number {
   return (b) => map[Math.min(b, map.length - 1)];
 }
 
+const cpToIndex = (sql: string, cp: number) => {
+  let i = 0;
+  for (let n = 0; n < cp && i < sql.length; n++) i += sql.codePointAt(i)! > 0xffff ? 2 : 1;
+  return i;
+};
+
 const trimRange = (sql: string, s: number, e: number): [number, number] => {
   while (s < e && /\s/.test(sql[s])) s++;
   while (e > s && /\s/.test(sql[e - 1])) e--;
@@ -54,29 +60,41 @@ const PG_KIND: Record<string, StatementKind> = {
   VariableSetStmt: "set",
 };
 
+// Tên trong thân CTE không đệ quy là bảng thật (`WITH t AS (SELECT * FROM t)`), nên chỉ lọc tên CTE ở ngoài thân, hoặc mọi nơi khi RECURSIVE.
 function pgTables(root: unknown): string[] {
   const out: string[] = [];
+  const outer: string[] = [];
   const ctes = new Set<string>();
+  let recursive = false;
+  let depth = 0;
   const walk = (n: unknown) => {
     if (Array.isArray(n)) return n.forEach(walk);
     if (!isObj(n)) return;
+    if (isObj(n.withClause) && n.withClause.recursive === true) recursive = true;
     const cte = n.CommonTableExpr;
-    if (isObj(cte) && str(cte.ctename)) ctes.add(str(cte.ctename)!);
+    if (isObj(cte) && str(cte.ctename)) {
+      ctes.add(str(cte.ctename)!);
+      depth++;
+      Object.values(n).forEach(walk);
+      depth--;
+      return;
+    }
     // RangeVar có lúc bọc trong khóa `RangeVar` (FROM), có lúc đứng trần ở `relation` (INSERT, CREATE, ALTER).
-    if (str(n.relname)) out.push(qualify(n.schemaname, str(n.relname)!));
+    if (str(n.relname)) (depth ? out : outer).push(qualify(n.schemaname, str(n.relname)!));
     const drop = n.DropStmt;
     if (isObj(drop) && drop.removeType === "OBJECT_TABLE" && Array.isArray(drop.objects)) {
       for (const o of drop.objects) {
         const items = isObj(o) && isObj(o.List) && Array.isArray(o.List.items) ? o.List.items : [];
         const names = items.map((i) => (isObj(i) && isObj(i.String) ? str(i.String.sval) : undefined)).filter((x): x is string => !!x);
-        if (names.length) out.push(names.slice(-2).join("."));
+        if (names.length) outer.push(names.slice(-2).join("."));
       }
     }
     Object.values(n).forEach(walk);
   };
   walk(root);
+  const isCte = (t: string) => ctes.has(t) && !t.includes(".");
   // Tên CTE xuất hiện như một RangeVar không có schema, không phải bảng thật.
-  return uniq(out.filter((t) => !(ctes.has(t) && !t.includes("."))));
+  return uniq([...out.filter((t) => !(recursive && isCte(t))), ...outer.filter((t) => !isCte(t))]);
 }
 
 export type PgParser = (sql: string) => { stmts: { stmt: unknown; stmt_location?: number | null; stmt_len?: number | null }[] };
@@ -88,8 +106,9 @@ export function parsePostgres(sql: string, parseSync: PgParser): ParseOutcome {
     res = parseSync(sql);
   } catch (e) {
     const d = (e as { sqlDetails?: { cursorPosition?: number } }).sqlDetails;
-    // cursorPosition của libpg-query đã là vị trí ký tự, đếm từ 0 (kiểm bằng câu lỗi ở giữa).
-    return failure(sql, e instanceof Error ? e.message : String(e), typeof d?.cursorPosition === "number" ? d.cursorPosition : undefined);
+    // cursorPosition đếm từ 0 theo code point (không phải UTF-16), đổi sang chỉ số chuỗi JS để emoji không làm lệch.
+    const cp = typeof d?.cursorPosition === "number" ? d.cursorPosition : undefined;
+    return failure(sql, e instanceof Error ? e.message : String(e), cp === undefined ? undefined : cpToIndex(sql, cp));
   }
   const toChar = byteToChar(sql);
   const bytes = new TextEncoder().encode(sql).length;
@@ -165,19 +184,30 @@ function myKind(ast: unknown): StatementKind {
 }
 
 function myTables(root: unknown): string[] {
-  const out: string[] = [];
+  const inner: string[] = [];
+  const outer: string[] = [];
   const ctes = new Set<string>();
+  let recursive = false;
+  let depth = 0;
   const walk = (n: unknown) => {
     if (Array.isArray(n)) return n.forEach(walk);
     if (!isObj(n)) return;
-    // WITH: { name: { value }, stmt }
-    if (isObj(n.name) && str(n.name.value) && "stmt" in n) ctes.add(str(n.name.value)!);
+    // WITH: { name: { value }, stmt, recursive }
+    const isCte = isObj(n.name) && str(n.name.value) && "stmt" in n;
+    if (isCte) {
+      ctes.add(str((n.name as Obj).value)!);
+      if (n.recursive === true) recursive = true;
+      depth++;
+    }
     // Mục bảng có `table` là chuỗi; tham chiếu cột (`column_ref`, có `column`) thì bỏ.
-    if (str(n.table) && n.type !== "column_ref" && !("column" in n)) out.push(qualify(n.db, str(n.table)!));
+    if (str(n.table) && n.type !== "column_ref" && !("column" in n)) (depth ? inner : outer).push(qualify(n.db, str(n.table)!));
     Object.values(n).forEach(walk);
+    if (isCte) depth--;
   };
   walk(root);
-  return uniq(out.filter((t) => !(ctes.has(t) && !t.includes("."))));
+  const isCteName = (t: string) => ctes.has(t) && !t.includes(".");
+  // Như PostgreSQL: tên trong thân CTE không đệ quy là bảng thật.
+  return uniq([...inner.filter((t) => !(recursive && isCteName(t))), ...outer.filter((t) => !isCteName(t))]);
 }
 
 export type MyParser = { astify(sql: string, opt: { database: string }): unknown };
