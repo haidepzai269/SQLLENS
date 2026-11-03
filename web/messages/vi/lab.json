@@ -1,6 +1,5 @@
 {
   "sqlLabel": "Câu SQL (PostgreSQL)",
-  "sqlPlaceholder": "CREATE TABLE t(id int); INSERT INTO t VALUES (1),(2); SELECT * FROM t;",
   "run": "Chạy",
   "retry": "Thử lại",
   "loading": "Đang tải PostgreSQL trong trình duyệt...",
@@ -41,5 +40,28 @@
     "timeout": "Quá thời gian.",
     "worker_crashed": "Phiên dừng bất ngờ.",
     "rebuilt": "Đã dựng lại, chạy lại {n, plural, one {# câu} other {# câu}}."
+  },
+  "editorEmpty": "Dán SQL để bắt đầu",
+  "parserDown": "Không bật được trình kiểm tra cú pháp khi soạn. Bạn vẫn chạy được, lỗi thật sẽ do PostgreSQL báo.",
+  "sampleAsk": "Thay SQL đang soạn bằng câu mẫu?",
+  "sampleReplace": "Thay bằng câu mẫu",
+  "sampleKeep": "Giữ SQL của tôi",
+  "statements": {
+    "title": "{n, plural, one {# câu đã tách} other {# câu đã tách}}",
+    "item": "Câu {n}",
+    "more": "+{n} câu nữa"
+  },
+  "kind": {
+    "create_table": "Tạo bảng",
+    "alter_table": "Sửa bảng",
+    "create_index": "Tạo index",
+    "drop": "Xóa",
+    "select": "Truy vấn",
+    "insert": "Thêm dòng",
+    "update": "Cập nhật",
+    "delete": "Xóa dòng",
+    "transaction": "Giao dịch",
+    "set": "Đặt tham số",
+    "other": "Khác"
   }
 }

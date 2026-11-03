@@ -32,12 +32,14 @@ const T = {
     terminalTab: "Terminal",
   },
 } as const;
-const SHOTS = "../_bmad-output/SP003/STR012/Task020";
+const SHOTS = "../_bmad-output/SP006/STR025/Task032"; // không ghi đè ảnh của Task020
 const AC1_SQL = "CREATE TABLE t(id int); INSERT INTO t VALUES (1),(2); SELECT * FROM t;";
 const BAD_PHRASE = /thiết kế (này )?(đã )?ổn|design is (fine|ok|good)|good design/i;
 
 // Khung bố cục chỉ render một cây (máy tính hoặc điện thoại), nhưng vẫn lọc phần tử đang hiển thị cho chắc.
-const sqlBox = (p: Page) => p.locator("textarea:visible");
+const sqlBox = (p: Page) => p.locator(".cm-content:visible");
+const sqlText = (p: Page) => sqlBox(p).evaluate((el) => (el as HTMLElement).innerText.replace(/​/g, ""));
+const mark = (p: Page) => p.locator(".cm-sql-error:visible");
 const runBtn = (p: Page, l: "vi" | "en") => p.getByRole("button", { name: T[l].run, exact: true });
 const conclusion = (p: Page) => p.locator('[data-testid="conclusion"]:visible');
 const isWasm = (url: string) => /\.wasm/.test(url);
@@ -104,11 +106,11 @@ for (const l of ["vi", "en"] as const) {
       await sqlBox(page).fill(`${AC1_SQL} -- draft`);
       await page.setViewportSize({ width: 600, height: 800 });
       await page.getByRole("tab", { name: "SQL", exact: true }).click();
-      await expect(sqlBox(page)).toHaveValue(`${AC1_SQL} -- draft`);
+      await expect.poll(() => sqlText(page)).toBe(`${AC1_SQL} -- draft`);
       await page.getByRole("tab", { name: T[l].terminalTab, exact: true }).click();
       await expect(page.locator("tbody:visible tr")).toHaveCount(2);
       await page.setViewportSize({ width: 1280, height: 800 });
-      await expect(sqlBox(page)).toHaveValue(`${AC1_SQL} -- draft`);
+      await expect.poll(() => sqlText(page)).toBe(`${AC1_SQL} -- draft`);
       await expect(page.locator("tbody:visible tr")).toHaveCount(2);
     });
 
@@ -192,3 +194,118 @@ test("terminal đang tắt thì bấm Chạy mở lại để thấy kết quả
   await runSql(page, "en", "SELECT 1");
   await expect(page.locator("tbody:visible tr")).toHaveCount(1, { timeout: 60_000 });
 });
+
+// ---- Task032: ô soạn CodeMirror, báo lỗi khi soạn, danh sách câu ----
+const S = {
+  vi: { empty: "Dán SQL để bắt đầu", sample: "Nạp câu mẫu", replace: "Thay bằng câu mẫu", keep: "Giữ SQL của tôi", parserDown: "Không bật được trình kiểm tra cú pháp", list: "3 câu đã tách" },
+  en: { empty: "Paste SQL to get started", sample: "Load sample", replace: "Replace with sample", keep: "Keep my SQL", parserDown: "The syntax checker could not start", list: "3 statements found" },
+} as const;
+const open = async (p: Page, l: string) => {
+  await p.goto(`/${l}`);
+  const tab = p.getByRole("tab", { name: "SQL", exact: true });
+  await tab.or(sqlBox(p)).first().waitFor();
+  if (await tab.isVisible()) await tab.click();
+};
+
+for (const l of ["vi", "en"] as const) {
+  test.describe(`Task032 ${l}`, () => {
+    test("AC1+AC2 SELEC 1: tô lỗi khi soạn, sửa thì hết, Chạy vẫn bấm được và engine báo lỗi thật", async ({ page }) => {
+      await open(page, l);
+      await sqlBox(page).fill("SELEC 1");
+      await expect(mark(page)).toHaveText("S");
+      await expect(page.locator("p[role=alert]:visible")).toContainText(/syntax error/i);
+      await expect(runBtn(page, l)).toBeEnabled();
+      await runBtn(page, l).click();
+      await expect(page.locator('[data-testid="error"]:visible')).toContainText(/syntax error/i, { timeout: 60_000 });
+      await sqlBox(page).fill("SELECT 1");
+      await expect(mark(page)).toHaveCount(0);
+      await expect(page.locator("p[role=alert]:visible")).toHaveCount(0);
+    });
+
+    test("AC3 dán 3 câu: danh sách 3 dòng có loại câu, dòng chọn có đường lamp", async ({ page }) => {
+      await open(page, l);
+      await sqlBox(page).fill("CREATE TABLE t(id int); INSERT INTO t VALUES (1); SELECT * FROM t;");
+      const items = page.locator('ol[aria-label="' + S[l].list + '"]:visible li');
+      await expect(items).toHaveCount(3);
+      await expect(items.nth(0)).toContainText(l === "vi" ? "Tạo bảng" : "Create table");
+      await expect(items.nth(2)).toContainText(l === "vi" ? "Truy vấn" : "Select");
+      await expect(items.nth(0).locator("button")).toHaveAttribute("aria-current", "true");
+      await items.nth(2).locator("button").click();
+      await expect(items.nth(2).locator("button")).toHaveAttribute("aria-current", "true");
+      await expect(items.nth(0).locator("button")).not.toHaveAttribute("aria-current", "true");
+      const bar = await items.nth(2).locator("button").evaluate((e) => [getComputedStyle(e).borderLeftWidth, getComputedStyle(e).borderLeftColor]);
+      expect(bar[0]).toBe("2px");
+      expect(bar[1]).not.toBe("rgba(0, 0, 0, 0)");
+    });
+
+    test("AC4 lỗi engine ở câu thứ 3 sau emoji: tô đúng chữ, không lệch", async ({ page }) => {
+      await open(page, l);
+      await sqlBox(page).fill("SELECT '😀';\nSELECT 2;\nSELECT * FROM nope_table;");
+      await runBtn(page, l).click();
+      await expect(page.locator('[data-testid="error"]:visible')).toContainText(/nope_table/, { timeout: 60_000 });
+      await expect(mark(page)).toHaveText("n");
+      await expect(page.locator(".cm-line:visible", { has: mark(page) })).toContainText("SELECT * FROM nope_table;");
+      await sqlBox(page).press("End");
+      await sqlBox(page).pressSequentially(" ");
+      await expect(mark(page)).toHaveCount(0); // sửa nội dung thì dấu lỗi của lần chạy cũ biến mất
+    });
+
+    test("AC5 parser không tải được: vẫn chạy, có một dòng báo rõ, không có dấu lỗi", async ({ page }) => {
+      await page.route(/libpg-query.*\.wasm/, (r) => r.abort());
+      await open(page, l);
+      await sqlBox(page).fill("SELECT 41 + 1 AS answer");
+      await expect(page.getByText(S[l].parserDown)).toBeVisible();
+      await expect(mark(page)).toHaveCount(0);
+      await runBtn(page, l).click();
+      await expect(conclusion(page)).toContainText(T[l].real, { timeout: 60_000 });
+      await expect(page.locator("tbody:visible td")).toHaveText("42");
+    });
+
+    test("AC6 vùng rỗng có câu mẫu; nạp mẫu khi đã có chữ phải hỏi, Giữ thì không mất SQL; đổi engine giữ SQL", async ({ page }) => {
+      await open(page, l);
+      await expect(page.getByText(S[l].empty)).toBeVisible();
+      await page.getByRole("button", { name: S[l].sample }).click();
+      await expect.poll(() => sqlText(page)).toContain("CREATE TABLE users");
+      await expect(page.getByText(S[l].empty)).toHaveCount(0);
+      await sqlBox(page).fill("SELECT 7 AS mine");
+      await page.getByRole("button", { name: S[l].sample }).click();
+      await expect(page.getByRole("alertdialog")).toBeVisible();
+      await expect.poll(() => sqlText(page)).toBe("SELECT 7 AS mine");
+      await page.getByRole("button", { name: S[l].keep }).click();
+      await expect(page.getByRole("alertdialog")).toHaveCount(0);
+      await expect.poll(() => sqlText(page)).toBe("SELECT 7 AS mine");
+      await page.getByRole("tab", { name: T[l].mysqlTab }).click();
+      await expect.poll(() => sqlText(page)).toBe("SELECT 7 AS mine");
+      await page.getByRole("tab", { name: "PostgreSQL" }).click();
+      await page.getByRole("button", { name: S[l].sample }).click();
+      await page.getByRole("button", { name: S[l].replace }).click();
+      await expect.poll(() => sqlText(page)).toContain("CREATE TABLE users");
+    });
+
+    test("ảnh chụp ô soạn có lỗi và danh sách câu, 1440 px và 390 px, không tràn ngang", async ({ page }) => {
+      for (const w of [1440, 390]) {
+        await page.setViewportSize({ width: w, height: 900 });
+        await open(page, l);
+        await sqlBox(page).fill("CREATE TABLE t(id int);\nINSERT INTO t VALUES (1);\nSELEC * FROM t;");
+        await expect(mark(page)).toBeVisible();
+        const doc = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
+        expect(doc[0]).toBeLessThanOrEqual(doc[1]);
+        await page.screenshot({ path: `${SHOTS}/anh-soan-${l}-${w}.png` });
+        await sqlBox(page).fill("CREATE TABLE t(id int);\nINSERT INTO t VALUES (1);\nSELECT * FROM t;");
+        await expect(page.locator("ol[aria-label]:visible li")).toHaveCount(3);
+        await page.screenshot({ path: `${SHOTS}/anh-danhsach-${l}-${w}.png` });
+      }
+    });
+
+    test("ca biên: nội dung SQL không xuất hiện trong console", async ({ page }) => {
+      const logs: string[] = [];
+      page.on("console", (m) => logs.push(m.text()));
+      await open(page, l);
+      await sqlBox(page).fill("SELECT 'secret_marker_xyz' AS a");
+      await runBtn(page, l).click();
+      await expect(conclusion(page)).toBeVisible({ timeout: 60_000 });
+      expect(logs.join("\n")).not.toContain("secret_marker_xyz");
+      expect(await page.locator('ol[aria-label="' + (l === "vi" ? "Nhật ký chạy" : "Run log") + '"]:visible').innerText()).not.toContain("secret_marker_xyz");
+    });
+  });
+}

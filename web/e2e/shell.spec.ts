@@ -112,7 +112,7 @@ test.describe("máy tính 1440", () => {
       expect(await noHScroll(page)).toBe(true);
       await page.goto(`/${l}/lab`);
       await expect(page.getByRole("tab", { name: "MySQL" })).toBeVisible();
-      await expect(page.locator("textarea:visible")).toBeVisible();
+      await expect(page.locator(".cm-content:visible")).toBeVisible();
       expect(await noHScroll(page)).toBe(true);
     });
   }

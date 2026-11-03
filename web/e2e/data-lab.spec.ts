@@ -19,7 +19,7 @@ const SHOTS = "../_bmad-output/SP003/STR014/Task024";
 // Máy bận thì mỗi lần khởi tạo PGlite có thể mất vài chục giây.
 test.describe.configure({ timeout: 120_000 });
 
-const sqlBox = (p: Page) => p.locator("textarea:visible");
+const sqlBox = (p: Page) => p.locator(".cm-content:visible");
 const dialog = (p: Page) => p.getByRole("dialog");
 
 async function runSql(p: Page, l: "vi" | "en", sql: string) {
@@ -27,7 +27,7 @@ async function runSql(p: Page, l: "vi" | "en", sql: string) {
   await tab.or(sqlBox(p)).first().waitFor();
   if (await tab.isVisible()) await tab.click();
   await sqlBox(p).fill(sql);
-  const items = p.locator("ol:visible li");
+  const items = p.locator("#terminal ol:visible li");
   const before = await items.count();
   await p.getByRole("button", { name: T[l].run, exact: true }).click();
   // Ở 390 px kết luận nằm ở tab Rủi ro, nên đợi nhật ký chạy ở terminal có thêm dòng.
@@ -70,7 +70,7 @@ for (const l of ["vi", "en"] as const) {
       for (const t of ["customers", "orders", "order_items"]) await dialog(page).getByLabel(T[l].rowsOf(t)).selectOption("10000");
       await start(page, l).click();
       await expect(dialog(page)).toHaveCount(0, { timeout: 90_000 });
-      const log = page.locator("ol:visible");
+      const log = page.locator("#terminal ol:visible");
       await expect(log).toContainText(/customers: 10[.,]000, orders: 10[.,]000, order_items: 10[.,]000/);
       await expect(log).toContainText(/\d+\.\d (giây|s)/);
       await expect(page.locator('[data-testid="stopped"]')).toHaveCount(0);
@@ -101,7 +101,7 @@ for (const l of ["vi", "en"] as const) {
       await expect(dialog(page).locator("progress")).toBeVisible();
       await dialog(page).getByRole("button", { name: T[l].cancel, exact: true }).click();
       await expect(dialog(page)).toHaveCount(0, { timeout: 90_000 });
-      await expect(page.locator("ol:visible")).toContainText(T[l].cancelled);
+      await expect(page.locator("#terminal ol:visible")).toContainText(T[l].cancelled);
       expect(await count(page, l, "SELECT count(*) FROM big")).toBe("1");
     });
 

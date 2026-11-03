@@ -1,6 +1,5 @@
 {
   "sqlLabel": "SQL (PostgreSQL)",
-  "sqlPlaceholder": "CREATE TABLE t(id int); INSERT INTO t VALUES (1),(2); SELECT * FROM t;",
   "run": "Run",
   "retry": "Retry",
   "loading": "Loading PostgreSQL in the browser...",
@@ -41,5 +40,28 @@
     "timeout": "Timed out.",
     "worker_crashed": "Session stopped unexpectedly.",
     "rebuilt": "Rebuilt, re-ran {n, plural, one {# statement} other {# statements}}."
+  },
+  "editorEmpty": "Paste SQL to get started",
+  "parserDown": "The syntax checker could not start, so errors are not marked while you type. You can still run; PostgreSQL will report real errors.",
+  "sampleAsk": "Replace the SQL you are editing with the sample?",
+  "sampleReplace": "Replace with sample",
+  "sampleKeep": "Keep my SQL",
+  "statements": {
+    "title": "{n, plural, one {# statement found} other {# statements found}}",
+    "item": "Statement {n}",
+    "more": "+{n} more statements"
+  },
+  "kind": {
+    "create_table": "Create table",
+    "alter_table": "Alter table",
+    "create_index": "Create index",
+    "drop": "Drop",
+    "select": "Select",
+    "insert": "Insert",
+    "update": "Update",
+    "delete": "Delete",
+    "transaction": "Transaction",
+    "set": "Set",
+    "other": "Other"
   }
 }
