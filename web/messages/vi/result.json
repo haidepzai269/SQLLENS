@@ -1,0 +1,12 @@
+{
+  "statement": "Câu {n}",
+  "empty": "Truy vấn không trả dòng nào. Các cột vẫn hiện bên dưới.",
+  "noRows": "Câu này không trả dòng nào.",
+  "affected": "{count, plural, one {# dòng bị ảnh hưởng} other {# dòng bị ảnh hưởng}}",
+  "total": "Tổng {count} dòng.",
+  "truncated": "Đã cắt, chỉ hiện {max} dòng đầu.",
+  "error": {
+    "title": "PostgreSQL báo lỗi",
+    "at": "Dòng {line}, cột {column}"
+  }
+}
