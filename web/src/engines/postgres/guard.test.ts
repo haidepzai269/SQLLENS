@@ -115,6 +115,17 @@ describe("createSession với PGlite thật", () => {
     expect(await who()).toBe("sqllens_user");
   });
 
+  it("lớp hai bắt trường hợp lên superuser, đổi quyền rồi quay về sqllens_user", async () => {
+    await expect(
+      s.run("DO $$ BEGIN EXECUTE 'SET ROLE postgres'; EXECUTE 'ALTER ROLE sqllens_user SUPERUSER'; EXECUTE 'SET ROLE sqllens_user'; END $$"),
+    ).rejects.toMatchObject({ reasonKey: "guard.escaped", rebuild: true });
+    await db.exec("RESET ROLE; ALTER ROLE sqllens_user NOSUPERUSER; SET ROLE sqllens_user");
+    await expect(
+      s.run("DO $$ BEGIN EXECUTE 'SET ROLE postgres'; EXECUTE 'CREATE ROLE evil'; EXECUTE 'SET ROLE sqllens_user'; END $$"),
+    ).rejects.toMatchObject({ reasonKey: "guard.escaped" });
+    await db.exec("RESET ROLE; DROP ROLE evil; SET ROLE sqllens_user");
+  });
+
   it("lớp hai bắt cả SET SESSION AUTHORIZATION trong DO (phiên riêng vì không khôi phục được)", async () => {
     const db2 = await PGlite.create({ extensions: { pageinspect } });
     const s2 = await createSession(db2);

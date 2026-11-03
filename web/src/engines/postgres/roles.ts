@@ -20,18 +20,35 @@ const toResults = (rs: Awaited<ReturnType<PGlite["exec"]>>): QueryResult[] =>
 
 /** Gọi sau PGlite.create (đã nạp extension pageinspect). Mọi SQL của người dùng chạy qua `run`. */
 export async function createSession(db: PGlite) {
+  // Đếm role do người dùng tạo (không tính pg_*) và quyền của USER_ROLE, để bắt trường hợp lên superuser, đổi quyền rồi quay về.
+  const countRoles = async () =>
+    (await db.query<{ n: number }>("SELECT count(*)::int AS n FROM pg_roles WHERE rolname NOT LIKE 'pg\_%'")).rows[0].n;
+
   await db.exec(`
     CREATE ROLE ${USER_ROLE} NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT NOLOGIN;
     ALTER SCHEMA public OWNER TO ${USER_ROLE};
     CREATE EXTENSION pageinspect;`);
   const sessionUser = (await db.query<{ s: string }>("SELECT session_user AS s")).rows[0].s;
+  const roleCount = await countRoles();
   await db.exec(`SET ROLE ${USER_ROLE}`);
 
   // Lớp hai: SQL động (DO, EXECUTE) qua mặt được parser, nên kiểm lại role sau mỗi lần chạy, kể cả khi lỗi.
+  async function intact() {
+    const p = (
+      await db.query<{ ok: boolean }>(
+        `SELECT NOT (rolsuper OR rolcreaterole OR rolcreatedb OR rolreplication OR rolbypassrls OR rolcanlogin)
+           AND NOT EXISTS (SELECT 1 FROM pg_auth_members WHERE member = pg_roles.oid) AS ok
+         FROM pg_roles WHERE rolname = $1`,
+        [USER_ROLE],
+      )
+    ).rows[0];
+    return !!p?.ok && (await countRoles()) === roleCount;
+  }
+
   async function verify() {
     try {
       const r = (await db.query<{ c: string; s: string }>("SELECT current_user AS c, session_user AS s")).rows[0];
-      if (r.c === USER_ROLE && r.s === sessionUser) return;
+      if (r.c === USER_ROLE && r.s === sessionUser && (await intact())) return;
     } catch (e) {
       // Trong transaction đã hỏng không đọc được role, nhưng cũng không đổi được: ROLLBACK sẽ trả role về trước transaction.
       if ((e as { code?: string }).code === "25P02") return;
