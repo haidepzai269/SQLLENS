@@ -63,3 +63,4 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task018 | Đĩa máy Azure là 29 GB mặc định, không phải 64 GiB P6 như task ghi. AC1 chỉ quét từ IP được NSG cho vào, chưa quét từ IP khác | `needs_validation` |
 | Task026 | FK trỏ vào cột `GENERATED ... STORED UNIQUE` bị vi phạm khi sinh dữ liệu, đã tái hiện | Chưa làm |
 | Task026 | Bảng chỉ có một cột sequence và không ai trỏ tới báo `no column can be generated`. Partition với serial chưa kiểm | Chưa làm |
+| Chủ dự án | Phương án để dành: giữ sẵn 1 container MySQL chờ để phiên mới không phải khởi động. Tốn khoảng 270 MiB RAM thường trực, trên máy 1 GB tức mất một trong hai chỗ phiên. Chỉ làm khi Task034 hoặc người dùng thật cho thấy thời gian chờ vẫn là vấn đề | Để dành |
