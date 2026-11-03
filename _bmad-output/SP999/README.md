@@ -44,3 +44,8 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task019 | Chưa thử `worker_crashed` do hết bộ nhớ thật. Chưa kiểm worker trên Vercel, Firefox, Safari | `needs_validation` |
 | Task019 | Test AC2 (khung main thread dưới 200 ms) trượt 1 lần khi máy bận, chạy riêng thì đạt. Có thể gây đỏ giả trên CI | `needs_validation` |
 | Task019 | `rebuild` chạy lại `history`, nên câu không tất định như `random()` có thể cho dữ liệu khác. Giao diện nên nói rõ khi dựng lại | Chưa làm |
+| Task023 | AC5 chưa đạt: 100k dòng `orders` có FK mất 5,1 giây khi đo riêng, mục tiêu dưới 5 giây. SQL của `planData` mất 1,4 giây, phần còn lại là trigger kiểm FK. Tắt trigger tạm thời cần chủ dự án duyệt | Chờ chủ dự án |
+| Task023 | PK `GENERATED ALWAYS AS IDENTITY` bị loại khỏi `SCHEMA_QUERY`, bảng con trỏ vào nó báo `referenced column not found`. Schema này phổ biến, đề xuất sửa trong Task024 | Chờ chủ dự án |
+| Task023 | Sequence của cột serial và identity by default không được đặt lại sau khi chèn, INSERT tay sau đó có thể trùng khóa | Chưa làm |
+| Task023 | Chưa hỗ trợ FK và UNIQUE nhiều cột, `planData` không báo lỗi trước nên INSERT có thể hỏng lúc chạy | Chưa làm |
+| Task023 | Partition con bị liệt kê như bảng riêng, chưa chạy thử. Chu trình FK 3 bảng chưa chạy thật trên PGlite | `needs_validation` |
