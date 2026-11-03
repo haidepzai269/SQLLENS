@@ -1,0 +1,23 @@
+[Unit]
+Description=SQLLens sandbox agent
+After=docker.service network.target
+Requires=docker.service
+
+[Service]
+# root vì cần docker và đọc mật khẩu phiên (root.pw, user.pw). Chỉ nghe 127.0.0.1.
+User=root
+ExecStart=/opt/sqllens/sqllens-agent
+EnvironmentFile=-/etc/sqllens-agent/env
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/sqllens
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target
