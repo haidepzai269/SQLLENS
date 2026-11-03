@@ -9,7 +9,7 @@ export type Stmt =
   | { k: "begin"; level: Isolation | null }
   | { k: "commit" }
   | { k: "rollback" }
-  | { k: "create"; table: string; cols: string[]; unique: string[][] }
+  | { k: "create"; table: string; cols: string[]; unique: string[][]; notNull: string[] }
   | { k: "index"; table: string; cols: string[] }
   | { k: "insert"; table: string; cols: string[]; rows: Val[][]; notExists?: { table: string; where: Cond[] } }
   | { k: "update"; table: string; set: SetExpr[]; where: Cond[] }
@@ -77,6 +77,7 @@ export function matches(row: Row, where: Cond[]): boolean {
 function parseCreate(table: string, body: string): Stmt | null {
   const cols: string[] = [];
   const unique: string[][] = [];
+  const notNull: string[] = [];
   for (const part of splitTop(body)) {
     const tbl = /^(?:unique|primary key) \(([^)]+)\)$/i.exec(part);
     if (tbl) { unique.push(tbl[1].split(",").map((c) => c.trim().toLowerCase())); continue; }
@@ -86,8 +87,9 @@ function parseCreate(table: string, body: string): Stmt | null {
     if (rest.replace(/primary key|unique|not null/g, "").trim()) return null;
     cols.push(m[1].toLowerCase());
     if (/primary key|unique/.test(rest)) unique.push([m[1].toLowerCase()]);
+    if (/primary key|not null/.test(rest)) notNull.push(m[1].toLowerCase());
   }
-  return cols.length ? { k: "create", table, cols, unique } : null;
+  return cols.length ? { k: "create", table, cols, unique, notNull } : null;
 }
 
 export function parseSql(raw: string): Stmt | null {

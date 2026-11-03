@@ -81,3 +81,16 @@ describe("conflict-sim engine", () => {
     ns({ ...base, steps: base.steps.slice(0, 6) }); // B left waiting: stuck
   });
 });
+
+describe("out-of-model input is never guessed", () => {
+  const base = SCENARIOS.lost_update;
+  const ns = (sc: Scenario) => expect(simulate(sc)).toMatchObject({ kind: "not_simulated" });
+  const only = (sql: string) => ({ ...base, steps: [base.steps[0], { session: "A" as const, sql }] });
+  it("unknown column, table and NOT NULL", () => {
+    ns(only("UPDATE accounts SET balance = 1 WHERE idd = 1"));
+    ns(only("SELECT balance FROM accounts WHERE idd IS NULL"));
+    ns({ ...base, brokenCheck: { sql: "SELECT count(*) FROM nope", brokenWhen: "= 0" } });
+    ns({ ...base, brokenCheck: { sql: "SELECT count(*) FROM accounts WHERE x = 1", brokenWhen: "= 0" } });
+    ns(only("INSERT INTO accounts (balance) VALUES (5)"));
+  });
+});

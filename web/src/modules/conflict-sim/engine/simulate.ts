@@ -9,7 +9,8 @@ import type {
  * Scripted clients: a step of a blocked session is queued until it resumes; other sessions keep going.
  *
  * Contract on deadlocks: PostgreSQL checks for a cycle only after deadlock_timeout (1 s), in the backend
- * that has waited longest. The model therefore aborts the session that started waiting FIRST (40P01).
+ * that has waited longest, assuming the second session starts waiting within that second.
+ * The model therefore aborts the session that started waiting FIRST (40P01).
  * A real server may pick the other one; only "a deadlock happened" is comparable with real Postgres.
  * Serialization failures under SERIALIZABLE are modelled for two-transaction cycles only (mutual rw-conflict,
  * the second committer fails); anything else is out of model.
@@ -56,7 +57,7 @@ function run(sc: Scenario): SimResult {
   const when = /^(=|<>|>=|<=|>|<) ?(-?\d+)$/.exec(sc.brokenCheck.brokenWhen.trim());
   if (check?.k !== "select" || (!differs && !when)) throw notSim("unsupportedSql");
 
-  const meta = new Map<string, { cols: string[]; unique: string[][] }>();
+  const meta = new Map<string, { cols: string[]; unique: string[][]; notNull: string[] }>();
   const committed = new Map<string, VRow[]>();
   const lockTable = new Map<string, SessionId>();
   const txs: Tx[] = [];
@@ -68,6 +69,7 @@ function run(sc: Scenario): SimResult {
   let seq = 0, ridSeq = 0;
 
   const table = (t: string) => meta.get(t) ?? (() => { throw notSim("unknownTable"); })();
+  const knownCols = (t: string, where: Cond[]) => { const m = table(t); if (where.some((c) => !m.cols.includes(c.col))) throw notSim("unknownColumn"); };
   const clone = <T,>(x: T): T => structuredClone(x);
   const holderOf = (res: string, me: SessionId) => { const h = lockTable.get(res); return h && h !== me ? h : null; };
 
@@ -153,6 +155,7 @@ function run(sc: Scenario): SimResult {
     if (tx.level !== "read_committed" && !tx.snap) { tx.snap = clone(committed); tx.snapSeq = seq; }
     const ser = tx.level === "serializable";
     const m = table(stmt.table);
+    if (stmt.k !== "insert") knownCols(stmt.table, stmt.where);
 
     if (stmt.k === "select") {
       const rows = view(tx, stmt.table).filter((r) => matches(r.vals, stmt.where));
@@ -189,13 +192,14 @@ function run(sc: Scenario): SimResult {
     if (stmt.cols.some((c) => !m.cols.includes(c))) throw notSim("unknownColumn");
     // a retry after a unique-key wait keeps the guard result of the original statement snapshot
     if (stmt.notExists && !skipGuard) {
-      table(stmt.notExists.table);
+      knownCols(stmt.notExists.table, stmt.notExists.where);
       if (ser) tx.reads.push(stmt.notExists);
       if (view(tx, stmt.notExists.table).some((r) => matches(r.vals, stmt.notExists!.where))) return ok("insert", { rows: 0 });
     }
     const pending: { row: Row; keys: string[] }[] = [];
     for (const tuple of stmt.rows) {
       const row: Row = Object.fromEntries(m.cols.map((c) => [c, stmt.cols.includes(c) ? tuple[stmt.cols.indexOf(c)] : null]));
+      if (m.notNull.some((c) => row[c] === null)) throw notSim("notNullViolation");
       const keys: string[] = [];
       for (const u of m.unique) {
         const kv = u.map((c) => row[c]);
@@ -269,18 +273,20 @@ function run(sc: Scenario): SimResult {
 
   // Setup writes straight to the committed state.
   for (const st of setup) {
-    if (st.k === "create") { meta.set(st.table, { cols: st.cols, unique: st.unique }); committed.set(st.table, []); }
+    if (st.k === "create") { meta.set(st.table, { cols: st.cols, unique: st.unique, notNull: st.notNull }); committed.set(st.table, []); }
     else if (st.k === "index") table(st.table).unique.push(st.cols);
     else if (st.k === "insert" && !st.notExists) {
       const m = table(st.table);
       for (const t of st.rows) {
         const row: Row = Object.fromEntries(m.cols.map((c) => [c, st.cols.includes(c) ? t[st.cols.indexOf(c)] : null]));
+        if (m.notNull.some((c) => row[c] === null)) throw notSim("notNullViolation");
         if (m.unique.some((u) => committed.get(st.table)!.some((r) => u.every((c) => r.vals[c] === row[c])))) throw notSim("unsupportedSql");
         committed.get(st.table)!.push({ rid: ++ridSeq, ver: 0, vals: row });
       }
     } else throw notSim("unsupportedSql");
   }
 
+  knownCols(check.table, check.where);
   for (const st of steps) {
     if (pend[st.session] || queue[st.session].length) queue[st.session].push(st);
     else step(st.session, st.sql, st.stmt, false);
