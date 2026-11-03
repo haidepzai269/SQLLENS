@@ -10,7 +10,7 @@ Gin đọc các biến sau, tên do Task041 đến Task043 dùng thống nhất:
 
 | Biến | Nguồn |
 |---|---|
-| `DATABASE_URL` | Neon |
+| `DATABASE_URL` | Neon, dùng connection string **không qua pooler** (tắt "Connection pooling" khi chép), vì migration cần `pg_advisory_lock` giữ qua nhiều câu (Task041) |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Upstash |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub |
