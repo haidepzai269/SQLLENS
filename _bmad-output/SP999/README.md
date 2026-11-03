@@ -79,3 +79,5 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task025 | Probe `INSERT` vào cột serial làm sequence tiến lên, vì `nextval` không rollback. Checksum bảng vẫn đúng. Giới hạn đã chấp nhận | Đã biết |
 | Task025 | `reject` cho qua `change` mà parser không đọc được, chưa dựng được ca lọt | `needs_validation` |
 | Task025 | `EngineAdapter` có thêm `tryChange` bắt buộc, adapter MySQL của SP010 phải cài | Đã biết |
+| Task030 | `prepareDump` chưa xử lý: `$tag$` trong identifier có `$`, `ELSE'x'` bị nhầm thành chuỗi `E'...'`, block comment lồng nhau của PostgreSQL, comment `#` của MySQL, `LOCK TABLES` giữa câu nhiều dòng. SQL luôn được giữ nguyên, không bị cắt nhầm | `needs_validation` |
+| Task030 | Chỉ thử với dump dựng mẫu, chưa thử dump thật từ `pg_dump` và `mysqldump`. Dòng lệnh `psql` bị bỏ nhưng không được đếm, `lockStatements` đếm cả `UNLOCK TABLES` | `needs_validation` |
