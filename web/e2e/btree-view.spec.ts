@@ -63,6 +63,11 @@ test.describe("máy tính 1440", () => {
     expect(Math.max(0, ...long)).toBeLessThan(200);
     // path trỏ trang 500 bị ẩn: khối hidden được tô, không sập
     await expect(page.locator("g[data-hidden-level='0']")).toHaveAttribute("data-lit", "true");
+    // khối hidden được tô phải nằm trong khung nhìn
+    const hb = (await page.locator("g[data-hidden-level='0']").boundingBox())!;
+    const sb = (await page.getByTestId("btree-scroll").boundingBox())!;
+    expect(hb.x).toBeGreaterThanOrEqual(sb.x);
+    expect(hb.x + hb.width).toBeLessThanOrEqual(sb.x + sb.width + 1);
     await page.screenshot({ path: `${SHOTS}/vi-1440-500k.png` });
   });
 

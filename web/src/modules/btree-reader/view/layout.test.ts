@@ -18,6 +18,13 @@ describe("layoutTree", () => {
     expect(h.count).toBe(206);
     expect(l.items.filter((i) => i.y === h.y && i.id !== h.id).every((i) => i.level === 0)).toBe(true);
   });
+  it("tô cạnh tới khối hidden khi chỉ con ẩn thứ 2 nằm trên đường đi", () => {
+    const m = { ...smallFixture(), height: 2, rootPage: 2, totalPages: 4, hidden: [{ level: 0, count: 3 }],
+      nodes: [{ page: 2, level: 1, keys: ["", "1", "2"], children: [10, 11, 12], totalKeys: 3 }] };
+    const e = layoutTree(m, [2, 11]).edges;
+    expect(e).toHaveLength(1);
+    expect(e[0].lit).toBe(true);
+  });
   it("cây một node", () => {
     const l = layoutTree({ ...smallFixture(), height: 1, nodes: [{ page: 1, level: 0, keys: ["1"], totalKeys: 1 }], hidden: [] });
     expect(l.items).toHaveLength(1);

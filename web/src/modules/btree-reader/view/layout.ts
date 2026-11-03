@@ -48,13 +48,13 @@ export function layoutTree(m: BTreeModel, pathPages: number[] = []): Layout {
   for (const n of m.nodes) {
     const from = pid(n.page);
     const lowerHidden = hid(clamp(n.level) - 1);
-    let addedHidden = false;
+    let hiddenEdge: Edge | undefined;
     for (const c of n.children ?? []) {
       if (byId.has(pid(c))) edges.push({ from, to: pid(c), kind: "child", lit: onPath.has(n.page) && onPath.has(c) });
-      else if (byId.has(lowerHidden) && !addedHidden) {
-        addedHidden = true;
-        // trang con trên đường đi bị ẩn thì nhánh tới khối hidden được tô
-        edges.push({ from, to: lowerHidden, kind: "child", lit: onPath.has(n.page) && onPath.has(c) });
+      else if (byId.has(lowerHidden)) {
+        // mọi con ẩn dùng chung một cạnh tới khối hidden; tô nếu bất kỳ con ẩn nào nằm trên đường đi
+        if (!hiddenEdge) edges.push((hiddenEdge = { from, to: lowerHidden, kind: "child", lit: false }));
+        if (onPath.has(n.page) && onPath.has(c)) hiddenEdge.lit = true;
       }
     }
     if (n.next !== undefined && byId.has(pid(n.next))) edges.push({ from, to: pid(n.next), kind: "next", lit: false });

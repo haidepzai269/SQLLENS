@@ -267,14 +267,14 @@ export function BTreeView({
     [commit],
   );
 
-  // Khi đổi cây hoặc đường đi, cuộn tới trang sâu nhất trên đường đi (hoặc root) để thấy ngay.
-  const focusPage = [...pathPages].reverse().find((p) => byPage.has(p)) ?? model.rootPage;
+  // Trang sâu nhất trên đường đi; nếu nó bị ẩn thì nhìn vào khối hidden của tầng đó.
+  const lastOnPath = pathPages.length ? pathPages[pathPages.length - 1] : model.rootPage;
+  const focusId = byPage.has(lastOnPath) ? `p${lastOnPath}` : `h${Math.max(0, model.height - pathPages.length)}`;
   useEffect(() => {
     const sc = scroller.current;
-    const it = layout.items.find((i) => i.page === focusPage);
+    const it = layout.items.find((i) => i.id === focusId) ?? layout.items.find((i) => i.page === model.rootPage);
     if (sc && it) sc.scrollLeft = Math.max(0, it.x + it.w / 2 - sc.clientWidth / 2);
-    // chỉ chạy khi cây hoặc đường đi đổi, không chạy khi kéo node
-  }, [layout, focusPage]);
+  }, [layout, focusId, model.rootPage]);
 
   const pick = (m: Mode) => {
     store.set(MODE_KEY, m);
