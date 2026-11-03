@@ -79,8 +79,13 @@ function parseCreate(table: string, body: string): Stmt | null {
   const unique: string[][] = [];
   const notNull: string[] = [];
   for (const part of splitTop(body)) {
-    const tbl = /^(?:unique|primary key) \(([^)]+)\)$/i.exec(part);
-    if (tbl) { unique.push(tbl[1].split(",").map((c) => c.trim().toLowerCase())); continue; }
+    const tbl = /^(unique|primary key) \(((([^)]+)))\)$/i.exec(part);
+    if (tbl) {
+      const cs = tbl[2].split(",").map((c) => c.trim().toLowerCase());
+      unique.push(cs);
+      if (/^primary/i.test(tbl[1])) notNull.push(...cs);
+      continue;
+    }
     const m = new RegExp(`^(${ID}) [a-z]+(?:\\(\\d+\\))?(.*)$`, "i").exec(part);
     if (!m) return null;
     const rest = m[2].toLowerCase();

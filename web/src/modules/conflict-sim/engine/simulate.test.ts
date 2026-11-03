@@ -94,3 +94,9 @@ describe("out-of-model input is never guessed", () => {
     ns(only("INSERT INTO accounts (balance) VALUES (5)"));
   });
 });
+
+it("table-level PRIMARY KEY implies NOT NULL", () => {
+  const sc = { ...SCENARIOS.lost_update, setup: ["CREATE TABLE accounts (id int, balance int, PRIMARY KEY (id))", "INSERT INTO accounts (id, balance) VALUES (1, 100)"] };
+  expect(simulate(sc).kind).toBe("conclusion");
+  expect(simulate({ ...sc, steps: [sc.steps[0], { session: "A", sql: "INSERT INTO accounts (balance) VALUES (5)" }] }).kind).toBe("not_simulated");
+});
