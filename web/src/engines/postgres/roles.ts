@@ -22,7 +22,7 @@ const toResults = (rs: Awaited<ReturnType<PGlite["exec"]>>): QueryResult[] =>
 export async function createSession(db: PGlite) {
   // Đếm role do người dùng tạo (không tính pg_*) và quyền của USER_ROLE, để bắt trường hợp lên superuser, đổi quyền rồi quay về.
   const countRoles = async () =>
-    (await db.query<{ n: number }>("SELECT count(*)::int AS n FROM pg_roles WHERE rolname NOT LIKE 'pg\\_%'")).rows[0].n;
+    (await db.query<{ n: number }>("SELECT count(*)::int AS n FROM pg_catalog.pg_roles WHERE rolname NOT LIKE 'pg\\_%'")).rows[0].n;
 
   await db.exec(`
     CREATE ROLE ${USER_ROLE} NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT NOLOGIN;
@@ -36,9 +36,9 @@ export async function createSession(db: PGlite) {
   async function intact() {
     const p = (
       await db.query<{ ok: boolean }>(
-        `SELECT NOT (rolsuper OR rolcreaterole OR rolcreatedb OR rolreplication OR rolbypassrls OR rolcanlogin)
-           AND NOT EXISTS (SELECT 1 FROM pg_auth_members WHERE member = pg_roles.oid) AS ok
-         FROM pg_roles WHERE rolname = $1`,
+        `SELECT NOT (r.rolsuper OR r.rolcreaterole OR r.rolcreatedb OR r.rolreplication OR r.rolbypassrls OR r.rolcanlogin)
+           AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_auth_members WHERE member = r.oid) AS ok
+         FROM pg_catalog.pg_roles r WHERE r.rolname = $1`,
         [USER_ROLE],
       )
     ).rows[0];
