@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Conclusion } from "@/contracts/conclusion";
 import { EngineError, type EngineAdapter, type LoadProgress, type QueryResult } from "@/contracts/engine";
 import { createPostgresAdapter } from "@/engines/postgres/adapter";
+import { GenerateDialog, type StopCode } from "@/modules/data-lab/ui/generate-dialog";
 
 type RunData = { statements: number; rows: number };
 type Stop = "cancelled" | "timeout" | "worker_crashed";
@@ -26,7 +27,7 @@ type State =
   | { phase: "stopped"; code: Stop; count: number; rebuildError?: string }
   | { phase: "done"; results: QueryResult[]; conclusion: Conclusion<RunData> };
 // Nhật ký chỉ có loại sự kiện và số liệu, không bao giờ có nội dung SQL.
-type Log = { kind: "loaded" | "ran" | "error" | "cancelled" | "timeout" | "worker_crashed" | "rebuilt"; n?: number };
+type Log = { kind: "loaded" | "ran" | "error" | "cancelled" | "timeout" | "worker_crashed" | "rebuilt" | "note"; n?: number; text?: string };
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const mb = (b?: number) => (b === undefined ? undefined : (b / 1048576).toFixed(1));
@@ -56,6 +57,21 @@ export function LabWorkspace() {
   const busy = useRef(false);
   const abort = useRef<AbortController | null>(null);
   const note = (l: Log) => setLog((x) => [...x.slice(-49), l]);
+  const [hasTables, setHasTables] = useState(false);
+  const [genOpen, setGenOpen] = useState(false);
+  const txnOpen = useRef(false); // giao dịch sinh dữ liệu còn mở trong worker đã bị dừng
+  const tth = useTranslations("data-lab");
+
+  async function refreshTables(db: EngineAdapter) {
+    try {
+      const r = await db.execute(
+        "SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind IN ('r','p') LIMIT 1",
+      );
+      setHasTables((r[0]?.rows.length ?? 0) > 0);
+    } catch {
+      /* giữ trạng thái cũ */
+    }
+  }
 
   // Rời trang thì dispose. Ref được xóa nên strict mode mount lại sẽ tạo instance mới.
   useEffect(
@@ -94,6 +110,7 @@ export function LabWorkspace() {
         const last = results[results.length - 1] ?? { columns: [], rows: [] };
         const data = { statements: results.length, rows: last.rows.length };
         note({ kind: "ran", n: results.length });
+        await refreshTables(db);
         setState({
           phase: "done",
           results,
@@ -129,7 +146,14 @@ export function LabWorkspace() {
       const db = await adapter.current;
       count = db.history().length;
       await db.rebuild();
+      if (txnOpen.current) {
+        // Việc sinh dữ liệu bị dừng giữa chừng: phiên dựng lại đang mở transaction, hoàn tác phần sinh dở.
+        await db.execute("ROLLBACK");
+        txnOpen.current = false;
+        note({ kind: "note", text: tth("stoppedRolledBack") });
+      }
       note({ kind: "rebuilt", n: count });
+      await refreshTables(db);
       setState({ phase: "idle" });
     } catch (e) {
       setState({ phase: "stopped", code: stopCode(e) ?? "worker_crashed", count, rebuildError: errMsg(e) });
@@ -158,6 +182,21 @@ export function LabWorkspace() {
         <Button onClick={run} disabled={sql.trim() === "" || working || state.phase === "stopped" || mysql}>
           {t("run")}
         </Button>
+      </div>
+      <div className="flex flex-col items-start gap-1">
+        <Button
+          variant="outline"
+          onClick={() => setGenOpen(true)}
+          disabled={!hasTables || working || state.phase === "stopped" || mysql}
+          aria-describedby={hasTables ? undefined : "gen-hint"}
+        >
+          {tth("open")}
+        </Button>
+        {!hasTables && !mysql && (
+          <p id="gen-hint" className="text-xs text-muted-foreground">
+            {tth("openDisabled")}
+          </p>
+        )}
       </div>
     </Pane>
   );
@@ -232,7 +271,7 @@ export function LabWorkspace() {
           {log.length > 0 && (
             <ol aria-label={t("log.title")} className="m-0 list-none p-0 font-mono text-xs text-muted-foreground">
               {log.map((l, i) => (
-                <li key={i}>{t(`log.${l.kind}`, { n: l.n ?? 0 })}</li>
+                <li key={i}>{l.kind === "note" ? l.text : t(`log.${l.kind}`, { n: l.n ?? 0 })}</li>
               ))}
             </ol>
           )}
@@ -259,5 +298,26 @@ export function LabWorkspace() {
     );
 
   const stageZone = <ZonePlaceholder title={ts("tab.stage")} hint={ts("placeholder.stage")} />;
-  return <WorkspaceLayout sql={sqlZone} terminal={terminalZone} findings={findingsZone} stage={stageZone} />;
+  const onStopped = async (code: StopCode) => {
+    const db = await adapter.current;
+    note({ kind: code });
+    setState({ phase: "stopped", code, count: db?.history().length ?? 0 });
+  };
+  return (
+    <>
+      <WorkspaceLayout sql={sqlZone} terminal={terminalZone} findings={findingsZone} stage={stageZone} />
+      <GenerateDialog
+        open={genOpen}
+        onOpenChange={setGenOpen}
+        getAdapter={() => adapter.current}
+        setTxnOpen={(b) => (txnOpen.current = b)}
+        onSummary={(text) => {
+          note({ kind: "note", text });
+          setMobileTab("terminal");
+          if (!shell.open.terminal) toggle("terminal");
+        }}
+        onStopped={onStopped}
+      />
+    </>
+  );
 }
