@@ -88,3 +88,4 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task024 | Nút Sinh dữ liệu chỉ cập nhật sau lần Chạy thành công. Bấm Hủy lúc batch cuối vẫn COMMIT. Nhánh timeout và `worker_crashed` khi sinh dữ liệu chưa ép chạy thật. ROLLBACK cũng timeout thì lỗi bị nuốt | `needs_validation` |
 | Task024 | `lab.spec.ts` ghi đè ảnh của Task020 mỗi lần chạy. Gộp với mục ảnh của Task029 | Chưa làm |
 | Task024 | Liên kết thật tới Capacity Advisor khi SP010 có | Chưa làm |
+| Task036 | Routine hoặc view `SQL SECURITY INVOKER` do người dùng tạo chạy bằng quyền người gọi, nên root không được gọi chúng. Tham số `--pager`, `--tee`, `--plugin-dir` của `session.sh exec` chưa bị chặn | `needs_validation` |
