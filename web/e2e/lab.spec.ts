@@ -221,6 +221,8 @@ for (const l of ["vi", "en"] as const) {
     test("AC4 lỗi ở câu 3: nhật ký ghi số câu, không chứa nội dung SQL", async ({ page }) => {
       await page.goto(`/${l}`);
       await runSql(page, l, "SELECT 1;\nSELECT 2;\nSELECT * FROM bang_khong_co_xyz;");
+      // Task033: query chỉ có SELECT mở màn hình xác nhận schema; bỏ qua để thấy lỗi thật của PostgreSQL.
+      await page.getByRole("button", { name: l === "vi" ? "Bỏ qua, chỉ chạy query" : "Skip, run the query only" }).click();
       await expect(page.locator('[data-testid="error"]:visible')).toContainText(/bang_khong_co_xyz/, { timeout: 60_000 });
       const log = page.locator("#terminal ol:visible");
       await expect(log).toContainText(G[l].at3);
@@ -296,6 +298,8 @@ for (const l of ["vi", "en"] as const) {
       await open(page, l);
       await sqlBox(page).fill("SELECT '😀';\nSELECT 2;\nSELECT * FROM nope_table;");
       await runBtn(page, l).click();
+      // Task033: query chỉ có SELECT mở màn hình xác nhận schema; bỏ qua để thấy lỗi thật của PostgreSQL.
+      await page.getByRole("button", { name: l === "vi" ? "Bỏ qua, chỉ chạy query" : "Skip, run the query only" }).click();
       await expect(page.locator('[data-testid="error"]:visible')).toContainText(/nope_table/, { timeout: 60_000 });
       await expect(mark(page)).toHaveText("n");
       await expect(page.locator(".cm-line:visible", { has: mark(page) })).toContainText("SELECT * FROM nope_table;");

@@ -1,0 +1,58 @@
+{
+  "title": "Confirm the schema draft",
+  "draftNote": "This is a draft inferred from your query, not your real schema. The system only sees the tables and columns the query mentions, so missing columns, types and primary keys may differ from the design you have in mind. Edit it and confirm: these tables are created first, then your query runs.",
+  "schemaError": "Could not create the tables: {message}. Your edits are kept, so fix it and confirm again.",
+  "warn": {
+    "star": "Table {table} is used with SELECT *, so its full column list is unknown.",
+    "insert-without-columns": "Table {table} has an INSERT without a column list, so its full column list is unknown.",
+    "ambiguous-column": "A column without a table prefix appears in a query with several tables, so it is unclear which table it belongs to. That column is not in the draft.",
+    "type-conflict": "A column of table {table} is compared with several kinds of values, so its type is tentatively text.",
+    "schema-ignored": "Table {table} is referenced with a schema name. The draft drops the schema and creates the table in the default schema."
+  },
+  "manualLabel": "CREATE TABLE written by you",
+  "backToForm": "Back to the table editor",
+  "writeSql": "Write CREATE TABLE myself",
+  "tableN": "Table {n}",
+  "unnamedTable": "table {n}",
+  "tableName": "Name of table {n}",
+  "incomplete": "Columns incomplete",
+  "incompleteHint": "The query uses this table without listing columns (SELECT * or INSERT without a column list). Add any column you need that is missing.",
+  "noColumnsHint": "This table has no columns. Add at least one column before confirming.",
+  "columnName": "Name of column {c} of {table}",
+  "columnType": "Type of column {c} of {table}",
+  "columnPk": "Primary key for column {c} of {table}",
+  "pk": "Primary key",
+  "addColumn": "Add column",
+  "remove": "Remove",
+  "removeColumn": "Remove column {c} of {table}",
+  "reason": {
+    "literal": "Guess: type taken from the value next to the column in the query",
+    "name": "Guess: type taken from the column name",
+    "default": "Guess: no clue, so text",
+    "user": "Set by you",
+    "pk": "primary key because the column is named id"
+  },
+  "fkGuess": "Foreign key guess (only a hint, no constraint is created): {column} references {table}.{ref}",
+  "removeFk": "Remove the foreign key guess for column {column} of {table}",
+  "issue": {
+    "empty-name": "{table} has no name.",
+    "duplicate-table": "The name {table} is used by another table.",
+    "no-columns": "{table} has no columns left, so it cannot be created. Add a column or use the write-CREATE-TABLE box.",
+    "empty-column": "Column {c} of {table} has no name.",
+    "duplicate-column": "Column {c} of {table} has the same name as another column.",
+    "multi-pk": "{table} has more than one primary key column. The draft does not support composite keys: pick one column or write the CREATE TABLE yourself.",
+    "placeholder": "Column {c} of {table} is a placeholder the system added. Rename it to a real column or remove it.",
+    "manual-empty": "The CREATE TABLE box is empty."
+  },
+  "cancel": "Cancel",
+  "confirm": "Confirm and run",
+  "log": {
+    "applied": "Created the tables from the draft you confirmed.",
+    "cancelled": "Schema confirmation cancelled, nothing was run."
+  },
+  "removeTable": "Remove table {n}",
+  "skip": "Skip, run the query only",
+  "dumpCopy": "Skipped {copyBlocks} COPY data block(s) while reading the file. The data inside them is not loaded.",
+  "dumpLock": "Skipped {lockStatements} LOCK/UNLOCK TABLES statement(s) while reading the file.",
+  "removeTableBtn": "Remove table"
+}

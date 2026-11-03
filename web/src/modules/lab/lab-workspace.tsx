@@ -18,7 +18,12 @@ import type { Conclusion } from "@/contracts/conclusion";
 import { EngineError, type EngineAdapter, type LoadProgress, type QueryResult } from "@/contracts/engine";
 import { createPostgresAdapter } from "@/engines/postgres/adapter";
 import { GenerateDialog, type StopCode } from "@/modules/data-lab/ui/generate-dialog";
+import { classifyInput, prepareDump } from "@/modules/sql-intake/classify";
+import { inferSchema, type InferWarning } from "@/modules/sql-intake/infer";
 import { disposeParser, parseSql, type ParseOutcome } from "@/modules/sql-intake/parser";
+import { ConfirmSchemaDialog } from "@/modules/sql-intake/ui/confirm-schema-dialog";
+import { DumpNotice } from "@/modules/sql-intake/ui/dump-notice";
+import { toDraft, type Draft } from "@/modules/sql-intake/ui/schema-draft";
 import { StatementList } from "./statement-list";
 
 type RunData = { statements: number; rows: number };
@@ -56,7 +61,15 @@ export function LabWorkspace() {
   const engine = parseEngine(useSearchParams().get("engine"));
   // Toàn bộ trạng thái phiên nằm ở đây, trên WorkspaceLayout, nên đổi qua mốc 900 px không mất gì.
   const [sql, setSql] = useState("");
-  const [parsed, setParsed] = useState<{ sql: string; engine: typeof engine; outcome: ParseOutcome } | null>(null);
+  // eff: SQL đã bỏ khối COPY và LOCK (prepareDump), là chuỗi thật sự được parse và chạy; vị trí trong outcome tính trên eff.
+  const [parsed, setParsed] = useState<{ sql: string; engine: typeof engine; outcome: ParseOutcome; eff: string; removed: { copyBlocks: number; lockStatements: number } } | null>(null);
+  // Bản nháp schema suy từ query, gắn với đúng sql và engine đã sinh ra nó: query đổi thì bỏ.
+  const [draft, setDraft] = useState<{ sql: string; engine: typeof engine; d: Draft; warnings: InferWarning[] } | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [schemaError, setSchemaError] = useState<string | undefined>();
+  const applied = useRef<string | null>(null); // sql đã được tạo schema xong, chạy lại không hỏi nữa
+  const runBtn = useRef<HTMLButtonElement | null>(null);
+  const tin = useTranslations("sql-intake");
   const [selected, setSelected] = useState(0);
   const [pendingSample, setPendingSample] = useState<string | null>(null);
   const [state, setState] = useState<State>({ phase: "idle" });
@@ -108,7 +121,8 @@ export function LabWorkspace() {
     if (sql.trim() === "") return; // outcome tự về null vì parsed.sql không còn khớp
     let live = true;
     const h = setTimeout(() => {
-      parseSql(sql, engine).then((outcome) => live && setParsed({ sql, engine, outcome }));
+      const prep = prepareDump(sql, engine);
+      parseSql(prep.sql, engine).then((outcome) => live && setParsed({ sql, engine, outcome, eff: prep.sql, removed: prep.removed }));
     }, 300);
     return () => {
       live = false;
@@ -116,7 +130,7 @@ export function LabWorkspace() {
     };
   }, [sql, engine]);
 
-  async function run() {
+  async function run(schemaSql?: string) {
     if (busy.current) return;
     busy.current = true;
     setMobileTab("terminal");
@@ -140,8 +154,18 @@ export function LabWorkspace() {
       }
       setState({ phase: "running" });
       const ctl = (abort.current = new AbortController());
+      const toRun = prepareDump(sql, engine).sql;
+      let step: "schema" | "query" = "query";
       try {
-        const results = await db.execute(sql, { signal: ctl.signal });
+        if (schemaSql) {
+          step = "schema";
+          await db.execute(schemaSql, { signal: ctl.signal });
+          note({ kind: "note", text: tin("log.applied") });
+          await refreshTables(db);
+          step = "query";
+        }
+        const results = await db.execute(toRun, { signal: ctl.signal });
+        applied.current = sql; // chỉ khi query cũng chạy xong; nếu query lỗi thì lần Chạy sau kiểm lại bảng và có thể mở lại bản nháp
         const last = results[results.length - 1] ?? { columns: [], rows: [] };
         const data = { statements: results.length, rows: last.rows.length };
         note({ kind: "ran", n: results.length });
@@ -157,6 +181,14 @@ export function LabWorkspace() {
           },
         });
       } catch (e) {
+        // Lỗi SQL ở bước tạo bảng: quay lại màn hình xác nhận, bản nháp còn nguyên.
+        if (step === "schema" && e instanceof EngineError && e.code === "sql" && !e.guard) {
+          note({ kind: "error" });
+          setSchemaError(e.message);
+          setConfirmOpen(true);
+          setState({ phase: "idle" });
+          return;
+        }
         const code = stopCode(e);
         const guard = e instanceof EngineError ? e.guard : undefined;
         const at = e instanceof EngineError ? e.statementIndex : undefined;
@@ -175,12 +207,54 @@ export function LabWorkspace() {
               ? { phase: "guard_error", reasonKey: guard.reasonKey, statementIndex: guard.statementIndex }
               : e instanceof EngineError && e.code === "load_failed"
                 ? { phase: "load_error", message: e.message }
-                : { phase: "sql_error", message: errMsg(e), position: e instanceof EngineError ? e.position : undefined, sql },
+                : { phase: "sql_error", message: errMsg(e), position: e instanceof EngineError ? e.position : undefined, sql: toRun },
         );
       }
     } finally {
       busy.current = false;
     }
+  }
+
+  // Chỉ query (không có CREATE TABLE) thì cho người dùng xem bản nháp schema trước. Lỗi parse hoặc suy luận không chặn việc chạy.
+  async function needsConfirm(): Promise<boolean> {
+    if (engine !== "postgres" || applied.current === sql) return false;
+    try {
+      const outcome = await parseSql(prepareDump(sql, engine).sql, engine);
+      if (!outcome.ok || classifyInput(outcome).kind !== "query") return false;
+      const inf = inferSchema(outcome.statements, engine);
+      if (!inf.tables.length) return false;
+      if (adapter.current) {
+        // Bảng đã có trong phiên (vừa tạo ở lần trước) thì không cần hỏi lại.
+        const db = await adapter.current;
+        const r = await db.execute("SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind IN ('r','p')", { internal: true });
+        const have = new Set(r[0]?.rows.map((x) => String(x[0])));
+        if (inf.tables.every((x) => have.has(x.name))) return false;
+      }
+      setDraft((x) => (x && x.sql === sql && x.engine === engine ? x : { sql, engine, d: toDraft(inf.tables), warnings: inf.warnings }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function onRun() {
+    if (busy.current || (confirmOpen && dialogOn)) return;
+    busy.current = true; // chặn bấm đúp trong lúc parse
+    let ask = false;
+    try {
+      ask = await needsConfirm();
+    } finally {
+      busy.current = false;
+    }
+    if (ask) {
+      setSchemaError(undefined);
+      setConfirmOpen(true);
+    } else void run();
+  }
+
+  function closeConfirm() {
+    setConfirmOpen(false);
+    note({ kind: "note", text: tin("log.cancelled") });
   }
 
   async function rebuild() {
@@ -207,11 +281,14 @@ export function LabWorkspace() {
   const mysql = engine === "mysql";
   const outcome = parsed && parsed.sql === sql && parsed.engine === engine ? parsed.outcome : null;
   const statements = outcome?.ok ? outcome.statements : [];
+  const dialogOn = Boolean(draft && draft.sql === sql && draft.engine === engine);
+  const effSql = parsed && outcome ? parsed.eff : sql;
+  const removedAny = Boolean(parsed && outcome && (parsed.removed.copyBlocks || parsed.removed.lockStatements));
   // Dấu lỗi gắn với đúng nội dung đã sinh ra nó: sửa chữ là dấu tự biến mất.
   const editorError =
     state.phase === "sql_error" && state.sql === sql && state.position !== undefined
       ? { position: engineToEditorPos(sql, state.position), message: state.message }
-      : outcome && !outcome.ok && outcome.error.position !== undefined
+      : outcome && !outcome.ok && outcome.error.position !== undefined && !removedAny // vị trí tính trên SQL đã bỏ khối COPY, không khớp ô soạn
         ? { position: outcome.error.position, message: outcome.error.message }
         : undefined;
   // Lỗi parse không vị trí là parser không chạy được (tải hỏng, worker chết), không phải SQL sai.
@@ -244,16 +321,17 @@ export function LabWorkspace() {
           </div>
         </div>
       )}
+      {parsed && outcome && <DumpNotice removed={parsed.removed} />}
       {parserDown && (
         <p role="status" className="text-xs text-muted-foreground">
           {t("parserDown")}
         </p>
       )}
       {statements.length > 0 && (
-        <StatementList sql={sql} statements={statements} selected={Math.min(selected, statements.length - 1)} onSelect={setSelected} />
+        <StatementList sql={effSql} statements={statements} selected={Math.min(selected, statements.length - 1)} onSelect={setSelected} />
       )}
       <div>
-        <Button onClick={run} disabled={sql.trim() === "" || working || state.phase === "stopped" || mysql}>
+        <Button ref={runBtn} onClick={onRun} disabled={sql.trim() === "" || working || (confirmOpen && dialogOn) || state.phase === "stopped" || mysql}>
           {t("run")}
         </Button>
       </div>
@@ -314,7 +392,7 @@ export function LabWorkspace() {
             <Alert variant="destructive" data-testid="error">
               <AlertDescription className="flex flex-col items-start gap-2">
                 {t("loadError", { message: state.message })}
-                <Button variant="outline" onClick={run} disabled={sql.trim() === ""}>
+                <Button variant="outline" onClick={() => run()} disabled={sql.trim() === ""}>
                   {t("retry")}
                 </Button>
               </AlertDescription>
@@ -385,6 +463,20 @@ export function LabWorkspace() {
   return (
     <>
       <WorkspaceLayout sql={sqlZone} terminal={terminalZone} findings={findingsZone} stage={stageZone} />
+      {draft && dialogOn && (
+        <ConfirmSchemaDialog
+          open={confirmOpen}
+          onOpenChange={(o) => (o ? setConfirmOpen(true) : closeConfirm())}
+          engine={engine}
+          draft={draft.d}
+          onDraft={(d) => setDraft((x) => x && { ...x, d })}
+          warnings={draft.warnings}
+          error={schemaError}
+          returnFocus={runBtn}
+          onConfirm={(createSql) => (setConfirmOpen(false), void run(createSql))}
+          onSkip={() => (setConfirmOpen(false), (applied.current = sql), void run())}
+        />
+      )}
       <GenerateDialog
         open={genOpen}
         onOpenChange={setGenOpen}
