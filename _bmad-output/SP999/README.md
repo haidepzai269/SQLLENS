@@ -76,3 +76,6 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task028 | Chưa chứng minh JS của `pgsql-parser` không tải ở nhánh MySQL, test chỉ phân biệt theo URL `.wasm`. AST của khoảng 20k câu qua `postMessage` chưa thử trên máy chậm | `needs_validation` |
 | Task028 | Chưa hỗ trợ `DELIMITER` của MySQL. `tables` sắp theo bảng chữ cái, không theo thứ tự xuất hiện | Chưa làm |
 | Task028 | Test `postgres-guard` (Task021) và `result-grid` AC2 trượt khi máy tải, chạy riêng thì đạt | `needs_validation` |
+| Task025 | Probe `INSERT` vào cột serial làm sequence tiến lên, vì `nextval` không rollback. Checksum bảng vẫn đúng. Giới hạn đã chấp nhận | Đã biết |
+| Task025 | `reject` cho qua `change` mà parser không đọc được, chưa dựng được ca lọt | `needs_validation` |
+| Task025 | `EngineAdapter` có thêm `tryChange` bắt buộc, adapter MySQL của SP010 phải cài | Đã biết |
