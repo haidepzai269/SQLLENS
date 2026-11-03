@@ -1,0 +1,12 @@
+# Bàn giao Task035
+
+Đã làm: Sandbox agent bằng Go chạy như service systemd trên máy Azure. Tạo, chạy SQL (kết nối `a` và `b` riêng), đọc khóa, hủy phiên MySQL qua HTTP. Chỉ nghe `127.0.0.1`, xác thực Bearer so thời gian hằng, trần 2 phiên khởi động tuần tự, tự dọn phiên hết hạn (15 phút), tự `KILL QUERY` sau 15 giây với mọi loại câu, cắt 10.000 dòng, body tối đa 1 MiB, log không chứa SQL.
+File chính: `sandbox/agent/` (`main.go`, `manager.go`, `query.go`, `server.go`, `agent_test.go`, `sqllens-agent.service`, `README.md`), `_bmad-output/SP004/STR016/Task035/ket_qua.md`.
+Kết quả kiểm tra: `go vet ./...` và `go test -count=1 ./...` thoát 0 trên commit cuối. AC1 đến AC9 chạy thật trên máy Azure (số liệu ở `ket_qua.md`). Sau bản sửa cuối chạy lại tạo phiên, `CREATE/INSERT/SELECT`, lock wait giữa `a` và `b`, `SLEEP` bị cắt, hủy, restart: đúng; máy không còn container hay thư mục phiên, agent vẫn chạy.
+Mức hạn đĩa đã chọn: 512 MiB mỗi phiên (gồm bản mẫu khoảng 117 MiB), kiểm mỗi 1 giây, vượt thì hủy phiên. Khi restart agent: dọn sạch phiên cũ, trả 404.
+Thư viện mới: `github.com/go-sql-driver/mysql` v1.9.3 (ghim), driver chuẩn, hỗ trợ unix socket và nhiều câu một lô; kéo theo `filippo.io/edwards25519` v1.1.0.
+Kết quả review: 2 vòng. Đã sửa 8 lỗi: destroy lỗi vẫn trả slot (M1), data race ghi `cn.db`/`cn.c` (M3, N2), thiếu `WaitDelay` (M4), sweep giữ khóa lúc duyệt đĩa và `docker inspect` (M5), `sql.Conn` ghim không đóng (M7), sweep bỏ qua phiên Create lỗi (N1), phiên sót lúc khởi động không được thử lại (N3). Các sửa N1 đến N3 có test nhưng chưa qua vòng review thứ ba (giới hạn 2 vòng).
+needs_validation còn lại: M2 (timer bắn đúng khoảng micro giây sau khi câu xong thì báo timeout; ghi `shortcut` trong `query.go`); M6 (một dòng đơn có thể lên đến `max_allowed_packet` 64 MB, có thể gây thiếu RAM cho agent, chưa tái hiện).
+Chưa làm được: `go test -race` (máy nhà không có cgo). Lô nhiều câu: lỗi giữa lô mất kết quả các câu trước.
+Phát sinh: (1) Giới hạn kích thước một dòng kết quả (M6). (2) `--tmpfs /tmp` của `session.sh` chưa đặt `size`. (3) `systemctl stop` không dọn container (chỉ dọn lúc khởi động lại). (4) `readToken` chưa kiểm chủ file. (5) Thêm `SELECT ROW_COUNT()` làm `affectedRows` chỉ có cho kết quả cuối.
+Việc tiếp theo cần biết: agent cài ở `/opt/sqllens`, token ở `/etc/sqllens-agent/token` (600), cấu hình qua `/etc/sqllens-agent/env`. STR019 phải gắn HTTPS và dải IP Render, agent vẫn chỉ loopback. Mọi phiên dùng chung một token. Lỗi `sandbox_full` là 429, `session_not_found` là 404 cho cả id lạ lẫn phiên hết hạn.
