@@ -1,0 +1,12 @@
+{
+  "statement": "Statement {n}",
+  "empty": "The query returned no rows. Columns are still shown below.",
+  "noRows": "This statement returned no rows.",
+  "affected": "{count, plural, one {# row affected} other {# rows affected}}",
+  "total": "{count} rows in total.",
+  "truncated": "Truncated: showing the first {max} rows only.",
+  "error": {
+    "title": "PostgreSQL error",
+    "at": "Line {line}, column {column}"
+  }
+}
