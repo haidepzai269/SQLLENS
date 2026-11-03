@@ -1,0 +1,37 @@
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "201.50"
+    },
+    "grouping_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "users",
+        "access_type": "index",
+        "possible_keys": [
+          "city"
+        ],
+        "key": "city",
+        "used_key_parts": [
+          "city"
+        ],
+        "key_length": "83",
+        "rows_examined_per_scan": 2000,
+        "rows_produced_per_join": 2000,
+        "filtered": "100.00",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "1.50",
+          "eval_cost": "200.00",
+          "prefix_cost": "201.50",
+          "data_read_per_join": "562K"
+        },
+        "used_columns": [
+          "id",
+          "city"
+        ]
+      }
+    }
+  }
+}

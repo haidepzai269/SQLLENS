@@ -1,0 +1,12 @@
+{
+  "explain": {
+    "analyzed": "EXPLAIN ANALYZE đã chạy thật câu này rồi hoàn tác, nên dữ liệu bảng không đổi (bộ đếm sequence như nextval thì không được hoàn tác). Cả plan đọc {pages} trang."
+  },
+  "notSimulated": {
+    "multiple": "Không giải thích được: EXPLAIN chỉ nhận đúng một câu SQL. Chưa mô phỏng được.",
+    "empty": "Không giải thích được: không có câu SQL nào. Chưa mô phỏng được.",
+    "unsupported": "Không giải thích được: chỉ SELECT, INSERT, UPDATE, DELETE và MERGE mới giải thích được. Chưa mô phỏng được.",
+    "parserUnavailable": "Không giải thích được: trình đọc SQL chưa tải xong nên chưa kiểm tra câu lệnh an toàn được. Chưa mô phỏng được.",
+    "inTransaction": "Không giải thích được: phiên đang có transaction mở và EXPLAIN ANALYZE sẽ phải hoàn tác nó. Hãy COMMIT hoặc ROLLBACK trước. Chưa mô phỏng được."
+  }
+}

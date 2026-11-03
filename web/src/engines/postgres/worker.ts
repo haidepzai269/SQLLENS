@@ -4,6 +4,7 @@ import { readBTreeAdmin } from "./btree-read";
 import { loadGuard, statementAt } from "./guard";
 import type { WorkerRequest, WorkerResponse } from "./protocol";
 import { createSession, GuardError } from "./roles";
+import { runExplain } from "./explain";
 import { runTryChange } from "./try-rollback";
 
 const post = (m: WorkerResponse) => postMessage(m);
@@ -71,6 +72,10 @@ onmessage = async ({ data: m }: MessageEvent<WorkerRequest>) => {
       return;
     }
     if (!session) throw new Error("not initialised");
+    if (m.type === "explain") {
+      post({ id: m.id, type: "done", explained: await runExplain(session.run, m.sql) });
+      return;
+    }
     if (m.type === "try") {
       post({ id: m.id, type: "done", tried: await runTryChange(session.run, m.change, m.probe) });
       return;
@@ -83,6 +88,6 @@ onmessage = async ({ data: m }: MessageEvent<WorkerRequest>) => {
     const results = await session.run(m.sql);
     post({ id: m.id, type: "done", results });
   } catch (e) {
-    post({ id: m.id, type: "error", error: toError(e, m.type === "init" ? "load_failed" : "sql", m.type === "exec" ? m.sql : undefined) });
+    post({ id: m.id, type: "error", error: toError(e, m.type === "init" ? "load_failed" : "sql", m.type === "exec" || m.type === "explain" ? m.sql : undefined) });
   }
 };

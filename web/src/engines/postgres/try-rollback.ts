@@ -3,14 +3,14 @@ import type { Outcome } from "@/contracts/conclusion";
 import type { ProbeStats, QueryResult, TryChangeResult } from "@/contracts/engine";
 import { isGuardReady } from "./guard";
 
-type Run = (sql: string) => Promise<QueryResult[]>;
+export type Run = (sql: string) => Promise<QueryResult[]>;
 type Obj = Record<string, unknown>;
 const isObj = (x: unknown): x is Obj => typeof x === "object" && x !== null;
 
 const no = (reason: string): Outcome<TryChangeResult> => ({ kind: "not_simulated", reasonKey: `tryChange.${reason}` });
 
 /** Số câu của `sql`, hoặc các loại câu; undefined nếu parser không đọc được (lỗi cú pháp: để database báo). */
-function stmtsOf(sql: string): Obj[] | undefined {
+export function stmtsOf(sql: string): Obj[] | undefined {
   try {
     const s = (parseSync(sql) as { stmts?: { stmt?: Obj }[] }).stmts;
     return s?.map((x) => x.stmt ?? {});
@@ -40,6 +40,13 @@ function stats(raw: unknown): { stats: ProbeStats; plan: unknown } {
   };
 }
 
+/** Người dùng đang trong transaction (kể cả đã hỏng): BEGIN/ROLLBACK của engine sẽ phá việc chưa commit của họ. SAVEPOINT chỉ chạy được khi đang trong transaction. */
+export const inUserTransaction = (run: Run) =>
+  run("SAVEPOINT sqllens_probe").then(
+    () => run("RELEASE sqllens_probe").then(() => true),
+    (e: { code?: string }) => e.code === "25P02",
+  );
+
 /** Lớp bảo vệ riêng của tryChange. Trả NotSimulated trước khi chạy bất cứ thứ gì. */
 function reject(change: string, probe: string): Outcome<TryChangeResult> | undefined {
   // Parser chưa tải thì không kiểm được COMMIT/BEGIN lẫn câu thứ hai trong probe, nên không chạy (khác checkUserSql, ở đây fail-closed).
@@ -59,12 +66,8 @@ function reject(change: string, probe: string): Outcome<TryChangeResult> | undef
 export async function runTryChange(run: Run, change: string, probe: string): Promise<Outcome<TryChangeResult>> {
   const rejected = reject(change, probe);
   if (rejected) return rejected;
-  // BEGIN trong transaction đang mở của người dùng chỉ báo warning, rồi ROLLBACK cuối sẽ hủy việc chưa commit của họ. SAVEPOINT chỉ chạy được khi đang trong transaction.
-  const inUserTxn = await run("SAVEPOINT sqllens_probe").then(
-    () => run("RELEASE sqllens_probe").then(() => true),
-    (e: { code?: string }) => e.code === "25P02",
-  );
-  if (inUserTxn) return no("inTransaction");
+  // BEGIN trong transaction đang mở của người dùng chỉ báo warning, rồi ROLLBACK cuối sẽ hủy việc chưa commit của họ.
+  if (await inUserTransaction(run)) return no("inTransaction");
   const measure = async () => {
     const [r] = await run(`EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${probe}`);
     return stats(r.rows[0][0]);

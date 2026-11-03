@@ -1,5 +1,6 @@
 import type { BTreeModel, BTreePath } from "./btree";
 import type { Outcome } from "./conclusion";
+import type { Plan } from "./plan";
 
 export type EngineId = "postgres" | "mysql";
 export type QueryResult = { columns: string[]; rows: unknown[][]; affectedRows?: number };
@@ -33,7 +34,7 @@ export interface EngineAdapter {
   readonly guardActive?: boolean;
   /** `internal: true` cho câu của chính ứng dụng (kiểm bảng, sinh dữ liệu): chạy nhưng không vào history(), nên dựng lại không chạy lại chúng. */
   execute(sql: string, options?: { signal?: AbortSignal; internal?: boolean }): Promise<QueryResult[]>;
-  explain(sql: string, options?: { signal?: AbortSignal }): Promise<Outcome<unknown>>;
+  explain(sql: string, options?: { signal?: AbortSignal }): Promise<Outcome<Plan>>;
   /** Đo `probe`, áp `change` trong transaction, đo lại rồi ROLLBACK. Không đổi dữ liệu, không vào history(). */
   tryChange(change: string, probe: string): Promise<Outcome<TryChangeResult>>;
   /** Đọc cây B-Tree thật của một index trong schema public. Chỉ đọc, không vào history(). `maxNodes` mặc định 200. */

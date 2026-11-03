@@ -1,0 +1,71 @@
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1072.15"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "users",
+          "access_type": "ALL",
+          "possible_keys": [
+            "PRIMARY"
+          ],
+          "rows_examined_per_scan": 2000,
+          "rows_produced_per_join": 2000,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "1.50",
+            "eval_cost": "200.00",
+            "prefix_cost": "201.50",
+            "data_read_per_join": "562K"
+          },
+          "used_columns": [
+            "id",
+            "email",
+            "city"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "<subquery2>",
+          "access_type": "eq_ref",
+          "key": "<auto_distinct_key>",
+          "key_length": "5",
+          "ref": [
+            "d.users.id"
+          ],
+          "rows_examined_per_scan": 1,
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "query_block": {
+              "table": {
+                "table_name": "orders",
+                "access_type": "ALL",
+                "possible_keys": [
+                  "user_id"
+                ],
+                "rows_examined_per_scan": 5000,
+                "rows_produced_per_join": 1666,
+                "filtered": "33.33",
+                "cost_info": {
+                  "read_cost": "336.35",
+                  "eval_cost": "166.65",
+                  "prefix_cost": "503.00",
+                  "data_read_per_join": "26K"
+                },
+                "used_columns": [
+                  "user_id",
+                  "total"
+                ],
+                "attached_condition": "(`d`.`orders`.`total` > 90)"
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}
