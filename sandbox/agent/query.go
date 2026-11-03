@@ -134,10 +134,10 @@ func (m *manager) Query(s *session, name, query string) (*queryResponse, error) 
 	wasTimeout := timedOut
 	cn.mu.Unlock()
 
+	if wasTimeout { // SLEEP() bị KILL vẫn trả 1 mà không báo lỗi, nên không dựa vào err
+		return nil, errTimeout
+	}
 	if err != nil {
-		if wasTimeout {
-			return nil, errTimeout
-		}
 		if r := s.why(); r == "disk_quota" {
 			return nil, errDiskFull
 		}

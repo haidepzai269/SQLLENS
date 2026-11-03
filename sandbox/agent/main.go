@@ -143,7 +143,13 @@ func realBackend(script, root string) backend {
 	}
 }
 
+// quietLogger: thông báo của driver có thể trích câu lệnh, nên chỉ ghi loại sự kiện.
+type quietLogger struct{}
+
+func (quietLogger) Print(...any) { log.Print("event=driver_error") }
+
 func main() {
+	mysql.SetLogger(quietLogger{})
 	addr := env("AGENT_ADDR", "127.0.0.1:8081")
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
