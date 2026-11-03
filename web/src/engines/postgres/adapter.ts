@@ -7,7 +7,6 @@ type Pending = { resolve: (r: Done) => void; reject: (e: EngineError) => void; o
 type Req = { type: "init" } | { type: "exec"; sql: string };
 
 // PGlite chạy trong Web Worker, chỉ nạp khi gọi hàm này, nên mở trang không tải WASM.
-// shortcut: role mặc định có quyền cao, đổi sang role quyền thấp ở Task021.
 export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: Options = {}): Promise<EngineAdapter> {
   let worker: Worker | undefined;
   let nextId = 1;
@@ -36,7 +35,7 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
       if (m.type === "progress") return p.onProgress?.(m.progress);
       pending.delete(m.id);
       if (m.type === "done") p.resolve(m);
-      else p.reject(new EngineError(m.error.code, m.error.message, m.error.position));
+      else p.reject(new EngineError(m.error.code, m.error.message, m.error.position, m.error.guard));
     };
     const crashed = (msg: string) => w === worker && kill(new EngineError("worker_crashed", msg));
     w.onerror = (e) => crashed(e.message || "worker error");
@@ -83,6 +82,20 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
     return r;
   };
 
+  // Dựng worker mới rồi chạy lại history. Gọi trong hàng đợi.
+  async function rebuildNow() {
+    if (disposed) throw new EngineError("worker_crashed", "Engine disposed");
+    worker?.terminate();
+    worker = undefined;
+    await start();
+    try {
+      for (const sql of ran) await call({ type: "exec", sql }, "timeout");
+    } catch (err) {
+      needsRebuild = true; // dựng lại dở dang thì vẫn coi là chưa dùng được
+      throw err;
+    }
+  }
+
   await start();
 
   return {
@@ -104,6 +117,10 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
           const r = await p;
           ran.push(sql);
           return r.results ?? [];
+        } catch (err) {
+          // Lớp bảo vệ phát hiện phiên đổi role: bỏ worker, dựng lại từ history rồi báo lỗi.
+          if (err instanceof EngineError && err.guard?.rebuilt) await rebuildNow().catch(() => {});
+          throw err;
         } finally {
           options?.signal?.removeEventListener("abort", onAbort);
         }
@@ -115,19 +132,7 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
       if (activeExec !== undefined) kill(new EngineError("cancelled", "Cancelled"));
     },
     history: () => ran,
-    rebuild: () =>
-      enqueue(async () => {
-        if (disposed) throw new EngineError("worker_crashed", "Engine disposed");
-        worker?.terminate();
-        worker = undefined;
-        await start();
-        try {
-          for (const sql of ran) await call({ type: "exec", sql }, "timeout");
-        } catch (err) {
-          needsRebuild = true; // dựng lại dở dang thì vẫn coi là chưa dùng được
-          throw err;
-        }
-      }),
+    rebuild: () => enqueue(rebuildNow),
     async dispose() {
       disposed = true;
       kill(new EngineError("cancelled", "Engine disposed"));

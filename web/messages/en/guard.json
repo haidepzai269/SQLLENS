@@ -1,0 +1,10 @@
+{
+  "role": "Statement {index} was blocked: it may not change the session role or privileges (SET ROLE, RESET ROLE, SET SESSION AUTHORIZATION, set_config('role', ...)).",
+  "resetAll": "Statement {index} was blocked: RESET ALL and DISCARD ALL would return the session to administrator privileges.",
+  "extension": "Statement {index} was blocked: extensions cannot be created in this session.",
+  "load": "Statement {index} was blocked: LOAD cannot be used to load libraries.",
+  "copyProgram": "Statement {index} was blocked: COPY ... PROGRAM runs external commands and is not allowed.",
+  "roleDdl": "Statement {index} was blocked: roles cannot be created, altered or dropped.",
+  "grant": "Statement {index} was blocked: GRANT and REVOKE are not allowed.",
+  "escaped": "A statement in the last run changed the session role. The result was discarded and the session was rebuilt from the statements that succeeded earlier."
+}
