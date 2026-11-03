@@ -7,7 +7,7 @@ export type LoadProgress = { phase: "download" | "init"; loadedBytes?: number; t
 export type EngineErrorCode = "timeout" | "cancelled" | "load_failed" | "sql" | "worker_crashed";
 /** Lỗi do lớp bảo vệ. Giao diện dịch bằng `t(reasonKey, { index: statementIndex })` với `useTranslations()` gốc (khóa dạng `guard.role`). */
 export type GuardInfo = { reasonKey: string; statementIndex?: number; rebuilt?: boolean };
-export type EngineErrorData = { code: EngineErrorCode; message: string; position?: number; guard?: GuardInfo };
+export type EngineErrorData = { code: EngineErrorCode; message: string; position?: number; guard?: GuardInfo; statementIndex?: number };
 
 // Error thật để chỗ cũ dùng `e.message` vẫn chạy; `code` và `position` cho chỗ cần phân loại.
 export type ProbeStats = { rows: number; sharedHitBlocks: number; sharedReadBlocks: number; nodeTypes: string[] };
@@ -19,6 +19,8 @@ export class EngineError extends Error implements EngineErrorData {
     message: string,
     readonly position?: number,
     readonly guard?: GuardInfo,
+    /** Câu SQL gây lỗi, đếm từ 1. Không có khi không xác định được. */
+    readonly statementIndex?: number,
   ) {
     super(message);
     this.name = "EngineError";
@@ -27,7 +29,10 @@ export class EngineError extends Error implements EngineErrorData {
 
 export interface EngineAdapter {
   readonly engine: EngineId;
-  execute(sql: string, options?: { signal?: AbortSignal }): Promise<QueryResult[]>;
+  /** false khi lớp một (parser chặn SET ROLE...) không tải được: chỉ còn lớp hai. Không có thì coi như không áp dụng. */
+  readonly guardActive?: boolean;
+  /** `internal: true` cho câu của chính ứng dụng (kiểm bảng, sinh dữ liệu): chạy nhưng không vào history(), nên dựng lại không chạy lại chúng. */
+  execute(sql: string, options?: { signal?: AbortSignal; internal?: boolean }): Promise<QueryResult[]>;
   explain(sql: string, options?: { signal?: AbortSignal }): Promise<Outcome<unknown>>;
   /** Đo `probe`, áp `change` trong transaction, đo lại rồi ROLLBACK. Không đổi dữ liệu, không vào history(). */
   tryChange(change: string, probe: string): Promise<Outcome<TryChangeResult>>;

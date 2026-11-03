@@ -105,6 +105,24 @@ for (const l of ["vi", "en"] as const) {
       expect(await count(page, l, "SELECT count(*) FROM big")).toBe("1");
     });
 
+    test("Task027 AC8 dựng lại sau khi sinh dữ liệu: đếm đúng câu của người dùng và nói rõ dữ liệu sinh không được giữ", async ({ page }) => {
+      test.setTimeout(180_000);
+      await page.goto(`/${l}`);
+      await runSql(page, l, "CREATE TABLE g(id int PRIMARY KEY, v int)");
+      await openDialog(page, l);
+      await dialog(page).getByLabel(T[l].rowsOf("g")).selectOption("10000");
+      await start(page, l).click();
+      await expect(dialog(page)).toHaveCount(0, { timeout: 90_000 });
+      expect(await count(page, l, "SELECT count(*) FROM g")).toBe("10000");
+      await runSql(page, l, "SELECT pg_sleep(60)");
+      await page.getByRole("button", { name: T[l].cancel, exact: true }).click();
+      const stopped = page.locator('[data-testid="stopped"]:visible');
+      await expect(stopped).toContainText(l === "vi" ? /chạy lại 2 câu/ : /replay 2 statements/); // CREATE và SELECT count; không tính BEGIN, INSERT, COMMIT hay kiểm bảng
+      await stopped.getByRole("button", { name: l === "vi" ? "Dựng lại" : "Rebuild", exact: true }).click();
+      await expect(page.locator("#terminal ol:visible")).toContainText(l === "vi" ? "không được giữ lại" : "is not kept", { timeout: 60_000 });
+      expect(await count(page, l, "SELECT count(*) FROM g")).toBe("0");
+    });
+
     test("AC4 cảnh báo 500k, không có lựa chọn trên 500k, có câu dẫn đến Capacity Advisor", async ({ page }) => {
       await page.goto(`/${l}`);
       await runSql(page, l, "CREATE TABLE t(id int PRIMARY KEY)");

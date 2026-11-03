@@ -27,5 +27,5 @@
   "start": "Sinh dữ liệu",
   "summary": "Đã sinh dữ liệu: {tables}. Mất {seconds} giây trong tab này, chỉ để so sánh tương đối, không dự đoán cho production.",
   "cancelledSummary": "Đã hủy sinh dữ liệu, dữ liệu trở về như trước.",
-  "stoppedRolledBack": "Phiên đã dựng lại và hoàn tác phần dữ liệu đang sinh dở."
+  "notKept": "Phiên đã dựng lại từ các câu bạn đã chạy. Dữ liệu do trình sinh dữ liệu tạo ra không được giữ lại, hãy sinh lại nếu cần."
 }

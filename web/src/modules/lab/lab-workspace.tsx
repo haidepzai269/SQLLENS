@@ -27,10 +27,11 @@ type State =
   | { phase: "idle" | "loading" | "running" | "rebuilding" }
   | { phase: "load_error"; message: string }
   | { phase: "sql_error"; message: string; position?: number; sql: string }
+  | { phase: "guard_error"; reasonKey: string; statementIndex?: number }
   | { phase: "stopped"; code: Stop; count: number; rebuildError?: string }
   | { phase: "done"; results: QueryResult[]; conclusion: Conclusion<RunData> };
 // Nhật ký chỉ có loại sự kiện và số liệu, không bao giờ có nội dung SQL.
-type Log = { kind: "loaded" | "ran" | "error" | "cancelled" | "timeout" | "worker_crashed" | "rebuilt" | "note"; n?: number; text?: string };
+type Log = { kind: "loaded" | "ran" | "error" | "cancelled" | "timeout" | "worker_crashed" | "rebuilt" | "note" | "errorAt" | "blocked" | "escaped" | "guardOff"; n?: number; text?: string };
 
 // Engine báo position 1-based theo code point; ô soạn cần chỉ số 0-based theo UTF-16.
 const engineToEditorPos = (sql: string, p: number) => Array.from(sql).slice(0, p - 1).join("").length;
@@ -67,13 +68,15 @@ export function LabWorkspace() {
   const note = (l: Log) => setLog((x) => [...x.slice(-49), l]);
   const [hasTables, setHasTables] = useState(false);
   const [genOpen, setGenOpen] = useState(false);
-  const txnOpen = useRef(false); // giao dịch sinh dữ liệu còn mở trong worker đã bị dừng
+  const generated = useRef(false); // đã sinh dữ liệu từ lần dựng gần nhất; dựng lại không giữ (câu sinh dữ liệu không vào history)
   const tth = useTranslations("data-lab");
+  const tg = useTranslations() as unknown as (key: string, values: { index: number }) => string; // khóa guard.* của EngineError.guard.reasonKey
 
   async function refreshTables(db: EngineAdapter) {
     try {
       const r = await db.execute(
         "SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind IN ('r','p') LIMIT 1",
+        { internal: true },
       );
       setHasTables((r[0]?.rows.length ?? 0) > 0);
     } catch {
@@ -118,6 +121,7 @@ export function LabWorkspace() {
           adapter.current = createPostgresAdapter({ onProgress: setProgress });
           db = await adapter.current;
           note({ kind: "loaded" });
+          if (!db.guardActive) note({ kind: "guardOff" }); // parser của lớp bảo vệ một không tải được sau khi thử lại
         } else db = await adapter.current;
       } catch (e) {
         adapter.current = null; // cho phép thử lại
@@ -145,13 +149,23 @@ export function LabWorkspace() {
         });
       } catch (e) {
         const code = stopCode(e);
-        note({ kind: code ?? "error" });
+        const guard = e instanceof EngineError ? e.guard : undefined;
+        const at = e instanceof EngineError ? e.statementIndex : undefined;
+        note(
+          code
+            ? { kind: code }
+            : guard
+              ? guard.statementIndex ? { kind: "blocked", n: guard.statementIndex } : { kind: "escaped" }
+              : at ? { kind: "errorAt", n: at } : { kind: "error" },
+        );
         setState(
           code
             ? { phase: "stopped", code, count: db.history().length }
-            : e instanceof EngineError && e.code === "load_failed"
-              ? { phase: "load_error", message: e.message }
-              : { phase: "sql_error", message: errMsg(e), position: e instanceof EngineError ? e.position : undefined, sql },
+            : guard
+              ? { phase: "guard_error", reasonKey: guard.reasonKey, statementIndex: guard.statementIndex }
+              : e instanceof EngineError && e.code === "load_failed"
+                ? { phase: "load_error", message: e.message }
+                : { phase: "sql_error", message: errMsg(e), position: e instanceof EngineError ? e.position : undefined, sql },
         );
       }
     } finally {
@@ -168,11 +182,9 @@ export function LabWorkspace() {
       const db = await adapter.current;
       count = db.history().length;
       await db.rebuild();
-      if (txnOpen.current) {
-        // Việc sinh dữ liệu bị dừng giữa chừng: phiên dựng lại đang mở transaction, hoàn tác phần sinh dở.
-        await db.execute("ROLLBACK");
-        txnOpen.current = false;
-        note({ kind: "note", text: tth("stoppedRolledBack") });
+      if (generated.current) {
+        generated.current = false;
+        note({ kind: "note", text: tth("notKept") });
       }
       note({ kind: "rebuilt", n: count });
       await refreshTables(db);
@@ -306,6 +318,11 @@ export function LabWorkspace() {
               <SqlErrorView message={state.message} position={state.position} sql={state.sql} />
             </div>
           )}
+          {state.phase === "guard_error" && (
+            <Alert variant="destructive" data-testid="error" role="alert">
+              <AlertDescription>{tg(state.reasonKey, { index: state.statementIndex ?? 0 })}</AlertDescription>
+            </Alert>
+          )}
           {state.phase === "stopped" && (
             <Alert variant="destructive" data-testid="stopped">
               <AlertDescription className="flex flex-col items-start gap-2">
@@ -365,8 +382,8 @@ export function LabWorkspace() {
         open={genOpen}
         onOpenChange={setGenOpen}
         getAdapter={() => adapter.current}
-        setTxnOpen={(b) => (txnOpen.current = b)}
-        onSummary={(text) => {
+        onSummary={(text, wrote) => {
+          if (wrote) generated.current = true;
           note({ kind: "note", text });
           setMobileTab("terminal");
           if (!shell.open.terminal) toggle("terminal");

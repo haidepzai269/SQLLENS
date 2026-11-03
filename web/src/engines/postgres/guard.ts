@@ -19,21 +19,26 @@ export const isGuardReady = () => ready;
 
 // libpg-query tìm file WASM cạnh script đang chạy, mà trong worker đó là thư mục chunk, nên chuyển hướng
 // đúng một yêu cầu fetch sang `wasm`. shortcut: vá `fetch` tạm thời, bỏ khi libpg-query cho truyền locateFile.
-export async function loadGuard(wasm?: URL): Promise<void> {
+export async function loadGuard(wasm?: URL, attempts = 3): Promise<boolean> {
   const orig = globalThis.fetch;
   if (wasm) {
     globalThis.fetch = (input, init) =>
       String(input instanceof Request ? input.url : input).endsWith("libpg-query.wasm") ? orig(wasm, init) : orig(input, init);
   }
   try {
-    await loadModule();
-    ready = true;
-  } catch {
-    // Không tải được parser thì lớp một tắt, lớp hai (kiểm sau mỗi lần chạy) vẫn giữ ranh giới.
-    ready = false;
+    for (let i = 0; i < attempts && !ready; i++) {
+      if (i > 0) await new Promise((r) => setTimeout(r, 200 * i));
+      try {
+        await loadModule();
+        ready = true;
+      } catch {
+        // thử lại; hết lượt thì lớp một tắt, lớp hai (kiểm sau mỗi lần chạy) vẫn giữ ranh giới, và caller báo ra ngoài.
+      }
+    }
   } finally {
     globalThis.fetch = orig;
   }
+  return ready;
 }
 
 type Obj = Record<string, unknown>;
@@ -119,4 +124,35 @@ export function checkUserSql(sql: string): GuardResult {
     if (reason) return { ok: false, reasonKey: reason, statementIndex: i + 1 };
   }
   return { ok: true };
+}
+
+const byteLen = (s: string) => new TextEncoder().encode(s).length;
+
+/**
+ * Câu thứ mấy (đếm từ 1) chứa vị trí lỗi `position` (1-based theo ký tự, như PostgreSQL báo).
+ * Không biết được (parser chưa tải, nhiều câu mà không có vị trí) thì trả undefined.
+ */
+export function statementAt(sql: string, position?: number): number | undefined {
+  if (!ready) return undefined;
+  const chars = Array.from(sql);
+  try {
+    const stmts = (parseSync(sql) as { stmts?: Obj[] }).stmts ?? [];
+    if (stmts.length <= 1) return stmts.length ? 1 : undefined;
+    if (!position || position < 1 || position > chars.length) return undefined;
+    const at = byteLen(chars.slice(0, position - 1).join("")); // stmt_location tính theo byte UTF-8
+    let n = 0;
+    for (const s of stmts) if (((s.stmt_location as number | undefined) ?? 0) <= at) n++;
+    return n || undefined;
+  } catch (e) {
+    // Lỗi cú pháp: đếm các câu hoàn chỉnh trước câu hỏng, cắt ở dấu ; cuối cùng trước chỗ lỗi.
+    const cp = (e as { sqlDetails?: { cursorPosition?: number } }).sqlDetails?.cursorPosition; // 0-based, theo code point
+    if (cp === undefined) return undefined;
+    const semi = chars.slice(0, cp).lastIndexOf(";");
+    if (semi < 0) return 1;
+    try {
+      return ((parseSync(chars.slice(0, semi + 1).join("")) as { stmts?: unknown[] }).stmts?.length ?? 0) + 1;
+    } catch {
+      return undefined;
+    }
+  }
 }

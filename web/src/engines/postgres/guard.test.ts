@@ -3,10 +3,10 @@ import { PGlite } from "@electric-sql/pglite";
 import { pageinspect } from "@electric-sql/pglite/contrib/pageinspect";
 import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
-import { checkUserSql, GUARD_REASONS, loadGuard } from "./guard";
+import { checkUserSql, GUARD_REASONS, loadGuard, statementAt } from "./guard";
 import { createSession, GuardError } from "./roles";
 
-beforeAll(() => loadGuard(), 60_000);
+beforeAll(async () => expect(await loadGuard()).toBe(true), 60_000);
 
 const blocked: [string, string][] = [
   ["SET ROLE postgres", "guard.role"],
@@ -65,6 +65,20 @@ describe("checkUserSql (lớp một)", () => {
       const m = JSON.parse(readFileSync(`messages/${l}/guard.json`, "utf8"));
       for (const k of GUARD_REASONS) expect(m[k.replace("guard.", "")], `${l} ${k}`).toMatch(/\S/);
     }
+  });
+});
+
+describe("statementAt (Task027 AC4)", () => {
+  it("đếm từ 1, theo vị trí lỗi, kể cả ký tự nhiều byte phía trước", () => {
+    expect(statementAt("SELECT 1/0")).toBe(1);
+    expect(statementAt("SELECT 'é;ñ'; SELECT 1; SELECT x", 32)).toBe(3);
+    expect(statementAt("SELECT 'é;ñ'; SELECT 1; SELECT x", 15)).toBe(2);
+    expect(statementAt("SELECT 1; SELECT 2")).toBeUndefined(); // nhiều câu mà không có vị trí
+  });
+  it("lỗi cú pháp ở câu thứ hai và thứ ba", () => {
+    expect(statementAt("SELECT 1; SELEC 2", 11)).toBe(2);
+    expect(statementAt("SELECT 1; SELECT 2; SELEC 3", 21)).toBe(3);
+    expect(statementAt("SELEC 1", 1)).toBe(1);
   });
 });
 
@@ -139,5 +153,23 @@ describe("createSession với PGlite thật", () => {
     await expect(s.run("SELECT 1")).rejects.toThrow(/aborted/);
     await s.run("ROLLBACK");
     expect(await who()).toBe("sqllens_user");
+  });
+
+  it("Task027 AC1: infinity, -infinity và mảng giữ nguyên chữ, ngày hợp lệ vẫn là Date", async () => {
+    const [r] = await s.run(
+      `SELECT 'infinity'::timestamptz, '-infinity'::timestamptz, 'infinity'::date, 'infinity'::timestamp,
+              ARRAY['infinity'::timestamptz, '2020-01-02'], '2020-01-02 03:04:05+00'::timestamptz`,
+    );
+    const row = r.rows[0];
+    expect(row.slice(0, 4)).toEqual(["infinity", "-infinity", "infinity", "infinity"]);
+    expect((row[4] as unknown[])[0]).toBe("infinity");
+    expect((row[4] as Date[])[1]).toBeInstanceOf(Date);
+    expect((row[5] as Date).toISOString()).toBe("2020-01-02T03:04:05.000Z");
+  });
+
+  it("Task027 AC3: affectedRows tính theo từng câu, không cộng dồn", async () => {
+    await s.run("CREATE TABLE ar(a int)");
+    const rs = await s.run("INSERT INTO ar VALUES (1),(2); UPDATE ar SET a = a + 1 WHERE a = 1; SELECT * FROM ar; DELETE FROM ar");
+    expect(rs.map((r) => r.affectedRows)).toEqual([2, 1, undefined, 2]);
   });
 });

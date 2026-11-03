@@ -27,5 +27,5 @@
   "start": "Generate data",
   "summary": "Data generated: {tables}. Took {seconds} s in this tab, only useful for relative comparison, not a production prediction.",
   "cancelledSummary": "Data generation cancelled, the data is back to how it was.",
-  "stoppedRolledBack": "The session was rebuilt and the half-generated data was rolled back."
+  "notKept": "The session was rebuilt from the statements you ran. Data made by the data generator is not kept, generate it again if needed."
 }

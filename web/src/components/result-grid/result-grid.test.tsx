@@ -37,13 +37,16 @@ describe("formatCell", () => {
 });
 
 describe("ResultGrid", () => {
+  // Truy vấn theo role trên 500 dòng rất chậm trong jsdom (đã quá 5 giây lúc máy bận), nên đếm <tr> trực tiếp; nội dung vẫn kiểm đủ.
   test("AC2 trên 500 dòng bị cắt", () => {
     const rows = Array.from({ length: 501 }, (_, i) => [i]);
-    wrap(<ResultGrid results={[{ columns: ["n"], rows }]} />);
-    expect(screen.getAllByRole("row")).toHaveLength(501); // 500 + header
+    const { container } = wrap(<ResultGrid results={[{ columns: ["n"], rows }]} />);
+    expect(container.querySelectorAll("tr")).toHaveLength(501); // 500 + header
+    expect(container.querySelectorAll("tbody td")[499].textContent).toBe("499");
+    expect(container.querySelectorAll("tbody td")[500]).toBeUndefined();
     expect(screen.getByText(/501 rows in total/)).toBeTruthy();
     expect(screen.getByText(/first 500 rows/)).toBeTruthy();
-  });
+  }, 30_000);
   test("AC2 rỗng giữ tên cột, câu không trả dòng hiện số dòng", () => {
     wrap(<ResultGrid results={[{ columns: [], rows: [], affectedRows: 3 }, { columns: ["a", "a"], rows: [] }]} />);
     expect(screen.getAllByRole("columnheader")).toHaveLength(2);
