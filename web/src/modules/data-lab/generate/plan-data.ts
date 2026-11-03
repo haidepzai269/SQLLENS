@@ -137,6 +137,7 @@ export function planData(
   };
 
   const nulled = new Set<string>();
+  const referenced = new Set(tables.flatMap((t) => t.columns.flatMap((c) => (c.references ? [`${c.references.table}.${c.references.column}`] : []))));
   for (const t of tables)
     for (const c of t.columns)
       if (c.references && !fkOf(c, t)) {
@@ -162,9 +163,16 @@ export function planData(
       continue;
     }
     const stuck = tables.filter((t) => !done.has(t.name));
+    const parentsOf = (t: TableInfo) => t.columns.flatMap((c) => { const r = fkOf(c, t); return r && !done.has(r.table) && !nulled.has(`${t.name}.${c.name}`) ? [r.table] : []; });
+    // edge t -> p lies on a cycle only if p can reach t again
+    const reaches = (from: string, to: string, seen = new Set<string>()): boolean =>
+      from === to || (!seen.has(from) && (seen.add(from), parentsOf(byName.get(from)!).some((x) => reaches(x, to, seen))));
     const edge = stuck
       .flatMap((t) => t.columns.map((c) => ({ t, c })))
-      .find(({ t, c }) => fkOf(c, t) && c.nullable && !nulled.has(`${t.name}.${c.name}`));
+      .find(({ t, c }) => {
+        const r = fkOf(c, t);
+        return r && c.nullable && !nulled.has(`${t.name}.${c.name}`) && reaches(r.table, t.name);
+      });
     if (!edge) throw new Error(`Foreign key cycle without a nullable column among tables: ${stuck.map((t) => t.name).join(", ")}`);
     nulled.add(`${edge.t.name}.${edge.c.name}`);
   }
@@ -324,7 +332,8 @@ export function planData(
         const k = Math.min(rule.distinct ?? (pk ? poolOf(pk).length : n), n);
         expr = valueAt(t, c, jOf(k, rule.distinct !== undefined), n, k);
       }
-      if (rule.nullRatio && c.nullable && expr !== "NULL")
+      // a referenced column stays non-NULL, else children would point at a missing parent value
+      if (rule.nullRatio && c.nullable && expr !== "NULL" && !referenced.has(key))
         expr = `CASE WHEN ${rand("g", salt(name, c.name, 1))} % 10000 < ${Math.round(rule.nullRatio * 10000)} THEN NULL ELSE ${expr} END`;
       cols.push(q(c.name));
       exprs.push(expr);

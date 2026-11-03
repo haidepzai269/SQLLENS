@@ -100,6 +100,18 @@ describe("planData", () => {
     expect(() => planData([{ ...self, columns: [id, fk("s", false)] }], { s: 4 })).toThrow(/Table "s" column "r"/);
   });
 
+  it("only NULLs an FK that lies on the cycle; nullRatio skips referenced columns", () => {
+    const id = col("id", "integer", { isPrimaryKey: true, isUnique: true });
+    const fk = (table: string, nullable: boolean) => col("r", "integer", { nullable, references: { table, column: "id" } });
+    const T = (name: string, c: ReturnType<typeof fk>) => ({ schema: "public", name, columns: [id, c] });
+    const { batches } = planData([T("aa", fk("b", true)), T("a", fk("b", false)), T("b", fk("a", true))], { aa: 3, a: 3, b: 3 });
+    expect(batches.find((b) => b.includes('"aa"'))).not.toContain("NULL");
+    expect(batches.find((b) => b.includes('INTO "public"."b"'))).toContain("NULL");
+    const p = { schema: "public", name: "p", columns: [id, col("code", "text", { nullable: true, isUnique: true })] };
+    const c = { schema: "public", name: "c", columns: [id, col("pc", "text", { references: { table: "p", column: "code" } })] };
+    expect(planData([p, c], { p: 4, c: 4 }, { "p.code": { nullRatio: 0.5 } }).batches[0]).not.toContain("NULL");
+  });
+
   it("escapes identifiers", () => {
     const t: TableInfo[] = [{ schema: "public", name: 'we"ird', columns: [col("a'b", "text")] }];
     expect(planData(t, { 'we"ird': 1 }).batches[0]).toContain('"we""ird"');
