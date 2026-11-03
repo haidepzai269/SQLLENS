@@ -1,6 +1,6 @@
 {
   "explain": {
-    "analyzed": "EXPLAIN ANALYZE đã chạy thật câu này (rồi hoàn tác, dữ liệu của bạn không đổi). Bước trên cùng cho ra {rows} dòng và cả plan đọc {pages} trang."
+    "analyzed": "EXPLAIN ANALYZE đã chạy thật câu này rồi hoàn tác, nên dữ liệu bảng không đổi (bộ đếm sequence như nextval thì không được hoàn tác). Cả plan đọc {pages} trang."
   },
   "notSimulated": {
     "multiple": "Không giải thích được: EXPLAIN chỉ nhận đúng một câu SQL. Chưa mô phỏng được.",

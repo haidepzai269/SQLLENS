@@ -1,6 +1,6 @@
 {
   "explain": {
-    "analyzed": "EXPLAIN ANALYZE really ran this query (then rolled it back, your data is unchanged). The top step produced {rows} rows and the whole plan read {pages} pages."
+    "analyzed": "EXPLAIN ANALYZE really ran this query and rolled it back, so table data is unchanged (sequence counters such as nextval are not rolled back). The whole plan read {pages} pages."
   },
   "notSimulated": {
     "multiple": "Cannot explain: EXPLAIN works on exactly one SQL statement. Not simulated.",

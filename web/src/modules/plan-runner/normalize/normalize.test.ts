@@ -64,6 +64,11 @@ describe("normalizeMysql (mẫu thật từ mysql:8.4.13)", () => {
     expect(() => normalizeMysql({})).toThrow(TypeError);
   });
 
+  it("subquery ở select_list/having được đọc, không mất", () => {
+    const q = { query_block: { table: { table_name: "t", access_type: "ALL" }, select_list_subqueries: [{ query_block: { table: { table_name: "s", access_type: "ALL" } } }] } };
+    expect(normalizeMysql(q).root.children.map((c) => c.table)).toEqual(["s"]);
+  });
+
   it("khối lạ hoặc rỗng thì kind other, không ném", () => {
     expect(normalizeMysql({ query_block: { message: "No tables used" } }).root).toMatchObject({ kind: "other", label: "No tables used" });
     expect(normalizeMysql({ query_block: { select_id: 1 } }).root).toMatchObject({ kind: "other", label: "query_block" });
@@ -90,6 +95,10 @@ describe("normalizePostgres", () => {
     expect(p.root).toMatchObject({ kind: "nested_loop", pagesRead: 1, actualRows: 4 });
     expect(p.root.children[1]).toMatchObject({ kind: "index_scan", index: "i", loops: 8, actualRows: 8, pagesRead: 21 });
     expect(JSON.stringify(p)).not.toMatch(/time/i);
+  });
+
+  it("loops: tổng làm tròn về số nguyên (0.33 x 3 = 1)", () => {
+    expect(normalizePostgres({ Plan: { "Node Type": "Index Scan", "Actual Rows": 0.33, "Actual Loops": 3 } }).root.actualRows).toBe(1);
   });
 
   it("không ANALYZE thì analyzed false; thiếu buffers thì pagesRead undefined; nút lạ giữ label", () => {

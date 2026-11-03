@@ -46,7 +46,8 @@ function node(n: Obj, id: string): PlanNode {
     // Plan Rows là ước lượng cho MỘT lần chạy nút; giữ nguyên, kèm `loops` để người dùng tự nhân.
     estimatedRows: num(n["Plan Rows"]),
     // Actual Rows của PostgreSQL là trung bình mỗi vòng lặp; đây là TỔNG qua mọi vòng (Actual Rows x Actual Loops).
-    actualRows: perLoop === undefined ? undefined : perLoop * (loops ?? 1),
+    // PostgreSQL làm tròn Actual Rows (trung bình) tới 2 chữ số khi loops > 1, nên làm tròn lại tổng về số nguyên.
+    actualRows: perLoop === undefined ? undefined : Math.round(perLoop * (loops ?? 1)),
     loops,
     pagesRead: total === undefined ? undefined : Math.max(0, total - childTotal),
     children: kids.map((k, i) => node(k, `${id}.${i}`)),

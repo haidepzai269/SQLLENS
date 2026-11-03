@@ -14,7 +14,7 @@ const sumPages = (n: Plan["root"]): number => (n.pagesRead ?? 0) + n.children.re
 /**
  * EXPLAIN ANALYZE chạy thật câu `sql`, nên luôn nằm trong BEGIN ... ROLLBACK và đi qua `run` (lớp bảo vệ, role sqllens_user).
  * Không đụng history(): worker không ghi lại gì. Lỗi SQL ném như execute, với `position` tính theo `sql` của người dùng.
- * Giới hạn: sequence (nextval) và các tác dụng ngoài transaction không được hoàn tác bởi ROLLBACK.
+ * Giới hạn: sequence (nextval) và khóa advisory mức session không được hoàn tác bởi ROLLBACK; câu bằng chứng nói rõ điều này.
  */
 export async function runExplain(run: Run, sql: string): Promise<Outcome<Plan>> {
   // Không có parser thì không biết là một hay nhiều câu, và `sql` được ghép nguyên vào sau EXPLAIN: không chạy.
@@ -45,6 +45,6 @@ export async function runExplain(run: Run, sql: string): Promise<Outcome<Plan>> 
     kind: "conclusion",
     label: "real",
     data: plan,
-    evidence: [{ kind: "explain_analyze", messageKey: "plan.explain.analyzed", values: { rows: plan.root.actualRows ?? 0, pages: sumPages(plan.root) } }],
+    evidence: [{ kind: "explain_analyze", messageKey: "plan.explain.analyzed", values: { pages: sumPages(plan.root) } }],
   };
 }

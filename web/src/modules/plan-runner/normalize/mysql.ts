@@ -22,9 +22,10 @@ const mk = (c: Ctx, label: string, kind: PlanKind, children: PlanNode[] = [], ex
 // Mọi `query_block` con (subquery, union, bảng tạm) thành các nút con.
 function subBlocks(o: Obj, c: Ctx): PlanNode[] {
   const out: PlanNode[] = [];
-  const arr = (x: unknown) => (Array.isArray(x) ? x.filter(isObj) : []);
-  for (const s of [...arr(o.attached_subqueries), ...arr(o.optimized_away_subqueries), ...arr(o.query_specifications)]) {
-    if (isObj(s.query_block)) out.push(block(s.query_block, c));
+  // Mọi khóa dạng *_subqueries (attached, optimized_away, select_list, having, order_by...) và query_specifications.
+  for (const [k, v] of Object.entries(o)) {
+    if (!/subqueries$|^query_specifications$/.test(k) || !Array.isArray(v)) continue;
+    for (const s of v.filter(isObj)) if (isObj(s.query_block)) out.push(block(s.query_block, c));
   }
   const m = o.materialized_from_subquery;
   if (isObj(m) && isObj(m.query_block)) out.push(block(m.query_block, c));
