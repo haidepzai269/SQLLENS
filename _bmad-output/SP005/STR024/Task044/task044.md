@@ -3,7 +3,7 @@
 Thuộc: SP005 / STR022, STR024
 Điều kiện bắt đầu: Task042, Task043, Task027 đã merge.
 Mục tiêu: Người dùng thấy mình đã đăng nhập hay chưa, đăng nhập được từ thanh trên. Chọn MySQL hoặc AI khi chưa đăng nhập thì được mời đăng nhập, xong quay về đúng chỗ, không mất SQL đã dán. Hết quota thì biết rõ khi nào có lại.
-Phạm vi: `web/src/modules/auth/**`, `web/messages/*/error.json` (thêm `authRequired`, `quotaExceeded`, `quotaUnavailable` mà Task043 trả về), `web/src/components/shell/**`, `web/src/modules/lab/**` (chỉ chỗ gắn cổng), `web/messages/*/auth.json`, `web/e2e/auth.spec.ts`.
+Phạm vi: `web/src/modules/auth/**`, `web/messages/*/error.json` (thêm `authRequired`, `quotaExceeded`, `quotaUnavailable` của Task043 và `notConfigured`, `originMismatch`, `invalidState`, `authUnavailable`, `rateLimited` của Task042), `web/src/components/shell/**`, `web/src/modules/lab/**` (chỉ chỗ gắn cổng), `web/messages/*/auth.json`, `web/e2e/auth.spec.ts`.
 Không làm: sửa Gin, MySQL thật (SP004 STR019), AI (SP012).
 
 Hợp đồng: dùng API của Task042 qua tiền tố `/api` (`/api/me`, `/api/auth/{provider}/start?next=`, `/api/auth/logout`) và lỗi `auth_required`, `quota_exceeded`, `quota_unavailable` của Task043.
@@ -16,6 +16,8 @@ Tiêu chí xong:
 - AC5: Lỗi `quota_exceeded`: hiện hạn mức, thời điểm có lại, và nói rõ PostgreSQL vẫn dùng được. Lỗi `quota_unavailable`: báo tạm thời không dùng được, không nói là hết quota.
 - AC6: Đăng xuất gửi `POST` có `Origin` đúng, xong thì về PostgreSQL nếu đang ở MySQL.
 - AC7: Playwright giả lập API bằng `page.route` cho mọi trạng thái AC1 đến AC6 ở `vi` và `en`, chụp ảnh 390 px và 1440 px. `npm run check`, `npm run build`, `npx playwright test` đều đạt.
+
+- AC8: Trang đích đọc `?auth_error=cancelled|failed` của Task042, hiện câu rõ ràng rồi bỏ tham số khỏi URL.
 
 Ca biên: cookie hết hạn giữa phiên thì `/me` trả 401 và giao diện về trạng thái chưa đăng nhập, không vòng lặp chuyển hướng; `sessionStorage` bị chặn thì vẫn đăng nhập được, báo SQL có thể mất trước khi chuyển trang.
 Kiểm tra: `cd web && npm run check && npm run build && npx playwright test`
