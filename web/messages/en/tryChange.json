@@ -1,0 +1,8 @@
+{
+  "pagesBefore": "Before the change, the query read {pages} pages (measured with EXPLAIN ANALYZE, BUFFERS).",
+  "pagesAfter": "After the change (rolled back, your data is unchanged), the query read {pages} pages.",
+  "transaction": "Cannot try: the change contains a transaction control statement (BEGIN, COMMIT, ROLLBACK, SAVEPOINT), which cannot be undone. Not simulated.",
+  "concurrently": "Cannot try: CREATE INDEX CONCURRENTLY cannot run inside a transaction, so it cannot be undone. Not simulated.",
+  "probeSingle": "Cannot try: the measured query must be exactly one SQL statement. Not simulated.",
+  "parserUnavailable": "Cannot try: the SQL parser has not finished loading, so the change cannot be checked safely. Not simulated."
+}

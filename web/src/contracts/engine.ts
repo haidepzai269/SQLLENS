@@ -9,6 +9,9 @@ export type GuardInfo = { reasonKey: string; statementIndex?: number; rebuilt?: 
 export type EngineErrorData = { code: EngineErrorCode; message: string; position?: number; guard?: GuardInfo };
 
 // Error thật để chỗ cũ dùng `e.message` vẫn chạy; `code` và `position` cho chỗ cần phân loại.
+export type ProbeStats = { rows: number; sharedHitBlocks: number; sharedReadBlocks: number; nodeTypes: string[] };
+export type TryChangeResult = { before: ProbeStats; after: ProbeStats; plans: { before: unknown; after: unknown } };
+
 export class EngineError extends Error implements EngineErrorData {
   constructor(
     readonly code: EngineErrorCode,
@@ -25,6 +28,8 @@ export interface EngineAdapter {
   readonly engine: EngineId;
   execute(sql: string, options?: { signal?: AbortSignal }): Promise<QueryResult[]>;
   explain(sql: string, options?: { signal?: AbortSignal }): Promise<Outcome<unknown>>;
+  /** Đo `probe`, áp `change` trong transaction, đo lại rồi ROLLBACK. Không đổi dữ liệu, không vào history(). */
+  tryChange(change: string, probe: string): Promise<Outcome<TryChangeResult>>;
   /** Dừng câu đang chạy bằng terminate worker; sau đó phải gọi rebuild(). */
   cancel(): Promise<void>;
   /** Các câu đã chạy thành công từ lúc khởi tạo. */
