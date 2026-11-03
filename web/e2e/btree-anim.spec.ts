@@ -142,6 +142,11 @@ test.describe("máy tính 1440", () => {
     const k1 = await keyBox(page);
     await page.waitForTimeout(500);
     expect(await keyBox(page)).toEqual(k1);
+    // tạm dừng khi key chưa tới trang đầu: Bước lùi và Về đầu vẫn dùng được
+    await expect(btn(page, "Về đầu")).toBeEnabled();
+    await expect(btn(page, "Bước lùi")).toBeEnabled();
+    await btn(page, "Về đầu").click();
+    await expect(page.locator("[data-key]")).toHaveCSS("opacity", "0");
     await btn(page, "Chạy").click();
     await expect(page.getByTestId("drop-counter")).toHaveText("Đã đọc 4 / 4 trang", { timeout: 12_000 });
   });

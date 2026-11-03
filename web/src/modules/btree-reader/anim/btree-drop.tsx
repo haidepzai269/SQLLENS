@@ -254,13 +254,13 @@ function Scene({ model, path, label }: { model: BTreeModel; path?: BTreePath; la
               <Button type="button" variant="outline" onClick={() => act.current.pause()} disabled={!playing}>
                 {t("pause")}
               </Button>
-              <Button type="button" variant="outline" onClick={back} disabled={step === 0}>
+              <Button type="button" variant="outline" onClick={back}>
                 {t("back")}
               </Button>
               <Button type="button" variant="outline" onClick={next} disabled={step >= S}>
                 {t("next")}
               </Button>
-              <Button type="button" variant="outline" onClick={() => act.current.to(0, true)} disabled={step === 0 && !playing}>
+              <Button type="button" variant="outline" onClick={() => act.current.to(0, true)}>
                 {t("reset")}
               </Button>
               <span className="ml-auto text-[13px] text-ink2" data-testid="drop-counter">
