@@ -55,6 +55,7 @@ function One({ result, index, open, onToggle }: { result: QueryResult; index: nu
             {rows.length > 0 && (
               <p className="mt-1 text-xs text-muted-foreground">
                 {t("total", { count: rows.length })}
+                {affectedRows !== undefined && ` ${t("affected", { count: affectedRows })}.`}
                 {rows.length > MAX_ROWS && ` ${t("truncated", { max: MAX_ROWS })}`}
               </p>
             )}
