@@ -40,3 +40,7 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task009 | `HEAD /healthz` trả 405. Chỉ cần sửa nếu ping giữ thức dùng HEAD. Task010 dùng GET | `needs_validation` |
 | Task022 | Chưa kiểm PGlite thật trả gì cho `infinity` của timestamptz. Nếu trả `Date` không hợp lệ thì lưới hiện `Invalid date` thay vì `infinity`. Kiểm khi gắn vào Task020 | `needs_validation` |
 | Task022 | AC5 (cuộn ngang ở 390 px) chưa kiểm trên trình duyệt thật, và bản sửa `affectedRows` chưa qua vòng kiểm lại của reviewer. Task020 chụp ảnh 390 px | `needs_validation` |
+| Task019 | Route thử `web/src/app/[locale]/e2e-adapter/` đi vào bản production. Chặn hoặc loại ở SP013 | Chưa làm |
+| Task019 | Chưa thử `worker_crashed` do hết bộ nhớ thật. Chưa kiểm worker trên Vercel, Firefox, Safari | `needs_validation` |
+| Task019 | Test AC2 (khung main thread dưới 200 ms) trượt 1 lần khi máy bận, chạy riêng thì đạt. Có thể gây đỏ giả trên CI | `needs_validation` |
+| Task019 | `rebuild` chạy lại `history`, nên câu không tất định như `random()` có thể cho dữ liệu khác. Giao diện nên nói rõ khi dựng lại | Chưa làm |
