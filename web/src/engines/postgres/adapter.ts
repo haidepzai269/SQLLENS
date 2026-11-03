@@ -4,7 +4,7 @@ import type { WorkerRequest, WorkerResponse } from "./protocol";
 type Options = { onProgress?: (p: LoadProgress) => void; timeoutMs?: number };
 type Done = Extract<WorkerResponse, { type: "done" }>;
 type Pending = { resolve: (r: Done) => void; reject: (e: EngineError) => void; onProgress?: (p: LoadProgress) => void };
-type Req = { type: "init" } | { type: "exec"; sql: string };
+type Req = { type: "init" } | { type: "exec"; sql: string } | { type: "try"; change: string; probe: string };
 
 // PGlite chạy trong Web Worker, chỉ nạp khi gọi hàm này, nên mở trang không tải WASM.
 export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: Options = {}): Promise<EngineAdapter> {
@@ -55,7 +55,7 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
         reject: (e) => (clearTimeout(timer), reject(e)),
         onProgress: onProg,
       });
-      if (req.type === "exec") activeExec = id;
+      if (req.type !== "init") activeExec = id;
       worker.postMessage({ ...req, id } satisfies WorkerRequest);
     }).finally(() => {
       if (activeExec === id) activeExec = undefined;
@@ -126,6 +126,18 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
         }
       });
     },
+    // Chạy trong hàng đợi như execute nhưng không vào history: dữ liệu luôn được ROLLBACK. Timeout thì kill, rebuild() dựng lại từ history.
+    tryChange: (change, probe) =>
+      enqueue(async () => {
+        if (disposed) throw new EngineError("worker_crashed", "Engine disposed");
+        if (needsRebuild) throw new EngineError("worker_crashed", "Engine stopped, call rebuild() first");
+        try {
+          return (await call({ type: "try", change, probe }, "timeout")).tried!;
+        } catch (err) {
+          if (err instanceof EngineError && err.guard?.rebuilt) await rebuildNow().catch(() => {});
+          throw err;
+        }
+      }),
     // shortcut: chưa làm EXPLAIN, trả NotSimulated đến SP007.
     explain: async () => ({ kind: "not_simulated", reasonKey: "lab.notSimulated.explain" }),
     async cancel() {

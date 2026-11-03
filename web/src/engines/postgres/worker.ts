@@ -3,6 +3,7 @@ import type { EngineErrorData } from "@/contracts/engine";
 import { loadGuard } from "./guard";
 import type { WorkerRequest, WorkerResponse } from "./protocol";
 import { createSession, GuardError } from "./roles";
+import { runTryChange } from "./try-rollback";
 
 const post = (m: WorkerResponse) => postMessage(m);
 let session: Awaited<ReturnType<typeof createSession>> | undefined;
@@ -66,6 +67,10 @@ onmessage = async ({ data: m }: MessageEvent<WorkerRequest>) => {
       return;
     }
     if (!session) throw new Error("not initialised");
+    if (m.type === "try") {
+      post({ id: m.id, type: "done", tried: await runTryChange(session.run, m.change, m.probe) });
+      return;
+    }
     const results = await session.run(m.sql);
     post({ id: m.id, type: "done", results });
   } catch (e) {

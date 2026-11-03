@@ -15,6 +15,7 @@ export type GuardReason = (typeof GUARD_REASONS)[number];
 export type GuardResult = { ok: true } | { ok: false; reasonKey: GuardReason; statementIndex: number };
 
 let ready = false;
+export const isGuardReady = () => ready;
 
 // libpg-query tìm file WASM cạnh script đang chạy, mà trong worker đó là thư mục chunk, nên chuyển hướng
 // đúng một yêu cầu fetch sang `wasm`. shortcut: vá `fetch` tạm thời, bỏ khi libpg-query cho truyền locateFile.
