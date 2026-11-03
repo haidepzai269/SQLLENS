@@ -4,7 +4,7 @@ import type { WorkerRequest, WorkerResponse } from "./protocol";
 type Options = { onProgress?: (p: LoadProgress) => void; timeoutMs?: number };
 type Done = Extract<WorkerResponse, { type: "done" }>;
 type Pending = { resolve: (r: Done) => void; reject: (e: EngineError) => void; onProgress?: (p: LoadProgress) => void };
-type Req = { type: "init" } | { type: "exec"; sql: string } | { type: "try"; change: string; probe: string }
+type Req = { type: "init" } | { type: "exec"; sql: string } | { type: "explain"; sql: string } | { type: "try"; change: string; probe: string }
   | { type: "btree"; index: string; probeKey?: string; maxNodes?: number };
 
 // PGlite chạy trong Web Worker, chỉ nạp khi gọi hàm này, nên mở trang không tải WASM.
@@ -150,8 +150,30 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
         if (needsRebuild) throw new EngineError("worker_crashed", "Engine stopped, call rebuild() first");
         return (await call({ type: "btree", index, ...options }, "timeout")).btree!;
       }),
-    // shortcut: chưa làm EXPLAIN, trả NotSimulated đến SP007.
-    explain: async () => ({ kind: "not_simulated", reasonKey: "lab.notSimulated.explain" }),
+    // Như tryChange: trong hàng đợi, không vào history (worker luôn ROLLBACK). Hủy giữa chừng thì kill như execute.
+    explain: async (sql, options) => {
+      const aborted = () => options?.signal?.aborted && new EngineError("cancelled", "Cancelled");
+      let e = aborted();
+      if (e) throw e;
+      return enqueue(async () => {
+        if (disposed) throw new EngineError("worker_crashed", "Engine disposed");
+        if (needsRebuild) throw new EngineError("worker_crashed", "Engine stopped, call rebuild() first");
+        e = aborted();
+        if (e) throw e;
+        const p = call({ type: "explain", sql }, "timeout");
+        const id = activeExec;
+        const onAbort = () => activeExec === id && kill(new EngineError("cancelled", "Cancelled"));
+        options?.signal?.addEventListener("abort", onAbort, { once: true });
+        try {
+          return (await p).explained!;
+        } catch (err) {
+          if (err instanceof EngineError && err.guard?.rebuilt) await rebuildNow().catch(() => {});
+          throw err;
+        } finally {
+          options?.signal?.removeEventListener("abort", onAbort);
+        }
+      });
+    },
     async cancel() {
       if (activeExec !== undefined) kill(new EngineError("cancelled", "Cancelled"));
     },

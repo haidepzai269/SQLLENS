@@ -1,0 +1,12 @@
+{
+  "explain": {
+    "analyzed": "EXPLAIN ANALYZE really ran this query (then rolled it back, your data is unchanged). The top step produced {rows} rows and the whole plan read {pages} pages."
+  },
+  "notSimulated": {
+    "multiple": "Cannot explain: EXPLAIN works on exactly one SQL statement. Not simulated.",
+    "empty": "Cannot explain: there is no SQL statement. Not simulated.",
+    "unsupported": "Cannot explain: only SELECT, INSERT, UPDATE, DELETE and MERGE can be explained. Not simulated.",
+    "parserUnavailable": "Cannot explain: the SQL parser has not finished loading, so the statement cannot be checked safely. Not simulated.",
+    "inTransaction": "Cannot explain: the session has an open transaction and EXPLAIN ANALYZE would have to roll it back. COMMIT or ROLLBACK first. Not simulated."
+  }
+}

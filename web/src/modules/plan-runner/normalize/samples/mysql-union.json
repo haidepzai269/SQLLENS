@@ -1,0 +1,76 @@
+{
+  "query_block": {
+    "union_result": {
+      "using_temporary_table": true,
+      "select_id": 3,
+      "table_name": "<union1,2>",
+      "access_type": "ALL",
+      "query_specifications": [
+        {
+          "dependent": false,
+          "cacheable": true,
+          "query_block": {
+            "select_id": 1,
+            "cost_info": {
+              "query_cost": "201.50"
+            },
+            "table": {
+              "table_name": "users",
+              "access_type": "index",
+              "key": "city",
+              "used_key_parts": [
+                "city"
+              ],
+              "key_length": "83",
+              "rows_examined_per_scan": 2000,
+              "rows_produced_per_join": 2000,
+              "filtered": "100.00",
+              "using_index": true,
+              "cost_info": {
+                "read_cost": "1.50",
+                "eval_cost": "200.00",
+                "prefix_cost": "201.50",
+                "data_read_per_join": "562K"
+              },
+              "used_columns": [
+                "id"
+              ]
+            }
+          }
+        },
+        {
+          "dependent": false,
+          "cacheable": true,
+          "query_block": {
+            "select_id": 2,
+            "cost_info": {
+              "query_cost": "503.00"
+            },
+            "table": {
+              "table_name": "orders",
+              "access_type": "index",
+              "key": "user_id",
+              "used_key_parts": [
+                "user_id"
+              ],
+              "key_length": "5",
+              "rows_examined_per_scan": 5000,
+              "rows_produced_per_join": 5000,
+              "filtered": "100.00",
+              "using_index": true,
+              "cost_info": {
+                "read_cost": "3.00",
+                "eval_cost": "500.00",
+                "prefix_cost": "503.00",
+                "data_read_per_join": "78K"
+              },
+              "used_columns": [
+                "user_id"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

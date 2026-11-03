@@ -1,0 +1,72 @@
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "43.50"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "u",
+          "access_type": "ref",
+          "possible_keys": [
+            "PRIMARY",
+            "city"
+          ],
+          "key": "city",
+          "used_key_parts": [
+            "city"
+          ],
+          "key_length": "83",
+          "ref": [
+            "const"
+          ],
+          "rows_examined_per_scan": 40,
+          "rows_produced_per_join": 40,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "4.50",
+            "eval_cost": "4.00",
+            "prefix_cost": "8.50",
+            "data_read_per_join": "11K"
+          },
+          "used_columns": [
+            "id",
+            "email",
+            "city"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "o",
+          "access_type": "ref",
+          "possible_keys": [
+            "user_id"
+          ],
+          "key": "user_id",
+          "used_key_parts": [
+            "user_id"
+          ],
+          "key_length": "5",
+          "ref": [
+            "d.u.id"
+          ],
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 100,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "25.00",
+            "eval_cost": "10.00",
+            "prefix_cost": "43.50",
+            "data_read_per_join": "1K"
+          },
+          "used_columns": [
+            "user_id",
+            "total"
+          ]
+        }
+      }
+    ]
+  }
+}
