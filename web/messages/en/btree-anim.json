@@ -1,0 +1,28 @@
+{
+  "run": "Run",
+  "runAgain": "Run again",
+  "pause": "Pause",
+  "back": "Step back",
+  "next": "Step forward",
+  "reset": "Back to start",
+  "scrub": "Scrub the key path",
+  "counter": "{read} / {total} pages read",
+  "idle": "Not started. Press Run or Step forward to watch key {key} go from the root down to a leaf.",
+  "noPath": "The data read has no path for this key, so the animation cannot run. The tree is still shown correctly.",
+  "reducedNote": "Reduced motion is on: each step changes instantly, with no transition.",
+  "log": "Step log",
+  "keyTitle": "Key being searched: {key}",
+  "heapName": "Heap · page {page}",
+  "summary": "Path of key {key}: pages {pages}.",
+  "summaryHeap": "Path of key {key}: pages {pages}, then a jump to heap page {heap}.",
+  "kind": { "root": "root", "internal": "internal", "leaf": "leaf", "rootLeaf": "root, also a leaf" },
+  "step": {
+    "internal": "Step {n}: read page {page} ({kind}). Key {key} belongs to the branch from {lo} up to before {hi}, so go down to page {child}.",
+    "internalOpen": "Step {n}: read page {page} ({kind}). Key {key} belongs to the branch starting at {lo} and above, so go down to page {child}.",
+    "internalNoRange": "Step {n}: read page {page} ({kind}), then go down to page {child}. The key range of this branch is not in the pages read.",
+    "hidden": "Step {n}: read page {page} ({kind}). This page is in the block of nodes not drawn, and key {key} goes into that block.",
+    "leafFound": "Step {n}: read page {page} ({kind}). Key {key} is in this page, which holds {total, number} keys in all.",
+    "leafMissing": "Step {n}: read page {page} ({kind}). The page holds {total, number} keys, and key {key} is not among the keys read.",
+    "heap": "Step {n}: jump from the index to the heap and read page {page} to get the full row."
+  }
+}
