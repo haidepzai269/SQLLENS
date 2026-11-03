@@ -89,3 +89,24 @@ describe("AC6 chạy trên PGlite thật", () => {
     }
   }, 60_000);
 });
+
+describe.each(ENGINES)("lỗi review %s", (engine) => {
+  const run = (sql: string) => infer(sql, engine);
+  it("subquery trong WHERE", () => {
+    const r = run("SELECT name FROM users u WHERE u.id IN (SELECT user_id FROM orders WHERE total > 5)");
+    expect(r.tables.map((t) => t.name).sort()).toEqual(["orders", "users"]);
+    expect(cols(r.tables.find((t) => t.name === "orders")!)).toEqual(["total", "user_id"]);
+  });
+  it("JOIN USING", () => {
+    const r = run("SELECT a.x FROM a JOIN b USING (k)");
+    expect(r.tables.map((t) => cols(t))).toEqual([["k", "x"], ["k"]]);
+  });
+  it("ORDER BY của UNION không bịa cột", () => {
+    const r = run("SELECT a FROM t1 UNION SELECT b FROM t2 ORDER BY a");
+    expect(r.tables.map((t) => cols(t))).toEqual([["a"], ["b"]]);
+  });
+  it("kiểu có độ dài không hợp lệ về dạng an toàn", () => {
+    const t = [{ name: "t", columns: ["int(5)", "date(3)", "varchar(10)"].map((type, i) => ({ name: `c${i}`, type, reason: "default" as const, primaryKeyGuess: false })), foreignKeyGuesses: [], incomplete: false }];
+    expect(toCreateSql(t, "postgres")).toContain('"c0" text, "c1" text, "c2" varchar(10)');
+  });
+});

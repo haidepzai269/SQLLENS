@@ -18,13 +18,14 @@ export type Sel = {
   items: { e: E; alias?: string }[];
   preds: E[];
   union: Sel[];
+  using: string[]; // cột trong JOIN ... USING, có ở cả hai bảng
 };
 
 type Obj = Record<string, unknown>;
 const isObj = (x: unknown): x is Obj => typeof x === "object" && x !== null && !Array.isArray(x);
 const str = (x: unknown) => (typeof x === "string" && x ? x : undefined);
 const arr = (x: unknown): unknown[] => (Array.isArray(x) ? x : []);
-const emptySel = (): Sel => ({ ctes: [], from: [], items: [], preds: [], union: [] });
+const emptySel = (): Sel => ({ ctes: [], from: [], items: [], preds: [], union: [], using: [] });
 const kids = (v: unknown, f: (n: unknown) => E): E[] =>
   (Array.isArray(v) ? v : isObj(v) ? Object.values(v) : []).flatMap((x) => (typeof x === "object" && x !== null ? [Array.isArray(x) ? ({ t: "op", kids: kids(x, f) } as E) : f(x)] : []));
 
@@ -73,7 +74,7 @@ function pgExpr(n: unknown): E {
     case "List":
       return { t: "list", kids: arr(v.items).map(pgExpr) };
     case "SubLink":
-      return { t: "op", kids: [pgExpr(v.testexpr), { t: "sel", s: pgSel(isObj(v.subselect) ? v.subselect : {}) }] };
+      return { t: "op", kids: [pgExpr(v.testexpr), pgExpr(v.subselect)] };
     case "SelectStmt":
       return { t: "sel", s: pgSel(v) };
     default:
@@ -90,6 +91,7 @@ function pgFrom(n: unknown, sel: Sel) {
     pgFrom(n.JoinExpr.larg, sel);
     pgFrom(n.JoinExpr.rarg, sel);
     if (n.JoinExpr.quals) sel.preds.push(pgExpr(n.JoinExpr.quals));
+    for (const u of arr(n.JoinExpr.usingClause)) if (isObj(u) && isObj(u.String) && str(u.String.sval)) sel.using.push(str(u.String.sval)!);
   } else if (isObj(n.RangeSubselect)) {
     const r = n.RangeSubselect;
     const q = isObj(r.subquery) && isObj(r.subquery.SelectStmt) ? r.subquery.SelectStmt : {};
@@ -196,9 +198,11 @@ function myFrom(f: unknown, sel: Sel) {
   if (isObj(f.expr) && isObj(f.expr.ast)) sel.from.push({ sub: mySel(f.expr.ast), alias });
   else if (str(f.table)) sel.from.push({ name: str(f.table), schema: str(f.db), alias });
   if (f.on) sel.preds.push(myExpr(f.on));
+  for (const u of arr(f.using)) { const n = isObj(u) ? str(u.value) : str(u); if (n) sel.using.push(n); }
 }
 
-export function mySel(s: Obj): Sel {
+// unionTail: nhánh cuối của UNION, ORDER BY/LIMIT của node-sql-parser ở đây thuộc cả cụm.
+export function mySel(s: Obj, unionTail = false): Sel {
   const sel = emptySel();
   for (const c of arr(s.with)) {
     if (!isObj(c) || !isObj(c.name) || !str(c.name.value) || !isObj(c.stmt) || !isObj(c.stmt.ast)) continue;
@@ -206,7 +210,7 @@ export function mySel(s: Obj): Sel {
   }
   if (isObj(s._next)) {
     const { _next, ...head } = s;
-    sel.union = [mySel({ ...head, with: null }), mySel(_next as Obj)];
+    sel.union = [mySel({ ...head, with: null }), mySel(_next as Obj, true)];
     return sel;
   }
   for (const c of arr(s.columns)) if (isObj(c)) sel.items.push({ e: myExpr(c.expr), alias: str(c.as) });
@@ -214,7 +218,7 @@ export function mySel(s: Obj): Sel {
   arr(s.from).forEach((f) => myFrom(f, sel));
   for (const p of [s.where, s.having]) if (p) sel.preds.push(myExpr(p));
   for (const g of arr(isObj(s.groupby) ? s.groupby.columns : s.groupby)) sel.preds.push(myExpr(g));
-  for (const o of arr(s.orderby)) sel.preds.push(myExpr(isObj(o) ? o.expr : o));
+  if (!unionTail || s._next) for (const o of arr(s.orderby)) sel.preds.push(myExpr(isObj(o) ? o.expr : o));
   return sel;
 }
 

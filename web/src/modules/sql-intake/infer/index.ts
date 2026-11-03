@@ -68,6 +68,7 @@ export function inferSchema(statements: ParsedStatement[], engine: EngineId): { 
       }
     }
     const chain = [scope, ...outer];
+    for (const u of sel.using) for (const x of scope) if (x.table) colOf({ table: x.table, column: u });
 
     const pick = (level: Binding[], name: string): Origin | null | "ambiguous" => {
       if (level.length === 1) return bindingCol(level[0], name);
@@ -192,7 +193,10 @@ export function inferSchema(statements: ParsedStatement[], engine: EngineId): { 
         const l = [...lits][0];
         // chuỗi so với cột tên ngày giờ: giữ kiểu theo tên; số nguyên so với cột tên tiền: giữ numeric
         const keepName = (l === "text" && (hint === "date" || hint === "timestamp")) || (l === "integer" && hint === "numeric");
-        if (!keepName) (type = l), (reason = "literal");
+        if (!keepName) {
+          type = l;
+          reason = "literal";
+        }
         else reason = l === "integer" ? "literal" : "name";
       }
       cols.push({ name: c.name, type, reason, primaryKeyGuess: ci(c.name) === "id" });
@@ -214,7 +218,7 @@ export const quoteIdent = (engine: EngineId, s: string) => {
 };
 
 // Kiểu người dùng có thể sửa tay, nên chỉ nhận danh sách kiểu quen thuộc, còn lại về text.
-const TYPE_RE = /^(smallint|integer|int|bigint|numeric|decimal|real|double precision|float|text|varchar|char|character varying|boolean|bool|date|time|timestamp|timestamptz|datetime|uuid|json|jsonb)(\(\d{1,4}(,\d{1,4})?\))?$/;
+const TYPE_RE = /^(smallint|integer|int|bigint|real|double precision|float|text|boolean|bool|date|time|timestamp|timestamptz|datetime|uuid|json|jsonb|(varchar|char|character varying)(\(\d{1,4}\))?|(numeric|decimal)(\(\d{1,4}(,\d{1,4})?\))?)$/;
 const MYSQL_TYPE: Record<string, string> = {
   integer: "int", numeric: "decimal(20,6)", timestamp: "datetime", timestamptz: "datetime", uuid: "char(36)", jsonb: "json",
   "double precision": "double", "character varying": "varchar(255)", varchar: "varchar(255)", text: "text",
