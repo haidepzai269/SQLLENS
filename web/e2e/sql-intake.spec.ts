@@ -24,7 +24,7 @@ const T = {
     sqlTab: "SQL",
     dump: "Đã bỏ qua 1 khối dữ liệu COPY",
     cancelled: "Đã hủy xác nhận schema, chưa chạy gì.",
-    applied: "Đã tạo 1 bảng từ bản nháp bạn xác nhận.",
+    applied: "Đã tạo bảng từ bản nháp bạn xác nhận.",
     star: "được dùng với SELECT *",
     incomplete: "Chưa đủ cột",
   },
@@ -51,7 +51,7 @@ const T = {
     sqlTab: "SQL",
     dump: "Skipped 1 COPY data block",
     cancelled: "Schema confirmation cancelled, nothing was run.",
-    applied: "Created 1 tables from the draft you confirmed.",
+    applied: "Created the tables from the draft you confirmed.",
     star: "is used with SELECT *",
     incomplete: "Columns incomplete",
   },
@@ -77,6 +77,8 @@ const noHScroll = (p: Page) =>
     const d = document.querySelector('[data-testid="confirm-schema"]');
     return document.documentElement.scrollWidth <= window.innerWidth && (!d || d.scrollWidth <= d.clientWidth);
   });
+
+test.setTimeout(90_000); // tải PGlite lần đầu mất vài chục giây khi máy bận
 
 for (const l of ["vi", "en"] as const) {
   const x = T[l];
@@ -188,6 +190,16 @@ for (const l of ["vi", "en"] as const) {
       await d.getByRole("button", { name: x.confirm }).click();
       await expect(page.locator('[data-testid="conclusion"]:visible')).toBeVisible({ timeout: 60_000 });
       await expect(page.locator("li:visible", { hasText: x.applied })).toBeVisible();
+    });
+
+    test("AC4 query lỗi sau khi tạo bảng: Chạy lần sau mở lại được bản nháp", async ({ page }) => {
+      await open(page, l, "SELECT u.name FROM users u WHERE u.id > 1");
+      await runBtn(page, l).click();
+      await dialog(page).getByLabel(x.tableName(1)).fill("members"); // đặt tên lệch với query nên query sẽ lỗi
+      await dialog(page).getByRole("button", { name: x.confirm }).click();
+      await expect(page.locator('[data-testid="error"]:visible')).toBeVisible({ timeout: 60_000 });
+      await runBtn(page, l).click();
+      await expect(dialog(page)).toBeVisible();
     });
 
     test("AC5 hủy giữ nguyên SQL, không chạy gì, focus về nút Chạy; mở lại còn phần đã sửa; query đổi thì bỏ", async ({ page }) => {

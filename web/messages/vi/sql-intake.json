@@ -47,7 +47,7 @@
   "cancel": "Hủy",
   "confirm": "Xác nhận và chạy",
   "log": {
-    "applied": "Đã tạo {n} bảng từ bản nháp bạn xác nhận.",
+    "applied": "Đã tạo bảng từ bản nháp bạn xác nhận.",
     "cancelled": "Đã hủy xác nhận schema, chưa chạy gì."
   },
   "removeTable": "Xóa bảng {n}",

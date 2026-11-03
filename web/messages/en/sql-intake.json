@@ -47,7 +47,7 @@
   "cancel": "Cancel",
   "confirm": "Confirm and run",
   "log": {
-    "applied": "Created {n} tables from the draft you confirmed.",
+    "applied": "Created the tables from the draft you confirmed.",
     "cancelled": "Schema confirmation cancelled, nothing was run."
   },
   "removeTable": "Remove table {n}",

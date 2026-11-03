@@ -160,12 +160,12 @@ export function LabWorkspace() {
         if (schemaSql) {
           step = "schema";
           await db.execute(schemaSql, { signal: ctl.signal });
-          applied.current = sql;
-          note({ kind: "note", text: tin("log.applied", { n: draft?.d.tables.length ?? 0 }) });
+          note({ kind: "note", text: tin("log.applied") });
           await refreshTables(db);
           step = "query";
         }
         const results = await db.execute(toRun, { signal: ctl.signal });
+        applied.current = sql; // chỉ khi query cũng chạy xong; nếu query lỗi thì lần Chạy sau kiểm lại bảng và có thể mở lại bản nháp
         const last = results[results.length - 1] ?? { columns: [], rows: [] };
         const data = { statements: results.length, rows: last.rows.length };
         note({ kind: "ran", n: results.length });
@@ -182,7 +182,7 @@ export function LabWorkspace() {
         });
       } catch (e) {
         // Lỗi SQL ở bước tạo bảng: quay lại màn hình xác nhận, bản nháp còn nguyên.
-        if (step === "schema" && e instanceof EngineError && e.code === "sql") {
+        if (step === "schema" && e instanceof EngineError && e.code === "sql" && !e.guard) {
           note({ kind: "error" });
           setSchemaError(e.message);
           setConfirmOpen(true);
@@ -238,7 +238,7 @@ export function LabWorkspace() {
   }
 
   async function onRun() {
-    if (busy.current || confirmOpen) return;
+    if (busy.current || (confirmOpen && dialogOn)) return;
     busy.current = true; // chặn bấm đúp trong lúc parse
     let ask = false;
     try {
@@ -281,6 +281,7 @@ export function LabWorkspace() {
   const mysql = engine === "mysql";
   const outcome = parsed && parsed.sql === sql && parsed.engine === engine ? parsed.outcome : null;
   const statements = outcome?.ok ? outcome.statements : [];
+  const dialogOn = Boolean(draft && draft.sql === sql && draft.engine === engine);
   const effSql = parsed && outcome ? parsed.eff : sql;
   const removedAny = Boolean(parsed && outcome && (parsed.removed.copyBlocks || parsed.removed.lockStatements));
   // Dấu lỗi gắn với đúng nội dung đã sinh ra nó: sửa chữ là dấu tự biến mất.
@@ -330,7 +331,7 @@ export function LabWorkspace() {
         <StatementList sql={effSql} statements={statements} selected={Math.min(selected, statements.length - 1)} onSelect={setSelected} />
       )}
       <div>
-        <Button ref={runBtn} onClick={onRun} disabled={sql.trim() === "" || working || confirmOpen || state.phase === "stopped" || mysql}>
+        <Button ref={runBtn} onClick={onRun} disabled={sql.trim() === "" || working || (confirmOpen && dialogOn) || state.phase === "stopped" || mysql}>
           {t("run")}
         </Button>
       </div>
@@ -462,7 +463,7 @@ export function LabWorkspace() {
   return (
     <>
       <WorkspaceLayout sql={sqlZone} terminal={terminalZone} findings={findingsZone} stage={stageZone} />
-      {draft && draft.sql === sql && draft.engine === engine && (
+      {draft && dialogOn && (
         <ConfirmSchemaDialog
           open={confirmOpen}
           onOpenChange={(o) => (o ? setConfirmOpen(true) : closeConfirm())}
