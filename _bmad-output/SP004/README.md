@@ -11,7 +11,7 @@ STR019 (nối vào sản phẩm) chờ SP005 vì MySQL cần đăng nhập, Đư
 | STR017 Container theo phiên | Task034 | Thư mục dữ liệu MySQL dựng sẵn, đo lại thời gian khởi động và số phiên | Task018 | 1, xong |
 | STR018 Quyền thấp | Task036 | Tài khoản `sqllens_user` cho mỗi phiên | Task034 | 2, xong |
 | STR016 Sandbox agent | Task035 | API tạo, chạy, hủy phiên, trần phiên, hết hạn | Task036 | 3, xong |
-| STR020 Kiểm tra bảo mật | Task037 | `security-audit` trước khi mở cổng cho Render | Task035 | 4 |
+| STR020 Kiểm tra bảo mật | Task037 | `security-audit` trước khi mở cổng cho Render | Task035 | 4, xong |
 
 ## Các file bị đụng
 

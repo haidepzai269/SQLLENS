@@ -102,3 +102,7 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task040 | Nhãn tầng Root, Internal, Leaf không dính khi cuộn ngang. Route thử `e2e-btree` chặn ở SP013. Chưa kiểm trình đọc màn hình thật, Firefox, Safari, cảm ứng thiết bị thật, cây trên 1000 node | Chưa làm |
 | Task032 | Lỗi PostgreSQL không có `cursorPosition` có thể hiện nhầm câu không bật được trình kiểm tra, chưa có đầu vào tái hiện. Danh sách câu chưa nhảy tới câu trong ô soạn. Test đối chứng AC7 của `sql-editor.spec.ts` đổi sang `/vi/e2e-parser`, yếu đi một chút | `needs_validation` |
 | Task032 | Mỗi lần chạy Playwright ghi đè ảnh trong thư mục Task024 và Task032. Ảnh chụp nên ghi ra thư mục tạm | Chưa làm |
+| Task037 | Gin phải giới hạn theo người dùng cả số phiên, tần suất và tổng thời gian câu lệnh, vì một token đủ chiếm 2 phiên và 2 vCPU. Làm ở STR019, là điều kiện mở cổng | Chưa làm |
+| Task037 | STR019 phải ép `/opt/sqllens` thuộc root khi triển khai. `readToken` chưa kiểm chủ file. SSH `x11forwarding`, `allowtcpforwarding` để mặc định. `/tmp` trên máy Azure còn file cũ của task trước | Chưa làm |
+| Task037 | Lô hàng trăm nghìn câu trả `connection_lost`. Nên có mã lỗi riêng khi phiên bị hủy vì câu kẹt. Cân nhắc `--cpus` thấp hơn và chọn lại `--memory` khi đổi sang B2als v2 | Chưa làm |
+| Task037 | Người dùng có thể lách giới hạn bộ nhớ tạm bằng biến session như `internal_tmp_mem_storage_engine`. Giết chéo giữa hai phiên khi cạn RAM chưa tái hiện được. `escalate` có thể hủy phiên khi rollback DML lớn mất hơn 5 giây. Tải thật qua HTTPS chưa kiểm | `needs_validation` |
