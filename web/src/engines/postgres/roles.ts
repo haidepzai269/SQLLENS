@@ -22,7 +22,7 @@ const toResults = (rs: Awaited<ReturnType<PGlite["exec"]>>): QueryResult[] =>
 export async function createSession(db: PGlite) {
   // Đếm role do người dùng tạo (không tính pg_*) và quyền của USER_ROLE, để bắt trường hợp lên superuser, đổi quyền rồi quay về.
   const countRoles = async () =>
-    (await db.query<{ n: number }>("SELECT count(*)::int AS n FROM pg_roles WHERE rolname NOT LIKE 'pg\_%'")).rows[0].n;
+    (await db.query<{ n: number }>("SELECT count(*)::int AS n FROM pg_roles WHERE rolname NOT LIKE 'pg\\_%'")).rows[0].n;
 
   await db.exec(`
     CREATE ROLE ${USER_ROLE} NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT NOLOGIN;
