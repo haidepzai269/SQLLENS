@@ -61,6 +61,14 @@ test.describe("máy tính 1440", () => {
     await expect(page.locator(".cm-sql-error")).toHaveText("S");
     expect(await page.locator(".cm-sql-error").evaluate((e) => e.closest(".cm-line")!.textContent)).toBe("SELECT 2;");
     await expect(page.locator(".cm-gutterElement").filter({ hasText: "!" })).toHaveCount(1);
+    // vị trí trỏ vào CR hoặc LF của CRLF: lỗi ở dòng một, không nhảy sang dòng hai
+    for (const pos of ["9", "10"]) {
+      await page.getByLabel("pos").fill(pos);
+      await page.getByRole("button", { name: "mark" }).click();
+      const rows = await page.locator(".cm-lineNumbers .cm-gutterElement").evaluateAll((els) => els.filter((e) => (e as HTMLElement).style.visibility !== "hidden").map((e) => e.textContent));
+      const marks = await page.locator(".cm-sql-error-gutter .cm-gutterElement").evaluateAll((els) => els.filter((e) => (e as HTMLElement).style.visibility !== "hidden").map((e) => e.textContent));
+      expect(marks.indexOf("!")).toBe(rows.indexOf("1")); // dấu ở lề cùng hàng với dòng 1
+    }
   });
 
   test("AC3 dòng dài tự xuống dòng, số dòng theo dòng logic", async ({ page }) => {

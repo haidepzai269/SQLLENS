@@ -88,7 +88,11 @@ const highlight = syntaxHighlighting(
 
 // `position` đếm trên chuỗi gốc; CodeMirror gộp CRLF thành một ký tự nên phải đổi sang vị trí trong tài liệu.
 const normalize = (s: string) => s.replace(/\r\n?/g, "\n");
-const toDocOffset = (value: string, position: number) => normalize(value.slice(0, position)).length;
+// Vị trí trỏ vào ký tự LF của một cặp CRLF thì lùi về CR, vì cặp đó chỉ là một ký tự trong tài liệu.
+const toDocOffset = (value: string, position: number) => {
+  if (value[position] === "\n" && value[position - 1] === "\r") position--;
+  return normalize(value.slice(0, position)).length;
+};
 
 export default function SqlEditorImpl({ value, onChange, engine, error, ariaLabel }: SqlEditorProps) {
   const errId = useId();
