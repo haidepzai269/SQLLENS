@@ -64,3 +64,7 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task026 | FK trỏ vào cột `GENERATED ... STORED UNIQUE` bị vi phạm khi sinh dữ liệu, đã tái hiện | Chưa làm |
 | Task026 | Bảng chỉ có một cột sequence và không ai trỏ tới báo `no column can be generated`. Partition với serial chưa kiểm | Chưa làm |
 | Chủ dự án | Phương án để dành: giữ sẵn 1 container MySQL chờ để phiên mới không phải khởi động. Tốn khoảng 270 MiB RAM thường trực, trên máy 1 GB tức mất một trong hai chỗ phiên. Chỉ làm khi Task034 hoặc người dùng thật cho thấy thời gian chờ vẫn là vấn đề | Để dành |
+| Task029 | Route thử `/[locale]/e2e-editor` đi vào bản production. Chặn ở SP013 cùng `e2e-adapter` | Chưa làm |
+| Task029 | Chạy cả bộ Playwright ghi đè ảnh `anh-vi-1440.png` của Task020 mỗi lần. Ảnh chụp nên ghi ra thư mục tạm, không ghi vào thư mục task | Chưa làm |
+| Task029 | `npm run check` thỉnh thoảng trượt vì test vitest vượt 5 giây khi máy bận, chạy lại thì đạt. Có thể gây đỏ giả trên CI | `needs_validation` |
+| Task029 | Ô soạn chưa kiểm trên Firefox, Safari, iOS thật. Màu tô backtick và `::` chỉ kiểm ở tầng parser | `needs_validation` |
