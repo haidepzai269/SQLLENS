@@ -87,12 +87,15 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
 
   return {
     engine: "postgres",
-    execute: (sql, options) => {
-      options?.signal?.throwIfAborted();
+    execute: async (sql, options) => {
+      const aborted = () => options?.signal?.aborted && new EngineError("cancelled", "Cancelled");
+      let e = aborted();
+      if (e) throw e;
       return enqueue(async () => {
         if (disposed) throw new EngineError("worker_crashed", "Engine disposed");
         if (needsRebuild) throw new EngineError("worker_crashed", "Engine stopped, call rebuild() first");
-        options?.signal?.throwIfAborted();
+        e = aborted();
+        if (e) throw e;
         const p = call({ type: "exec", sql }, "timeout");
         const id = activeExec;
         const onAbort = () => activeExec === id && kill(new EngineError("cancelled", "Cancelled"));
@@ -118,7 +121,12 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
         worker?.terminate();
         worker = undefined;
         await start();
-        for (const sql of ran) await call({ type: "exec", sql }, "timeout");
+        try {
+          for (const sql of ran) await call({ type: "exec", sql }, "timeout");
+        } catch (err) {
+          needsRebuild = true; // dựng lại dở dang thì vẫn coi là chưa dùng được
+          throw err;
+        }
       }),
     async dispose() {
       disposed = true;
