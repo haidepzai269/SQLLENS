@@ -1,0 +1,9 @@
+# Bàn giao Task026
+
+Đã làm: `ColumnInfo.generated` (identity_always, identity_default, serial, stored). `SCHEMA_QUERY` giờ trả cả cột identity và cột generated, kèm cột `generated`. `planData` bỏ qua cột stored; bỏ qua cột identity/serial không phải FK và không ai trỏ tới (để sequence tự chạy); với cột được trỏ tới hoặc là FK thì ghi giá trị tường minh (thêm `OVERRIDING SYSTEM VALUE` khi có identity ALWAYS) rồi thêm câu `SELECT setval(...)` đặt sequence sau giá trị lớn nhất (hoặc nhỏ nhất nếu sequence đếm ngược), kẹp trong MINVALUE/MAXVALUE. Tên được escape bằng `q` và `lit`.
+File chính: `web/src/modules/data-lab/generate/plan-data.ts`, `plan-data-identity.test.ts`.
+Kết quả kiểm tra: `cd web && npm run check` thoát 0 (76 test đạt, gồm test cũ của Task023). Test mới chạy trên PGlite thật bằng role `lab_user` không phải superuser: AC1 đến AC6, sequence START 100 INCREMENT 5, sequence đếm ngược, bảng tên có dấu cách, dấu `'` và `"`, bảng 0 dòng. Thời gian test Task023 AC5 không đổi ý nghĩa; máy bận nên không dùng làm số đo.
+Kết quả review: 2 lỗi confirmed, đã sửa và reviewer kiểm lại đạt (serial là FK bị bỏ qua; setval ngoài MINVALUE/MAXVALUE). 1 needs_validation còn lại: FK trỏ vào cột `GENERATED ... STORED UNIQUE` bị vi phạm vì cột stored không được ghi (đã tái hiện, ngoài AC).
+Chưa làm được: FK trỏ vào cột stored; sequence có MAXVALUE nhỏ hơn dữ liệu thì `INSERT` sau đó báo hết sequence (không trùng khóa ngầm). Bảng chỉ có cột identity duy nhất và không ai trỏ tới vẫn báo "no column can be generated". Partition với serial chưa kiểm.
+Phát sinh: khóa nhiều cột và partition con (từ Task023, vẫn còn); FK trỏ vào cột stored unique; bảng chỉ có một cột sequence.
+Việc tiếp theo cần biết: Task024 chạy `batches` tuần tự như cũ; có thêm câu bắt đầu bằng `SELECT setval`, chạy được bằng role sở hữu bảng. `ColumnInfo.generated` là trường mới tùy chọn.
