@@ -13,9 +13,10 @@ const STEP_TIMEOUT_MS = 5000;
 const POLL_MS = 10;
 
 if (URL_ENV) {
-  const host = new URL(URL_ENV).hostname;
-  if (!["localhost", "127.0.0.1", "[::1]", "::1"].includes(host)) {
-    throw new Error("T051_DATABASE_URL must point to localhost: this test creates and drops tables");
+  const u = new URL(URL_ENV);
+  // pg lets "?host=" override the host, so any query string is refused too.
+  if (u.search || !["localhost", "127.0.0.1", "[::1]", "::1"].includes(u.hostname)) {
+    throw new Error("T051_DATABASE_URL must point to localhost without a query string: this test creates and drops tables");
   }
 } else {
   console.warn("T051_DATABASE_URL not set: conflict-sim golden test skipped");
