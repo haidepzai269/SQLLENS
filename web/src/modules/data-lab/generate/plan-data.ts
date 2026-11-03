@@ -8,6 +8,7 @@ export type ColumnInfo = {
   isPrimaryKey: boolean;
   isUnique: boolean;
   references?: { table: string; column: string };
+  generated?: "identity_always" | "identity_default" | "serial" | "stored";
 };
 export type TableInfo = { schema: string; name: string; columns: ColumnInfo[] };
 export type ColumnRule = { distinct?: number; nullRatio?: number; skew?: "uniform" | "zipf" };
@@ -16,7 +17,7 @@ export const BATCH_ROWS = 10_000;
 const POOL_SIZE = 1000;
 const MAX = "9223372036854775807";
 
-// Identity ALWAYS / generated columns are left out: an explicit INSERT value would fail.
+// Identity, serial and generated columns carry a `generated` kind; planData decides how to fill them.
 export const SCHEMA_QUERY = `
 SELECT n.nspname AS schema_name, c.relname AS table_name, a.attname AS column_name,
   format_type(a.atttypid, a.atttypmod) AS data_type, NOT a.attnotnull AS nullable,
@@ -25,12 +26,13 @@ SELECT n.nspname AS schema_name, c.relname AS table_name, a.attname AS column_na
   (SELECT rc.relname FROM pg_constraint k JOIN pg_class rc ON rc.oid = k.confrelid
     WHERE k.conrelid = c.oid AND k.contype = 'f' AND k.conkey[1] = a.attnum AND array_length(k.conkey, 1) = 1 LIMIT 1) AS ref_table,
   (SELECT ra.attname FROM pg_constraint k JOIN pg_attribute ra ON ra.attrelid = k.confrelid AND ra.attnum = k.confkey[1]
-    WHERE k.conrelid = c.oid AND k.contype = 'f' AND k.conkey[1] = a.attnum AND array_length(k.conkey, 1) = 1 LIMIT 1) AS ref_column
+    WHERE k.conrelid = c.oid AND k.contype = 'f' AND k.conkey[1] = a.attnum AND array_length(k.conkey, 1) = 1 LIMIT 1) AS ref_column,
+  CASE WHEN a.attgenerated <> '' THEN 'stored' WHEN a.attidentity = 'a' THEN 'identity_always' WHEN a.attidentity = 'd' THEN 'identity_default'
+    WHEN pg_get_serial_sequence(quote_ident(n.nspname) || '.' || quote_ident(c.relname), a.attname) IS NOT NULL THEN 'serial' END AS generated
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
 JOIN pg_attribute a ON a.attrelid = c.oid
 WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND a.attnum > 0 AND NOT a.attisdropped
-  AND a.attidentity <> 'a' AND a.attgenerated = ''
 ORDER BY c.relname, a.attnum`;
 
 export function parseSchema(result: QueryResult): TableInfo[] {
@@ -42,6 +44,7 @@ export function parseSchema(result: QueryResult): TableInfo[] {
   const [s, t, c, ty, nu, pk, un, rt, rc] = [
     "schema_name", "table_name", "column_name", "data_type", "nullable", "is_pk", "is_unique", "ref_table", "ref_column",
   ].map(ix);
+  const gi = result.columns.indexOf("generated"); // optional: older callers may not select it
   const tables = new Map<string, TableInfo>();
   for (const r of result.rows) {
     const key = `${r[s]}.${r[t]}`;
@@ -50,6 +53,7 @@ export function parseSchema(result: QueryResult): TableInfo[] {
     tb.columns.push({
       name: String(r[c]), type: String(r[ty]), nullable: r[nu] === true, isPrimaryKey: r[pk] === true, isUnique: r[un] === true,
       ...(r[rt] != null && r[rc] != null ? { references: { table: String(r[rt]), column: String(r[rc]) } } : {}),
+      ...(gi >= 0 && r[gi] != null ? { generated: String(r[gi]) as ColumnInfo["generated"] } : {}),
     });
   }
   return [...tables.values()];
@@ -283,6 +287,8 @@ export function planData(
 
     const cols: string[] = [];
     const exprs: string[] = [];
+    const seqCols: string[] = [];
+    let override = false;
     for (const c of t.columns) {
       const key = `${name}.${c.name}`;
       const rule = rules[key] ?? {};
@@ -290,6 +296,10 @@ export function planData(
         fail(name, c.name, "distinct must be a positive integer");
       if (rule.nullRatio !== undefined && !(rule.nullRatio >= 0 && rule.nullRatio <= 1))
         fail(name, c.name, "nullRatio must be between 0 and 1");
+      if (c.generated === "stored") continue; // computed by the database, an explicit value would fail
+      const isSeq = c.generated === "identity_always" || c.generated === "identity_default" || c.generated === "serial";
+      // Sequence-backed columns nobody points at are left to their default: the sequence stays in sync by itself.
+      if (isSeq && !referenced.has(key)) continue;
       const kind = parseType(c.type);
       if (!kind) {
         if (c.nullable) continue; // unsupported but optional: left to the DB default / NULL
@@ -337,13 +347,23 @@ export function planData(
         expr = `CASE WHEN ${rand("g", salt(name, c.name, 1))} % 10000 < ${Math.round(rule.nullRatio * 10000)} THEN NULL ELSE ${expr} END`;
       cols.push(q(c.name));
       exprs.push(expr);
+      if (isSeq) {
+        if (c.generated === "identity_always") override = true;
+        seqCols.push(c.name);
+      }
     }
     if (!cols.length) throw new Error(`Table "${name}": no column can be generated`);
     const target = `${q(t.schema)}.${q(name)}`;
     for (let from = 1; from <= n; from += BATCH_ROWS) {
       const to = Math.min(n, from + BATCH_ROWS - 1);
-      batches.push(`INSERT INTO ${target} (${cols.join(", ")}) SELECT ${exprs.join(", ")} FROM generate_series(${from}::bigint, ${to}::bigint) AS g`);
+      batches.push(`INSERT INTO ${target} (${cols.join(", ")})${override ? " OVERRIDING SYSTEM VALUE" : ""} SELECT ${exprs.join(", ")} FROM generate_series(${from}::bigint, ${to}::bigint) AS g`);
     }
+    // Explicit keys bypassed the sequence: move it past them, in the direction it counts.
+    for (const cn of seqCols)
+      batches.push(
+        `SELECT setval(x.sq, CASE WHEN y.inc > 0 THEN x.mx ELSE x.mn END) FROM (SELECT pg_get_serial_sequence(${lit(target)}, ${lit(cn)})::regclass AS sq, ` +
+          `max(${q(cn)}) AS mx, min(${q(cn)}) AS mn FROM ${target}) x, LATERAL (SELECT seqincrement AS inc FROM pg_sequence WHERE seqrelid = x.sq) y`,
+      );
   }
   return { order, batches };
 }
