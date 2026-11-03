@@ -1,0 +1,2 @@
+*.sh text eol=lf
+my.cnf text eol=lf

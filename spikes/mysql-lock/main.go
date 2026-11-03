@@ -73,28 +73,41 @@ type run struct {
 func main() {
 	out := flag.String("out", "../../_bmad-output/SP002/STR010/Task016/ket_qua.md", "file ket_qua.md")
 	keep := flag.Bool("keep", false, "giữ container sau khi chạy")
+	attach := flag.Int("attach", 0, "dùng MySQL đã chạy ở 127.0.0.1:PORT (root, mật khẩu trong env T016_ROOT_PW, innodb_lock_wait_timeout=8), không tự dựng container")
 	flag.Parse()
-	if err := mainErr(*out, *keep); err != nil {
+	if *attach > 0 {
+		set := false
+		flag.Visit(func(f *flag.Flag) { set = set || f.Name == "out" })
+		if !set || os.Getenv("T016_ROOT_PW") == "" {
+			fmt.Fprintln(os.Stderr, "LỖI: -attach cần -out (tránh ghi đè ket_qua.md của Task016) và env T016_ROOT_PW")
+			os.Exit(2)
+		}
+	}
+	if err := mainErr(*out, *keep, *attach); err != nil {
 		fmt.Fprintln(os.Stderr, "LỖI:", err)
 		os.Exit(1)
 	}
 }
 
-func mainErr(out string, keep bool) (err error) {
+func mainErr(out string, keep bool, attach int) (err error) {
 	_ = mysql.SetLogger(log.New(io.Discard, "", 0)) // driver in EOF khi MySQL còn khởi tạo
 	rootPW, lowPW := secret(), secret()
-	port, err := freePort(33160)
-	if err != nil {
-		return err
-	}
-	_ = docker("rm", "-f", container)        // chỉ t016-*
-	os.Setenv("MYSQL_ROOT_PASSWORD", rootPW) // docker lấy giá trị từ env của client, không nằm trên dòng lệnh (docker inspect vẫn thấy: chấp nhận cho spike local)
-	if _, err = dockerOut("run", "-d", "--name", container, "-p", fmt.Sprintf("127.0.0.1:%d:3306", port),
-		"-e", "MYSQL_ROOT_PASSWORD", image, fmt.Sprintf("--innodb-lock-wait-timeout=%d", lockTimeout)); err != nil {
-		return err
-	}
-	if !keep {
-		defer func() { _ = docker("rm", "-f", container) }()
+	port := attach
+	if attach > 0 {
+		rootPW = os.Getenv("T016_ROOT_PW")
+	} else {
+		if port, err = freePort(33160); err != nil {
+			return err
+		}
+		_ = docker("rm", "-f", container)        // chỉ t016-*
+		os.Setenv("MYSQL_ROOT_PASSWORD", rootPW) // docker lấy giá trị từ env của client, không nằm trên dòng lệnh (docker inspect vẫn thấy: chấp nhận cho spike local)
+		if _, err = dockerOut("run", "-d", "--name", container, "-p", fmt.Sprintf("127.0.0.1:%d:3306", port),
+			"-e", "MYSQL_ROOT_PASSWORD", image, fmt.Sprintf("--innodb-lock-wait-timeout=%d", lockTimeout)); err != nil {
+			return err
+		}
+		if !keep {
+			defer func() { _ = docker("rm", "-f", container) }()
+		}
 	}
 	root := fmt.Sprintf("root:%s@tcp(127.0.0.1:%d)/?timeout=5s", rootPW, port)
 	e := &env{lowUser: "lowpriv"}

@@ -1,0 +1,9 @@
+{
+  "pagesBefore": "Trước khi thay đổi, truy vấn đọc {pages} trang (đo thật bằng EXPLAIN ANALYZE, BUFFERS).",
+  "pagesAfter": "Sau khi thay đổi (đã hoàn tác, dữ liệu của bạn không đổi), truy vấn đọc {pages} trang.",
+  "transaction": "Không thử được: thay đổi chứa lệnh điều khiển transaction (BEGIN, COMMIT, ROLLBACK, SAVEPOINT), vì không hoàn tác được. Chưa mô phỏng được.",
+  "concurrently": "Không thử được: CREATE INDEX CONCURRENTLY không chạy được trong transaction nên không hoàn tác được. Chưa mô phỏng được.",
+  "probeSingle": "Không thử được: truy vấn đo phải là đúng một câu SQL. Chưa mô phỏng được.",
+  "parserUnavailable": "Không thử được: bộ phân tích SQL chưa tải xong nên chưa kiểm tra được thay đổi một cách an toàn. Chưa mô phỏng được.",
+  "inTransaction": "Không thử được: phiên đang có transaction chưa kết thúc, hoàn tác sẽ làm mất việc của bạn. Hãy COMMIT hoặc ROLLBACK trước. Chưa mô phỏng được."
+}
