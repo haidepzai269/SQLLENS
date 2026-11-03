@@ -69,6 +69,8 @@ Kèm theo: AI Mentor, đăng nhập, PostgreSQL và MySQL.
 | Cây B-Tree | Tự vẽ bằng SVG và GSAP, không dùng Cytoscape.js |
 | Biểu đồ số liệu | Thành phần chart của shadcn/ui khi màn hình thật sự cần, còn lại hiện số bằng thẻ shadcn/ui |
 | Quản lý gói | npm. `web/` và `api/` độc lập, không dùng workspace |
+| Sinh dữ liệu với khóa ngoại | Không tắt trigger FK khi nạp, chấp nhận 100k dòng có FK mất khoảng 5 giây (Task023), để dữ liệu sai vẫn bị phát hiện và không phải dùng quyền superuser |
+| Rủi ro thoát role trong PGlite | Chấp nhận: SQL dùng `DO` với `EXECUTE` vẫn có thể tạm lên superuser, tạo đối tượng rồi quay về mà lớp kiểm thứ hai không thấy (Task021). Không chặn `DO` và `EXECUTE` để giữ plpgsql và trigger. Ảnh hưởng chỉ trong tab của chính người dùng, nhưng có thể làm sai số liệu hiển thị. Xem lại ở cuối SP012, vì SQL do AI đề xuất cũng chạy qua đường này |
 | AI Chaos Generator | Có trong V1 nhưng linh hoạt: chưa xong thì đẩy ra sau, không chặn phát hành. Kịch bản AI dựng phải chạy qua `conflict-sim` trước khi hiển thị, không để AI tự kết luận |
 
 ## Danh sách Epic

@@ -44,7 +44,7 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task019 | Chưa thử `worker_crashed` do hết bộ nhớ thật. Chưa kiểm worker trên Vercel, Firefox, Safari | `needs_validation` |
 | Task019 | Test AC2 (khung main thread dưới 200 ms) trượt 1 lần khi máy bận, chạy riêng thì đạt. Có thể gây đỏ giả trên CI | `needs_validation` |
 | Task019 | `rebuild` chạy lại `history`, nên câu không tất định như `random()` có thể cho dữ liệu khác. Giao diện nên nói rõ khi dựng lại | Chưa làm |
-| Task023 | AC5 chưa đạt: 100k dòng `orders` có FK mất 5,1 giây khi đo riêng, mục tiêu dưới 5 giây. SQL của `planData` mất 1,4 giây, phần còn lại là trigger kiểm FK. Tắt trigger tạm thời cần chủ dự án duyệt | Chờ chủ dự án |
+| Task023 | AC5 chưa đạt: 100k dòng `orders` có FK mất 5,1 giây khi đo riêng, mục tiêu dưới 5 giây. SQL của `planData` mất 1,4 giây, phần còn lại là trigger kiểm FK. Tắt trigger tạm thời cần chủ dự án duyệt | Chủ dự án chốt không tắt trigger, đóng |
 | Task023 | PK `GENERATED ALWAYS AS IDENTITY` bị loại khỏi `SCHEMA_QUERY`, bảng con trỏ vào nó báo `referenced column not found`. Schema này phổ biến, đề xuất sửa trong Task024 | Task026 |
 | Task023 | Sequence của cột serial và identity by default không được đặt lại sau khi chèn, INSERT tay sau đó có thể trùng khóa | Task026 |
 | Task023 | Chưa hỗ trợ FK và UNIQUE nhiều cột, `planData` không báo lỗi trước nên INSERT có thể hỏng lúc chạy | Chưa làm |
@@ -54,3 +54,8 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task020 | Adapter không trả chỉ số câu lỗi, nên nhật ký chỉ ghi "Gặp lỗi", chưa ghi được "lỗi ở câu N" như hợp đồng | Task027 |
 | Task020 | Nhánh timeout 30 giây của AC4 và chữ "số MB" của AC1 chưa có test riêng | Chưa làm |
 | Phiên chính | `render.yaml` không ghi `region`, mặc định của Render là Oregon, trong khi service thật ở Singapore. Nên ghi `region: singapore` cho khớp | Chưa làm |
+| Task021 | Rủi ro thoát lên superuser bằng `DO` với `EXECUTE` rồi chỉ tạo đối tượng, lớp hai không thấy, câu đó sống qua `rebuild`. Chủ dự án chấp nhận, xem lại ở cuối SP012 | Đã chấp nhận |
+| Task021 | Lớp một tắt mà không báo khi parser không tải được. Cho qua lỗi 25P02 là suy luận, chưa có test riêng. Bản sửa `pg_catalog.` chưa qua reviewer | `needs_validation` |
+| Task021 | Mỗi lần khởi tạo, `libpg-query.wasm` bị fetch sai vào `_next/static/chunks/`, trả 404 rồi tự thử lại đúng đường dẫn. Dọn ở SP013 | Chưa làm |
+| Task021 | Khởi tạo chậm hơn vì tải thêm `pageinspect.tar.gz` và `libpg-query.wasm`. Chưa đo lại thời gian và RAM | Chưa làm |
+| Task021 | `adminQuery` chưa có message trong `protocol.ts`. SP008 thêm khi cần | Chưa làm |
