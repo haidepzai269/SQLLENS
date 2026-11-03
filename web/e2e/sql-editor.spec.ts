@@ -179,7 +179,7 @@ test.describe("điện thoại 390", () => {
   });
 });
 
-test("AC7 JS của ô soạn không nằm trong bundle ban đầu của /vi", async ({ page }) => {
+test("AC7 JS của ô soạn không nằm trong bundle chung (trang không có ô soạn không tải nó)", async ({ page }) => {
   const scan = async (url: string) => {
     const hits: number[] = [];
     page.on("response", async (r) => {
@@ -191,7 +191,7 @@ test("AC7 JS của ô soạn không nằm trong bundle ban đầu của /vi", as
     await page.waitForLoadState("networkidle");
     return hits;
   };
-  expect(await scan("/vi")).toEqual([]);
+  expect(await scan("/vi/e2e-parser")).toEqual([]); // /vi nay là màn hình chính có ô soạn (Task032)
   const hits = await scan("/vi/e2e-editor");
   expect(hits.length).toBeGreaterThan(0);
   console.log(`AC7 editor chunk gzip=${hits.reduce((a, b) => a + b, 0)} bytes`);
