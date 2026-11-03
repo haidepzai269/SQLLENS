@@ -59,6 +59,12 @@ function reject(change: string, probe: string): Outcome<TryChangeResult> | undef
 export async function runTryChange(run: Run, change: string, probe: string): Promise<Outcome<TryChangeResult>> {
   const rejected = reject(change, probe);
   if (rejected) return rejected;
+  // BEGIN trong transaction đang mở của người dùng chỉ báo warning, rồi ROLLBACK cuối sẽ hủy việc chưa commit của họ. SAVEPOINT chỉ chạy được khi đang trong transaction.
+  const inUserTxn = await run("SAVEPOINT sqllens_probe").then(
+    () => (run("RELEASE sqllens_probe"), true),
+    (e: { code?: string }) => e.code === "25P02",
+  );
+  if (inUserTxn) return no("inTransaction");
   const measure = async () => {
     const [r] = await run(`EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${probe}`);
     return stats(r.rows[0][0]);

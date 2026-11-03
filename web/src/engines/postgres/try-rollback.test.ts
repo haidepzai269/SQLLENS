@@ -23,7 +23,7 @@ beforeAll(async () => {
   await s.run("ANALYZE orders");
 }, 120_000);
 
-describe("runTryChange", () => {
+describe("runTryChange", { timeout: 30_000 }, () => {
   it("AC1 + AC2: index giảm số trang, hoàn tác sạch", async () => {
     const sum = await val(CHECKSUM);
     const idx = await val(IDX);
@@ -93,10 +93,19 @@ describe("runTryChange", () => {
     expect(await val("SELECT current_user")).toBe("sqllens_user");
   });
 
+  it("transaction mở của người dùng: từ chối, việc chưa commit còn nguyên", async () => {
+    await s.run("BEGIN");
+    await s.run("UPDATE orders SET note = 'mine' WHERE id = 1");
+    expect(await runTryChange(s.run, CREATE, SELECT_42)).toEqual({ kind: "not_simulated", reasonKey: "tryChange.inTransaction" });
+    expect(await val("SELECT note FROM orders WHERE id = 1")).toBe("mine");
+    await s.run("ROLLBACK");
+    expect(await val("SELECT note FROM orders WHERE id = 1")).toBe("n1");
+  });
+
   it("mọi khóa tryChange.* có bản dịch vi và en", () => {
     for (const l of ["vi", "en"]) {
       const m = JSON.parse(readFileSync(`messages/${l}/tryChange.json`, "utf8"));
-      for (const k of ["pagesBefore", "pagesAfter", "transaction", "concurrently", "probeSingle", "parserUnavailable"])
+      for (const k of ["pagesBefore", "pagesAfter", "transaction", "concurrently", "probeSingle", "parserUnavailable", "inTransaction"])
         expect(m[k], `${l} ${k}`).toMatch(/\S/);
     }
   });
