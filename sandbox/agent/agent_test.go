@@ -55,7 +55,7 @@ func (f *fake) be() backend {
 func (f *fake) destroyedCount() int { f.mu.Lock(); defer f.mu.Unlock(); return len(f.destroyed) }
 
 func testCfg() config {
-	return config{MaxSessions: 2, IdleTTL: time.Minute, Tick: 10 * time.Millisecond, QueryTimeout: time.Second, DiskLimit: 1 << 20, MaxRows: 10000, MaxCellBytes: 1 << 20}
+	return config{MaxSessions: 2, IdleTTL: time.Minute, Tick: 10 * time.Millisecond, QueryTimeout: time.Second, KillGrace: 50 * time.Millisecond, DiskLimit: 1 << 20, MaxRows: 10000, MaxCellBytes: 1 << 20}
 }
 
 func newTest(t *testing.T, cfg config) (*fake, *manager, http.Handler) {
@@ -254,5 +254,26 @@ func TestStaleAndFailedCreateRetried(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	if len(m.s) != 0 {
 		t.Fatal("phiên Create lỗi không được dọn")
+	}
+}
+
+// Task037: câu không chịu dừng sau KILL QUERY thì phiên bị hủy; câu đã dừng thì phiên ở lại.
+func TestEscalateStuckQuery(t *testing.T) {
+	f, m, h := newTest(t, testCfg())
+	var c struct{ ID string }
+	json.Unmarshal(do(h, "POST", "/sessions", good, "").Body.Bytes(), &c)
+	s, err := m.Get(c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	close(done)
+	m.escalate(s, done)
+	if f.destroyedCount() != 0 {
+		t.Fatal("câu đã xong mà phiên bị hủy")
+	}
+	m.escalate(s, make(chan struct{})) // không bao giờ xong
+	if f.destroyedCount() != 1 {
+		t.Fatal("câu kẹt mà phiên không bị hủy")
 	}
 }

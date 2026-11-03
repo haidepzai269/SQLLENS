@@ -7,3 +7,5 @@ Môi trường: `AGENT_ADDR` (127.0.0.1:8081), `TOKEN_FILE` (/etc/sqllens-agent/
 API (Bearer token, trừ `/healthz`): `POST /sessions`, `POST /sessions/{id}/query` `{sql, connection?: "a"|"b"}`, `GET /sessions/{id}/locks`, `DELETE /sessions/{id}`.
 
 Build: `GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o sqllens-agent .`
+
+Triển khai (Task037): `/opt/sqllens` và mọi file `session.sh`, `my.cnf` phải thuộc root và không ai khác ghi được, vì agent chạy root và gọi `session.sh`. Cài bằng `install -o root -g root`, rồi `chown -R root:root /opt/sqllens`. Tổng `--memory` của các phiên cộng phần máy dùng (khoảng 230 MiB) phải nhỏ hơn RAM máy, nếu không SQL người dùng làm nóng RAM chung.

@@ -25,6 +25,7 @@ type config struct {
 	IdleTTL      time.Duration
 	Tick         time.Duration // chu kỳ janitor: hết hạn và hạn mức đĩa
 	QueryTimeout time.Duration
+	KillGrace    time.Duration // chờ sau KILL QUERY trước khi hủy phiên
 	DiskLimit    int64 // byte, tính theo block thật trên đĩa của thư mục phiên
 	MaxRows      int
 	MaxCellBytes int

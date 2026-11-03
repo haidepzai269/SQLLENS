@@ -176,6 +176,7 @@ func main() {
 		IdleTTL:      time.Duration(envInt("IDLE_TTL_SEC", 900)) * time.Second,
 		Tick:         time.Second,
 		QueryTimeout: time.Duration(envInt("QUERY_TIMEOUT_SEC", 15)) * time.Second,
+		KillGrace:    5 * time.Second,
 		DiskLimit:    int64(envInt("DISK_LIMIT_MB", 512)) << 20,
 		MaxRows:      10000,
 		MaxCellBytes: 8 << 20,

@@ -131,6 +131,8 @@ edge() {
   deny "DEFINER=root trigger" "CREATE DEFINER='root'@'localhost' TRIGGER tg BEFORE INSERT ON tr FOR EACH ROW SET NEW.a=1"
   deny "DEFINER=root view" "CREATE DEFINER='root'@'localhost' SQL SECURITY DEFINER VIEW vr AS SELECT user FROM mysql.user"
   deny "tạo event" "CREATE EVENT ev ON SCHEDULE EVERY 1 SECOND DO SELECT 1"
+  deny "tự đổi mật khẩu (Task037)" "SET PASSWORD='x'"
+  echo "max_allowed_packet=$(u -N -B -e 'SELECT @@max_allowed_packet') (mong đợi 4194304)"
   echo "max_execution_time: global=$(r -N -B -e 'SELECT @@global.max_execution_time') user=$(u -N -B -e 'SELECT @@session.max_execution_time')"
   t0=$(date +%s); v=$(u -N -B -e "SELECT SLEEP(40)"); echo "SELECT SLEEP(40): trả $v sau $(( $(date +%s) - t0 )) giây (1 = bị ngắt)"
   ok "user tự đặt max_execution_time=0 cho phiên (giới hạn chỉ là mặc định)" "SET SESSION max_execution_time=0"

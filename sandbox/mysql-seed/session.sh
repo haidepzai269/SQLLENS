@@ -49,7 +49,7 @@ create)
   (umask 077; cat > "$D/init.sql" <<SQL
 ALTER USER 'root'@'localhost' IDENTIFIED BY '$pw';
 CREATE DATABASE app;
-CREATE USER 'sqllens_user'@'localhost' IDENTIFIED BY '$upw' WITH MAX_USER_CONNECTIONS 6;
+CREATE USER 'sqllens_user'@'localhost' IDENTIFIED BY '$upw' WITH MAX_USER_CONNECTIONS 6 PASSWORD REQUIRE CURRENT;
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, REFERENCES, CREATE VIEW, SHOW VIEW, CREATE TEMPORARY TABLES, LOCK TABLES, TRIGGER, CREATE ROUTINE, ALTER ROUTINE, EXECUTE ON app.* TO 'sqllens_user'@'localhost';
 SQL
 )
@@ -62,7 +62,7 @@ SQL
   t1=$(now_ms)
   docker run -d --name "$C" --label sqllens.session="$name" --entrypoint mysqld --user "$uid:$uid" \
     --memory "${MEM:-384m}" --memory-swap "${MEM:-384m}" --cpus 1 --pids-limit 200 "${net[@]}" \
-    --read-only --tmpfs /tmp --tmpfs "/run/mysqld:rw,mode=0700,uid=$uid,gid=$uid" --security-opt no-new-privileges --cap-drop ALL \
+    --read-only --tmpfs /tmp:size=64m --tmpfs "/run/mysqld:rw,mode=0700,uid=$uid,gid=$uid" --security-opt no-new-privileges --cap-drop ALL \
     -v "$D/data:/var/lib/mysql" -v "$D/init.sql:/init.sql:ro" "$IMAGE" \
     --datadir=/var/lib/mysql --init-file=/init.sql --max-execution-time=30000 "${CNF[@]}" "$@" >/dev/null
   ready=""
