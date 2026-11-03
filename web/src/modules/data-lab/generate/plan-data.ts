@@ -298,8 +298,8 @@ export function planData(
         fail(name, c.name, "nullRatio must be between 0 and 1");
       if (c.generated === "stored") continue; // computed by the database, an explicit value would fail
       const isSeq = c.generated === "identity_always" || c.generated === "identity_default" || c.generated === "serial";
-      // Sequence-backed columns nobody points at are left to their default: the sequence stays in sync by itself.
-      if (isSeq && !referenced.has(key)) continue;
+      // Sequence-backed columns nobody points at (and that are not FKs) are left to their default: the sequence stays in sync by itself.
+      if (isSeq && !referenced.has(key) && !c.references) continue;
       const kind = parseType(c.type);
       if (!kind) {
         if (c.nullable) continue; // unsupported but optional: left to the DB default / NULL
@@ -361,8 +361,8 @@ export function planData(
     // Explicit keys bypassed the sequence: move it past them, in the direction it counts.
     for (const cn of seqCols)
       batches.push(
-        `SELECT setval(x.sq, CASE WHEN y.inc > 0 THEN x.mx ELSE x.mn END) FROM (SELECT pg_get_serial_sequence(${lit(target)}, ${lit(cn)})::regclass AS sq, ` +
-          `max(${q(cn)}) AS mx, min(${q(cn)}) AS mn FROM ${target}) x, LATERAL (SELECT seqincrement AS inc FROM pg_sequence WHERE seqrelid = x.sq) y`,
+        `SELECT setval(x.sq, GREATEST(y.lo, LEAST(y.hi, CASE WHEN y.inc > 0 THEN x.mx ELSE x.mn END))) FROM (SELECT pg_get_serial_sequence(${lit(target)}, ${lit(cn)})::regclass AS sq, ` +
+          `max(${q(cn)}) AS mx, min(${q(cn)}) AS mn FROM ${target}) x, LATERAL (SELECT seqincrement AS inc, seqmin AS lo, seqmax AS hi FROM pg_sequence WHERE seqrelid = x.sq) y`,
       );
   }
   return { order, batches };
