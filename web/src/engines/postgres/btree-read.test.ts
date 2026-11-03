@@ -3,7 +3,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { pageinspect } from "@electric-sql/pglite/contrib/pageinspect";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { BTreeModel } from "@/contracts/btree";
-import { readBTree } from "./btree-read";
+import { readBTree, readBTreeAdmin } from "./btree-read";
 import { loadGuard } from "./guard";
 import { createSession } from "./roles";
 
@@ -138,6 +138,28 @@ describe("readBTree", { timeout: 60_000 }, () => {
     expect(await val("SELECT count(*)::int FROM e")).toBe(1);
     await s.run("ROLLBACK");
     expect(await val("SELECT count(*)::int FROM e")).toBe(0);
+    expect(await val("SELECT current_user")).toBe("sqllens_user");
+  });
+
+  it("L1: bảng tạm tên pg_class không che catalog", async () => {
+    await s.run("SET search_path TO public");
+    await s.run("CREATE TEMP TABLE pg_class AS SELECT 1 AS oid");
+    await s.run("CREATE TEMP VIEW pg_namespace AS SELECT 1 AS oid");
+    expect((await rd("t_pkey")).model.kind).toBe("conclusion");
+    await s.run("DROP VIEW pg_temp.pg_namespace; DROP TABLE pg_temp.pg_class");
+  });
+
+  it("L2: index DESC không dựng đường đi, vẫn đọc cây", async () => {
+    await s.run("CREATE INDEX t_d ON t(id DESC)");
+    const { data, path } = await model("t_d", { probeKey: "54321", maxNodes: 1000 });
+    expect(path).toBeUndefined();
+    expect(data.nodes.length).toBeGreaterThan(0);
+  });
+
+  it("L3: transaction hỏng cho NotSimulated, role giữ nguyên", async () => {
+    await expect(s.run("BEGIN; SELECT 1/0")).rejects.toThrow(/division by zero/);
+    expect((await readBTreeAdmin(s.adminSession, "t_pkey")).model).toEqual(ns("inTransaction"));
+    await s.run("ROLLBACK");
     expect(await val("SELECT current_user")).toBe("sqllens_user");
   });
 });

@@ -58,7 +58,7 @@ export async function createSession(db: PGlite) {
 
   /**
    * Kênh quản trị có tham số, cho code đọc cây B-Tree. Chỉ dùng trong code của engine, không đưa ra module giao diện. Chạy dưới superuser rồi trả về USER_ROLE.
-   * search_path bị ghim về pg_catalog trong lúc chạy, để hàm hay toán tử người dùng tạo trong public không chen vào câu quản trị. Gọi hàm pageinspect bằng `public.`.
+   * search_path bị ghim về pg_catalog, pg_temp (pg_temp luôn phải ở cuối, nếu không bảng tạm tên pg_class sẽ che catalog) trong lúc chạy, để hàm hay toán tử người dùng tạo trong public không chen vào câu quản trị. Gọi hàm pageinspect bằng `public.`.
    */
   async function adminSession<T>(fn: (q: (sql: string, params?: unknown[]) => Promise<QueryResult[]>) => Promise<T>): Promise<T> {
     await db.exec("RESET ROLE");
@@ -67,7 +67,7 @@ export async function createSession(db: PGlite) {
       const inTxn = await db.exec("SAVEPOINT sqllens_admin").then(() => true, () => false);
       try {
         const sp = (await db.query<{ s: string }>("SELECT pg_catalog.current_setting('search_path') AS s")).rows[0].s;
-        await db.exec("SET search_path = pg_catalog");
+        await db.exec("SET search_path = pg_catalog, pg_temp"); // pg_temp để cuối: bảng tạm của người dùng không che được catalog
         const restore = () => db.query("SELECT pg_catalog.set_config('search_path', $1, false)", [sp]);
         let out: T;
         try {

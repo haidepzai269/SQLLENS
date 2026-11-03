@@ -20,6 +20,20 @@ const tidOf = (tid: unknown) => {
 };
 const cmp = (a: bigint | string, b: bigint | string) => (a < b ? -1 : a > b ? 1 : 0);
 
+/** Như readBTree nhưng tự mở kênh quản trị. Transaction hỏng của người dùng làm RESET ROLE lỗi 25P02 trước khi vào readBTree, nên bắt ở đây. */
+export async function readBTreeAdmin(
+  adminSession: <T>(fn: (q: Q) => Promise<T>) => Promise<T>,
+  index: string,
+  o?: { probeKey?: string; maxNodes?: number },
+): Promise<BTreeRead> {
+  try {
+    return await adminSession((q) => readBTree(q, index, o));
+  } catch (e) {
+    if ((e as { code?: string }).code === "25P02") return no("inTransaction");
+    throw e;
+  }
+}
+
 /**
  * Đọc cây thật của một index B-Tree trong schema public. Mọi SQL ở đây do code này viết; tên index chỉ đi vào dưới dạng tham số.
  * `q` phải chạy dưới search_path = pg_catalog (adminSession), nên hàm pageinspect gọi bằng `public.`.
@@ -40,7 +54,7 @@ export async function readBTree(q: Q, index: string, o: { probeKey?: string; max
 async function read(q: Q, index: string, probeKey: string | undefined, maxNodes: number): Promise<BTreeRead> {
   const [meta] = await q(
     `SELECT c.oid::int, c.relkind::text, am.amname::text, pg_catalog.format('%I.%I', n.nspname, c.relname), CASE WHEN t.oid IS NULL THEN NULL ELSE pg_catalog.format('%I.%I', tn.nspname, t.relname) END,
-            i.indisvalid, i.indnkeyatts::int,
+            i.indisvalid, i.indnkeyatts::int, i.indoption[0]::int,
             (SELECT collname::text FROM pg_collation WHERE oid = i.indcollation[0]), (SELECT datcollate::text FROM pg_database WHERE datname = current_database())
        FROM pg_class c
        JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -51,9 +65,9 @@ async function read(q: Q, index: string, probeKey: string | undefined, maxNodes:
       WHERE n.nspname = 'public' AND c.relname = $1 AND c.relkind NOT IN ('c', 'f', 'm', 'p', 't')`,
     [index],
   );
-  const row = meta.rows[0] as [number, string, string | null, string, string | null, boolean | null, number, string | null, string] | undefined;
+  const row = meta.rows[0] as [number, string, string | null, string, string | null, boolean | null, number, number | null, string | null, string] | undefined;
   if (!row) return no("notFound");
-  const [oid, relkind, am, qname, table, valid, nkey, collname, dbcoll] = row;
+  const [oid, relkind, am, qname, table, valid, nkey, opt, collname, dbcoll] = row;
   if (relkind !== "i") return no("notIndex");
   if (am !== "btree") return no("notBtree");
   if (!valid) return no("invalid");
@@ -144,7 +158,8 @@ async function read(q: Q, index: string, probeKey: string | undefined, maxNodes:
 
   let path: BTreePath | undefined;
   const chosen = new Set<number>([rootPage]);
-  const pv = probeKey === undefined ? undefined : parseProbe(ks[0], probeKey);
+  // Cột đầu DESC hoặc NULLS FIRST (indoption khác 0) đảo thứ tự, mà đường đi dựng theo thứ tự tăng dần: không dựng thay vì đoán.
+  const pv = probeKey === undefined || opt ? undefined : parseProbe(ks[0], probeKey);
   // Text chỉ so theo byte, đúng với collation C; collation khác thì không dựng đường đi thay vì đoán.
   const textOk = ks[0] !== "text" || C_COLLATIONS.includes(!collname || collname === "default" ? dbcoll : collname);
   if (pv !== undefined && textOk) {
