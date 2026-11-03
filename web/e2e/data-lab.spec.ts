@@ -149,7 +149,7 @@ for (const l of ["vi", "en"] as const) {
           const f = await page.evaluate(() => {
             const a = document.activeElement as HTMLElement;
             const cs = getComputedStyle(a);
-            return { inDialog: !!a.closest('[role="dialog"]'), visible: cs.outlineStyle !== "none" || cs.boxShadow !== "none" || a.tagName === "SELECT" };
+            return { inDialog: !!a.closest('[role="dialog"]'), visible: cs.outlineStyle !== "none" || cs.boxShadow !== "none" };
           });
           expect(f.inDialog).toBe(true);
           expect(f.visible).toBe(true);

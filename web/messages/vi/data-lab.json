@@ -18,7 +18,7 @@
   "skewOf": "Phân bố của cột {column}",
   "uniform": "Đều",
   "zipf": "Lệch",
-  "maxNote": "Tối đa 500.000 dòng mỗi bảng. Muốn quy mô lớn hơn, dùng Capacity Advisor (sẽ có ở SP010): các số ở đó được tính bằng công thức và mang nhãn Ước lượng.",
+  "maxNote": "Tối đa 500.000 dòng mỗi bảng. Muốn quy mô lớn hơn, dùng Capacity Advisor (sẽ có sau): các số ở đó được tính bằng công thức và mang nhãn Ước lượng.",
   "warn500k": "500.000 dòng cần khoảng 600 MB RAM cho tab, máy yếu có thể mất gần một phút. Đây là số đo trên một máy (i5-12450H, 15,7 GB RAM), không phải dự đoán cho máy của bạn.",
   "progress": "Tiến trình sinh dữ liệu",
   "progressText": "Đã chạy {done}/{total} batch",

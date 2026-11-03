@@ -18,7 +18,7 @@
   "skewOf": "Distribution of column {column}",
   "uniform": "Uniform",
   "zipf": "Skewed",
-  "maxNote": "At most 500,000 rows per table. For a larger scale use the Capacity Advisor (coming in SP010): its numbers come from a formula and carry the Estimated label.",
+  "maxNote": "At most 500,000 rows per table. For a larger scale use the Capacity Advisor (coming later): its numbers come from a formula and carry the Estimated label.",
   "warn500k": "500,000 rows need about 600 MB of RAM for the tab, and a weak machine can take almost a minute. This was measured on one machine (i5-12450H, 15.7 GB RAM), not a prediction for yours.",
   "progress": "Data generation progress",
   "progressText": "Ran {done}/{total} batches",
