@@ -61,7 +61,7 @@ export async function runTryChange(run: Run, change: string, probe: string): Pro
   if (rejected) return rejected;
   // BEGIN trong transaction đang mở của người dùng chỉ báo warning, rồi ROLLBACK cuối sẽ hủy việc chưa commit của họ. SAVEPOINT chỉ chạy được khi đang trong transaction.
   const inUserTxn = await run("SAVEPOINT sqllens_probe").then(
-    () => (run("RELEASE sqllens_probe"), true),
+    () => run("RELEASE sqllens_probe").then(() => true),
     (e: { code?: string }) => e.code === "25P02",
   );
   if (inUserTxn) return no("inTransaction");
