@@ -1,0 +1,9 @@
+# Bàn giao Task018
+
+Đã làm: Máy Azure được khóa chặt (SSH không mật khẩu, không root, `ufw` chỉ cổng 22, swap 1 GiB, Docker). Đo MySQL 8.4.13 theo cấu hình Task015: một container sẵn sàng sau khoảng 16 giây, dùng khoảng 273 MiB. Đo tăng dần số container: 2 phiên chạy cùng lúc, phiên thứ hai khởi động mất 49 đến 52 giây (gấp khoảng 3 lần), nên dừng theo điều kiện thời gian. Kịch bản Task016 chạy lại trên máy, kết quả giống.
+File chính: `spikes/azure-vm/setup.sh`, `spikes/azure-vm/capacity.sh`, `_bmad-output/SP002/STR009/Task018/ket_qua.md`.
+Kết quả kiểm tra: `setup.sh` chạy 3 lần trên máy, đều thoát 0, `fstab` chỉ một dòng swap, SSH mới vào được sau mỗi lần. Quét 1.035 cổng từ ngoài chỉ thấy 22 (có nêu giới hạn do NSG). `ss -tlnp` và `ufw status` trên máy khớp. `capacity.sh` chạy 2 lần cho cùng kết luận. Chương trình Go của Task016 chạy 5/5 lần giống nhau mọi kịch bản. Dọn xong: 0 container, 0 volume, máy vẫn chạy.
+Kết quả review: 5 mục reviewer báo, đã sửa cả 5 (nới lời "trần cứng", ghi lệch đĩa 29 GB so với task, làm tròn tỉ lệ, sửa câu về page cache, thêm `</dev/null` cho apt). Reviewer kiểm lại bản sửa. Còn needs_validation: không còn mục nào chưa xử lý.
+Chưa làm được: Không đo container thứ ba. Chưa quét từ IP khác NSG cho phép. Chưa tách nguyên nhân khởi động chậm (CPU credit hay đĩa).
+Phát sinh: (1) Phiên chính cập nhật `CLAUDE.md`: máy ở East Asia, đĩa 29 GB, số phiên đo được là 2 (phiên 2 chậm gấp 3 lần), bỏ ước tính "1 đến 2 phiên" thành số đo. (2) Chương trình Go Task016 dùng `docker rm -f` không `-v`, để lại volume ẩn danh. (3) Docker bỏ qua `ufw` với cổng publish, sandbox agent phải chỉ bind `127.0.0.1` hoặc dùng `--network none`. (4) Cân nhắc đo lại sau khi SP004 có thư mục dữ liệu dựng sẵn.
+Việc tiếp theo cần biết: STR017/SP004 nên khởi động container tuần tự, mỗi lần một, `--memory 384m --memory-swap 384m`, trần 2 phiên trên máy 1 GB. Muốn nhiều hơn thì đổi B2als v2 rồi đo lại. Image thống nhất `mysql:8.4.13`.
