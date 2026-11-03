@@ -26,14 +26,14 @@ capacity)
     [ "$before" -lt 150 ] && { echo "DỪNG trước n=$n: MemAvailable $before MiB < 150 MiB"; break; }
     out=$("$S" create "b-$n" 2>&1) || { echo "$n | tạo lỗi: $(echo "$out" | tail -1)"; break; }
     ready=$(sed -n 's/.*ready_ms=\([0-9]*\).*/\1/p' <<<"$out")
-    "$S" exec "b-$n" -e "CREATE DATABASE d; CREATE TABLE d.t (id INT PRIMARY KEY, k INT, v VARCHAR(40), KEY ik(k));
+    "$S" exec "b-$n" --as root -e "CREATE DATABASE d; CREATE TABLE d.t (id INT PRIMARY KEY, k INT, v VARCHAR(40), KEY ik(k));
       SET SESSION cte_max_recursion_depth=10000;
       INSERT INTO d.t SELECT n, n%1000, MD5(n) FROM (WITH RECURSIVE s(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM s WHERE n<10000) SELECT n FROM s) q;" >/dev/null || note="load lỗi"
-    "$S" exec "b-$n" -e "BEGIN; SELECT * FROM d.t WHERE id=1 FOR UPDATE; DO SLEEP($HOLD);" >/dev/null 2>&1 &
+    "$S" exec "b-$n" --as root -e "BEGIN; SELECT * FROM d.t WHERE id=1 FOR UPDATE; DO SLEEP($HOLD);" >/dev/null 2>&1 &
     sleep 1
-    "$S" exec "b-$n" -e "BEGIN; SELECT * FROM d.t WHERE id=2 FOR UPDATE; SELECT * FROM d.t WHERE id=1 FOR UPDATE;" >/dev/null 2>&1 &
+    "$S" exec "b-$n" --as root -e "BEGIN; SELECT * FROM d.t WHERE id=2 FOR UPDATE; SELECT * FROM d.t WHERE id=1 FOR UPDATE;" >/dev/null 2>&1 &
     sleep 4
-    w=$("$S" exec "b-$n" -N -B -e "SELECT COUNT(*) FROM performance_schema.data_lock_waits" | tail -1); [ "$w" = 1 ] || note="$note; data_lock_waits=$w"
+    w=$("$S" exec "b-$n" --as root -N -B -e "SELECT COUNT(*) FROM performance_schema.data_lock_waits" | tail -1); [ "$w" = 1 ] || note="$note; data_lock_waits=$w"
     sleep 3
     av=$(( $(kb MemAvailable)/1024 )); pct=$(( av*1024*100/TOTAL )); swap=$(( ($(kb SwapTotal)-$(kb SwapFree))/1024 ))
     sum=$(docker stats --no-stream --format '{{.MemUsage}}' | awk '{v=$1; u=v; gsub(/[0-9.]/,"",u); sub(/[A-Za-z]+/,"",v); if(u=="GiB")v*=1024; else if(u=="KiB")v/=1024; s+=v} END{printf "%.0f", s}')
