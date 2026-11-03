@@ -4,7 +4,7 @@
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
 - **Khi Google Doc và file này khác nhau:** file này đúng hơn, cho đến khi Google Doc được cập nhật.
-- **Giai đoạn hiện tại:** đã chốt 13 Epic và 61 Story (`_bmad-output/BAN_DO_STORY.md`). SP001 xong. SP002 còn Task018 chờ máy Azure. SP003 đã chia task (Task019 đến Task025), SP006 đã chia task (Task028 đến Task033), việc phát sinh đang làm ở `SP999/STR062` (Task026, Task027), tiến độ ở `_bmad-output/SP00x/README.md`.
+- **Giai đoạn hiện tại:** đã chốt 13 Epic và 61 Story (`_bmad-output/BAN_DO_STORY.md`). SP001 xong. SP002 xong. SP003 đã chia task (Task019 đến Task025), SP006 đã chia task (Task028 đến Task033), việc phát sinh đang làm ở `SP999/STR062` (Task026, Task027), tiến độ ở `_bmad-output/SP00x/README.md`.
 - **Việc tạm gác:** cập nhật Google Doc. Chỉ làm khi chủ dự án yêu cầu, theo `_bmad-output/CAP_NHAT_GOOGLE_DOC.md`.
 - **Key của bên thứ 3:** danh sách ở `KEY_CAN_LAY.md`, file này không được commit. Sau khi chủ dự án điền giá trị, agent không đọc file đó. Cần thêm key thì báo chủ dự án.
 
@@ -216,17 +216,22 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 - Container MySQL 8.4 cho sandbox, đo trên amd64 ở máy (Task015):
   - Cấu hình tối giản dùng khoảng 240 đến 260 MiB, so với khoảng 440 MiB khi để mặc định. `--memory` thấp nhất chạy được là 288m, khuyến nghị 384m.
   - Khởi động lạnh đến khi nhận kết nối mất khoảng 13 đến 19 giây. Người dùng sẽ phải chờ, nên SP004 cần thư mục dữ liệu dựng sẵn hoặc giữ sẵn container chờ.
-  - Ước tính trên máy Azure 1 GB: khoảng 1 đến 2 phiên cùng lúc. Trên B2als v2 4 GB: khoảng 8 đến 10 phiên. Task018 đo lại trên máy thật.
+  - Trên máy Azure 1 GB đã đo lại ở Task018, xem dòng riêng bên dưới. Con số khoảng 8 đến 10 phiên trên B2als v2 4 GB chỉ là ước tính, phải đo lại khi đổi máy.
   - Cô lập bằng `--network none --read-only --cap-drop ALL` cộng 5 capability tối thiểu. `INTO OUTFILE` bị chặn.
   - File cấu hình mount từ Windows bị mysqld bỏ qua vì quyền 0777, phải kiểm cảnh báo trong log.
-  - Task015 dùng `mysql:8.4.6`, Task016 dùng `mysql:8.4.13`. SP004 thống nhất một bản.
+  - Task015 dùng `mysql:8.4.6`, Task016 dùng `mysql:8.4.13`. SP004 thống nhất dùng `mysql:8.4.13`.
 - Deploy chạy ngày 2026-11-02: Vercel `https://sqllens-bice.vercel.app`, Render `https://sqllens.onrender.com`. `/api/healthz` qua `rewrites` trả 200, `keep-awake` chạy tay thành công (Task010). Trong Chromium, `/vi/lab` trên Vercel không tải WASM khi mở trang; bấm Chạy thì tải 3 file WASM và ra kết quả nhãn Thật sau khoảng 4,9 giây.
+- Máy Azure thật (Task018), `Standard_B2ats_v2`, East Asia, RAM 836 MiB, swap 1 GiB do `setup.sh` thêm, đĩa 29 GB:
+  - Một container `mysql:8.4.13` với cấu hình Task015 sẵn sàng sau trung vị 16,2 giây, dùng khoảng 273 MiB.
+  - Hai phiên chạy cùng lúc được, không OOM, RAM trống còn 18 đến 19%. Phiên thứ hai mất 48,6 đến 51,8 giây, gấp khoảng 3 lần, chưa tách được do CPU credit hay đĩa. Phiên thứ ba chưa thử.
+  - Trần phiên cho SP004: 2 phiên trên máy này, khởi động tuần tự, `--memory 384m`. Đo lại sau khi có thư mục dữ liệu dựng sẵn.
+  - Lock wait và deadlock của Task016 chạy lại 5/5 lần giống nhau trên máy này.
+  - Docker bỏ qua `ufw` với cổng publish, nên sandbox agent chỉ được bind `127.0.0.1` hoặc dùng `--network none`.
 - Ngân sách Azure: màn hình tạo máy ghi `Standard_B2ats_v2` giá 0,0131 USD mỗi giờ, trừ vào tín dụng, không thấy dấu hiệu miễn phí 750 giờ. Tức khoảng 9,6 USD mỗi tháng, cộng IP công khai khoảng 3,6 USD theo giá tham khảo và phí ổ đĩa. Ước tính 100 USD đủ khoảng 6 đến 7 tháng, chưa xác minh bằng Cost Management. Hạn tín dụng là 02/11/2027. Nếu đổi sang B2als v2 thì khoảng 34 đến 41 USD mỗi tháng, tín dụng đủ khoảng 2,5 tháng.
 - PGlite 0.5.14 treo mãi, không báo lỗi, khi tải WASM thất bại. Vì vậy `web/src/engines/postgres/adapter.ts` tự tải file rồi truyền vào `PGlite.create`. Khi nâng PGlite hoặc đổi chỗ file này phải kiểm lại đường dẫn.
 
 ## Chưa kiểm chứng
 
-- Số phiên MySQL chạy cùng lúc trên máy Azure (Task018).
 - Chi phí thật của máy Azure trên Cost Management, và máy B2ats v2 có được trừ vào 750 giờ miễn phí của gói sinh viên không.
 - PGlite trên máy RAM thấp, Firefox, Safari, điện thoại, và khi tải qua mạng trên Vercel.
 - Điều khoản của Render có cấm ping giữ thức không. Trang gói free không nhắc đến.

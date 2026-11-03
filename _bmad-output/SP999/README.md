@@ -59,3 +59,7 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task021 | Mỗi lần khởi tạo, `libpg-query.wasm` bị fetch sai vào `_next/static/chunks/`, trả 404 rồi tự thử lại đúng đường dẫn. Dọn ở SP013 | Chưa làm |
 | Task021 | Khởi tạo chậm hơn vì tải thêm `pageinspect.tar.gz` và `libpg-query.wasm`. Chưa đo lại thời gian và RAM | Chưa làm |
 | Task021 | `adminQuery` chưa có message trong `protocol.ts`. SP008 thêm khi cần | Chưa làm |
+| Task018 | `spikes/mysql-lock` dùng `docker rm -f` không có `-v`, để lại volume ẩn danh | Chưa làm |
+| Task018 | Đĩa máy Azure là 29 GB mặc định, không phải 64 GiB P6 như task ghi. AC1 chỉ quét từ IP được NSG cho vào, chưa quét từ IP khác | `needs_validation` |
+| Task026 | FK trỏ vào cột `GENERATED ... STORED UNIQUE` bị vi phạm khi sinh dữ liệu, đã tái hiện | Chưa làm |
+| Task026 | Bảng chỉ có một cột sequence và không ai trỏ tới báo `no column can be generated`. Partition với serial chưa kiểm | Chưa làm |
