@@ -1,0 +1,15 @@
+# Bàn giao Task046
+
+Đã làm: `normalizePostgres` và `normalizeMysql` đưa `EXPLAIN` của hai engine về kiểu `Plan`. `EngineAdapter.explain(sql)` giờ trả `Promise<Outcome<Plan>>`; trên PGlite nó chạy `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` trong worker, luôn trong `BEGIN ... ROLLBACK`, qua `session.run` (lớp bảo vệ Task021, role `sqllens_user`), không vào `history()`. Kết luận nhãn Thật. Không `EXPLAIN` được thì `NotSimulated` với khóa `plan.notSimulated.*`: nhiều câu, rỗng, loại câu không hỗ trợ (DDL, transaction, SET ROLE), parser chưa tải, đang trong transaction (mở hoặc đã hỏng). Lỗi cú pháp ném như `execute`, `position` đã trừ phần `EXPLAIN (...)` thêm vào.
+Quy ước số (đã ghi trong code và test): `actualRows` là TỔNG qua mọi vòng lặp (Actual Rows x Actual Loops, làm tròn về số nguyên vì PostgreSQL làm tròn trung bình tới 2 chữ số); `estimatedRows` là ước lượng mỗi lần chạy nút, dùng cùng `loops` để nhân; `pagesRead` là của riêng nút (buffers của nút trừ tổng buffers các con), không âm. MySQL: `analyzed` luôn false, chỉ có `estimatedRows` (từ `rows_produced_per_join`), nhiều bảng dựng cây lệch trái, hash join nhận từ `using_join_buffer`.
+File chính: `web/src/modules/plan-runner/normalize/{postgres,mysql,index}.ts`, `web/src/engines/postgres/explain.ts`, `web/src/engines/postgres/{worker,protocol,adapter}.ts`, `web/src/contracts/engine.ts`, `web/messages/{vi,en}/plan.json`, mẫu MySQL thật ở `web/src/modules/plan-runner/normalize/samples/` (8 mẫu từ `mysql:8.4.13`, container `t046-mysql` đã xóa), test `explain.test.ts`, `normalize.test.ts`, `web/e2e/plan-explain.spec.ts`.
+Kết quả kiểm tra: xem báo cáo cuối của phiên (lệnh và mã thoát chạy trên commit cuối).
+Kết quả review: 1 lỗi confirmed (actualRows lẻ) và 3 mục needs_validation (câu "dữ liệu không đổi" bỏ qua sequence, số dòng của ModifyTable bằng 0, MySQL bỏ mất các khóa `*_subqueries` khác); cả bốn đã sửa, reviewer kiểm lại bản sửa. Không thấy đường đi vòng lớp bảo vệ.
+Chưa làm được: không có mẫu MySQL nào có subquery ở `select_list`/`having`; khóa đó được đọc theo mẫu tên `*_subqueries` và test bằng JSON tự dựng, chưa lấy từ container.
+Phát sinh:
+- `try-rollback.ts` được sửa nhẹ (export `Run`, `stmtsOf`, `inUserTransaction` để dùng chung), ngoài danh sách phạm vi.
+- Thêm `messages/{vi,en}/plan.json` (ngoài danh sách phạm vi, cần cho khóa dịch).
+- `EXPLAIN ANALYZE` không hoàn tác được `nextval` và khóa advisory mức session; câu bằng chứng đã nói rõ, giao diện SP007 nên giữ câu đó.
+- Test `plan-data.test.ts` "AC5 100k orders timing" (Task023) trượt ngưỡng 15 giây khi máy bận (15,07 giây), không liên quan task này.
+- Playwright ghi đè 4 ảnh ở `_bmad-output/SP003/STR014/Task024/`, đã khôi phục, không commit.
+Việc tiếp theo cần biết: ghi chú ở bước nhập MySQL thật (SP004 STR019) là `normalizeMysql` nhận cả chuỗi JSON lẫn object. `explain` trong adapter MySQL phải trả cùng `Outcome<Plan>`; vì MySQL 8.4 không có ANALYZE dạng JSON, kết luận đó không phải nhãn Thật ở số dòng thực tế mà là ước lượng của optimizer, nên nhãn cần chọn khi làm adapter đó.
