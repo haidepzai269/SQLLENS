@@ -35,3 +35,5 @@ Task024 và Task025 cùng đợt nhưng không chung file. Task020 và Task021 c
 - PGlite chỉ có một kết nối. Hủy một câu đang chạy chỉ làm được bằng cách dừng worker, và khi đó dữ liệu trong bộ nhớ mất. Engine phải giữ lại danh sách câu đã chạy thành công để dựng lại khi người dùng muốn.
 - Giới hạn số dòng theo `CLAUDE.md`: mặc định 100k, 500k có cảnh báo, trên 500k không chạy thật.
 - Đỉnh RAM khoảng 1,1 GB xảy ra lúc khởi tạo PGlite, không phụ thuộc số dòng (Task012).
+
+Trạng thái: xong ngày 2026-11-03, Task019 đến Task025 đã merge.

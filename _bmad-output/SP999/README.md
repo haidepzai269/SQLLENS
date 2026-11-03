@@ -84,3 +84,7 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task031 | Cột của `JOIN ... USING` bị thêm vào mọi bảng trong cùng SELECT, nên 3 bảng trở lên có cột thừa (query vẫn chạy). Do bản sửa review gây ra, chưa sửa | Chưa làm |
 | Task031 | Hàm trong FROM như `generate_series(1,3) g` bị bỏ qua, `g` có thể bị gán cho bảng khác | `needs_validation` |
 | Task031 | Không sinh `REFERENCES`, FK chỉ là gợi ý. Tên có schema như `a.t` bị bỏ phần schema. Bảng chỉ dùng `SELECT *` trên MySQL có cột giữ chỗ `_sqllens_placeholder`. Phần MySQL chưa chạy MySQL thật | Đã biết |
+| Task024 | `history()` ghi cả câu nội bộ (`SCHEMA_QUERY`, kiểm bảng sau mỗi lần Chạy, `BEGIN`, batch `INSERT`, `COMMIT`), nên số câu hiện khi dừng bị sai và Dựng lại phát lại cả dữ liệu đã sinh | Task027 |
+| Task024 | Nút Sinh dữ liệu chỉ cập nhật sau lần Chạy thành công. Bấm Hủy lúc batch cuối vẫn COMMIT. Nhánh timeout và `worker_crashed` khi sinh dữ liệu chưa ép chạy thật. ROLLBACK cũng timeout thì lỗi bị nuốt | `needs_validation` |
+| Task024 | `lab.spec.ts` ghi đè ảnh của Task020 mỗi lần chạy. Gộp với mục ảnh của Task029 | Chưa làm |
+| Task024 | Liên kết thật tới Capacity Advisor khi SP010 có | Chưa làm |
