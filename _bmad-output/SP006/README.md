@@ -25,3 +25,5 @@ Kết quả: Người dùng dán SQL vào ô soạn thật, thấy lỗi đúng 
 | Task033 | `web/src/modules/sql-intake/ui/**`, `web/src/modules/lab/**` (chỉ chỗ gắn), `web/messages/*/sql-intake.json`, `web/e2e/sql-intake.spec.ts` |
 
 Task024 và Task032 cùng sửa `web/src/modules/lab/**`, nên Task032 chờ Task024.
+
+Trạng thái: xong ngày 2026-11-03, Task028 đến Task033 đã merge.

@@ -119,3 +119,6 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task046 | Khóa advisory mức session không được ROLLBACK hoàn tác khi `explain` chạy câu ghi dữ liệu, câu người dùng thấy chưa nói việc này. Chưa có mẫu MySQL thật cho subquery ở `select_list`, `having` | `needs_validation` |
 | Task046 | Adapter MySQL (STR019) phải trả cùng `Outcome<Plan>` cho `explain`. MySQL 8.4 không có ANALYZE ở dạng JSON, số dòng chỉ là ước lượng của optimizer, nên phải chọn nhãn đúng | Chưa làm |
 | Task051 | Runner CI đứng hơn 500 ms giữa lúc gửi lệnh bị chờ và lúc poll thì nạn nhân deadlock có thể báo lỗi trước khi test thấy nó chờ, làm lệch thứ tự chờ. Không tái hiện được. Nếu flake thì tăng `deadlock_timeout` trong `connect()` | `needs_validation` |
+| Task033 | Focus có thể mất sau Xác nhận, và ở 390 px sau lỗi schema rồi Hủy. `sql` đổi rồi đổi ngược khi dialog đang mở thì dialog có thể mở lại. Một test AC3 trượt 1 trong 9 lần, chưa tái hiện được | `needs_validation` |
+| Task033 | Dạng form chưa hỗ trợ khóa chính nhiều cột. Chế độ tự viết không kiểm đó là `CREATE TABLE`, SQL vẫn qua lớp bảo vệ role. Chưa kiểm với MySQL | Chưa làm |
+| Task033 | Test thời gian dễ trượt khi máy bận: `plan-data` AC5 100k (Task023, ngưỡng 15 giây), `btree-read` 500k (Task039, ngưỡng 1.000 ms). Nên chỉ chặn ở mức thô, ghi số đo riêng | Chưa làm |
