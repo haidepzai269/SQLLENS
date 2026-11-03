@@ -3,7 +3,7 @@
 Thuộc: SP005 / STR022, STR024
 Điều kiện bắt đầu: Task042, Task043, Task027 đã merge.
 Mục tiêu: Người dùng thấy mình đã đăng nhập hay chưa, đăng nhập được từ thanh trên. Chọn MySQL hoặc AI khi chưa đăng nhập thì được mời đăng nhập, xong quay về đúng chỗ, không mất SQL đã dán. Hết quota thì biết rõ khi nào có lại.
-Phạm vi: `web/src/modules/auth/**`, `web/src/components/shell/**`, `web/src/modules/lab/**` (chỉ chỗ gắn cổng), `web/messages/*/auth.json`, `web/e2e/auth.spec.ts`.
+Phạm vi: `web/src/modules/auth/**`, `web/messages/*/error.json` (thêm `authRequired`, `quotaExceeded`, `quotaUnavailable` mà Task043 trả về), `web/src/components/shell/**`, `web/src/modules/lab/**` (chỉ chỗ gắn cổng), `web/messages/*/auth.json`, `web/e2e/auth.spec.ts`.
 Không làm: sửa Gin, MySQL thật (SP004 STR019), AI (SP012).
 
 Hợp đồng: dùng API của Task042 qua tiền tố `/api` (`/api/me`, `/api/auth/{provider}/start?next=`, `/api/auth/logout`) và lỗi `auth_required`, `quota_exceeded`, `quota_unavailable` của Task043.

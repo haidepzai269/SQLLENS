@@ -90,3 +90,4 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task024 | Liên kết thật tới Capacity Advisor khi SP010 có | Chưa làm |
 | Task036 | Routine hoặc view `SQL SECURITY INVOKER` do người dùng tạo chạy bằng quyền người gọi, nên root không được gọi chúng. Tham số `--pager`, `--tee`, `--plugin-dir` của `session.sh exec` chưa bị chặn | `needs_validation` |
 | Chủ dự án | Key OpenRouter chưa lấy, chủ dự án nói tạm chưa cần. Cần trước SP012 | Chờ chủ dự án |
+| Task043 | Quota dùng cửa sổ cố định, nên quanh ranh giới cửa sổ người dùng có thể dùng tối đa gấp đôi hạn mức. Gói free 500.000 lệnh đủ khoảng 330 người dùng hết hạn mức mỗi ngày | Đã biết |
