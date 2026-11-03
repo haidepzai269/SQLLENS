@@ -6,8 +6,16 @@ export type Classification = { kind: InputKind; schemaStatements: number[]; quer
 const SCHEMA = new Set(["create_table", "create_index", "alter_table"]);
 const QUERY = new Set(["select", "update", "delete"]);
 
-// `SELECT set_config(...)` của pg_dump không phải truy vấn của người dùng. Parser không cho biết tên hàm ở dạng chung, nên tìm trong AST.
-const isConfigCall = (s: ParsedStatement) => s.kind === "select" && s.tables.length === 0 && JSON.stringify(s.ast).includes("set_config");
+// `SELECT set_config(...)` của pg_dump không phải truy vấn của người dùng. Tìm nút FuncCall tên set_config trong AST, không so chuỗi (tránh nhầm literal hay alias).
+const hasConfigCall = (n: unknown): boolean => {
+  if (Array.isArray(n)) return n.some(hasConfigCall);
+  if (typeof n !== "object" || n === null) return false;
+  const o = n as Record<string, unknown>;
+  const fc = o.FuncCall as { funcname?: { String?: { sval?: string } }[] } | undefined;
+  if (fc?.funcname?.at(-1)?.String?.sval === "set_config") return true;
+  return Object.values(o).some(hasConfigCall);
+};
+const isConfigCall = (s: ParsedStatement) => s.kind === "select" && s.tables.length === 0 && hasConfigCall(s.ast);
 
 export function classifyInput(outcome: ParseOutcome): Classification {
   const out: Classification = { kind: "unknown", schemaStatements: [], queryStatements: [], otherStatements: [] };

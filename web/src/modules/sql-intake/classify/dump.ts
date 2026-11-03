@@ -15,6 +15,7 @@ export function prepareDump(sql: string, engine: EngineId): PrepareResult {
   let keep = 0; // đầu đoạn chưa chép
   let i = 0;
   let atLineStart = true;
+  let noTerminator = false; // đã quét tới cuối file mà không thấy `\.`, các COPY sau cũng không có: tránh quét lại O(n²)
 
   const lineEnd = (from: number) => {
     const e = sql.indexOf("\n", from);
@@ -37,7 +38,7 @@ export function prepareDump(sql: string, engine: EngineId): PrepareResult {
         skip(i, eol); // lệnh psql như \connect
         continue;
       }
-      if (pg && COPY_STDIN.test(line)) {
+      if (pg && !noTerminator && COPY_STDIN.test(line)) {
         let p = eol;
         let end = -1;
         while (p < n) {
@@ -46,6 +47,7 @@ export function prepareDump(sql: string, engine: EngineId): PrepareResult {
           p = e;
         }
         if (end >= 0) { removed.copyBlocks++; skip(i, end); continue; }
+        noTerminator = true;
         // Thiếu `\.`: giữ nguyên, để parse báo lỗi thay vì xóa nhầm phần sau.
       } else if (!pg && LOCK.test(line)) {
         removed.lockStatements++;
@@ -55,7 +57,7 @@ export function prepareDump(sql: string, engine: EngineId): PrepareResult {
     }
     if (c === "\n") { atLineStart = true; i++; continue; }
     if (c === "'" || c === '"' || (!pg && c === "`")) {
-      const esc = !pg || (c === "'" && /[eE]/.test(sql[i - 1] ?? "") );
+      const esc = c !== "`" && (!pg || (c === "'" && /[eE]/.test(sql[i - 1] ?? "")));
       i++;
       while (i < n) {
         if (esc && sql[i] === "\\") i += 2;

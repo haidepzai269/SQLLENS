@@ -43,6 +43,22 @@ const MY_DUMP = [
   "INSERT INTO `t` VALUES (1),(2);", "/*!40000 ALTER TABLE `t` ENABLE KEYS */;", "UNLOCK TABLES;", "",
 ].join("\n");
 
+describe("hồi quy sau review", () => {
+  it("SELECT có chuỗi hay alias set_config vẫn là query", () => {
+    expect(kind("SELECT 'set_config'")).toBe("query");
+    expect(kind("SELECT 1 AS set_config")).toBe("query");
+  });
+  it("backslash trong backtick MySQL không phải escape", () => {
+    const sql = "SELECT `a\` FROM t;\nLOCK TABLES t WRITE;\nSELECT 2;\n";
+    expect(prepareDump(sql, "mysql").removed.lockStatements).toBe(1);
+  });
+  it("nhiều COPY thiếu terminator không chậm bậc hai", () => {
+    const t0 = performance.now();
+    prepareDump("COPY t FROM stdin;\n".repeat(20000), "postgres");
+    expect(performance.now() - t0).toBeLessThan(1000);
+  });
+});
+
 describe("prepareDump", () => {
   it("AC4 pg_dump (CRLF, COPY có cột)", () => {
     const r = prepareDump(PG_DUMP, "postgres");
