@@ -49,3 +49,7 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task023 | Sequence của cột serial và identity by default không được đặt lại sau khi chèn, INSERT tay sau đó có thể trùng khóa | Chưa làm |
 | Task023 | Chưa hỗ trợ FK và UNIQUE nhiều cột, `planData` không báo lỗi trước nên INSERT có thể hỏng lúc chạy | Chưa làm |
 | Task023 | Partition con bị liệt kê như bảng riêng, chưa chạy thử. Chu trình FK 3 bảng chưa chạy thật trên PGlite | `needs_validation` |
+| Task020 | Trên PGlite thật, `infinity` và `-infinity` của timestamptz hiện `Invalid date` ở cả hai ô (kiểm bằng Playwright, trang không sập). Sửa sau khi Task021 merge vì có thể phải đụng `worker.ts` | Chưa làm |
+| Task020 | `ResultGrid` hiện "2 dòng bị ảnh hưởng" dưới câu SELECT sau INSERT 2 dòng, nghi `affectedRows` của PGlite cộng dồn. Chưa kiểm | `needs_validation` |
+| Task020 | Adapter không trả chỉ số câu lỗi, nên nhật ký chỉ ghi "Gặp lỗi", chưa ghi được "lỗi ở câu N" như hợp đồng | Chưa làm |
+| Task020 | Nhánh timeout 30 giây của AC4 và chữ "số MB" của AC1 chưa có test riêng | Chưa làm |
