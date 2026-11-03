@@ -31,6 +31,9 @@ ac1() {
   deny "GRANT toàn cục" "GRANT SELECT ON *.* TO 'sqllens_user'@'localhost'"
   deny "GRANT FILE" "GRANT FILE ON *.* TO 'sqllens_user'@'localhost'"
   deny "GRANT trên mysql.*" "GRANT SELECT ON mysql.* TO 'sqllens_user'@'localhost'"
+  out=$(u -e '\! id' 2>&1); echo "$out" | grep -q '^uid=' && fail "lệnh phía client \! chạy được shell trong container" || echo "OK bị từ chối | \! (lệnh shell phía client) | $(echo "$out" | first)"
+  out=$(u -e 'system id' 2>&1); echo "$out" | grep -q '^uid=' && fail "system chạy được" || echo "OK bị từ chối | system | $(echo "$out" | first)"
+  out=$(u --commands --system-command -e '\! id' 2>&1); echo "$out" | grep -q '^uid=' && fail "tham số của người gọi bật lại \!" || echo "OK bị từ chối | --commands đứng trước không bật lại được \!"
   r -N -B -e "SELECT SLEEP(20)" >/dev/null 2>&1 &
   sleep 1
   rid=$(r -N -B -e "SELECT id FROM information_schema.processlist WHERE user='root' AND info LIKE 'SELECT SLEEP(20)%' AND id<>CONNECTION_ID()" | first)

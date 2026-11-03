@@ -13,9 +13,9 @@ shift 2 || true
 
 destroy() { docker rm -fv "$C" >/dev/null 2>&1 || true; rm -rf "${D:?}"; }
 cli() { # $1 = root|user. Mật khẩu qua stdin vào --defaults-extra-file, không qua biến môi trường hay dòng lệnh
-  local who=$1 acct=sqllens_user dbarg=(-Dapp); shift
-  [ "$who" = root ] && { acct=root; dbarg=(); }
-  printf '[client]\npassword=%s\n' "$(cat "$D/$who.pw")" | docker exec -i "$C" mysql --defaults-extra-file=/dev/stdin -u"$acct" "${dbarg[@]}" "$@"
+  local who=$1 acct=sqllens_user dbarg=(-Dapp) lock=(--skip-commands --skip-system-command); shift
+  [ "$who" = root ] && { acct=root; dbarg=(); lock=(); }
+  printf '[client]\npassword=%s\n' "$(cat "$D/$who.pw")" | docker exec -i "$C" mysql --defaults-extra-file=/dev/stdin -u"$acct" "${dbarg[@]}" "$@" "${lock[@]}"  # lock đứng cuối để tham số trước không bật lại lệnh phía client (! , source)
 }
 
 case "$cmd" in

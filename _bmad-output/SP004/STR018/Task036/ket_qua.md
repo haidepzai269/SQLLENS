@@ -50,7 +50,7 @@ Dưới `sqllens_user`, `SHOW DATABASES` và `information_schema.schemata` chỉ
 2.920, 2.862, 2.914, 2.685, 2.558 ms, trung vị 2,86 giây. Task034: 2,87 giây. Không tăng.
 
 ## AC7
-`seed.sh verify`: "bản mẫu đúng". Dọn máy: xem cuối file.
+`seed.sh verify`: "bản mẫu đúng". Dọn máy sau khi xong: 0 container, 0 volume, `/var/lib/sqllens` và thư mục thử đã xóa, máy vẫn chạy (uptime 2:46). Image `mysql:8.4.13` còn trên máy.
 
 ## Ca biên
 - `CREATE PROCEDURE ... SQL SECURITY DEFINER` được tạo (definer là chính user), `CALL` đọc `mysql.user` vẫn 1142: không lên quyền.
@@ -63,3 +63,12 @@ Dưới `sqllens_user`, `SHOW DATABASES` và `information_schema.schemata` chỉ
 - `sqllens_user` chỉ có `@localhost` (kết nối qua `docker exec` trong container). Task035 quyết định cách đi vào container; nếu qua TCP phải tạo thêm host và mở mạng.
 - Không có giới hạn CPU/bộ nhớ theo câu, chỉ giới hạn cả container (`--memory 384m --cpus 1`).
 - Chưa thử các bảng `performance_schema` ngoài `data_locks`, `data_lock_waits`.
+
+## Sau review
+Reviewer (sonnet, góc bảo mật) không thấy lỗi leo quyền trong SQL. Báo 4 điểm:
+1. **Đã sửa, xác nhận bằng thử thật.** `exec --as user` chạy client `mysql` trong container nên `\! id` chạy được shell dưới uid của mysqld (thật sự chạy được: in `uid=32818`). Sửa: với `--as user`, `session.sh` thêm `--skip-commands --skip-system-command` ở cuối dòng lệnh, nên tham số người gọi truyền trước không bật lại được. Thử: `\! id` và `system id` bị từ chối, `--commands --system-command` đứng trước vẫn bị từ chối. Thêm 3 kiểm tra này vào `lowpriv.sh ac1`. Ràng buộc cho Task035: SQL người dùng phải đi qua driver, không đưa vào `-e` hay stdin của client; `exec` chỉ là giao diện quản trị và kiểm thử. Tắt lệnh phía client cũng làm `DELIMITER` không dùng được qua `exec`.
+2. **Ghi nhận, chưa sửa.** Không có hạn mức đĩa theo phiên: `INSERT ... SELECT` lặp lại có thể làm đầy đĩa máy. Chưa thử đầy đĩa. Cần quota (XFS project quota, hoặc `--storage-opt`, hoặc sandbox agent theo dõi và hủy phiên) ở Task035.
+3. **Ghi nhận cho Task035 và SP010.** Procedure, function, view do user tạo với `SQL SECURITY INVOKER` chạy bằng quyền người gọi. Không bao giờ `CALL` hoặc `SELECT` từ đối tượng của user bằng root; bước clone bảng cho what-if chỉ dùng `CREATE TABLE ... LIKE` / `INSERT ... SELECT` trên bảng, không dùng view hay routine của user.
+4. Đã bổ sung kết quả dọn máy ở AC7.
+
+Script `lowpriv.sh ac3` chỉ in kết quả, không tự so với Task016; so sánh 5 lần bằng `cmp` và đối chiếu mắt với Task016 do người chạy làm. Sau sửa, chạy lại ac1, ac2, ac4, ac5, edge đều thoát 0, ac3 5/5 lần giống nhau.
