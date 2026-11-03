@@ -34,7 +34,7 @@ function preds(n: unknown, top: boolean, out: Pred[]) {
   if (name === "BoolExpr") {
     if (r.boolop === "AND_EXPR") arr(r.args).forEach((a) => preds(a, top, out));
     else if (r.boolop === "OR_EXPR") arr(r.args).forEach((a) => preds(a, false, out));
-    return; // NOT: bỏ
+    return; // shortcut: NOT (...) bỏ qua, nên `NOT (lower(x)='a')` không báo; thêm khi cần
   }
   if (name === "NullTest") out.push({ k: "cmp", op: "is", l: pgX(r.arg), r: OTHER, top });
   else if (name === "SubLink" && r.subLinkType === "ANY_SUBLINK" && r.testexpr) out.push({ k: "cmp", op: "=", l: pgX(r.testexpr), r: OTHER, top });
@@ -120,17 +120,19 @@ export const pg: Adapter = {
       if (c) ctes.add(lc(c));
     });
     const out: Scope[] = [];
-    walk(ast, (n) => {
+    const build = (s: Rec, isSel: boolean, upd: boolean) => {
       const p: Pred[] = [];
-      const sel = rec(n.SelectStmt);
-      const upd = rec(n.UpdateStmt);
-      const del = rec(n.DeleteStmt);
-      const s = sel ?? upd ?? del;
-      if (!s) return;
-      const from = sel ? arr(s.fromClause) : [{ RangeVar: s.relation }, ...arr(upd ? s.fromClause : s.usingClause)];
+      const from = isSel ? arr(s.fromClause) : [{ RangeVar: s.relation }, ...arr(upd ? s.fromClause : s.usingClause)];
       const sources = pgSources(from, ctes, p);
       if (s.whereClause) preds(s.whereClause, true, p);
       out.push({ sources, preds: p });
+      // UNION/INTERSECT/EXCEPT: hai nhánh là SelectStmt trần, không có khóa bọc nên walk không tự thấy.
+      for (const b of [s.larg, s.rarg]) if (rec(b)) build(rec(b)!, true, false);
+    };
+    walk(ast, (n) => {
+      if (rec(n.SelectStmt)) build(rec(n.SelectStmt)!, true, false);
+      else if (rec(n.UpdateStmt)) build(rec(n.UpdateStmt)!, false, true);
+      else if (rec(n.DeleteStmt)) build(rec(n.DeleteStmt)!, false, false);
     });
     return out;
   },

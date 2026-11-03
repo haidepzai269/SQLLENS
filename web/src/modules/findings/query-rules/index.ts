@@ -95,6 +95,7 @@ function runScope(scope: Scope, schema: Schema, emit: Emit, engine: EngineId) {
     if (p.k === "cmp") sides(p).forEach((x) => add(x, p.op));
     else add(p.l, "like", p.r.k !== "str" || /^[%_]/.test(p.r.v));
   }
+  // shortcut: không biết số giá trị riêng của cột đầu nên không tính skip scan (PostgreSQL 18, MySQL 8); STR041 không được viết là index chắc chắn không dùng được.
   for (const [name, hit] of used) {
     const indexes = schema.get(name)?.indexes.filter((i) => i.btree) ?? [];
     if (indexes.some((i) => i.parts[0]?.key && hit.has(i.parts[0].key))) continue; // có index dùng được cột đầu

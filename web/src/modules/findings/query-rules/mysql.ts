@@ -19,6 +19,7 @@ const CMP = new Set(["=", "<>", "!=", "<", ">", "<=", ">=", "<=>"]);
 
 function preds(n: unknown, top: boolean, out: Pred[]) {
   const r = rec(n);
+  // shortcut: chỉ đọc binary_expr, NOT và unary bỏ qua nên `NOT (lower(x)='a')` không báo; thêm khi cần.
   if (!r || r.type !== "binary_expr") return;
   const op = String(r.operator).toUpperCase();
   const l = myX(r.left);

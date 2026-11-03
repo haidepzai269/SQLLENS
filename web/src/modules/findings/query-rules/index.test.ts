@@ -75,8 +75,10 @@ describe.each(ENGINES)("%s", (e) => {
     expect(run(e, sch + q("o.email"))).toEqual([]);
     // cột không có tiền tố, hai bảng cùng có: không chắc nên không báo
     expect(run(e, sch + q("email"))).toEqual([]);
-    // cột không có tiền tố chỉ users có
-    expect(run(e, sch + "SELECT * FROM users x JOIN orders o ON o.user_id = x.id WHERE lower(age) = 1")).toEqual([]);
+    // cột không có tiền tố chỉ users có (index trên age): gán cho users
+    const r = run(e, sch + "CREATE INDEX ia ON users (age);SELECT * FROM users x JOIN orders o ON o.user_id = x.id WHERE lower(age) = 1");
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ table: "users", column: "age" });
   });
 
   it("AC6 vị trí", () => {
@@ -99,6 +101,12 @@ describe.each(ENGINES)("%s", (e) => {
     expect(ids(run(e, base + "WITH c AS (SELECT * FROM users WHERE lower(email) = 'x') SELECT * FROM c"))).toEqual(["function-on-indexed-column"]);
     // cột của CTE trùng tên cột có index: không gán cho bảng thật
     expect(run(e, base + "WITH c AS (SELECT email FROM users) SELECT * FROM c WHERE lower(email) = 'x'")).toEqual([]);
+  });
+
+  it("UNION: cả hai nhánh được kiểm", () => {
+    const base = T + IDX_EMAIL;
+    expect(ids(run(e, base + "SELECT id FROM users WHERE lower(email) = 'x' UNION SELECT id FROM orders"))).toEqual(["function-on-indexed-column"]);
+    expect(ids(run(e, base + "SELECT id FROM orders UNION ALL SELECT id FROM users WHERE lower(email) = 'x'"))).toEqual(["function-on-indexed-column"]);
   });
 
   it("không có rủi ro thì mảng rỗng, SQL đọc không được thì bỏ qua", () => {
