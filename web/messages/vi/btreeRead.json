@@ -1,0 +1,10 @@
+{
+  "evidence": "Đọc từ index thật bằng pageinspect: {height} tầng, {pages} trang.",
+  "notFound": "Không đọc được: không có index nào tên này trong schema public. Chưa mô phỏng được.",
+  "notIndex": "Không đọc được: tên này không phải index (là bảng hoặc đối tượng khác). Chưa mô phỏng được.",
+  "notBtree": "Không đọc được: chỉ đọc được index B-Tree, index này dùng kiểu khác (hash, gin, gist và các loại khác). Chưa mô phỏng được.",
+  "invalid": "Không đọc được: index này chưa hợp lệ (ví dụ CREATE INDEX chưa chạy xong). Chưa mô phỏng được.",
+  "keyType": "Không đọc được: index có kiểu khóa hoặc giá trị chưa hỗ trợ (hỗ trợ: int, bigint, text, uuid, timestamptz; NULL trong khóa nhiều cột chưa hỗ trợ). Chưa mô phỏng được.",
+  "dropped": "Không đọc được: index bị xóa trong lúc đang đọc. Chưa mô phỏng được.",
+  "inTransaction": "Không đọc được: phiên đang có transaction bị lỗi. Hãy ROLLBACK trước. Chưa mô phỏng được."
+}

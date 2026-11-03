@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 import type { EngineErrorData } from "@/contracts/engine";
+import { readBTree } from "./btree-read";
 import { loadGuard } from "./guard";
 import type { WorkerRequest, WorkerResponse } from "./protocol";
 import { createSession, GuardError } from "./roles";
@@ -69,6 +70,11 @@ onmessage = async ({ data: m }: MessageEvent<WorkerRequest>) => {
     if (!session) throw new Error("not initialised");
     if (m.type === "try") {
       post({ id: m.id, type: "done", tried: await runTryChange(session.run, m.change, m.probe) });
+      return;
+    }
+    if (m.type === "btree") {
+      const { adminSession } = session;
+      post({ id: m.id, type: "done", btree: await adminSession((q) => readBTree(q, m.index, m)) });
       return;
     }
     const results = await session.run(m.sql);

@@ -1,0 +1,10 @@
+{
+  "evidence": "Read from the real index with pageinspect: {height} levels, {pages} pages.",
+  "notFound": "Cannot read: no index with this name exists in schema public. Not simulated.",
+  "notIndex": "Cannot read: this name is not an index (it is a table or another object). Not simulated.",
+  "notBtree": "Cannot read: only B-Tree indexes can be read; this index uses another access method (hash, gin, gist and so on). Not simulated.",
+  "invalid": "Cannot read: this index is not valid yet (for example a CREATE INDEX that did not finish). Not simulated.",
+  "keyType": "Cannot read: the index has a key type or value that is not supported yet (supported: int, bigint, text, uuid, timestamptz; NULL in a multi-column key is not supported). Not simulated.",
+  "dropped": "Cannot read: the index was dropped while it was being read. Not simulated.",
+  "inTransaction": "Cannot read: the session has a transaction in error. ROLLBACK first. Not simulated."
+}
