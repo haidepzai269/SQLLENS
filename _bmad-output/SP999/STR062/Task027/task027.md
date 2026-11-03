@@ -1,7 +1,7 @@
 # Task027: Hiện đúng infinity, số dòng ảnh hưởng và vị trí câu lỗi
 
 Thuộc: SP999 / STR062
-Điều kiện bắt đầu: Task021, Task024, Task025, Task032 đã merge, vì task này sửa `web/src/engines/postgres/**`, `web/src/contracts/engine.ts` và `web/src/modules/lab/**`.
+Điều kiện bắt đầu: Task021, Task024, Task025, Task032, Task039 đã merge, vì task này sửa `web/src/engines/postgres/**`, `web/src/contracts/engine.ts` và `web/src/modules/lab/**`.
 Mục tiêu: Sửa ba sai lệch Task020 phát hiện khi chạy thật, và hiện đúng ngôn ngữ cho lỗi chặn của Task021.
 Phạm vi: `web/src/components/result-grid/**`, `web/src/modules/data-lab/ui/**`, `web/e2e/postgres-guard.spec.ts`, `web/src/engines/postgres/**`, `web/src/contracts/engine.ts`, `web/e2e/lab.spec.ts`, `web/src/modules/lab/**` (chỉ phần nhật ký và hiển thị lỗi).
 Không làm: sửa giao diện khác.

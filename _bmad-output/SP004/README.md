@@ -2,19 +2,23 @@
 
 Kết quả: MySQL thật chạy an toàn trên máy Azure, mỗi phiên một container, SQL người dùng chạy bằng role quyền thấp.
 
-Epic này mới chia một task đầu tiên. Các task còn lại chia sau khi có số đo của Task034.
+STR019 (nối vào sản phẩm) chờ SP005 vì MySQL cần đăng nhập, và chờ chủ dự án chốt đường mạng từ Render tới máy Azure. STR020 (kiểm tra bảo mật) chạy sau Task035.
 
 ## Story và Task
 
 | Story | Task | Việc | Phụ thuộc | Đợt |
 |---|---|---|---|---|
-| STR017 Container theo phiên | Task034 | Thư mục dữ liệu MySQL dựng sẵn, đo lại thời gian khởi động và số phiên | Task018 | 1 |
+| STR017 Container theo phiên | Task034 | Thư mục dữ liệu MySQL dựng sẵn, đo lại thời gian khởi động và số phiên | Task018 | 1, xong |
+| STR018 Quyền thấp | Task036 | Tài khoản `sqllens_user` cho mỗi phiên | Task034 | 2 |
+| STR016 Sandbox agent | Task035 | API tạo, chạy, hủy phiên, trần phiên, hết hạn | Task036 | 3 |
 
 ## Các file bị đụng
 
 | Task | File |
 |---|---|
 | Task034 | `sandbox/mysql-seed/**` |
+| Task036 | `sandbox/mysql-seed/**` |
+| Task035 | `sandbox/agent/**` |
 
 ## Quyết định
 
