@@ -34,7 +34,7 @@ type config struct {
 // backend là phần chạm vào máy thật (session.sh, docker, đĩa). Test thay bằng bản giả.
 type backend struct {
 	create  func(ctx context.Context, id string) error
-	destroy func(id string)
+	destroy func(id string) error // nil khi container và thư mục đã biến mất
 	dirSize func(id string) int64
 	// open mở kết nối tới phiên: root là quản trị, user là sqllens_user, đều qua unix socket của container.
 	open func(id, who string) (*sql.DB, error)
@@ -46,6 +46,7 @@ type session struct {
 	ready      bool
 	closed     bool
 	reason     string
+	finishing  bool
 	lastActive time.Time
 	cn         map[string]*userConn
 	root       *sql.DB
@@ -83,7 +84,10 @@ func newID() string {
 // (kết nối và transaction đã mất), nên dọn sạch rồi trả 404 là cách đơn giản và không để sót container.
 func (m *manager) cleanupStale() {
 	for _, id := range m.be.list() {
-		m.be.destroy(id)
+		if m.be.destroy(id) != nil {
+			log.Printf("event=stale_destroy_failed sid=%s", short(id))
+			continue
+		}
 		log.Printf("event=stale_removed sid=%s", short(id))
 	}
 }
@@ -105,10 +109,15 @@ func (m *manager) Create() (*session, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Second)
 	defer cancel()
 	if err := m.be.create(ctx, s.id); err != nil {
-		m.be.destroy(s.id)
-		m.mu.Lock()
-		delete(m.s, s.id)
-		m.mu.Unlock()
+		if m.be.destroy(s.id) == nil { // chưa xóa được thì giữ slot, sweep thử lại
+			m.mu.Lock()
+			delete(m.s, s.id)
+			m.mu.Unlock()
+		} else {
+			s.mu.Lock()
+			s.closed = true
+			s.mu.Unlock()
+		}
 		log.Printf("event=create_failed sid=%s ms=%d", short(s.id), time.Since(t0).Milliseconds())
 		return nil, err
 	}
@@ -145,7 +154,7 @@ func (s *session) expiresAt(ttl time.Duration) time.Time {
 	return s.lastActive.Add(ttl)
 }
 
-// Remove hủy phiên. Slot chỉ được trả sau khi container đã biến mất.
+// Remove hủy phiên. Slot chỉ được trả khi container đã biến mất; destroy lỗi thì phiên ở lại (closed) và sweep thử lại.
 func (m *manager) Remove(id, reason string) bool {
 	m.mu.Lock()
 	s := m.s[id]
@@ -160,24 +169,46 @@ func (m *manager) Remove(id, reason string) bool {
 	}
 	s.closed, s.reason = true, reason
 	s.mu.Unlock()
+	m.finish(s, reason)
+	return true
+}
+
+func (m *manager) finish(s *session, reason string) {
+	s.mu.Lock()
+	if s.finishing {
+		s.mu.Unlock()
+		return
+	}
+	s.finishing = true
+	s.mu.Unlock()
+	defer func() { s.mu.Lock(); s.finishing = false; s.mu.Unlock() }()
 	t0 := time.Now()
-	m.be.destroy(id) // trước, để câu đang chạy báo lỗi và nhả kết nối; db.Close chờ câu đang chạy
+	if err := m.be.destroy(s.id); err != nil { // trước, để câu đang chạy báo lỗi và nhả kết nối
+		log.Printf("event=destroy_failed sid=%s reason=%s", short(s.id), reason)
+		return
+	}
 	s.mu.Lock()
 	dbs := []*sql.DB{s.root}
+	conns := []*sql.Conn{}
 	for _, c := range s.cn {
 		dbs = append(dbs, c.db)
+		if c.c != nil {
+			conns = append(conns, c.c)
+		}
 	}
 	s.mu.Unlock()
+	for _, c := range conns {
+		c.Close()
+	}
 	for _, d := range dbs {
 		if d != nil {
 			d.Close()
 		}
 	}
 	m.mu.Lock()
-	delete(m.s, id)
+	delete(m.s, s.id)
 	m.mu.Unlock()
-	log.Printf("event=removed sid=%s reason=%s ms=%d", short(id), reason, time.Since(t0).Milliseconds())
-	return true
+	log.Printf("event=removed sid=%s reason=%s ms=%d", short(s.id), reason, time.Since(t0).Milliseconds())
 }
 
 func (s *session) why() string {
@@ -200,25 +231,26 @@ func (m *manager) janitor(ctx context.Context) {
 }
 
 func (m *manager) sweep() {
-	type item struct {
-		id     string
-		reason string
-	}
-	var drop []item
 	m.mu.Lock()
-	for id, s := range m.s {
-		s.mu.Lock()
-		if s.ready && !s.closed {
-			if time.Since(s.lastActive) > m.cfg.IdleTTL {
-				drop = append(drop, item{id, "expired"})
-			} else if m.be.dirSize(id) > m.cfg.DiskLimit {
-				drop = append(drop, item{id, "disk_quota"})
-			}
-		}
-		s.mu.Unlock()
+	all := make([]*session, 0, len(m.s))
+	for _, s := range m.s {
+		all = append(all, s)
 	}
 	m.mu.Unlock()
-	for _, d := range drop {
-		go m.Remove(d.id, d.reason)
+	for _, s := range all {
+		s.mu.Lock()
+		ready, closed, idle, reason := s.ready, s.closed, time.Since(s.lastActive) > m.cfg.IdleTTL, s.reason
+		s.mu.Unlock()
+		switch {
+		case !ready:
+		case closed:
+			go m.finish(s, reason+"_retry")
+		case idle:
+			go m.Remove(s.id, "expired")
+		default:
+			if m.be.dirSize(s.id) > m.cfg.DiskLimit { // ngoài khóa: duyệt đĩa có thể chậm
+				go m.Remove(s.id, "disk_quota")
+			}
+		}
 	}
 }

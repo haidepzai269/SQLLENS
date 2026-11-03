@@ -44,16 +44,24 @@ type userConn struct {
 
 func (m *manager) rootDB(s *session) (*sql.DB, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.root == nil {
-		db, err := m.be.open(s.id, "root")
-		if err != nil {
-			return nil, err
-		}
-		db.SetMaxOpenConns(2)
-		s.root = db
+	db := s.root
+	s.mu.Unlock()
+	if db != nil {
+		return db, nil
 	}
-	return s.root, nil
+	nd, err := m.be.open(s.id, "root") // chậm (docker inspect): không giữ s.mu
+	if err != nil {
+		return nil, err
+	}
+	nd.SetMaxOpenConns(2)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.root != nil {
+		nd.Close()
+		return s.root, nil
+	}
+	s.root = nd
+	return nd, nil
 }
 
 func slot(s *session, name string) *userConn {
@@ -78,13 +86,14 @@ func (m *manager) ensure(s *session, cn *userConn) error {
 			return err
 		}
 		db.SetMaxOpenConns(1)
-		cn.db = db
 		s.mu.Lock()
 		closed := s.closed
+		if !closed {
+			cn.db = db
+		}
 		s.mu.Unlock()
 		if closed { // phiên bị hủy trong lúc mở
 			db.Close()
-			cn.db = nil
 			return errNotFound
 		}
 	}
@@ -99,7 +108,9 @@ func (m *manager) ensure(s *session, cn *userConn) error {
 		c.Close()
 		return err
 	}
+	s.mu.Lock()
 	cn.c, cn.id = c, id
+	s.mu.Unlock()
 	return nil
 }
 
@@ -128,12 +139,12 @@ func (m *manager) Query(s *session, name, query string) (*queryResponse, error) 
 	})
 	// Không truyền context có hạn: driver sẽ đóng cả kết nối khi hết hạn, mất transaction. KILL QUERY chỉ cắt câu.
 	resp, err := m.readAll(s, cn, query)
-	timer.Stop()
 	cn.mu.Lock()
+	// shortcut: timer bắn đúng khoảng micro giây giữa readAll xong và dòng này thì câu đã xong vẫn báo timeout; KILL không phân biệt được SLEEP bị cắt, nên chấp nhận
 	cn.done = true
 	wasTimeout := timedOut
 	cn.mu.Unlock()
-
+	timer.Stop()
 	if wasTimeout { // SLEEP() bị KILL vẫn trả 1 mà không báo lỗi, nên không dựa vào err
 		return nil, errTimeout
 	}

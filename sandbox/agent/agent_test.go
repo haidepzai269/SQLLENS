@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -17,12 +18,13 @@ import (
 )
 
 type fake struct {
-	mu        sync.Mutex
-	destroyed []string
-	inflight  atomic.Int32
-	maxFlight atomic.Int32
-	disk      atomic.Int64
-	stale     []string
+	mu          sync.Mutex
+	destroyed   []string
+	inflight    atomic.Int32
+	maxFlight   atomic.Int32
+	disk        atomic.Int64
+	stale       []string
+	failDestroy bool
 }
 
 func (f *fake) be() backend {
@@ -36,7 +38,15 @@ func (f *fake) be() backend {
 			time.Sleep(80 * time.Millisecond)
 			return nil
 		},
-		destroy: func(id string) { f.mu.Lock(); f.destroyed = append(f.destroyed, id); f.mu.Unlock() },
+		destroy: func(id string) error {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			if f.failDestroy {
+				return errors.New("docker treo")
+			}
+			f.destroyed = append(f.destroyed, id)
+			return nil
+		},
 		dirSize: func(string) int64 { return f.disk.Load() },
 		list:    func() []string { return f.stale },
 	}
@@ -188,5 +198,33 @@ func TestDirBytes(t *testing.T) {
 	d := t.TempDir()
 	if dirBytes(d) < 0 {
 		t.Fatal()
+	}
+}
+
+// M1: destroy lỗi thì không trả slot; sau khi sửa được, sweep dọn nốt rồi mới trả slot.
+func TestDestroyFailureKeepsSlot(t *testing.T) {
+	f, m, h := newTest(t, testCfg())
+	var ids []string
+	for i := 0; i < 2; i++ {
+		var c struct{ ID string }
+		json.Unmarshal(do(h, "POST", "/sessions", good, "").Body.Bytes(), &c)
+		ids = append(ids, c.ID)
+	}
+	f.mu.Lock()
+	f.failDestroy = true
+	f.mu.Unlock()
+	if w := do(h, "DELETE", "/sessions/"+ids[0], good, ""); w.Code != 204 {
+		t.Fatalf("delete: %d", w.Code)
+	}
+	if w := do(h, "POST", "/sessions", good, ""); w.Code != 429 {
+		t.Fatalf("slot bị trả khi container còn: %d", w.Code)
+	}
+	f.mu.Lock()
+	f.failDestroy = false
+	f.mu.Unlock()
+	m.sweep()
+	time.Sleep(100 * time.Millisecond)
+	if w := do(h, "POST", "/sessions", good, ""); w.Code != 201 {
+		t.Fatalf("slot không được trả sau khi dọn xong: %d", w.Code)
 	}
 }

@@ -68,6 +68,7 @@ func realBackend(script, root string) backend {
 	run := func(ctx context.Context, args ...string) ([]byte, error) {
 		cmd := exec.CommandContext(ctx, "bash", append([]string{script}, args...)...)
 		cmd.Env = append(os.Environ(), "SESS_ROOT="+root)
+		cmd.WaitDelay = 5 * time.Second // docker con giữ pipe thì Run vẫn trả về sau khi bash bị kill
 		var out bytes.Buffer
 		cmd.Stdout, cmd.Stderr = &out, &out
 		err := cmd.Run()
@@ -82,13 +83,23 @@ func realBackend(script, root string) backend {
 			}
 			return err
 		},
-		destroy: func(id string) {
+		destroy: func(id string) error {
 			if !nameRe.MatchString(id) {
-				return
+				return nil
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()
-			run(ctx, "destroy", id)
+			if _, err := run(ctx, "destroy", id); err != nil {
+				return err
+			}
+			// kiểm lại thật: container không còn và thư mục đã mất
+			if exec.CommandContext(ctx, "docker", "inspect", "sqllens-mysql-"+id).Run() == nil {
+				return errors.New("container còn")
+			}
+			if _, err := os.Stat(filepath.Join(root, id)); err == nil {
+				return errors.New("thư mục còn")
+			}
+			return nil
 		},
 		dirSize: func(id string) int64 { return dirBytes(filepath.Join(root, id)) },
 		open: func(id, who string) (*sql.DB, error) {
