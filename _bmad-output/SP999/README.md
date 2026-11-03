@@ -38,3 +38,5 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task010 | GitHub tắt workflow theo lịch sau 60 ngày repo không có hoạt động, làm `keep-awake` ngừng | Chưa làm |
 | Task010 | AC7 chưa làm: chưa đo cookie và stream qua Vercel thật vì `api/` chưa có route stream. Đo khi SP005 có cookie đăng nhập và SP012 có stream AI | Chưa làm |
 | Task009 | `HEAD /healthz` trả 405. Chỉ cần sửa nếu ping giữ thức dùng HEAD. Task010 dùng GET | `needs_validation` |
+| Task022 | Chưa kiểm PGlite thật trả gì cho `infinity` của timestamptz. Nếu trả `Date` không hợp lệ thì lưới hiện `Invalid date` thay vì `infinity`. Kiểm khi gắn vào Task020 | `needs_validation` |
+| Task022 | AC5 (cuộn ngang ở 390 px) chưa kiểm trên trình duyệt thật, và bản sửa `affectedRows` chưa qua vòng kiểm lại của reviewer. Task020 chụp ảnh 390 px | `needs_validation` |
