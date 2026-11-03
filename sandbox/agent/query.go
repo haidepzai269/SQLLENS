@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"sync"
@@ -129,13 +130,18 @@ func (m *manager) Query(s *session, name, query string) (*queryResponse, error) 
 	cn.done = false
 	cn.mu.Unlock()
 	var timedOut bool
+	finished := make(chan struct{})
+	defer close(finished)
 	timer := time.AfterFunc(m.cfg.QueryTimeout, func() {
 		cn.mu.Lock()
-		defer cn.mu.Unlock()
-		if !cn.done {
-			timedOut = true
-			m.kill(s, cn.id)
+		if cn.done {
+			cn.mu.Unlock()
+			return
 		}
+		timedOut = true
+		m.kill(s, cn.id)
+		cn.mu.Unlock()
+		m.escalate(s, finished)
 	})
 	// Không truyền context có hạn: driver sẽ đóng cả kết nối khi hết hạn, mất transaction. KILL QUERY chỉ cắt câu.
 	resp, err := m.readAll(s, cn, query)
@@ -164,6 +170,17 @@ func (m *manager) Query(s *session, name, query string) (*queryResponse, error) 
 		return nil, err
 	}
 	return resp, nil
+}
+
+// escalate: KILL QUERY không dừng được mọi câu (thủ tục có CONTINUE HANDLER cho lỗi 1317 vẫn chạy tiếp, đốt hết một CPU).
+// Quá hạn ân hạn mà câu chưa trả về thì hủy cả phiên.
+func (m *manager) escalate(s *session, finished <-chan struct{}) {
+	select {
+	case <-finished:
+	case <-time.After(m.cfg.KillGrace):
+		log.Printf("event=query_stuck sid=%s", short(s.id))
+		m.Remove(s.id, "query_stuck")
+	}
 }
 
 func (m *manager) kill(s *session, id int64) {
