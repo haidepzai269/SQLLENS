@@ -47,7 +47,7 @@ function Inner({ tables }: { tables: TableInfo[] }) {
         const k = tableKey(tb);
         const wanted = saved[k] ?? auto[k];
         // vị trí đã lưu có thể chồng khi bảng đổi chiều cao (gọn/đủ cột): đẩy ra trước khi hiện
-        const position = saved[k] ? separate(rectOf(k, wanted), placed) : wanted;
+        const position = separate(rectOf(k, wanted), placed);
         placed.push(rectOf(k, position));
         return {
           id: k, type: "table", position, draggable: true,
@@ -147,7 +147,7 @@ function Inner({ tables }: { tables: TableInfo[] }) {
               setDragging(null);
               settle(n.id, n.position);
             }}
-            minZoom={0.3}
+            minZoom={many ? 0.1 : 0.3}
             maxZoom={1.6}
             nodesConnectable={false}
             edgesFocusable={false}
