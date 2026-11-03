@@ -63,8 +63,16 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task018 | Đĩa máy Azure là 29 GB mặc định, không phải 64 GiB P6 như task ghi. AC1 chỉ quét từ IP được NSG cho vào, chưa quét từ IP khác | `needs_validation` |
 | Task026 | FK trỏ vào cột `GENERATED ... STORED UNIQUE` bị vi phạm khi sinh dữ liệu, đã tái hiện | Chưa làm |
 | Task026 | Bảng chỉ có một cột sequence và không ai trỏ tới báo `no column can be generated`. Partition với serial chưa kiểm | Chưa làm |
-| Chủ dự án | Phương án để dành: giữ sẵn 1 container MySQL chờ để phiên mới không phải khởi động. Tốn khoảng 270 MiB RAM thường trực, trên máy 1 GB tức mất một trong hai chỗ phiên. Chỉ làm khi Task034 hoặc người dùng thật cho thấy thời gian chờ vẫn là vấn đề | Để dành |
+| Chủ dự án | Phương án để dành: giữ sẵn 1 container MySQL chờ để phiên mới không phải khởi động. Tốn khoảng 270 MiB RAM thường trực, trên máy 1 GB tức mất một trong hai chỗ phiên. Chỉ làm khi Task034 hoặc người dùng thật cho thấy thời gian chờ vẫn là vấn đề | Để dành. Task034 đo phiên đầu còn 2,87 giây nên chưa cần |
 | Task029 | Route thử `/[locale]/e2e-editor` đi vào bản production. Chặn ở SP013 cùng `e2e-adapter` | Chưa làm |
 | Task029 | Chạy cả bộ Playwright ghi đè ảnh `anh-vi-1440.png` của Task020 mỗi lần. Ảnh chụp nên ghi ra thư mục tạm, không ghi vào thư mục task | Chưa làm |
 | Task029 | `npm run check` thỉnh thoảng trượt vì test vitest vượt 5 giây khi máy bận, chạy lại thì đạt. Có thể gây đỏ giả trên CI | `needs_validation` |
 | Task029 | Ô soạn chưa kiểm trên Firefox, Safari, iOS thật. Màu tô backtick và `::` chỉ kiểm ở tầng parser | `needs_validation` |
+| Task034 | Hai lần tạo phiên khác tên cùng lúc có thể chọn trùng uid (khoảng 1/40000). SHA256 của bản mẫu chỉ phủ nội dung file thường, không phủ quyền hay symlink | `needs_validation` |
+| Task034 | Task thêm cờ `-attach` vào `spikes/mysql-lock/main.go`, ngoài phạm vi | Đã biết |
+| Task034 | Root hiện là tài khoản duy nhất của phiên, chưa có role quyền thấp. Việc của STR018 | Chưa làm |
+| Task028 | Route thử `/[locale]/e2e-parser` đi vào bản production. Chặn ở SP013 cùng `e2e-adapter` và `e2e-editor` | Chưa làm |
+| Task028 | `libpg-query.wasm` vẫn bị fetch sai vào `/_next/static/chunks/` trước khi tới đúng đường dẫn, giống Task021 | Chưa làm |
+| Task028 | Chưa chứng minh JS của `pgsql-parser` không tải ở nhánh MySQL, test chỉ phân biệt theo URL `.wasm`. AST của khoảng 20k câu qua `postMessage` chưa thử trên máy chậm | `needs_validation` |
+| Task028 | Chưa hỗ trợ `DELIMITER` của MySQL. `tables` sắp theo bảng chữ cái, không theo thứ tự xuất hiện | Chưa làm |
+| Task028 | Test `postgres-guard` (Task021) và `result-grid` AC2 trượt khi máy tải, chạy riêng thì đạt | `needs_validation` |

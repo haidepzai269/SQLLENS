@@ -71,7 +71,7 @@ Kèm theo: AI Mentor, đăng nhập, PostgreSQL và MySQL.
 | Quản lý gói | npm. `web/` và `api/` độc lập, không dùng workspace |
 | Sinh dữ liệu với khóa ngoại | Không tắt trigger FK khi nạp, chấp nhận 100k dòng có FK mất khoảng 5 giây (Task023), để dữ liệu sai vẫn bị phát hiện và không phải dùng quyền superuser |
 | Rủi ro thoát role trong PGlite | Chấp nhận: SQL dùng `DO` với `EXECUTE` vẫn có thể tạm lên superuser, tạo đối tượng rồi quay về mà lớp kiểm thứ hai không thấy (Task021). Không chặn `DO` và `EXECUTE` để giữ plpgsql và trigger. Ảnh hưởng chỉ trong tab của chính người dùng, nhưng có thể làm sai số liệu hiển thị. Xem lại ở cuối SP012, vì SQL do AI đề xuất cũng chạy qua đường này |
-| Thời gian chờ phiên MySQL | Làm thư mục dữ liệu dựng sẵn trước (Task034). Giữ sẵn container chờ là phương án để dành, chỉ làm khi số đo hoặc người dùng thật cho thấy vẫn chờ quá lâu, ghi ở `SP999` |
+| Thời gian chờ phiên MySQL | Dùng thư mục dữ liệu dựng sẵn (Task034), phiên đầu còn khoảng 3 giây. Giữ sẵn container chờ là phương án để dành, chỉ làm khi số đo hoặc người dùng thật cho thấy vẫn chờ quá lâu, ghi ở `SP999` |
 | AI Chaos Generator | Có trong V1 nhưng linh hoạt: chưa xong thì đẩy ra sau, không chặn phát hành. Kịch bản AI dựng phải chạy qua `conflict-sim` trước khi hiển thị, không để AI tự kết luận |
 
 ## Danh sách Epic
@@ -211,6 +211,7 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 - Trong Chromium, `pageinspect` đọc được root, internal, leaf và đi đúng đường từ root xuống leaf. Đọc hết cây 100k dòng mất khoảng 0,8 giây, nên cây lớn đọc theo đường đi (Task013).
 - Level của B-Tree phụ thuộc độ rộng key. Index `int` 100k dòng vẫn là level 1, nên số "level 2 ở 100k" trong bảng trên chỉ đúng với key rộng hơn.
 - **PGlite không có ranh giới quyền thật:** `session_user` là superuser, nên SQL chạy dưới role quyền thấp vẫn gọi được `RESET ROLE` hoặc `SET ROLE postgres` (Task013). Với PostgreSQL, nguyên tắc 8 phải thực hiện bằng cách chặn `SET ROLE`, `RESET ROLE`, `SET SESSION AUTHORIZATION` trong SQL người dùng bằng parser, và đọc B-Tree qua đường riêng không đi chung với SQL người dùng. Rủi ro hiện thấp vì PGlite chạy trong trình duyệt của chính người dùng.
+- `cursorPosition` của `libpg-query` đếm từ 0 theo code point, không theo byte hay đơn vị UTF-16. `parseSql` (Task028) đã đổi sang chỉ số chuỗi JS.
 - `pgsql-parser` chạy được trong Chromium: phần JS khoảng 57 KB gzip, WASM khoảng 344 KB gzip, `libpg-query.wasm` được tìm cạnh trang HTML. `node-sql-parser` nên import `node-sql-parser/build/mysql` (66 KB gzip thay vì 515 KB).
 - MySQL 8.4.13 trong Docker cho lock wait, deadlock, dirty read, lost update và gap lock quan sát được qua `performance_schema.data_lock_waits` và `data_locks`, 5/5 lần giống nhau (Task016). Chỉ connection quản trị đọc được các bảng này: user quyền thấp bị từ chối. Bên bị hủy trong deadlock không cố định, nên `conflict-sim` không được giả định bên nào. Mật khẩu truyền qua biến môi trường vẫn lộ qua `docker inspect`, sandbox agent phải dùng cách khác.
 - Gọi Gin qua `rewrites` của Next.js giữ được cookie `HttpOnly` và stream SSE, kiểm trên `next start` ở máy (Task014). Điều kiện: `next start` mặc định nén gzip và gom cả stream, nên phải đặt `compress: false`. Chưa kiểm trên Vercel, Task010 đo lại.
@@ -225,7 +226,8 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 - Máy Azure thật (Task018), `Standard_B2ats_v2`, East Asia, RAM 836 MiB, swap 1 GiB do `setup.sh` thêm, đĩa 29 GB:
   - Một container `mysql:8.4.13` với cấu hình Task015 sẵn sàng sau trung vị 16,2 giây, dùng khoảng 273 MiB.
   - Hai phiên chạy cùng lúc được, không OOM, RAM trống còn 18 đến 19%. Phiên thứ hai mất 48,6 đến 51,8 giây, gấp khoảng 3 lần, chưa tách được do CPU credit hay đĩa. Phiên thứ ba chưa thử.
-  - Trần phiên cho SP004: 2 phiên trên máy này, khởi động tuần tự, `--memory 384m`. Đo lại sau khi có thư mục dữ liệu dựng sẵn.
+  - Với thư mục dữ liệu dựng sẵn (Task034, bản mẫu 103 MiB sao chép cho mỗi phiên, mỗi phiên thêm khoảng 117 MiB đĩa): một phiên sẵn sàng sau trung vị 2,87 giây thay vì 16,2 giây. Phiên thứ hai khi phiên đầu đang giữ khóa mất 11,9 đến 14,3 giây. Trần vẫn là 2 phiên, RAM trống 17 đến 18%, không OOM. Nguyên nhân phiên thứ hai chậm và phiên thứ ba đo lại khi đổi sang B2als v2.
+  - Trần phiên cho SP004: 2 phiên trên máy này, `--memory 384m`, khởi động từ bản mẫu. Mật khẩu root mỗi phiên đặt bằng `--init-file` rồi xóa, nên `docker start` lại phiên cũ không chạy được, STR016 phải tạo phiên mới.
   - Lock wait và deadlock của Task016 chạy lại 5/5 lần giống nhau trên máy này.
   - Docker bỏ qua `ufw` với cổng publish, nên sandbox agent chỉ được bind `127.0.0.1` hoặc dùng `--network none`.
 - Ngân sách Azure: màn hình tạo máy ghi `Standard_B2ats_v2` giá 0,0131 USD mỗi giờ, trừ vào tín dụng, không thấy dấu hiệu miễn phí 750 giờ. Tức khoảng 9,6 USD mỗi tháng, cộng IP công khai khoảng 3,6 USD theo giá tham khảo và phí ổ đĩa. Ước tính 100 USD đủ khoảng 6 đến 7 tháng, chưa xác minh bằng Cost Management. Hạn tín dụng là 02/11/2027. Nếu đổi sang B2als v2 thì khoảng 34 đến 41 USD mỗi tháng, tín dụng đủ khoảng 2,5 tháng.
