@@ -2,7 +2,7 @@
 # Một phiên MySQL từ bản mẫu. Chạy: sudo ./session.sh create|destroy|exec|path TÊN ...
 #   create TÊN [tham số mysqld...] : sao chép bản mẫu, đặt mật khẩu root ngẫu nhiên, chạy container, chờ nhận kết nối
 #   destroy TÊN                    : xóa container và thư mục dữ liệu (chạy lại không lỗi)
-#   exec TÊN [tham số mysql...]    : chạy client mysql với root, mật khẩu đi qua stdin
+#   exec TÊN [--as user|root] [tham số mysql...] : chạy client mysql, mặc định tài khoản sqllens_user (quyền thấp); mật khẩu đi qua stdin
 # NET=loopback PORT=n : chỉ dùng để thử bằng client ngoài container (AC4): bind 127.0.0.1:n và thêm root@'%'. Mặc định --network none.
 set -euo pipefail
 . "$(dirname "$0")/common.sh"
@@ -12,14 +12,19 @@ C="sqllens-mysql-$name"; D="$SESS_ROOT/$name"
 shift 2 || true
 
 destroy() { docker rm -fv "$C" >/dev/null 2>&1 || true; rm -rf "${D:?}"; }
-cli() { # mật khẩu qua stdin vào --defaults-extra-file, không qua biến môi trường hay dòng lệnh
-  printf '[client]\npassword=%s\n' "$(cat "$D/pw")" | docker exec -i "$C" mysql --defaults-extra-file=/dev/stdin -uroot "$@"
+cli() { # $1 = root|user. Mật khẩu qua stdin vào --defaults-extra-file, không qua biến môi trường hay dòng lệnh
+  local who=$1 acct=sqllens_user dbarg=(-Dapp); shift
+  [ "$who" = root ] && { acct=root; dbarg=(); }
+  printf '[client]\npassword=%s\n' "$(cat "$D/$who.pw")" | docker exec -i "$C" mysql --defaults-extra-file=/dev/stdin -u"$acct" "${dbarg[@]}" "$@"
 }
 
 case "$cmd" in
 destroy) destroy ;;
 path) echo "$D" ;;
-exec) [ -f "$D/pw" ] || { echo "không có phiên $name" >&2; exit 1; }; cli "$@" ;;
+exec) [ -f "$D/root.pw" ] || { echo "không có phiên $name" >&2; exit 1; }
+  who=user; if [ "${1:-}" = --as ]; then who=${2:-}; shift 2 || true; fi
+  [ "$who" = user ] || [ "$who" = root ] || { echo "--as phải là user hoặc root" >&2; exit 2; }
+  cli "$who" "$@" ;;
 create)
   t0=$(now_ms)
   "$HERE/seed.sh" verify >/dev/null   # bản mẫu bị sửa thì không tạo phiên
@@ -37,9 +42,17 @@ create)
     stat -c %u "$SESS_ROOT"/*/data 2>/dev/null | grep -qx "$uid" || break
   done
   cp -a "$SEED_ROOT/data" "$D/data"; chown -R "$uid:$uid" "$D/data"; chmod 700 "$D/data"
-  pw=$(head -c 24 /dev/urandom | base64 | tr -d '+/=\n')
-  (umask 077; printf '%s' "$pw" > "$D/pw")
-  (umask 077; printf "ALTER USER 'root'@'localhost' IDENTIFIED BY '%s';\n" "$pw" > "$D/init.sql")
+  newpw() { head -c 24 /dev/urandom | base64 | tr -d '+/=\n'; }
+  pw=$(newpw); upw=$(newpw)
+  (umask 077; printf '%s' "$pw" > "$D/root.pw"; printf '%s' "$upw" > "$D/user.pw")
+  # sqllens_user chỉ có quyền trên app.*, không quyền toàn cục (không FILE, PROCESS, SUPER, CONNECTION_ADMIN, SET_USER_ID). Lý do từng quyền ở ket_qua.md
+  (umask 077; cat > "$D/init.sql" <<SQL
+ALTER USER 'root'@'localhost' IDENTIFIED BY '$pw';
+CREATE DATABASE app;
+CREATE USER 'sqllens_user'@'localhost' IDENTIFIED BY '$upw' WITH MAX_USER_CONNECTIONS 6;
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, REFERENCES, CREATE VIEW, SHOW VIEW, CREATE TEMPORARY TABLES, LOCK TABLES, TRIGGER, CREATE ROUTINE, ALTER ROUTINE, EXECUTE ON app.* TO 'sqllens_user'@'localhost';
+SQL
+)
   net=(--network none)
   if [ "${NET:-}" = loopback ]; then
     net=(-p "127.0.0.1:${PORT:?cần PORT}:3306")
@@ -51,11 +64,11 @@ create)
     --memory "${MEM:-384m}" --memory-swap "${MEM:-384m}" --cpus 1 --pids-limit 200 "${net[@]}" \
     --read-only --tmpfs /tmp --tmpfs "/run/mysqld:rw,mode=0700,uid=$uid,gid=$uid" --security-opt no-new-privileges --cap-drop ALL \
     -v "$D/data:/var/lib/mysql" -v "$D/init.sql:/init.sql:ro" "$IMAGE" \
-    --datadir=/var/lib/mysql --init-file=/init.sql "${CNF[@]}" "$@" >/dev/null
+    --datadir=/var/lib/mysql --init-file=/init.sql --max-execution-time=30000 "${CNF[@]}" "$@" >/dev/null
   ready=""
   for _ in $(seq 1 900); do   # tối đa 180 giây
     [ "$(docker inspect -f '{{.State.Running}}' "$C")" = true ] || { echo "container chết lúc khởi động" >&2; false; }
-    if [ "$(cli -N -B -e 'SELECT @@skip_networking' 2>/dev/null | tail -1)" = 0 ]; then ready=$(( $(now_ms) - t0 )); break; fi
+    if [ "$(cli root -N -B -e 'SELECT @@skip_networking' 2>/dev/null | tail -1)" = 0 ]; then ready=$(( $(now_ms) - t0 )); break; fi
     sleep 0.2
   done
   [ -n "$ready" ] || { echo "quá 180 giây chưa nhận kết nối" >&2; false; }
