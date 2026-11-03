@@ -45,7 +45,7 @@ function Pane({ title, children }: { title: string; children: ReactNode }) {
 export function LabWorkspace() {
   const t = useTranslations("lab");
   const ts = useTranslations("shell");
-  const { setMobileTab } = useShell();
+  const { setMobileTab, state: shell, toggle } = useShell();
   const engine = parseEngine(useSearchParams().get("engine"));
   // Toàn bộ trạng thái phiên nằm ở đây, trên WorkspaceLayout, nên đổi qua mốc 900 px không mất gì.
   const [sql, setSql] = useState("");
@@ -70,6 +70,7 @@ export function LabWorkspace() {
     if (busy.current) return;
     busy.current = true;
     setMobileTab("terminal");
+    if (!shell.open.terminal) toggle("terminal"); // vùng terminal đang tắt thì mở lại để thấy kết quả
     try {
       let db: EngineAdapter;
       try {
@@ -215,7 +216,7 @@ export function LabWorkspace() {
             <Alert variant="destructive" data-testid="stopped">
               <AlertDescription className="flex flex-col items-start gap-2">
                 <p>{t(`stopped.${state.code}`)}</p>
-                <p>{t("rebuildHint", { count: state.count })}</p>
+                {state.count > 0 && <p>{t("rebuildHint", { count: state.count })}</p>}
                 {state.rebuildError && <p>{t("rebuildError", { message: state.rebuildError })}</p>}
                 <Button variant="outline" onClick={rebuild}>
                   {t("rebuild")}

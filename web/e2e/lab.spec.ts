@@ -44,6 +44,7 @@ const isWasm = (url: string) => /\.wasm/.test(url);
 
 async function runSql(p: Page, l: "vi" | "en", sql: string) {
   const tab = p.getByRole("tab", { name: "SQL", exact: true });
+  await tab.or(sqlBox(p)).first().waitFor(); // đợi bố cục hydrate xong mới biết máy tính hay điện thoại
   if (await tab.isVisible()) await tab.click(); // điện thoại: ô SQL nằm trong tab
   await sqlBox(p).fill(sql);
   await runBtn(p, l).click();
@@ -181,4 +182,13 @@ test("0 dòng hiện câu rỗng; infinity của timestamptz không làm sập t
   console.log("INFINITY_CELLS", JSON.stringify(await cells.allTextContents()));
   await expect(conclusion(page)).toContainText("Real");
   await expect(sqlBox(page)).toBeVisible();
+});
+
+test("terminal đang tắt thì bấm Chạy mở lại để thấy kết quả", async ({ page }) => {
+  await page.goto("/en");
+  await sqlBox(page).waitFor();
+  await page.getByRole("button", { name: /Terminal/ }).filter({ visible: true }).click();
+  await expect(page.locator("#terminal")).toHaveCount(0);
+  await runSql(page, "en", "SELECT 1");
+  await expect(page.locator("tbody:visible tr")).toHaveCount(1, { timeout: 60_000 });
 });
