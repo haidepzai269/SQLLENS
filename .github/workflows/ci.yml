@@ -68,3 +68,35 @@ jobs:
         env:
           API_ORIGIN: https://api.example.invalid
       - run: npx playwright test
+
+  conflict-sim-golden:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: t051
+          POSTGRES_DB: t051
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx vitest run src/modules/conflict-sim/golden
+        env:
+          T051_DATABASE_URL: postgres://postgres:t051@localhost:5432/t051

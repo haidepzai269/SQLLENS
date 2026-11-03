@@ -1,0 +1,9 @@
+# Bàn giao Task051
+
+Đã làm: Test đối chiếu `simulate` với Postgres 18 thật bằng hai connection `pg`, 13 biến thể của 5 kịch bản (giống bộ Task050). Mỗi bước chạy đúng thứ tự `steps`, session bị chờ khóa được phát hiện bằng `pg_blocking_pids`. So `outcome`, thứ tự câu chờ khóa, SQLSTATE của câu lỗi (đã sắp xếp) và bảng cuối cùng (suy ra giá trị `brokenCheck`). Deadlock chỉ so việc có đúng một 40P01, không so bên bị hủy. Thêm job `conflict-sim-golden` vào CI với service `postgres:18`.
+File chính: `web/src/modules/conflict-sim/golden/golden.test.ts`, `.github/workflows/ci.yml`.
+Kết quả kiểm tra: `npm run check` thoát 0 (285 qua, 13 bỏ qua vì không có `T051_DATABASE_URL`). Với Postgres 18 trong Docker (`t051-pg`, cổng 54510, đã xóa): 5 lần liên tiếp đều 13/13 qua, không treo. Không đặt biến thì 13 test bỏ qua có thông báo. URL không ở localhost hoặc có query thì test từ chối chạy. AC4: tạm sửa mong đợi của `lost_update` thành `not_broken` thì 2 test đỏ, đã hoàn lại, không commit. Schema thử `t051_golden` bị xóa đầu và cuối mỗi lần, kể cả khi lỗi; connection bị `pg_terminate_backend` trước khi đóng.
+Kết quả review: 1 lỗi đã sửa (guard localhost bị qua mặt bằng `?host=`), reviewer cũ kiểm lại bản sửa. needs_validation còn lại: nếu runner CI đứng hơn 500 ms (`deadlock_timeout`) giữa lúc gửi lệnh bị chờ và lúc poll, nạn nhân deadlock có thể báo lỗi trước khi test thấy nó đang chờ, làm lệch thứ tự chờ; không tái hiện được trong 13 lần chạy.
+Chưa làm được: chưa chạy job trên GitHub Actions thật.
+Phát sinh: không có lệch giữa mô hình và Postgres. Nếu job CI flake vì needs_validation ở trên, tăng `deadlock_timeout` trong `connect()`.
+Việc tiếp theo cần biết: Sau khi merge, kiểm tab Actions của push lên `main`: job `conflict-sim-golden` phải xanh và log phải ghi 13 test qua, không phải bỏ qua. Cách thử đỏ: sửa tạm một `brokenWhen` trong `scenarios.ts` rồi push lên branch `task/**`.
