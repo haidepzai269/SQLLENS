@@ -1,0 +1,10 @@
+{
+  "role": "Câu thứ {index} bị chặn: không được đổi role hay quyền của phiên (SET ROLE, RESET ROLE, SET SESSION AUTHORIZATION, set_config('role', ...)).",
+  "resetAll": "Câu thứ {index} bị chặn: RESET ALL và DISCARD ALL sẽ trả phiên về quyền quản trị.",
+  "extension": "Câu thứ {index} bị chặn: không được tạo extension trong phiên này.",
+  "load": "Câu thứ {index} bị chặn: không được nạp thư viện bằng LOAD.",
+  "copyProgram": "Câu thứ {index} bị chặn: COPY ... PROGRAM chạy lệnh ngoài nên không được phép.",
+  "roleDdl": "Câu thứ {index} bị chặn: không được tạo, sửa hay xóa role.",
+  "grant": "Câu thứ {index} bị chặn: không được dùng GRANT hay REVOKE.",
+  "escaped": "Một câu trong lần chạy vừa rồi đã đổi role của phiên. Kết quả bị bỏ và phiên được dựng lại từ các câu đã chạy thành công trước đó."
+}

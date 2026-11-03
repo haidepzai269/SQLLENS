@@ -42,6 +42,7 @@ test("AC1 tải trong worker, có progress download và init", async ({ page }) 
 });
 
 test("AC2 câu nặng không chặn main thread", async ({ page }) => {
+  test.setTimeout(120_000); // Câu nặng và khởi tạo cộng lại sát mức mặc định 30 giây. Tiêu chí 200 ms không đổi.
   await open(page);
   await make(page, 120_000);
   const maxGap = await page.evaluate(async () => {
