@@ -166,7 +166,7 @@ func (s *Store) UpsertIdentity(ctx context.Context, provider, subject string, p 
 	case err != nil:
 		return User{}, fmt.Errorf("store: upsert: %w", err)
 	default:
-		if _, err := tx.Exec(ctx, `UPDATE users SET display_name = $2, email = $3, avatar_url = $4 WHERE id = $1`,
+		if _, err := tx.Exec(ctx, `UPDATE users SET display_name = $2, email = COALESCE($3, email), avatar_url = COALESCE($4, avatar_url) WHERE id = $1`,
 			id, name, nullable(p.Email), nullable(p.AvatarURL)); err != nil {
 			return User{}, fmt.Errorf("store: upsert: %w", err)
 		}

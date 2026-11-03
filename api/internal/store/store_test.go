@@ -18,6 +18,9 @@ func newStore(t *testing.T) *Store {
 	if url == "" {
 		t.Skip("bỏ qua: chưa đặt T041_DATABASE_URL (cần Postgres trong Docker)")
 	}
+	if !strings.Contains(url, "@localhost:") && !strings.Contains(url, "@127.0.0.1:") {
+		t.Fatal("từ chối chạy: test xóa bảng, chỉ cho phép database ở localhost")
+	}
 	ctx := context.Background()
 	s, err := Open(ctx, url)
 	if err != nil {
@@ -59,6 +62,10 @@ func TestUpsertIdentity(t *testing.T) { // AC2 + ca biên tên
 	}
 	if a.ID != b.ID || b.DisplayName != long || b.AvatarURL != "http://a/b.png" {
 		t.Fatalf("không cập nhật đúng: %+v", b)
+	}
+	// nhà cung cấp không trả email lần sau: giữ email cũ
+	if d, err := s.UpsertIdentity(ctx, "google", "123", Profile{DisplayName: "A"}); err != nil || d.Email != "x@y.z" || d.AvatarURL != "http://a/b.png" {
+		t.Fatalf("mất email hoặc ảnh: %+v %v", d, err)
 	}
 	c, err := s.UpsertIdentity(ctx, "github", "123", Profile{DisplayName: "A", Email: "x@y.z"})
 	if err != nil || c.ID == a.ID {
