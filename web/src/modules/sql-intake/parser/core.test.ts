@@ -80,6 +80,8 @@ describe("ca biên", () => {
     for (const fn of [pg, mysqlParse]) {
       const a = fn("WITH t AS (SELECT * FROM t) SELECT * FROM t");
       expect(a.ok && a.statements[0].tables).toEqual(["t"]);
+      const c = fn("WITH a AS (SELECT * FROM x), b AS (SELECT * FROM a) SELECT * FROM b");
+      expect(c.ok && c.statements[0].tables).toEqual(["x"]);
       const b = fn("WITH RECURSIVE r AS (SELECT 1 FROM r) SELECT * FROM r");
       expect(b.ok && b.statements[0].tables).toEqual([]);
     }

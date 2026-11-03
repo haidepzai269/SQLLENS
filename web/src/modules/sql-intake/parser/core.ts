@@ -65,6 +65,7 @@ function pgTables(root: unknown): string[] {
   const out: string[] = [];
   const outer: string[] = [];
   const ctes = new Set<string>();
+  const declared = new Set<string>(); // CTE đã khai báo tại điểm đang duyệt
   let recursive = false;
   let depth = 0;
   const walk = (n: unknown) => {
@@ -73,14 +74,21 @@ function pgTables(root: unknown): string[] {
     if (isObj(n.withClause) && n.withClause.recursive === true) recursive = true;
     const cte = n.CommonTableExpr;
     if (isObj(cte) && str(cte.ctename)) {
-      ctes.add(str(cte.ctename)!);
+      const name = str(cte.ctename)!;
+      ctes.add(name);
+      if (recursive) declared.add(name);
       depth++;
       Object.values(n).forEach(walk);
       depth--;
+      declared.add(name);
       return;
     }
     // RangeVar có lúc bọc trong khóa `RangeVar` (FROM), có lúc đứng trần ở `relation` (INSERT, CREATE, ALTER).
-    if (str(n.relname)) (depth ? out : outer).push(qualify(n.schemaname, str(n.relname)!));
+    if (str(n.relname)) {
+      const t = qualify(n.schemaname, str(n.relname)!);
+      if (!depth) outer.push(t);
+      else if (!declared.has(t)) out.push(t);
+    }
     const drop = n.DropStmt;
     if (isObj(drop) && drop.removeType === "OBJECT_TABLE" && Array.isArray(drop.objects)) {
       for (const o of drop.objects) {
@@ -94,7 +102,7 @@ function pgTables(root: unknown): string[] {
   walk(root);
   const isCte = (t: string) => ctes.has(t) && !t.includes(".");
   // Tên CTE xuất hiện như một RangeVar không có schema, không phải bảng thật.
-  return uniq([...out.filter((t) => !(recursive && isCte(t))), ...outer.filter((t) => !isCte(t))]);
+  return uniq([...out, ...outer.filter((t) => !isCte(t))]);
 }
 
 export type PgParser = (sql: string) => { stmts: { stmt: unknown; stmt_location?: number | null; stmt_len?: number | null }[] };
@@ -187,27 +195,36 @@ function myTables(root: unknown): string[] {
   const inner: string[] = [];
   const outer: string[] = [];
   const ctes = new Set<string>();
-  let recursive = false;
+  const declared = new Set<string>(); // CTE đã khai báo tại điểm đang duyệt
   let depth = 0;
   const walk = (n: unknown) => {
     if (Array.isArray(n)) return n.forEach(walk);
     if (!isObj(n)) return;
     // WITH: { name: { value }, stmt, recursive }
-    const isCte = isObj(n.name) && str(n.name.value) && "stmt" in n;
+    const isCte = isObj(n.name) && !!str(n.name.value) && "stmt" in n;
+    let cteName = "";
     if (isCte) {
-      ctes.add(str((n.name as Obj).value)!);
-      if (n.recursive === true) recursive = true;
+      cteName = str((n.name as Obj).value)!;
+      ctes.add(cteName);
+      if (n.recursive === true) declared.add(cteName);
       depth++;
     }
     // Mục bảng có `table` là chuỗi; tham chiếu cột (`column_ref`, có `column`) thì bỏ.
-    if (str(n.table) && n.type !== "column_ref" && !("column" in n)) (depth ? inner : outer).push(qualify(n.db, str(n.table)!));
+    if (str(n.table) && n.type !== "column_ref" && !("column" in n)) {
+      const t = qualify(n.db, str(n.table)!);
+      if (!depth) outer.push(t);
+      else if (!declared.has(t)) inner.push(t);
+    }
     Object.values(n).forEach(walk);
-    if (isCte) depth--;
+    if (isCte) {
+      depth--;
+      declared.add(cteName);
+    }
   };
   walk(root);
   const isCteName = (t: string) => ctes.has(t) && !t.includes(".");
   // Như PostgreSQL: tên trong thân CTE không đệ quy là bảng thật.
-  return uniq([...inner.filter((t) => !(recursive && isCteName(t))), ...outer.filter((t) => !isCteName(t))]);
+  return uniq([...inner, ...outer.filter((t) => !isCteName(t))]);
 }
 
 export type MyParser = { astify(sql: string, opt: { database: string }): unknown };
