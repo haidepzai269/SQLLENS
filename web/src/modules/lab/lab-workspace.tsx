@@ -72,6 +72,15 @@ export function LabWorkspace() {
   const tth = useTranslations("data-lab");
   const tg = useTranslations() as unknown as (key: string, values: { index: number }) => string; // khóa guard.* của EngineError.guard.reasonKey
 
+  // Sau mỗi lần phiên được dựng lại (tay, hoặc tự động khi lớp bảo vệ bắt đổi role): nói rõ dữ liệu sinh không được giữ, và báo nếu lớp một tắt.
+  function afterRebuild(db: EngineAdapter) {
+    if (generated.current) {
+      generated.current = false;
+      note({ kind: "note", text: tth("notKept") });
+    }
+    if (!db.guardActive) note({ kind: "guardOff" });
+  }
+
   async function refreshTables(db: EngineAdapter) {
     try {
       const r = await db.execute(
@@ -158,6 +167,7 @@ export function LabWorkspace() {
               ? guard.statementIndex ? { kind: "blocked", n: guard.statementIndex } : { kind: "escaped" }
               : at ? { kind: "errorAt", n: at } : { kind: "error" },
         );
+        if (guard?.rebuilt) afterRebuild(db); // adapter đã tự dựng lại phiên
         setState(
           code
             ? { phase: "stopped", code, count: db.history().length }
@@ -182,11 +192,8 @@ export function LabWorkspace() {
       const db = await adapter.current;
       count = db.history().length;
       await db.rebuild();
-      if (generated.current) {
-        generated.current = false;
-        note({ kind: "note", text: tth("notKept") });
-      }
       note({ kind: "rebuilt", n: count });
+      afterRebuild(db);
       await refreshTables(db);
       setState({ phase: "idle" });
     } catch (e) {
