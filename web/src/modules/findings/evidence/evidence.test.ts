@@ -140,6 +140,16 @@ describe("câu dịch (AC5)", () => {
     }
   });
 
+  it("mọi biến trong câu dịch luật schema đều có giá trị trong data.hit.values", () => {
+    const parsed = parsePostgres("CREATE TABLE a (id int, price float, n varchar(900)); CREATE TABLE b (id int PRIMARY KEY, a_id int REFERENCES a(id));", parseSync as unknown as PgParser);
+    const hits = checkSchema(parsed.ok ? parsed.statements : [], "postgres");
+    for (const o of attachEvidence(hits, { plans: [] })) {
+      const h = data(o).data.hit;
+      const msg = (vi.schema as Record<string, string>)[h.ruleId];
+      for (const [, name] of msg.matchAll(/\{(\w+)\}/g)) expect(h.values, `${h.ruleId} ${name}`).toHaveProperty(name);
+    }
+  });
+
   it("implicit-cast phân biệt ba effect", () => {
     for (const m of [vi, en]) for (const e of ["literal-cast", "column-cast", "error"]) expect(m.query["implicit-cast"]).toContain(`${e} {`);
   });

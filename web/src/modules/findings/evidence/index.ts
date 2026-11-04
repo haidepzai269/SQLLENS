@@ -38,7 +38,9 @@ function fromPlan(hit: RuleHit, plan: Plan): Outcome<FindingData> {
 function one(hit: RuleHit, plans: { statementIndex: number; plan: Outcome<Plan> }[]): Outcome<FindingData> {
   // Luật schema chỉ đọc cấu trúc trong SQL, chưa chạy kịch bản nào: vàng, nhãn Ước lượng.
   if (hit.messageKey.startsWith("findings.schema.")) {
-    return { kind: "conclusion", label: "estimated", data: { hit, severity: "unverified" }, evidence: [{ kind: "structure", messageKey: "findings.evidence.structureOnly" }] };
+    // Hit schema không mang table và column trong values, mà câu dịch cần.
+    const values = { ...(hit.table && { table: hit.table }), ...(hit.column && { column: hit.column }), ...hit.values };
+    return { kind: "conclusion", label: "estimated", data: { hit: { ...hit, values }, severity: "unverified" }, evidence: [{ kind: "structure", messageKey: "findings.evidence.structureOnly" }] };
   }
   if (!hit.messageKey.startsWith("findings.query.")) return notSim("findings.notSimulated.unknownRule");
   if (!hit.table) return notSim("findings.notSimulated.noTable");
