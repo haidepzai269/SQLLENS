@@ -394,6 +394,17 @@ func TestChunkedAndOddStreams(t *testing.T) { // ca biên
 	}
 }
 
+func TestErrorNullIsNotAnError(t *testing.T) { // reviewer finding
+	g := newFake(func(w http.ResponseWriter, _ *http.Request) {
+		ev(w, `data: {"error":null,"choices":[{"delta":{"content":"hi"}}]}`, "data: [DONE]")
+	})
+	defer g.Close()
+	e := events(t, setup(t, cfgFor(g, nil)).post(goodBody))
+	if len(e) != 2 || e[0]["text"] != "hi" || e[1]["type"] != "done" {
+		t.Fatalf("events %v", e)
+	}
+}
+
 func TestAnswerTooLong(t *testing.T) { // ca biên
 	big := strings.Repeat("a", 20<<10)
 	g := newFake(func(w http.ResponseWriter, _ *http.Request) { ev(w, delta(big), delta(big), delta("never")) })

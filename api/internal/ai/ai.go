@@ -263,7 +263,7 @@ func (h *chat) try(ctx context.Context, t target, payload []byte, out *sse) erro
 			return nil
 		}
 		var ch chunk
-		if json.Unmarshal([]byte(data), &ch) != nil || len(ch.Error) > 0 {
+		if json.Unmarshal([]byte(data), &ch) != nil || (len(ch.Error) > 0 && string(ch.Error) != "null") {
 			return fail()
 		}
 		for _, choice := range ch.Choices {
