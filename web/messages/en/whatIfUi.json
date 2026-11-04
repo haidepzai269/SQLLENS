@@ -1,0 +1,33 @@
+{
+  "region": "Compare before and after a fix",
+  "editorLabel": "Change to try (SQL)",
+  "editorHint": "Write the change you want to try, for example CREATE INDEX. It is applied inside a transaction and rolled back, so your data stays the same.",
+  "probeLabel": "Query measured",
+  "run": "Run",
+  "running": "Running...",
+  "runShortcut": "Ctrl+Enter also runs",
+  "idle": "Nothing has been run yet. Enter a change and press Run to see the query before and after it.",
+  "empty": "Enter a change to try first.",
+  "stale": "The change was edited after this result. Press Run to update it.",
+  "before": "Before the change",
+  "after": "After the change",
+  "rows": "Rows returned",
+  "pages": "Pages read",
+  "pagesCount": "{count, plural, one {# page} other {# pages}}",
+  "delta": {
+    "fewer": "Pages read: {before} before, {after} after, {diff} fewer in this scenario.",
+    "more": "Pages read: {before} before, {after} after, {diff} more in this scenario.",
+    "same": "Pages read: {before} before and {after} after, no difference in this scenario."
+  },
+  "rowsChanged": "The results are no longer equivalent. The query returned {before} rows before the change and {after} rows after it, so the page counts are not comparable like for like.",
+  "rowsNotCompared": "Row counts are not compared because the measured query is not a SELECT.",
+  "notSimulated": "Not simulated",
+  "failed": {
+    "timeout": "The engine took too long and was stopped. The change was not kept.",
+    "cancelled": "The run was cancelled.",
+    "worker_crashed": "The engine stopped. Reload the page or rebuild the session, then run again.",
+    "load_failed": "The engine could not be loaded.",
+    "sql": "The database rejected the SQL.",
+    "unknown": "The run failed for an unexpected reason."
+  }
+}

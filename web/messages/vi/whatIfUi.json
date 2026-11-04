@@ -1,0 +1,33 @@
+{
+  "region": "So sánh trước và sau khi sửa",
+  "editorLabel": "Cách sửa muốn thử (SQL)",
+  "editorHint": "Viết thay đổi bạn muốn thử, ví dụ CREATE INDEX. Thay đổi được áp trong một transaction rồi hoàn tác, nên dữ liệu của bạn không đổi.",
+  "probeLabel": "Câu truy vấn được đo",
+  "run": "Chạy",
+  "running": "Đang chạy...",
+  "runShortcut": "Ctrl+Enter cũng chạy",
+  "idle": "Chưa chạy gì. Nhập cách sửa rồi bấm Chạy để xem câu truy vấn trước và sau khi sửa.",
+  "empty": "Hãy nhập cách sửa muốn thử trước.",
+  "stale": "Cách sửa đã được chỉnh sau kết quả này. Bấm Chạy để cập nhật.",
+  "before": "Trước khi sửa",
+  "after": "Sau khi sửa",
+  "rows": "Số dòng trả về",
+  "pages": "Số trang đã đọc",
+  "pagesCount": "{count, plural, other {# trang}}",
+  "delta": {
+    "fewer": "Số trang đã đọc: {before} trước, {after} sau, ít hơn {diff} trang trong kịch bản này.",
+    "more": "Số trang đã đọc: {before} trước, {after} sau, nhiều hơn {diff} trang trong kịch bản này.",
+    "same": "Số trang đã đọc: {before} trước và {after} sau, không khác nhau trong kịch bản này."
+  },
+  "rowsChanged": "Kết quả không còn tương đương. Câu truy vấn trả {before} dòng trước khi sửa và {after} dòng sau khi sửa, nên không thể so số trang như hai câu giống nhau.",
+  "rowsNotCompared": "Không so số dòng vì câu được đo không phải SELECT.",
+  "notSimulated": "Chưa mô phỏng được",
+  "failed": {
+    "timeout": "Engine chạy quá lâu và đã bị dừng. Cách sửa không được giữ lại.",
+    "cancelled": "Lần chạy đã bị hủy.",
+    "worker_crashed": "Engine đã dừng. Hãy tải lại trang hoặc dựng lại phiên rồi chạy lại.",
+    "load_failed": "Không tải được engine.",
+    "sql": "Cơ sở dữ liệu từ chối câu SQL này.",
+    "unknown": "Lần chạy lỗi vì một lý do không lường trước."
+  }
+}
