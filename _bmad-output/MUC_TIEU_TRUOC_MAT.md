@@ -18,56 +18,13 @@ Lý do chọn thứ tự này:
 
 ## Việc của chủ dự án
 
-Làm theo thứ tự. Khi xong, chỉ cần báo "xong bước N". Đừng dán giá trị key vào cuộc trò chuyện hay vào repo.
+Cập nhật ngày 2026-11-04: bước đặt biến Render, callback, đăng nhập đã xong. Ba câu hỏi đã trả lời: làm MySQL, Áp dụng giữ nguyên, chấp nhận rủi ro hàm trùng tên.
 
-### Bước 1. Đặt biến trên Render (khoảng 10 phút, chặn đăng nhập và AI)
+Còn lại:
 
-Vào dịch vụ Gin trên Render, mục Environment, đặt các biến sau:
-
-| Biến | Giá trị |
-|---|---|
-| `PUBLIC_ORIGIN` | `https://sqllens-bice.vercel.app`, không có dấu `/` ở cuối |
-| `DATABASE_URL` | Chuỗi kết nối Neon |
-| `UPSTASH_REDIS_REST_URL` | Từ trang Upstash |
-| `UPSTASH_REDIS_REST_TOKEN` | Từ trang Upstash |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Từ Google |
-| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | Từ GitHub |
-
-Sau khi lưu, nếu Render không tự deploy lại thì chọn Manual Deploy với commit mới nhất, để chắc chắn bản đang chạy có route AI.
-
-Trước đây hai biến Upstash đang trống ở file `.env` trên máy, nên có thể chủ dự án cần tạo database Upstash trước.
-
-### Bước 2. Thêm địa chỉ callback của production (khoảng 5 phút)
-
-- **Google, mục Authorized redirect URIs:** `https://sqllens-bice.vercel.app/api/auth/google/callback`
-- **GitHub, mục Authorization callback URL:** `https://sqllens-bice.vercel.app/api/auth/github/callback`
-
-GitHub OAuth App chỉ nhận một callback URL. Nếu đang để địa chỉ `localhost` thì khi đổi sang production, đăng nhập GitHub ở máy sẽ không chạy. Cách đơn giản là tạo thêm một OAuth App riêng cho production.
-
-### Bước 3. Thử đăng nhập trên production (2 phút)
-
-Mở `https://sqllens-bice.vercel.app/vi`, đăng nhập bằng Google, đăng xuất, rồi đăng nhập bằng GitHub. Báo lại kết quả, kèm dòng lỗi nếu có.
-
-### Bước 4. Lấy key AI (khoảng 10 phút)
-
-Chỉ cần một trong hai để bắt đầu, nên chọn Groq:
-
-- **Groq:** đặt `GROQ_API_KEY` trên Render, và bật Zero Data Retention trong phần cài đặt của Groq.
-- **OpenRouter, nếu muốn có model dự phòng:** đặt `OPENROUTER_API_KEY` trên Render.
-
-Gemini gói free không dùng cho phần này, vì yêu cầu có chứa SQL của người dùng.
-
-### Bước 5. Trả lời 3 câu hỏi
-
-Có thể trả lời ngắn theo số. Nếu không trả lời, agent làm theo khuyến nghị trừ câu 1, vì câu 1 cần chủ dự án tự làm ở Azure.
-
-1. **Có làm MySQL trong V1 không?** Khuyến nghị: có, làm sau luồng PostgreSQL. Lúc đó agent làm HTTPS và giới hạn ở Gin trước, rồi nhờ chủ dự án mở một cổng trên Azure. Nếu đến hết 2026-11-06 vẫn chưa xong luồng PostgreSQL thì V1 ghi MySQL là "sắp có".
-2. **Bấm Áp dụng với đề xuất `SELECT` của AI thì làm gì?** Hiện tại: dùng câu đó làm truy vấn đo và để trống ô thay đổi. Khuyến nghị: giữ nguyên.
-3. **AI đề xuất SQL gọi hàm trùng tên hàm an toàn mà người dùng đã tự tạo thì vẫn lọt qua lớp chặn (Task060).** Ảnh hưởng chỉ trong tab của chính người dùng. Khuyến nghị: chấp nhận cho V1 và ghi lại, giống quyết định về `DO` trong `CLAUDE.md`.
-
-### Việc không gấp
-
-Xem chi phí thật của máy Azure trên Cost Management khi rảnh, vì việc này chưa được kiểm chứng.
+1. Đổi 4 secret đã lộ trong lịch sử phiên: mật khẩu Neon, token Upstash, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_SECRET`. Cập nhật ở cả Render và `api/.env`.
+2. Điền `GROQ_API_KEY` trên Render nếu chưa điền, và bật Zero Data Retention của Groq.
+3. Sau Task074: làm theo `_bmad-output/SP004/STR019/Task074/huong_dan_mo_cong.md` để mở cổng Azure cho Render.
 
 ## Việc của agent
 
@@ -75,8 +32,12 @@ Làm theo thứ tự, không cần chờ chủ dự án trừ khi có ghi rõ. C
 
 | Đợt | Việc | Kết quả người dùng thấy |
 |---|---|---|
+| 1 | Task064: thanh cuộn, nút bánh răng, tooltip, đóng mở cột mượt, viền ô SQL | Giao diện đạt chuẩn shadcn/ui |
+| 1 | Task067: trang `/about` với GSAP và video quay từ sản phẩm thật | Có trang giới thiệu |
+| 1 | Task074: HTTPS và giới hạn theo người dùng cho MySQL | Sẵn sàng mở cổng |
 | 1 | Tìm nguyên nhân `btree-anim.spec.ts:117` lệch 56 đến 61 px khi lùi bước, sửa lỗi thật nếu có, để CI xanh | Tua lại B-Tree đúng vị trí |
 | 1 | Chặn các route `e2e-*` trên production, vì chúng đang mở công khai. Thêm hai biến key AI vào `render.yaml` | Không lộ trang thử |
+| 2 | Task066: trang `/login` với GSAP, khách chỉ được 2 lần chạy câu cơ bản. Chờ Task064, Task067 | Luồng đăng nhập mới |
 | 2 | SP009 STR041, STR042: gắn bằng chứng, hiện danh sách rủi ro, đưa findings vào gói bằng chứng của AI | Cột Rủi ro có nội dung thật |
 | 2 | SP011 STR051, STR052: timeline hai session, đồ thị chờ khóa, tiêu chí hỏng | Xem được 5 kịch bản tranh chấp |
 | 3 | SP008 STR037, STR038: range scan, khác biệt engine, cuộc đua Seq Scan với Index Scan, cây tối | Đủ giao diện B-Tree đã chốt |

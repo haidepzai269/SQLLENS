@@ -50,7 +50,11 @@ Kèm theo: AI Mentor, đăng nhập, PostgreSQL và MySQL.
 | Ngân sách | 0 đồng |
 | AI | Key nằm ở Gin, xoay tua nhiều model, tối ưu sau. Yêu cầu chứa SQL hoặc dữ liệu người dùng chỉ đi đến nhà cung cấp không dùng dữ liệu để huấn luyện: Groq có Zero Data Retention, OpenRouter với `data_collection: "deny"`. Gemini gói free chỉ nhận yêu cầu không chứa dữ liệu người dùng |
 | Giới hạn số dòng PGlite | Mặc định tối đa 100k. 500k là tùy chọn có cảnh báo về RAM và thời gian. Trên 500k không chạy thật, chỉ tính và gắn nhãn Ước lượng |
-| Đăng nhập | PostgreSQL dùng tự do. MySQL và AI phải đăng nhập bằng Google hoặc GitHub |
+| Đăng nhập | Chưa đăng nhập: chỉ PostgreSQL với câu lệnh cơ bản, 2 lần chạy thử (chủ dự án chốt ngày 2026-11-04, thay cho "PostgreSQL dùng tự do"). PGlite chạy ở trình duyệt nên giới hạn này chỉ nằm ở client, người dùng có thể vượt được, chấp nhận vì không tốn tài nguyên máy chủ. MySQL và AI phải đăng nhập bằng Google hoặc GitHub, và các giới hạn này kiểm ở Gin |
+| Trang riêng | `/login` và `/about` dùng GSAP cho hiệu ứng, `/about` là landing page |
+| Phạm vi MySQL | Làm trong V1, sau luồng PostgreSQL (chủ dự án chốt ngày 2026-11-04) |
+| Áp dụng đề xuất `SELECT` của AI | Dùng câu đó làm truy vấn đo, ô thay đổi để trống |
+| Hàm trùng tên trong SQL của AI | Chấp nhận cho V1: hàm, view, toán tử người dùng tự tạo có thể lọt danh sách hàm an toàn, ảnh hưởng chỉ trong tab của họ (Task060) |
 | Ngôn ngữ | Tiếng Việt và tiếng Anh làm song song từ dòng code đầu tiên. Không viết chuỗi giao diện cứng trong code. Thiếu bản dịch ở một ngôn ngữ thì CI báo lỗi |
 | Animation join | Làm trong V1: Nested Loop, Hash Join, Merge Join. MySQL không có Merge Join |
 | Capacity Advisor | Làm bản gọn trong V1, xem mục riêng bên dưới |
