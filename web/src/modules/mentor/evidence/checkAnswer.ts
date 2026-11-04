@@ -42,9 +42,9 @@ function evidenceNumbers(pack: EvidencePack): Set<string> {
   return known;
 }
 
-// Phủ định phải đứng trước động từ nói, trong cùng mệnh đề (không có dấu phẩy giữa), và khớp nguyên từ.
+// Phủ định phải đứng trước động từ nói, trong cùng mệnh đề (không dấu phẩy, cách động từ nói tối đa 10 ký tự, nên "Không có vấn đề nên tôi nói thiết kế ổn" vẫn bị báo), và khớp nguyên từ.
 const W = (alt: string) => String.raw`(?<!\p{L})(?:${alt})(?!\p{L})`;
-const NEGATED_SAY = new RegExp(String.raw`${W("chưa|không|đừng|never|cannot|can't|not|don't|won't")}[^.!?,;\n]{0,20}${W("nói|kết luận|khẳng định|hàm ý|say|claim|conclude|state|mean|imply")}`, "iu");
+const NEGATED_SAY = new RegExp(String.raw`${W("chưa|không|đừng|never|cannot|can't|not|don't|won't")}[^.!?,;\n]{0,10}${W("nói|kết luận|khẳng định|hàm ý|say|claim|conclude|state|mean|imply")}`, "iu");
 const SUBJ_VI = "thiết kế|schema|query|truy vấn|câu lệnh|bảng|database|cơ sở dữ liệu";
 const BANNED = [
   new RegExp(String.raw`${W(SUBJ_VI)}(?: này| của bạn| đó)?(?: đã| khá| rất)? (?:ổn|tốt|hợp lý|chuẩn)(?!\p{L})(?! hơn| định)`, "giu"),

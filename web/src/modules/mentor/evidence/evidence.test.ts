@@ -116,7 +116,7 @@ describe("checkAnswer", () => {
   });
 
   it("AC5: phủ định không đứng trước động từ nói thì vẫn báo", () => {
-    for (const s of ["Không thấy lỗi, tôi kết luận thiết kế này ổn.", "Don't worry, I'd say this design is fine.", "Query này ổn rồi.", "Schema ổn.", "Here is a note: the design is fine."])
+    for (const s of ["Không thấy lỗi, tôi kết luận thiết kế này ổn.", "Don't worry, I'd say this design is fine.", "Query này ổn rồi.", "Không có vấn đề nên tôi nói thiết kế này ổn.", "Schema ổn.", "Here is a note: the design is fine."])
       expect(checkAnswer(s, pack).bannedClaims.length, s).toBe(1);
     expect(checkAnswer("Thiết kế ổn định hơn, query tốt hơn.", pack).bannedClaims).toEqual([]);
   });
