@@ -1,0 +1,50 @@
+{
+  "label": "Mô phỏng",
+  "kind": { "nested_loop": "Nested Loop", "hash_join": "Hash Join", "merge_join": "Merge Join" },
+  "sample": "Đây là mẫu minh họa nhỏ ({outer} dòng ngoài, {inner} dòng trong), không phải dữ liệu của bạn.",
+  "rows": {
+    "real": "Plan thật có {n, number} dòng.",
+    "est": "Plan thật ước tính {n, number} dòng (chưa chạy thật).",
+    "none": "Plan không cho biết số dòng."
+  },
+  "diagram": "Mẫu minh họa của {kind}",
+  "outer": "Ngoài: {name}",
+  "inner": "Trong: {name}",
+  "innerHash": "Băm: {name}",
+  "hashTable": "Bảng băm (mod 3)",
+  "bucket": "Ô {b}",
+  "run": "Chạy",
+  "runAgain": "Chạy lại",
+  "pause": "Tạm dừng",
+  "back": "Bước lùi",
+  "next": "Bước tới",
+  "reset": "Về đầu",
+  "scrub": "Tua các bước của join",
+  "counter": "Bước {read} / {total}",
+  "stats": "Đã so khóa {cmp} lần, ra {out} cặp khớp.",
+  "noTime": "So sánh bằng số lần so khóa, không phải thời gian chạy.",
+  "reducedNote": "Giảm chuyển động đang bật: mỗi bước đổi ngay, không có chuyển tiếp.",
+  "log": "Nhật ký các bước",
+  "summary": "{kind} trên mẫu: {steps} bước, {cmp} lần so khóa, {out} cặp khớp.",
+  "idle": {
+    "nested_loop": "Chưa chạy. Nested Loop lấy từng dòng bảng ngoài rồi dò bảng trong. Bấm Chạy hoặc Bước tới.",
+    "hash_join": "Chưa chạy. Hash Join dựng bảng băm từ một bảng rồi dò từ bảng còn lại. Bấm Chạy hoặc Bước tới.",
+    "merge_join": "Chưa chạy. Merge Join cần hai bảng đã sắp xếp, hai con trỏ trượt song song. Bấm Chạy hoặc Bước tới."
+  },
+  "step": {
+    "nl": "Bước {n}: lấy dòng ngoài có khóa {key}, dò cả {cmp} dòng bảng trong, khớp {hits} dòng.",
+    "nlMiss": "Bước {n}: lấy dòng ngoài có khóa {key}, dò cả {cmp} dòng bảng trong, không có dòng nào khớp.",
+    "nlIndex": "Bước {n}: lấy dòng ngoài có khóa {key}, tra index của bảng trong một lần, khớp {hits} dòng.",
+    "nlIndexMiss": "Bước {n}: lấy dòng ngoài có khóa {key}, tra index của bảng trong một lần, không có dòng nào khớp.",
+    "build": "Bước {n}: đọc dòng trong có khóa {key}, băm vào ô {bucket} của bảng băm.",
+    "probe": "Bước {n}: lấy dòng ngoài có khóa {key}, băm ra ô {bucket}, so với {cmp} dòng trong ô, khớp {hits} dòng.",
+    "probeMiss": "Bước {n}: lấy dòng ngoài có khóa {key}, băm ra ô {bucket}, so với {cmp} dòng trong ô, không có dòng nào khớp.",
+    "mergeEq": "Bước {n}: hai con trỏ cùng chỉ khóa {a}, ra một cặp khớp, đẩy con trỏ bảng trong tới dòng sau.",
+    "mergeLt": "Bước {n}: khóa ngoài {a} nhỏ hơn khóa trong {b}, đẩy con trỏ bảng ngoài tới dòng sau.",
+    "mergeGt": "Bước {n}: khóa ngoài {a} lớn hơn khóa trong {b}, đẩy con trỏ bảng trong tới dòng sau."
+  },
+  "unsupported": {
+    "noMerge": "Chưa mô phỏng được: MySQL không có Merge Join, nên không có gì để minh họa cho node {label}.",
+    "notJoin": "Chưa mô phỏng được: node {label} không phải Nested Loop, Hash Join hay Merge Join."
+  }
+}

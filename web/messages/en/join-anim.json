@@ -1,0 +1,50 @@
+{
+  "label": "Simulated",
+  "kind": { "nested_loop": "Nested Loop", "hash_join": "Hash Join", "merge_join": "Merge Join" },
+  "sample": "This is a small illustrative sample ({outer} outer rows, {inner} inner rows), not your data.",
+  "rows": {
+    "real": "The real plan has {n, number} rows.",
+    "est": "The real plan is estimated at {n, number} rows (not run for real).",
+    "none": "The plan does not report a row count."
+  },
+  "diagram": "Illustrative sample of a {kind}",
+  "outer": "Outer: {name}",
+  "inner": "Inner: {name}",
+  "innerHash": "Build: {name}",
+  "hashTable": "Hash (key mod 3)",
+  "bucket": "Bucket {b}",
+  "run": "Run",
+  "runAgain": "Run again",
+  "pause": "Pause",
+  "back": "Step back",
+  "next": "Step forward",
+  "reset": "Back to start",
+  "scrub": "Scrub the join steps",
+  "counter": "Step {read} / {total}",
+  "stats": "{cmp} key comparisons so far, {out} matching pairs.",
+  "noTime": "Compared by key comparisons, not run time.",
+  "reducedNote": "Reduced motion is on: each step changes at once, with no transition.",
+  "log": "Step log",
+  "summary": "{kind} on the sample: {steps} steps, {cmp} key comparisons, {out} matching pairs.",
+  "idle": {
+    "nested_loop": "Not run yet. Nested Loop takes each outer row and probes the inner table. Press Run or Step forward.",
+    "hash_join": "Not run yet. Hash Join builds a hash table from one table, then probes it from the other. Press Run or Step forward.",
+    "merge_join": "Not run yet. Merge Join needs both tables sorted and slides two pointers in parallel. Press Run or Step forward."
+  },
+  "step": {
+    "nl": "Step {n}: take the outer row with key {key}, probe all {cmp} inner rows, {hits} matched.",
+    "nlMiss": "Step {n}: take the outer row with key {key}, probe all {cmp} inner rows, none matched.",
+    "nlIndex": "Step {n}: take the outer row with key {key}, look it up once in the inner index, {hits} matched.",
+    "nlIndexMiss": "Step {n}: take the outer row with key {key}, look it up once in the inner index, none matched.",
+    "build": "Step {n}: read the inner row with key {key} and hash it into bucket {bucket}.",
+    "probe": "Step {n}: take the outer row with key {key}, hash it to bucket {bucket}, compare with {cmp} rows there, {hits} matched.",
+    "probeMiss": "Step {n}: take the outer row with key {key}, hash it to bucket {bucket}, compare with {cmp} rows there, none matched.",
+    "mergeEq": "Step {n}: both pointers sit on key {a}, one matching pair, move the inner pointer on.",
+    "mergeLt": "Step {n}: outer key {a} is smaller than inner key {b}, move the outer pointer on.",
+    "mergeGt": "Step {n}: outer key {a} is larger than inner key {b}, move the inner pointer on."
+  },
+  "unsupported": {
+    "noMerge": "Not simulated: MySQL has no Merge Join, so there is nothing to illustrate for the {label} node.",
+    "notJoin": "Not simulated: the {label} node is not a Nested Loop, Hash Join or Merge Join."
+  }
+}
