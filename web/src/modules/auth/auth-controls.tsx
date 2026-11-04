@@ -25,8 +25,13 @@ function Controls() {
   const router = useRouter();
   const pathname = usePathname();
   const [manual, setManual] = useState(false);
+  // Đang đăng xuất khỏi MySQL: URL đổi sau một nhịp, trong lúc đó không mở cổng.
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    if (engine !== "mysql") setLeaving(false); // eslint-disable-line react-hooks/set-state-in-effect -- URL đã rời MySQL thì hết cờ
+  }, [engine]);
   // Cổng MySQL suy ra từ URL và trạng thái, không qua effect: hủy thì về PostgreSQL, đăng nhập xong thì tự tắt.
-  const gate = engine === "mysql" && status === "anon";
+  const gate = engine === "mysql" && status === "anon" && !leaving;
   const close = () => {
     setManual(false);
     if (gate) toPostgres(router, pathname);
@@ -58,7 +63,8 @@ function Controls() {
             </DropdownMenuGroup>
             <DropdownMenuItem
               onClick={async () => {
-                if (!(await logout())) return setBanner("logoutFailed");
+                setLeaving(true);
+                if (!(await logout())) return setLeaving(false), setBanner("logoutFailed");
                 if (engine === "mysql") toPostgres(router, pathname); // trước markAnon để cổng MySQL không chớp
                 markAnon();
               }}
