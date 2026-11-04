@@ -1,0 +1,34 @@
+{
+  "tabsLabel": "Simulation scenes",
+  "tab": { "schema": "Schema", "plan": "Plan", "btree": "B-Tree", "whatif": "Try a fix" },
+  "working": "Running. The scenes appear when the run finishes.",
+  "loading": "Reading data from the database...",
+  "error": "Could not read: {message}",
+  "mysql": "Simulation scenes for MySQL are not in this version yet. Switch to PostgreSQL to see them.",
+  "schema": {
+    "none": "The SQL that just ran created no tables in the public schema, so there is nothing to draw.",
+    "evidence": "Read from the database that just ran, not from the SQL text: {count, plural, one {# table} other {# tables}}."
+  },
+  "plan": {
+    "noSelect": "The SQL that just ran has no SELECT statement, so there is no plan to show.",
+    "viewing": "Viewing SELECT statement number {n}:",
+    "joinTitle": "How the join runs",
+    "joinNote": "This is a small illustrative sample of the join steps, not your data. The animation only plays when you press play.",
+    "joinFor": "Node {label}",
+    "joinMore": "{count} more join nodes in the plan have no animation shown."
+  },
+  "btree": {
+    "none": "The schema has no index to read yet, so there is no tree to draw. Create an index (for example CREATE INDEX) and run again.",
+    "indexLabel": "Index to view",
+    "choose": "Choose an index",
+    "option": "{index} (table {table}, type {method})",
+    "pick": "Choose an index to read its real tree.",
+    "keyLabel": "Key to drop down the tree",
+    "keyPlaceholder": "For example 121",
+    "keyHint": "Leave it empty to only draw the tree. The key must match the type of the index's first column.",
+    "drop": "Drop key"
+  },
+  "whatif": {
+    "noSelect": "The SQL that just ran has no SELECT statement to measure, so there is nothing to try a fix on."
+  }
+}

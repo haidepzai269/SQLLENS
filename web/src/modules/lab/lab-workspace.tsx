@@ -27,6 +27,8 @@ import { toDraft, type Draft } from "@/modules/sql-intake/ui/schema-draft";
 import { useAuth } from "@/modules/auth/auth-provider";
 import { MysqlAccess } from "@/modules/auth/mysql-access";
 import { takeSql } from "@/modules/auth/sql-stash";
+import { Stage, type StageRun } from "./stage/stage";
+import { lastSelect } from "./stage/stage-data";
 import { StatementList } from "./statement-list";
 
 type RunData = { statements: number; rows: number };
@@ -92,6 +94,9 @@ export function LabWorkspace() {
   const abort = useRef<AbortController | null>(null);
   const note = (l: Log) => setLog((x) => [...x.slice(-49), l]);
   const [hasTables, setHasTables] = useState(false);
+  // Dữ liệu cho vùng stage của lần chạy gần nhất đã xong; null khi đang chạy, lỗi, bị hủy hay engine dựng lại, để tab không hiện số cũ.
+  const [stageRun, setStageRun] = useState<StageRun | null>(null);
+  const stageSeq = useRef(0);
   const [genOpen, setGenOpen] = useState(false);
   const generated = useRef(false); // đã sinh dữ liệu từ lần dựng gần nhất; dựng lại không giữ (câu sinh dữ liệu không vào history)
   const tth = useTranslations("data-lab");
@@ -145,6 +150,7 @@ export function LabWorkspace() {
   async function run(schemaSql?: string) {
     if (busy.current) return;
     busy.current = true;
+    setStageRun(null);
     setMobileTab("terminal");
     if (!shell.open.terminal) toggle("terminal"); // vùng terminal đang tắt thì mở lại để thấy kết quả
     try {
@@ -182,6 +188,14 @@ export function LabWorkspace() {
         const data = { statements: results.length, rows: last.rows.length };
         note({ kind: "ran", n: results.length });
         await refreshTables(db);
+        let select: StageRun["select"];
+        try {
+          const po = await parseSql(toRun, engine);
+          if (po.ok) select = lastSelect(toRun, po.statements);
+        } catch {
+          /* không parse được thì không có câu SELECT để đo, các tab khác vẫn chạy */
+        }
+        setStageRun({ id: ++stageSeq.current, db, select });
         setState({
           phase: "done",
           results,
@@ -272,6 +286,7 @@ export function LabWorkspace() {
   async function rebuild() {
     if (busy.current || !adapter.current) return;
     busy.current = true;
+    setStageRun(null);
     setState({ phase: "rebuilding" });
     let count = 0;
     try {
@@ -466,10 +481,11 @@ export function LabWorkspace() {
       <ZonePlaceholder title={ts("tab.findings")} hint={ts("placeholder.findings")} />
     );
 
-  const stageZone = <ZonePlaceholder title={ts("tab.stage")} hint={ts("placeholder.stage")} />;
+  const stageZone = <Stage run={stageRun} working={working} mysql={mysql} />;
   const onStopped = async (code: StopCode) => {
     const db = await adapter.current;
     note({ kind: code });
+    setStageRun(null);
     setState({ phase: "stopped", code, count: db?.history().length ?? 0 });
   };
   return (
@@ -494,7 +510,10 @@ export function LabWorkspace() {
         onOpenChange={setGenOpen}
         getAdapter={() => adapter.current}
         onSummary={(text, wrote) => {
-          if (wrote) generated.current = true;
+          if (wrote) {
+            generated.current = true;
+            setStageRun((r) => r && { ...r, id: ++stageSeq.current }); // dữ liệu đổi: plan và cây đọc lại
+          }
           note({ kind: "note", text });
           setMobileTab("terminal");
           if (!shell.open.terminal) toggle("terminal");

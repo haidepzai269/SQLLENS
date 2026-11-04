@@ -1,0 +1,34 @@
+{
+  "tabsLabel": "Các cảnh mô phỏng",
+  "tab": { "schema": "Sơ đồ", "plan": "Plan", "btree": "B-Tree", "whatif": "Thử sửa" },
+  "working": "Đang chạy. Cảnh mô phỏng sẽ hiện khi chạy xong.",
+  "loading": "Đang đọc dữ liệu từ database...",
+  "error": "Không đọc được: {message}",
+  "mysql": "Cảnh mô phỏng cho MySQL chưa có trong phiên bản này. Chuyển sang PostgreSQL để xem.",
+  "schema": {
+    "none": "SQL vừa chạy không tạo bảng nào trong schema public, nên chưa có gì để vẽ.",
+    "evidence": "Đọc từ database vừa chạy, không đọc từ chữ SQL: {count, plural, one {# bảng} other {# bảng}}."
+  },
+  "plan": {
+    "noSelect": "SQL vừa chạy không có câu SELECT nào, nên chưa có plan để hiện.",
+    "viewing": "Đang xem câu SELECT thứ {n}:",
+    "joinTitle": "Cách join chạy",
+    "joinNote": "Đây là mẫu minh họa nhỏ cho từng bước join, không phải dữ liệu của bạn. Animation chỉ chạy khi bạn bấm.",
+    "joinFor": "Nút {label}",
+    "joinMore": "Còn {count} nút join khác trong plan, chưa hiện animation."
+  },
+  "btree": {
+    "none": "Schema hiện chưa có index nào để đọc, nên không có cây để vẽ. Tạo index (ví dụ CREATE INDEX) rồi chạy lại.",
+    "indexLabel": "Index muốn xem",
+    "choose": "Chọn một index",
+    "option": "{index} (bảng {table}, kiểu {method})",
+    "pick": "Chọn một index để đọc cây thật của nó.",
+    "keyLabel": "Khóa muốn thả xuống cây",
+    "keyPlaceholder": "Ví dụ 121",
+    "keyHint": "Để trống thì chỉ vẽ cây. Khóa phải đúng kiểu của cột đầu tiên của index.",
+    "drop": "Thả khóa"
+  },
+  "whatif": {
+    "noSelect": "SQL vừa chạy không có câu SELECT nào để đo, nên chưa thử sửa được."
+  }
+}

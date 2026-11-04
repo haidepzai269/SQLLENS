@@ -20,5 +20,8 @@
   "summaryTable": "Table {name} has {count, plural, one {# column} other {# columns}}:",
   "summaryRelations": "{count, plural, one {# foreign key relation} other {# foreign key relations}}",
   "summaryRel": "{from}.{fromCol} references {to}.{toCol}",
-  "summaryMissing": "{from}.{column} references table {table}, which is not in the list"
+  "summaryMissing": "{from}.{column} references table {table}, which is not in the list",
+  "search": "Find table",
+  "searchGo": "Find",
+  "searchMiss": "No table is named “{query}”."
 }
