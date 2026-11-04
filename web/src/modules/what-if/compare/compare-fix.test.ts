@@ -10,7 +10,6 @@ import type { PlanNode } from "@/contracts/plan";
 import { compareFix } from "./compare-fix";
 
 let s: Awaited<ReturnType<typeof createSession>>;
-const history: string[] = [];
 const adapter = { tryChange: (c: string, p: string) => runTryChange(s.run, c, p) };
 const val = async (sql: string) => (await s.run(sql))[0].rows[0][0];
 const CHECKSUM = "SELECT md5(string_agg(t::text, '' ORDER BY id)) FROM orders t";
@@ -36,11 +35,10 @@ describe("compareFix", { timeout: 30_000 }, () => {
     expect(kinds(r.data.after.plan.root).some((k) => k === "index_scan" || k === "bitmap_scan")).toBe(true);
     expect(await val(CHECKSUM)).toBe(sum);
     expect(await val("SELECT count(*)::int FROM pg_indexes WHERE tablename = 'orders'")).toBe(1);
-    expect(history).toEqual([]);
     expect(JSON.stringify(r)).not.toMatch(/time|"ms"|millis/i);
     for (const lang of ["vi", "en"]) {
       const m = JSON.parse(readFileSync(`messages/${lang}/whatIfCompare.json`, "utf8")) as Record<string, string>;
-      expect(m.pages).not.toMatch(/\b(ổn|tốt hơn|good|ok|fine|better|optimal)\b/i);
+      for (const v of Object.values(m)) expect(v.toLowerCase()).not.toMatch(/ổn|tốt hơn|tối ưu|(good|ok|fine|better|optimal)/);
     }
   });
 
