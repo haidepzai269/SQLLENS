@@ -3,7 +3,8 @@
 Thuộc: SP012 / STR056
 Điều kiện bắt đầu: Task044, Task056, Task058, Task059, Task060 đã merge.
 Mục tiêu: Người dùng hỏi về SQL của mình, thấy câu trả lời chạy dần, SQL đề xuất chỉ hiện sau khi chạy thử, bấm áp dụng thì sang màn hình so sánh.
-Phạm vi: `web/src/modules/mentor/ui/**`, `web/src/app/[locale]/e2e-mentor/**`, `web/messages/{vi,en}/mentor.json`, `web/e2e/mentor.spec.ts`.
+Phạm vi: `web/src/modules/mentor/ui/**`, `web/src/app/[locale]/e2e-mentor/**`, `web/messages/{vi,en}/mentor.json`, `web/messages/{vi,en}/error.json`, `web/src/modules/auth/login-dialog.tsx`, `web/e2e/mentor.spec.ts`.
+Thêm khóa `error.badRequest`, `error.aiUnavailable`, `error.aiTooLong` vào `web/messages/{vi,en}/error.json` vì Task058 đã trả các khóa này. Cổng đăng nhập cho AI: thêm lý do mới ở `LoginDialog`, hiện chỉ có `mysql` và `manual`.
 Không làm: gắn vào vùng `stage` của màn hình chính (task riêng), AI Chaos Generator, lưu lịch sử hội thoại trên máy chủ.
 
 Hợp đồng: `<MentorPanel adapter={...} evidence={EvidencePack} probe?={string} />`. Dùng cổng đăng nhập của Task044, `checkAnswer`, `verifyAnswer`, `WhatIfCompare`.

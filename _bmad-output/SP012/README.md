@@ -23,4 +23,4 @@ Hợp đồng chung: `web/src/contracts/mentor.ts` (`EvidencePack`, `MentorReque
 | Task058 | `api/internal/ai/**`, `api/cmd/server/main.go`, `api/.env.example` |
 | Task059 | `web/src/modules/mentor/evidence/**` |
 | Task060 | `web/src/modules/mentor/verify/**`, `web/messages/*/mentorVerify.json` |
-| Task061 | `web/src/modules/mentor/ui/**`, `web/src/app/[locale]/e2e-mentor/**`, `web/messages/*/mentor.json`, `web/e2e/mentor.spec.ts` |
+| Task061 | `web/src/modules/mentor/ui/**`, `web/src/app/[locale]/e2e-mentor/**`, `web/messages/*/mentor.json`, `web/messages/*/error.json`, `web/src/modules/auth/login-dialog.tsx`, `web/e2e/mentor.spec.ts` |
