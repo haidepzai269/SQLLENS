@@ -1,6 +1,6 @@
 import type { EvidencePack } from "@/contracts/mentor";
 
-// Giới hạn: kiểm số theo giá trị, không theo ngữ cảnh; chỉ nhận ra phủ định nằm trong 30 ký tự ngay trước cụm "thiết kế ổn", cùng câu,
+// Giới hạn: chỉ bỏ qua khối ```sql (khối khác vẫn được kiểm số); kiểm số theo giá trị, không theo ngữ cảnh; câu hàm ý ổn chỉ bắt các chủ thể trong danh sách (thiết kế, schema, query, bảng...), không bắt "không thấy vấn đề nào"; chỉ nhận ra phủ định nằm trong 30 ký tự ngay trước cụm "thiết kế ổn", cùng câu,
 // kèm động từ nói (nói, kết luận, say...). Khi không chắc thì báo thừa, không bỏ sót.
 
 // Đổi chữ số Unicode (Nd) về ASCII: các khối Nd gồm đúng 10 chữ số liền nhau, đi lùi tới đầu khối để biết giá trị.
@@ -42,17 +42,19 @@ function evidenceNumbers(pack: EvidencePack): Set<string> {
   return known;
 }
 
-const NEG = /(chưa|không|đừng|never|cannot|can't|not|don't|won't)/i;
-const SPEECH = /(nói|kết luận|khẳng định|hàm ý|say|claim|conclude|state|mean|imply)/i;
+// Phủ định phải đứng trước động từ nói, trong cùng mệnh đề (không có dấu phẩy giữa), và khớp nguyên từ.
+const W = (alt: string) => String.raw`(?<!\p{L})(?:${alt})(?!\p{L})`;
+const NEGATED_SAY = new RegExp(String.raw`${W("chưa|không|đừng|never|cannot|can't|not|don't|won't")}[^.!?,;\n]{0,20}${W("nói|kết luận|khẳng định|hàm ý|say|claim|conclude|state|mean|imply")}`, "iu");
+const SUBJ_VI = "thiết kế|schema|query|truy vấn|câu lệnh|bảng|database|cơ sở dữ liệu";
 const BANNED = [
-  /thiết kế(?: này| của bạn| đó)?(?: đã| khá| rất)? (?:ổn|tốt|hợp lý|chuẩn)/giu,
-  /\b(?:design|schema)(?: is| looks| seems| appears)(?: pretty| quite| very| all)? (?:fine|good|ok|okay|great|solid|sound|well)\b/giu,
+  new RegExp(String.raw`${W(SUBJ_VI)}(?: này| của bạn| đó)?(?: đã| khá| rất)? (?:ổn|tốt|hợp lý|chuẩn)(?!\p{L})(?! hơn| định)`, "giu"),
+  /\b(?:design|schema|query|table|index|database|setup)(?: is| looks| seems| appears)(?: pretty| quite| very| all)? (?:fine|good|ok|okay|great|solid|sound|well)\b/giu,
   /\blooks (?:good|fine|great)\b/giu,
 ];
 
 export function checkAnswer(answer: string, pack: EvidencePack): { unknownNumbers: string[]; bannedClaims: string[] } {
   const known = evidenceNumbers(pack);
-  const prose = answer.replace(/```[\s\S]*?(?:```|$)/g, " ").replace(/^[ \t]*\d+[.)][ \t]/gm, " ");
+  const prose = answer.replace(/```sql[\s\S]*?(?:```|$)/gi, " ").replace(/^[ \t]*\d+[.)][ \t]/gm, " ");
   const unknownNumbers = [...new Set(tokens(prose))].filter((t) => !readings(t).some((r) => known.has(r)));
 
   const text = answer.normalize("NFC");
@@ -63,7 +65,7 @@ export function checkAnswer(answer: string, pack: EvidencePack): { unknownNumber
       const at = m.index;
       const start = Math.max(...[".", "!", "?", "\n"].map((c) => text.lastIndexOf(c, at - 1))) + 1;
       const before = text.slice(Math.max(start, at - 30), at);
-      if (NEG.test(before) && SPEECH.test(before)) continue;
+      if (NEGATED_SAY.test(before)) continue;
       if (taken.some(([a, b]) => at >= a && at + m[0].length <= b)) continue; // đã nằm trong một cụm bị báo
       taken.push([at, at + m[0].length]);
       bannedClaims.add(m[0]);

@@ -103,6 +103,10 @@ function cutSql(sql: string, n: number): string {
   return s;
 }
 
+const clip = (s: string | undefined) => (s === undefined ? s : cutSql(s, 200));
+const clipNode = (n: PlanNode): PlanNode => compact({ ...n, label: clip(n.label)!, condition: clip(n.condition), table: clip(n.table), index: clip(n.index), children: n.children.map(clipNode) });
+const clipPlan = (p: Plan): Plan => ({ ...p, root: clipNode(p.root) });
+
 export function buildEvidencePack(input: EvidenceInput): EvidencePack {
   const i = input as Record<string, unknown>;
   const pack: EvidencePack = compact({
@@ -128,6 +132,15 @@ export function buildEvidencePack(input: EvidenceInput): EvidencePack {
       }
     }
   }
+  // Chuỗi dài trong plan (label, condition lấy từ SQL) cũng phải cắt nếu bỏ hết SQL vẫn không đủ chỗ.
+  const sqlFull = pack.sql;
+  pack.sql = "";
+  const fitsEmpty = fits();
+  pack.sql = sqlFull;
+  if (!fitsEmpty) {
+    if (pack.plan) pack.plan = clipPlan(pack.plan);
+    if (pack.whatIf) pack.whatIf = { ...pack.whatIf, before: { ...pack.whatIf.before, plan: clipPlan(pack.whatIf.before.plan) }, after: { ...pack.whatIf.after, plan: clipPlan(pack.whatIf.after.plan) } };
+  }
   if (!fits()) {
     const original = pack.sql;
     pack.sqlTruncated = true;
@@ -151,5 +164,6 @@ export function buildEvidencePack(input: EvidenceInput): EvidencePack {
     pack.findings = all.slice(0, lo);
   }
   if (!fits()) delete pack.whatIf;
+  if (!fits()) delete pack.plan; // lưới cuối: gói luôn <= MAX_PACK_BYTES
   return pack;
 }

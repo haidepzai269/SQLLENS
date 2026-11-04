@@ -54,6 +54,13 @@ describe("buildEvidencePack", () => {
     expect(buildEvidencePack({ engine: "postgres", sql: "😀" }).sqlTruncated).toBeUndefined();
   });
 
+  it("chuỗi dài trong plan cũng bị cắt, gói luôn dưới giới hạn", () => {
+    const p = buildEvidencePack({ engine: "postgres", sql: "select 1", plan: plan(node("a", [], { label: "x".repeat(100000), condition: "y".repeat(100000) })) });
+    expect(packBytes(p)).toBeLessThanOrEqual(MAX_PACK_BYTES);
+    expect(p.sql).toBe("select 1");
+    expect(p.sqlTruncated).toBeUndefined();
+  });
+
   it("findings quá lớn vẫn được kéo xuống dưới giới hạn", () => {
     const findings = Array.from({ length: 2000 }, (_, i) => ({ ruleId: "r", messageKey: "k".repeat(100), values: { i } }));
     const p = buildEvidencePack({ engine: "postgres", sql: "select 1", findings });
@@ -70,6 +77,7 @@ describe("checkAnswer", () => {
     findings: [{ ruleId: "r", messageKey: "k", values: { size: 4640, ratio: 1.5 } }],
   });
   const unknown = (a: string) => checkAnswer(a, pack).unknownNumbers;
+  const unknownOf = unknown;
 
   it("AC3: số có trong bằng chứng không bị báo, mọi cách viết", () => {
     expect(unknown("Đọc 1.000 dòng, hay 1,000, hay 1000.")).toEqual([]);
@@ -105,6 +113,16 @@ describe("checkAnswer", () => {
       expect(checkAnswer(s, pack).bannedClaims.length, s).toBe(1);
     }
     expect(checkAnswer("Không có lỗi nào nên thiết kế này ổn.", pack).bannedClaims).toHaveLength(1);
+  });
+
+  it("AC5: phủ định không đứng trước động từ nói thì vẫn báo", () => {
+    for (const s of ["Không thấy lỗi, tôi kết luận thiết kế này ổn.", "Don't worry, I'd say this design is fine.", "Query này ổn rồi.", "Schema ổn.", "Here is a note: the design is fine."])
+      expect(checkAnswer(s, pack).bannedClaims.length, s).toBe(1);
+    expect(checkAnswer("Thiết kế ổn định hơn, query tốt hơn.", pack).bannedClaims).toEqual([]);
+  });
+
+  it("AC4: chỉ khối sql được bỏ qua", () => {
+    expect(unknownOf("```text\nGiảm 73 trang\n```")).toEqual(["73"]);
   });
 
   it("AC5: không báo nhầm câu có phủ định kèm động từ nói", () => {
