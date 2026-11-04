@@ -1,0 +1,30 @@
+{
+  "query": {
+    "function-on-indexed-column": "Cột {column} của bảng {table} có index, nhưng điều kiện bọc nó trong hàm {function}, nên index thường không dùng được cho điều kiện này.",
+    "leading-wildcard": "Mẫu {pattern} trên cột {column} của bảng {table} bắt đầu bằng ký tự đại diện, nên index B-Tree của cột này không thu hẹp được phạm vi tìm.",
+    "composite-prefix": "Index ({index}) bắt đầu bằng {leading}, nhưng điều kiện trên bảng {table} chỉ dùng cột {column} ở phía sau, không dùng cột đầu, nên index này thường không dùng được cho điều kiện đó.",
+    "implicit-cast": "Cột {column} của bảng {table} được so với giá trị {literal}: {effect, select, literal-cast {{literal} là chữ và bị đổi sang kiểu số của cột, nên index của cột vẫn dùng được.} column-cast {{column} là cột chữ nên mỗi dòng bị ép kiểu để so với số, vì vậy index của cột thường không dùng được.} error {{column} là cột chữ nên PostgreSQL từ chối so với số {literal} và báo lỗi.} other {{column} và {literal} khác kiểu nên có phép ép kiểu ngầm.}}"
+  },
+  "schema": {
+    "missing-pk": "Bảng {table} chưa khai báo khóa chính.",
+    "fk-no-index": "Khóa ngoại ({columns}) của bảng {table} chưa có index bắt đầu bằng các cột này, nên xóa hoặc sửa dòng ở bảng cha có thể phải quét cả bảng {table}.",
+    "float-money": "Cột {column} của bảng {table} dùng kiểu {type}. Kiểu số thực dấu phẩy động có thể làm lệch số tiền khi làm tròn.",
+    "varchar-too-large": "Cột {column} của bảng {table} khai báo độ dài {length}, vượt mức {threshold}. MySQL cấp đủ độ dài khai báo cho bảng tạm và sắp xếp; PostgreSQL không tốn thêm, nhưng độ dài lớn thường là dấu hiệu chưa chọn giới hạn thật."
+  },
+  "evidence": {
+    "scanSeq": "Trong kịch bản đã chạy, bảng {table} được đọc bằng quét toàn bảng ({scan}). Đây là điều quan sát được; chưa chứng minh luật là nguyên nhân, vì planner cũng có thể quét toàn bảng khi bảng nhỏ.",
+    "scanIndex": "Trong kịch bản đã chạy, bảng {table} được đọc bằng index ({scan}). Kết quả chỉ đúng với câu lệnh và dữ liệu đã chạy.",
+    "estimatedScanSeq": "Câu chưa chạy thật. Theo ước lượng của optimizer, bảng {table} sẽ được đọc bằng quét toàn bảng ({scan}).",
+    "estimatedScanIndex": "Câu chưa chạy thật. Theo ước lượng của optimizer, bảng {table} sẽ được đọc bằng index ({scan}).",
+    "counts": "Nút này đọc {rows} dòng và {pages} trang.",
+    "estimatedRows": "Optimizer ước lượng nút này trả khoảng {rows} dòng.",
+    "structureOnly": "Mô tả đọc từ cấu trúc trong SQL của bạn. Chưa chạy kịch bản nào cho thấy cấu trúc này gây hỏng."
+  },
+  "notSimulated": {
+    "noPlan": "Chưa mô phỏng được: câu này chưa có plan để đối chiếu.",
+    "noTable": "Chưa mô phỏng được: luật không chỉ ra bảng nào để tìm trong plan.",
+    "tableNotInPlan": "Chưa mô phỏng được: plan không có bước đọc bảng này.",
+    "ambiguousTable": "Chưa mô phỏng được: bảng này xuất hiện nhiều lần trong plan với cách đọc khác nhau, không xác định được lần nào ứng với luật.",
+    "unknownRule": "Chưa mô phỏng được: chưa có cách đối chiếu cho luật này."
+  }
+}
