@@ -1,0 +1,49 @@
+{
+  "region": "Plan tree",
+  "canvasLabel": "Tree of plan steps, {count, plural, one {# step} other {# steps}}",
+  "label": { "real": "Real", "simulated": "Simulated", "estimated": "Estimated" },
+  "notAnalyzed": "This is the engine's estimate and the query was not actually run. Real row counts and pages read are not available.",
+  "none": "not available",
+  "fields": {
+    "table": "Table",
+    "index": "Index",
+    "condition": "Condition",
+    "estRows": "Estimated rows (per run)",
+    "loops": "Number of runs",
+    "estTotal": "Estimated rows (all runs)",
+    "actualRows": "Actual rows (total)",
+    "pages": "Pages read (this step only)"
+  },
+  "card": { "estRows": "Est. rows", "actualRows": "Actual rows", "pages": "Pages read" },
+  "skew": {
+    "more": "Large gap: actual is higher than estimated",
+    "less": "Large gap: actual is lower than estimated",
+    "detail": "The engine estimated {est} rows across all runs, but the actual count is {actual} rows."
+  },
+  "open": "Open details of step {name}",
+  "detailTitle": "Details of step {name}",
+  "close": "Close",
+  "explainTitle": "What this step does",
+  "toolbar": { "label": "Canvas controls", "zoomIn": "Zoom in", "zoomOut": "Zoom out", "fit": "Fit to screen", "reset": "Reset layout" },
+  "hint": "Drag a card, or use the arrow keys while a card is focused (Shift to go further). Drag empty space, or hold Space and drag, to move the canvas.",
+  "summary": {
+    "title": "Text summary",
+    "item": "{name}{table}: estimated rows {est}, actual rows {actual}, pages read {pages}.",
+    "onTable": " on {table}"
+  },
+  "loading": "Loading plan tree",
+  "kind": {
+    "seq_scan": "Seq Scan reads the whole table from start to end, page by page, and keeps the rows that match the condition.",
+    "index_scan": "Index Scan follows an index to find just the rows it needs, then jumps to the table to fetch them.",
+    "index_only_scan": "Index Only Scan answers from the index itself and skips the table when the index already holds every column needed.",
+    "bitmap_scan": "Bitmap Scan uses an index to collect the list of pages to read first, then reads those pages in one pass.",
+    "nested_loop": "Nested Loop takes each row of the outer table and probes the inner table for matching rows.",
+    "hash_join": "Hash Join builds a hash table from one table, then probes it with each row of the other table.",
+    "merge_join": "Merge Join sorts both sides by the join key, then slides two pointers side by side to pair up rows.",
+    "hash": "Hash builds an in-memory hash table from the rows it receives, for the join above it to probe.",
+    "sort": "Sort puts the incoming rows in the requested order.",
+    "aggregate": "Aggregate collapses many rows into fewer, for example counting or summing per group.",
+    "limit": "Limit keeps only the first requested number of rows and then stops.",
+    "other": "The engine reported this step and SQLLens has no plain-language note for it yet. See the engine's own name and the numbers."
+  }
+}

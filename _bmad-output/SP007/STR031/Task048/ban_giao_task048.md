@@ -1,0 +1,15 @@
+# Bàn giao Task048
+
+Đã làm: component `PlanTree({ plan, label })` hiện cây các bước của plan bằng React Flow, thẻ shadcn/React, tải riêng bằng `next/dynamic`. Thẻ hiện tên bước, bảng, index, dòng ước tính, dòng thật, trang đọc; số `undefined` hiện "không có", không hiện 0. Bấm hoặc Enter trên thẻ mở hộp chi tiết (điều kiện, ước tính mỗi lần và cả các lần, số lần chạy, thật, trang, câu giải thích cho người mới); Esc đóng, focus quay lại thẻ. Chênh lệch từ 10 lần trở lên (ước tính nhân `loops` so với thật) được đánh dấu bằng chữ "Lệch lớn" kèm dấu "!". `analyzed: false` có ghi chú "ước tính của engine, chưa chạy thật" ở canvas và ở chi tiết. Nhãn lấy đúng prop `label`. Không có thời gian và không có câu hàm ý "ổn".
+Canvas: kéo thẻ, phím mũi tên dời 16 px (Shift 64 px), kéo khoảng trống hoặc giữ Space để di chuyển, zoom 0,3 đến 1,6, Vừa màn hình, Xếp lại (xóa bản lưu). Vị trí lưu ở `sqllens.plan.wide` và `sqllens.plan.narrow`, kèm chữ ký các bước nên plan khác không dùng nhầm. Bản rộng xếp trái sang phải (dagre, bảng ngoài ở trên bảng trong); vùng chứa dưới 560 px thì một cột, cạnh đi theo rail bên trái. Cụm nút nằm dưới canvas nên không che thẻ. Có bản tóm tắt văn bản (`<details>`), đủ `vi` và `en`.
+File chính: `web/src/modules/plan-runner/plan-tree/{index.tsx,plan-tree-flow.tsx,layout.ts,layout.test.ts,fixtures.ts}`, `web/src/app/[locale]/e2e-plan/`, `web/messages/{vi,en}/plan-tree.json`, `web/e2e/plan-tree.spec.ts`, ảnh ở thư mục task này (vi/en x 390/1440, có ảnh chi tiết và plan sâu 20 tầng; đã xem tận mắt).
+Kết quả kiểm tra (trên mã nguồn của commit cuối): `npm run check` thoát 0 (315 test vitest đạt); `npm run build` thoát 0; `npx playwright test --workers=1` 138 đạt, thoát 0 (11,8 phút); `e2e/plan-tree.spec.ts` 12 đạt.
+Kết quả review: 0 lỗi confirmed. 2 mục needs_validation, không sửa: (1) thẻ đặt dòng ước tính mỗi lần cạnh dòng thật tổng các vòng mà không ghi `loops` (Index Scan của fixture `five` hiện 1 và 100, không có cờ lệch), chi tiết thì ghi rõ; (2) nếu engine trả `actualRows` kèm `analyzed: false` thì thẻ vẫn hiện số đó dưới nhãn "Dòng thật", chỉ có ghi chú chung. Task046 hiện không tạo trường hợp này.
+Chưa làm được: chưa thử kéo và pinch bằng cảm ứng thật, Firefox, Safari. Plan sâu 20 tầng ở nút Vừa màn hình bị chặn ở zoom 0,3 nên chỉ thấy một phần, người dùng kéo canvas để xem tiếp.
+Phát sinh:
+- Component nhãn (`Badge`) chép lại từ `btree-view.tsx` và Task047 chắc có bản riêng; nên tách một component dùng chung sau khi cả hai merge.
+- Thẻ nên ghi `x{loops}` cạnh dòng ước tính khi `loops > 1` (needs_validation 1).
+- Route `e2e-plan` phải chặn ở SP013 trước khi phát hành.
+- `e2e/plan-explain.spec.ts:21` có cảnh báo lint `hist` không dùng (Task046), chưa sửa.
+- Bộ test cũ chạy chậm khi máy bận (vitest 132 giây).
+Việc tiếp theo cần biết: gắn vào màn hình chính (Task049) chỉ cần `<PlanTree plan label />`; bố cục chọn theo bề rộng vùng chứa, không theo màn hình. Namespace dịch là `plan-tree`. Thẻ không nhận focus từ React Flow, mỗi thẻ là một `<button>`, thứ tự Tab là thứ tự duyệt tiền thứ tự của cây.
