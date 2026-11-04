@@ -82,7 +82,15 @@ test.describe("máy tính 1440", () => {
         expect(Math.abs(cy(await box(page, "join-ptr-b")) - (await chipY(page, `b${n - 1}`)))).toBeLessThan(1.5);
         await expect(page.locator('[data-chip^="b"][data-state="built"], [data-chip^="b"][data-state="active"]')).toHaveCount(n);
         await expect(page.getByTestId("join-explain")).toContainText("băm vào ô");
-      } else await expect(page.getByTestId("join-explain")).toContainText("băm ra ô");
+      } else {
+        await expect(page.getByTestId("join-explain")).toContainText("băm ra ô");
+        await expect(page.getByTestId("join-ptr-b")).toHaveCount(0); // bước dò không còn con trỏ bảng trong
+        expect(Math.abs(cy(await box(page, "join-ptr-a")) - (await chipY(page, `a${n - 7}`)))).toBeLessThan(1.5);
+        await expect(page.locator('[data-chip^="b"][data-state="active"]')).toHaveCount(0);
+        const link = (await box(page, "join-link"))!;
+        const a = (await page.locator(`[data-chip="a${n - 7}"] rect`).boundingBox())!;
+        expect(Math.abs(link.x - (a.x + a.width))).toBeLessThan(4); // nét vẽ cộng thêm vài px; nếu sai nguồn thì lệch hơn 40 px. Đường nối đi từ dòng ngoài đang dò
+      }
       await expect(page.locator("[data-bucket][data-lit]")).toHaveCount(1);
       await page.screenshot({ path: `${SHOTS}/vi-1440-hash-b${n}.png` });
     }

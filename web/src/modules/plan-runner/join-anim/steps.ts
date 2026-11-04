@@ -49,7 +49,7 @@ export function buildJoinSteps(kind: JoinKind, indexedInner = false): JoinStep[]
     OUTER.forEach((k, i) => {
       const cell = table[k % BUCKETS];
       const hits = cell.filter((j) => INNER[j] === k);
-      add({ msg: hits.length ? "probe" : "probeMiss", a: i, bucket: k % BUCKETS, probed: cell, hits, compares: prev.compares + cell.length, out: prev.out + hits.length, vals: { key: k, bucket: k % BUCKETS, cmp: cell.length, hits: hits.length } });
+      add({ msg: hits.length ? "probe" : "probeMiss", a: i, b: -1, bucket: k % BUCKETS, probed: cell, hits, compares: prev.compares + cell.length, out: prev.out + hits.length, vals: { key: k, bucket: k % BUCKETS, cmp: cell.length, hits: hits.length } });
     });
   } else {
     let i = 0;

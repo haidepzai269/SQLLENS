@@ -90,6 +90,7 @@ function Scene({ node, kind }: { node: PlanNode; kind: JoinKind }) {
         }),
       };
       if (range.current) range.current.max = String(tl.duration());
+      setPlaying(false); // timeline mới luôn dừng, nên không để nút Chạy bị khóa sau khi dựng lại
       tl.time(at(reached(px.p))); // đổi giảm chuyển động thì về đúng bước cũ
       setP(px.p);
       return () => tl.kill();

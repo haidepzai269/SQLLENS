@@ -17,6 +17,8 @@ describe("buildJoinSteps", () => {
     const s = buildJoinSteps("hash_join");
     expect(s).toHaveLength(10);
     expect(s[5].built).toBe(6);
+    expect(s.slice(6).map((x) => x.b)).toEqual([-1, -1, -1, -1]); // bước dò không giữ con trỏ của bước dựng
+    expect(s.slice(6).map((x) => x.a)).toEqual([0, 1, 2, 3]);
     expect(s.at(-1)).toMatchObject({ compares: 8, out: 4 });
   });
   it("merge join: hai con trỏ chỉ tiến, không lùi", () => {
