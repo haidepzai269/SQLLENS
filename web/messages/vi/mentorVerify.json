@@ -1,0 +1,11 @@
+{
+  "notSimulated": "Đề xuất SQL này chưa mô phỏng được nên không hiển thị.",
+  "notAllowed": "Đề xuất SQL này không thuộc loại được chạy thử (chỉ SELECT, CREATE INDEX và ALTER TABLE đơn giản), nên không hiển thị.",
+  "multiple": "Đề xuất SQL này gồm nhiều hơn một câu nên không hiển thị.",
+  "empty": "Khối SQL rỗng.",
+  "parseError": "Đề xuất SQL này không đọc được cú pháp nên không hiển thị.",
+  "needsProbe": "Không có truy vấn đo để thử đề xuất này, nên không hiển thị.",
+  "failed": "Đề xuất SQL này chạy thử bị lỗi nên không hiển thị.",
+  "timeout": "Đề xuất SQL này chạy thử quá thời gian nên không hiển thị.",
+  "limit": "Chỉ chạy thử tối đa 5 khối SQL cho mỗi câu trả lời; khối này không được kiểm nên không hiển thị."
+}

@@ -1,0 +1,11 @@
+{
+  "notSimulated": "This SQL suggestion cannot be simulated yet, so it is not shown.",
+  "notAllowed": "This SQL suggestion is not a type we trial-run (only SELECT, CREATE INDEX and simple ALTER TABLE), so it is not shown.",
+  "multiple": "This SQL suggestion has more than one statement, so it is not shown.",
+  "empty": "Empty SQL block.",
+  "parseError": "This SQL suggestion could not be parsed, so it is not shown.",
+  "needsProbe": "There is no measuring query to trial-run this suggestion with, so it is not shown.",
+  "failed": "Trial-running this SQL suggestion failed, so it is not shown.",
+  "timeout": "Trial-running this SQL suggestion timed out, so it is not shown.",
+  "limit": "At most 5 SQL blocks are trial-run per answer; this one was not checked, so it is not shown."
+}
