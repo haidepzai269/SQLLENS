@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/haidepzai269/SQLLENS/api/internal/ai"
 	"github.com/haidepzai269/SQLLENS/api/internal/auth"
 	"github.com/haidepzai269/SQLLENS/api/internal/httpapi"
 	"github.com/haidepzai269/SQLLENS/api/internal/quota"
@@ -45,7 +46,8 @@ func build(ctx context.Context) *gin.Engine {
 		d.Limiter = quota.New(u, t, nil)
 	}
 	r := httpapi.NewRouter()
-	auth.Mount(r, d)
+	a := auth.Mount(r, d)
+	ai.Mount(r, a.Gate(quota.AIMessage), ai.Config{GroqKey: os.Getenv("GROQ_API_KEY"), OpenRouterKey: os.Getenv("OPENROUTER_API_KEY")})
 	return r
 }
 
