@@ -25,7 +25,7 @@ export function LoginDialog({ open, reason, onClose }: { open: boolean; reason: 
 // Chỉ mount khi hộp thoại mở, nên được đọc window và sessionStorage ở đây.
 function Body({ t, reason, onClose }: { t: ReturnType<typeof useTranslations>; reason: "mysql" | "manual"; onClose: () => void }) {
   const { sqlRef } = useAuth();
-  const [blocked, setBlocked] = useState(false);
+  const [blocked, setBlocked] = useState(false); // sessionStorage chặn hoặc SQL quá lớn để lưu
   useEffect(() => {
     if (sqlRef.current.trim() !== "" && !storageWorks()) setBlocked(true);
   }, [sqlRef]);
@@ -47,7 +47,13 @@ function Body({ t, reason, onClose }: { t: ReturnType<typeof useTranslations>; r
           <a
             key={p}
             href={`/api/auth/${p}/start?next=${next}`}
-            onClick={() => stashSql(sqlRef.current)}
+            onClick={(e) => {
+              // Lưu lỗi (đầy, bị chặn): báo trước, bấm lần nữa mới đi để người dùng kịp sao chép SQL.
+              if (!stashSql(sqlRef.current) && !blocked) {
+                e.preventDefault();
+                setBlocked(true);
+              }
+            }}
             className={buttonVariants({ variant: "outline", size: "lg" })}
           >
             {t("continueWith", { provider: t(`providers.${p}`) })}

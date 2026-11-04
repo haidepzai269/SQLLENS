@@ -20,7 +20,7 @@ const toPostgres = (router: ReturnType<typeof useRouter>, pathname: string) => {
 
 function Controls() {
   const t = useTranslations("auth");
-  const { status, user, logout, setBanner } = useAuth();
+  const { status, user, logout, markAnon, setBanner } = useAuth();
   const engine = parseEngine(useSearchParams().get("engine"));
   const router = useRouter();
   const pathname = usePathname();
@@ -59,7 +59,8 @@ function Controls() {
             <DropdownMenuItem
               onClick={async () => {
                 if (!(await logout())) return setBanner("logoutFailed");
-                if (engine === "mysql") toPostgres(router, pathname);
+                if (engine === "mysql") toPostgres(router, pathname); // trước markAnon để cổng MySQL không chớp
+                markAnon();
               }}
             >
               {t("signOut")}

@@ -11,7 +11,8 @@ type Auth = {
   status: AuthStatus;
   user: Me | null;
   markAnon: () => void; // một yêu cầu khác nhận 401: cookie hết hạn
-  logout: () => Promise<boolean>;
+  logout: () => Promise<boolean>; // chỉ gọi Gin; người gọi tự markAnon sau khi đã đổi engine
+
   banner: Banner | null;
   setBanner: (b: Banner | null) => void;
   sqlRef: React.RefObject<string>; // SQL đang soạn, chỉ để lưu tạm khi chuyển đi đăng nhập
@@ -57,12 +58,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Trình duyệt tự gửi Origin cho POST cùng nguồn; Gin kiểm Origin.
       const r = await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
       if (!r.ok && r.status !== 401) return false;
-      markAnon();
       return true;
     } catch {
       return false;
     }
-  }, [markAnon]);
+  }, []);
 
   const value = useMemo(
     () => ({ status, user, markAnon, logout, banner, setBanner, sqlRef }),
