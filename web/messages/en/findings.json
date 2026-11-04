@@ -1,0 +1,30 @@
+{
+  "query": {
+    "function-on-indexed-column": "Column {column} of table {table} has an index, but the condition wraps it in the function {function}, so the index usually cannot serve this condition.",
+    "leading-wildcard": "The pattern {pattern} on column {column} of table {table} starts with a wildcard, so a B-Tree index on this column cannot narrow the search.",
+    "composite-prefix": "Index ({index}) starts with {leading}, but the condition on table {table} only uses the later column {column} and not the first one, so the index usually cannot serve that condition.",
+    "implicit-cast": "Column {column} of table {table} is compared with the value {literal}: {effect, select, literal-cast {{literal} is text and is converted to the number type of the column, so the column index can still be used.} column-cast {{column} is a text column so every row is cast to compare with a number, which usually stops the column index from being used.} error {{column} is a text column so PostgreSQL rejects comparing it with the number {literal} and raises an error.} other {{column} and {literal} have different types, so an implicit cast happens.}}"
+  },
+  "schema": {
+    "missing-pk": "Table {table} has no primary key declared.",
+    "fk-no-index": "The foreign key ({columns}) of table {table} has no index starting with these columns, so deleting or updating a row in the parent table may have to scan all of {table}.",
+    "float-money": "Column {column} of table {table} uses type {type}. Floating-point types can make money amounts drift when rounded.",
+    "varchar-too-large": "Column {column} of table {table} declares length {length}, above {threshold}. MySQL reserves the full declared length for temporary tables and sorting; PostgreSQL pays no extra, but a large length often means no real limit was chosen."
+  },
+  "evidence": {
+    "scanSeq": "In the scenario that ran, table {table} was read with a full table scan ({scan}). This is what was observed; it does not prove the rule is the cause, since the planner may also scan a small table fully.",
+    "scanIndex": "In the scenario that ran, table {table} was read with an index ({scan}). The result only holds for the statement and data that ran.",
+    "estimatedScanSeq": "The statement did not run. By the optimizer estimate, table {table} will be read with a full table scan ({scan}).",
+    "estimatedScanIndex": "The statement did not run. By the optimizer estimate, table {table} will be read with an index ({scan}).",
+    "counts": "This node read {rows} rows and {pages} pages.",
+    "estimatedRows": "The optimizer estimates this node returns about {rows} rows.",
+    "structureOnly": "Described from the structure in your SQL. No scenario has run to show that this structure breaks."
+  },
+  "notSimulated": {
+    "noPlan": "Not simulated yet: this statement has no plan to check against.",
+    "noTable": "Not simulated yet: the rule does not name a table to look for in the plan.",
+    "tableNotInPlan": "Not simulated yet: the plan has no step that reads this table.",
+    "ambiguousTable": "Not simulated yet: this table appears several times in the plan with different access methods, so it is unclear which one matches the rule.",
+    "unknownRule": "Not simulated yet: there is no way to check this rule yet."
+  }
+}

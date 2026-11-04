@@ -11,3 +11,7 @@ export type RuleHit = {
   start?: number;
   end?: number;
 };
+
+// Mức độ tách khỏi nhãn kết luận. Đỏ là hỏng, vàng là ước lượng hoặc chưa mô phỏng được, xanh là không hỏng trong kịch bản đã chạy (không có nghĩa thiết kế ổn).
+export type Severity = "broken" | "unverified" | "not_broken";
+export type FindingData = { hit: RuleHit; severity: Severity; planNodeId?: string };
