@@ -11,6 +11,7 @@ import type { EvidenceLabel, Outcome } from "@/contracts/conclusion";
 import { EngineError, type EngineAdapter } from "@/contracts/engine";
 import type { CapacityPoint } from "@/contracts/whatif";
 import { BTreeView, readStoredMode } from "@/modules/btree-reader/view/btree-view";
+import { firstPath } from "@/modules/btree-reader/view/layout";
 import { estimateCapacity, samplePoint } from "../capacity/capacity";
 import { Cancelled, checkTarget, measureLevel, type Measured, type Stage } from "./measure-level";
 
@@ -245,7 +246,7 @@ export function CapacityPanel({ adapter, index, table, probe }: { adapter: Engin
             {label === "real" ? (
               done?.model ? (
                 <div className="flex h-[26rem] min-h-0 flex-col overflow-hidden rounded-lg border border-line">
-                  <BTreeView model={done.model} label="real" mode={mode} onModeChange={setMode} />
+                  <BTreeView model={done.model} label="real" mode={mode} onModeChange={setMode} align={firstPath(done.model)} />
                 </div>
               ) : (
                 <p className="m-0 text-sm text-muted-foreground">{t("treeNone")}</p>

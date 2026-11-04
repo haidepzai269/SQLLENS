@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { BTreeModel, BTreeNode, BTreePath } from "@/contracts/btree";
 import type { EvidenceLabel } from "@/contracts/conclusion";
-import { CAP, layoutTree, MIN_GAP, NH, NW, PAD, settle, type Item, type Off } from "./layout";
+import { CAP, layoutTree, MIN_GAP, NH, NW, PAD, pathItemIds, settle, type Item, type Off } from "./layout";
 
 type Mode = "fixed" | "free";
 const MODE_KEY = "sqllens.btree.mode";
@@ -147,9 +147,11 @@ export function BTreeView({
   label,
   mode,
   onModeChange,
+  align,
 }: {
   model: BTreeModel;
   path?: BTreePath;
+  align?: number[]; // đường đi cần thấy trong khung (không tô sáng): đặt tổ tiên ngay trên con và cuộn tới đó
   label: EvidenceLabel;
   mode: Mode;
   onModeChange: (m: Mode) => void;
@@ -158,7 +160,11 @@ export function BTreeView({
   const free = mode === "free";
   const offKey = `sqllens.btree.${model.engine === "mysql" ? "my" : "pg"}`;
   const pathPages = useMemo(() => path?.pages ?? [], [path]);
-  const layout = useMemo(() => layoutTree(model, pathPages), [model, pathPages]);
+  // Cha có thể tạo mảng mới mỗi lần render: giữ tham chiếu theo nội dung, kẻo layout và vị trí cuộn bị đặt lại.
+  const alignKey = align?.join(",");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const alignPages = useMemo(() => align, [alignKey]);
+  const layout = useMemo(() => layoutTree(model, pathPages, alignPages), [model, pathPages, alignPages]);
   const byPage = useMemo(() => new Map(model.nodes.map((n) => [n.page, n])), [model]);
   const [off, setOff] = useState<Off>({});
   const [drag, setDrag] = useState<string | null>(null);
@@ -272,9 +278,20 @@ export function BTreeView({
   const focusId = byPage.has(lastOnPath) ? `p${lastOnPath}` : `h${Math.max(0, model.height - pathPages.length)}`;
   useEffect(() => {
     const sc = scroller.current;
+    if (!sc) return;
+    const ids = new Set(pathItemIds(layout.items, model.height, alignPages ?? []));
+    const on = layout.items.filter((i) => ids.has(i.id));
+    if (on.length) {
+      // đường đi đã nằm trong một cột: cuộn tới giữa cột, và về đầu trang theo chiều dọc
+      const lo = Math.min(...on.map((i) => i.x));
+      const hi = Math.max(...on.map((i) => i.x + i.w));
+      sc.scrollLeft = Math.max(0, (lo + hi) / 2 - sc.clientWidth / 2);
+      sc.scrollTop = 0;
+      return;
+    }
     const it = layout.items.find((i) => i.id === focusId) ?? layout.items.find((i) => i.page === model.rootPage);
-    if (sc && it) sc.scrollLeft = Math.max(0, it.x + it.w / 2 - sc.clientWidth / 2);
-  }, [layout, focusId, model.rootPage]);
+    if (it) sc.scrollLeft = Math.max(0, it.x + it.w / 2 - sc.clientWidth / 2);
+  }, [layout, focusId, model.rootPage, model.height, alignPages]);
 
   const pick = (m: Mode) => {
     store.set(MODE_KEY, m);

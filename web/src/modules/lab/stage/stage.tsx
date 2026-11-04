@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -11,14 +11,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { BTreeModel, BTreePath } from "@/contracts/btree";
 import type { Conclusion, Outcome } from "@/contracts/conclusion";
 import type { EngineAdapter } from "@/contracts/engine";
+import type { EvidencePack } from "@/contracts/mentor";
 import type { Plan } from "@/contracts/plan";
+import { AuthContext, useAuth } from "@/modules/auth/auth-provider";
+import { LoginDialog } from "@/modules/auth/login-dialog";
+import { buildEvidencePack } from "@/modules/mentor/evidence";
 import { parseSchema } from "@/modules/data-lab/generate/plan-data";
 import { JoinAnimation } from "@/modules/plan-runner/join-anim/join-animation";
 import { PlanTree } from "@/modules/plan-runner/plan-tree";
 import { SchemaDiagram } from "@/modules/plan-runner/schema-diagram/schema-diagram";
+import { retarget } from "@/modules/what-if/capacity-ui/measure-level";
 import { WhatIfCompare } from "@/modules/what-if/compare-ui/what-if-compare";
 import { joinNodes, STAGE_INDEX_QUERY, STAGE_SCHEMA_QUERY, type IndexInfo } from "./stage-data";
 
+// Capacity (GSAP, B-Tree) và Mentor (đọc stream) chỉ tải khi mở tab của chúng.
+const CapacityPanel = dynamic(() => import("@/modules/what-if/capacity-ui").then((m) => m.CapacityPanel), {
+  ssr: false,
+  loading: () => <Skeleton className="h-64 w-full" aria-hidden />,
+});
+const MentorPanel = dynamic(() => import("@/modules/mentor/ui/mentor-panel").then((m) => m.MentorPanel), {
+  ssr: false,
+  loading: () => <Skeleton className="h-64 w-full" aria-hidden />,
+});
 // BTreeDrop kéo GSAP: chỉ tải khi mở tab B-Tree.
 const BTreeDrop = dynamic(() => import("@/modules/btree-reader/anim/btree-drop").then((m) => m.BTreeDrop), {
   ssr: false,
@@ -27,7 +41,8 @@ const BTreeDrop = dynamic(() => import("@/modules/btree-reader/anim/btree-drop")
 
 /** Một lần chạy xong. `id` đổi theo mỗi lần chạy (và khi dữ liệu sinh thêm); dữ liệu của tab gắn với id này. */
 export type StageRun = { id: number; db: EngineAdapter; select?: { n: number; sql: string } };
-type Tab = "schema" | "plan" | "btree" | "whatif";
+type Tab = "schema" | "plan" | "btree" | "whatif" | "capacity" | "mentor";
+const TABS = ["schema", "plan", "btree", "whatif", "capacity", "mentor"] as const;
 type Load<T> = { ok: true; v: T } | { ok: false; e: string } | null; // null: đang tải
 
 const MAX_JOINS = 3;
@@ -116,9 +131,8 @@ function SchemaTab({ run, on }: { run: StageRun; on: boolean }) {
   );
 }
 
-function PlanTab({ run, on }: { run: StageRun; on: boolean }) {
+function PlanTab({ run, r }: { run: StageRun; r: Load<Outcome<Plan>> }) {
   const t = useTranslations("labStage");
-  const r = useLoad<Outcome<Plan>>(on && !!run.select, `${run.id}`, () => run.db.explain(run.select!.sql));
   if (!run.select) return <Note>{t("plan.noSelect")}</Note>;
   if (!r) return <Loading />;
   if (!r.ok) return <Note tone="error">{t("error", { message: r.e })}</Note>;
@@ -147,11 +161,8 @@ function PlanTab({ run, on }: { run: StageRun; on: boolean }) {
   );
 }
 
-function BTreeTab({ run, on }: { run: StageRun; on: boolean }) {
+function BTreeTab({ run, on, list }: { run: StageRun; on: boolean; list: Load<IndexInfo[]> }) {
   const t = useTranslations("labStage");
-  const list = useLoad<IndexInfo[]>(on, `${run.id}`, async () =>
-    ((await run.db.execute(STAGE_INDEX_QUERY, { internal: true }))[0]?.rows ?? []).map((x) => ({ name: String(x[0]), table: String(x[1]), method: String(x[2]) })),
-  );
   // Lựa chọn gắn với đúng lần chạy: chạy lại thì bỏ, không đọc cây của index có thể đã đổi.
   const [pick, setPick] = useState<{ run: number; index: string; key: string } | null>(null);
   const [draft, setDraft] = useState("");
@@ -207,6 +218,76 @@ function BTreeTab({ run, on }: { run: StageRun; on: boolean }) {
   );
 }
 
+function CapacityTab({ run, list }: { run: StageRun; list: Load<IndexInfo[]> }) {
+  const t = useTranslations("labStage");
+  // Lựa chọn gắn với đúng lần chạy: chạy lại thì bỏ, panel dựng mới nên không còn số của lần trước.
+  const [pick, setPick] = useState<{ run: number; index: string } | null>(null);
+  if (!list) return <Loading />;
+  if (!list.ok) return <Note tone="error">{t("error", { message: list.e })}</Note>;
+  if (!list.v.length) return <Note>{t("capacity.none")}</Note>;
+  const info = pick && pick.run === run.id ? list.v.find((x) => x.name === pick.index) : undefined;
+  // Câu thăm dò là SELECT đang xem, nhưng chỉ khi nó đọc đúng bảng của index (retarget đổi tên bảng trong câu sang bảng tạm).
+  const probe = info && run.select && retarget(run.select.sql, info.table) !== run.select.sql ? run.select.sql : undefined;
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-1">
+        <label htmlFor="stage-cap-index" className="text-sm font-medium">{t("capacity.indexLabel")}</label>
+        <select
+          id="stage-cap-index"
+          className="h-9 min-w-0 border border-line bg-surface px-2 text-sm"
+          value={info?.name ?? ""}
+          onChange={(e) => setPick(e.target.value ? { run: run.id, index: e.target.value } : null)}
+        >
+          <option value="">{t("capacity.choose")}</option>
+          {list.v.map((x) => (
+            <option key={x.name} value={x.name}>{t("btree.option", { index: x.name, table: x.table, method: x.method })}</option>
+          ))}
+        </select>
+        {info && (
+          <p className="m-0 text-xs text-dim" data-testid="stage-cap-probe">
+            {probe ? t("capacity.probe", { n: run.select!.n }) : run.select ? t("capacity.noProbe", { table: info.table }) : t("capacity.noSelect")}
+          </p>
+        )}
+      </div>
+      {info ? <CapacityPanel key={`${run.id}:${info.name}`} adapter={run.db} index={info.name} table={info.table} probe={probe} /> : <Note>{t("capacity.pick")}</Note>}
+    </div>
+  );
+}
+
+function MentorTab({ run, plan, askRef }: { run: StageRun; plan: Load<Outcome<Plan>>; askRef: RefObject<string> }) {
+  const t = useTranslations("labStage");
+  const auth = useAuth();
+  const [login, setLogin] = useState(false);
+  // Tab bị bỏ (chạy lại, đổi engine): bản lưu tạm không còn giữ câu hỏi cũ.
+  useEffect(() => () => void (askRef.current = ""), [askRef]);
+  // MentorPanel và hộp thoại đăng nhập của nó ghi vào askRef thay vì sqlRef của lab (xem stash.ts).
+  const ctx = useMemo(() => ({ ...auth, sqlRef: askRef }), [auth, askRef]);
+  // Gói bằng chứng: chỉ câu SELECT đang xem và plan của nó, không dòng kết quả, không dữ liệu bảng. Lab chưa có findings để gắn.
+  const evidence = useMemo<EvidencePack | null>(
+    () => (run.select && plan ? buildEvidencePack({ engine: run.db.engine, sql: run.select.sql, plan: plan.ok && plan.v.kind === "conclusion" ? plan.v.data : undefined }) : null),
+    [run, plan],
+  );
+  if (!run.select) return <Note>{t("mentor.noSelect")}</Note>;
+  if (!evidence) return <Loading />;
+  return (
+    <AuthContext.Provider value={ctx}>
+      <div className="flex min-w-0 flex-col gap-3">
+        {auth.status === "anon" && (
+          <Alert data-testid="mentor-invite">
+            <AlertDescription className="flex flex-wrap items-center gap-2">
+              <span>{t("mentor.invite")}</span>
+              <Button size="sm" variant="outline" onClick={() => setLogin(true)}>{t("mentor.signIn")}</Button>
+            </AlertDescription>
+          </Alert>
+        )}
+        <p className="m-0 text-xs text-dim" data-testid="mentor-pack-note">{t("mentor.planNote", { n: run.select.n })}</p>
+        <MentorPanel adapter={run.db} evidence={evidence} probe={run.select.sql} />
+        <LoginDialog open={login} reason="ai" onClose={() => setLogin(false)} />
+      </div>
+    </AuthContext.Provider>
+  );
+}
+
 function WhatIfTab({ run }: { run: StageRun }) {
   const t = useTranslations("labStage");
   if (!run.select) return <Note>{t("whatif.noSelect")}</Note>;
@@ -214,7 +295,7 @@ function WhatIfTab({ run }: { run: StageRun }) {
   return <WhatIfCompare key={run.id} adapter={run.db} probe={run.select.sql} />;
 }
 
-export function Stage({ run, working, mysql }: { run: StageRun | null; working: boolean; mysql: boolean }) {
+export function Stage({ run, working, mysql, askRef }: { run: StageRun | null; working: boolean; mysql: boolean; askRef: RefObject<string> }) {
   const t = useTranslations("labStage");
   const ts = useTranslations("shell");
   const [tab, setTab] = useState<Tab>("schema");
@@ -225,6 +306,11 @@ export function Stage({ run, working, mysql }: { run: StageRun | null; working: 
     if (run) setSeen((s) => ({ id: run.id, tabs: [...new Set([...(s.id === run.id ? s.tabs : []), tab])] }));
     setTab(v as Tab);
   };
+  // Plan và danh sách index dùng chung giữa các tab: tải một lần cho mỗi lần chạy, không tải lại khi đổi tab.
+  const plan = useLoad<Outcome<Plan>>(!!run?.select && (open("plan") || open("mentor")), `${run?.id}`, () => run!.db.explain(run!.select!.sql));
+  const indexes = useLoad<IndexInfo[]>(!!run && (open("btree") || open("capacity")), `${run?.id}`, async () =>
+    ((await run!.db.execute(STAGE_INDEX_QUERY, { internal: true }))[0]?.rows ?? []).map((x) => ({ name: String(x[0]), table: String(x[1]), method: String(x[2]) })),
+  );
   const hint = mysql ? t("mysql") : !run ? (working ? t("working") : ts("placeholder.stage")) : null;
   return (
     <div className="flex min-h-full min-w-0 flex-col">
@@ -235,14 +321,16 @@ export function Stage({ run, working, mysql }: { run: StageRun | null; working: 
         ) : (
           <Tabs value={tab} onValueChange={change}>
             <TabsList className="w-full" aria-label={t("tabsLabel")} activateOnFocus>
-              {(["schema", "plan", "btree", "whatif"] as const).map((x) => (
+              {TABS.map((x) => (
                 <TabsTrigger key={x} value={x}>{t(`tab.${x}`)}</TabsTrigger>
               ))}
             </TabsList>
             <TabsContent value="schema" className="min-w-0" keepMounted><SchemaTab run={run} on={open("schema")} /></TabsContent>
-            <TabsContent value="plan" className="min-w-0" keepMounted><PlanTab run={run} on={open("plan")} /></TabsContent>
-            <TabsContent value="btree" className="min-w-0" keepMounted><BTreeTab run={run} on={open("btree")} /></TabsContent>
+            <TabsContent value="plan" className="min-w-0" keepMounted><PlanTab run={run} r={plan} /></TabsContent>
+            <TabsContent value="btree" className="min-w-0" keepMounted><BTreeTab run={run} on={open("btree")} list={indexes} /></TabsContent>
             <TabsContent value="whatif" className="min-w-0" keepMounted><WhatIfTab run={run} /></TabsContent>
+            <TabsContent value="capacity" className="min-w-0" keepMounted>{open("capacity") && <CapacityTab run={run} list={indexes} />}</TabsContent>
+            <TabsContent value="mentor" className="min-w-0" keepMounted>{open("mentor") && <MentorTab run={run} plan={plan} askRef={askRef} />}</TabsContent>
           </Tabs>
         )}
       </div>

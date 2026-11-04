@@ -1,6 +1,13 @@
 {
   "tabsLabel": "Simulation scenes",
-  "tab": { "schema": "Schema", "plan": "Plan", "btree": "B-Tree", "whatif": "Try a fix" },
+  "tab": {
+    "schema": "Schema",
+    "plan": "Plan",
+    "btree": "B-Tree",
+    "whatif": "Try a fix",
+    "capacity": "Capacity",
+    "mentor": "Mentor"
+  },
   "working": "Running. The scenes appear when the run finishes.",
   "loading": "Reading data from the database...",
   "error": "Could not read: {message}",
@@ -30,5 +37,20 @@
   },
   "whatif": {
     "noSelect": "The SQL that just ran has no SELECT statement to measure, so there is nothing to try a fix on."
+  },
+  "capacity": {
+    "none": "The schema has no index to measure yet, so there are no Capacity numbers. Create an index (for example CREATE INDEX) and run again.",
+    "indexLabel": "Index to measure",
+    "choose": "Choose an index",
+    "pick": "Choose an index to see levels, size and pages read as data grows.",
+    "probe": "Probe query: SELECT number {n}, the one you are viewing.",
+    "noProbe": "The SELECT you are viewing does not read table {table}, so pages read are not measured. Levels and size are still measured.",
+    "noSelect": "The SQL that just ran has no SELECT, so pages read are not measured. Levels and size are still measured."
+  },
+  "mentor": {
+    "noSelect": "The SQL that just ran has no SELECT to ask about, so Mentor has no evidence yet.",
+    "invite": "AI Mentor needs you to sign in. The SQL you are editing and your question are kept when you come back.",
+    "signIn": "Sign in",
+    "planNote": "The evidence sent contains only SELECT number {n} and its plan, no data rows."
   }
 }

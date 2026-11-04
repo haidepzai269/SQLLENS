@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { ResultGrid } from "@/components/result-grid/result-grid";
@@ -26,8 +26,9 @@ import { DumpNotice } from "@/modules/sql-intake/ui/dump-notice";
 import { toDraft, type Draft } from "@/modules/sql-intake/ui/schema-draft";
 import { useAuth } from "@/modules/auth/auth-provider";
 import { MysqlAccess } from "@/modules/auth/mysql-access";
-import { takeSql } from "@/modules/auth/sql-stash";
+import { stashSql, takeSql } from "@/modules/auth/sql-stash";
 import { Stage, type StageRun } from "./stage/stage";
+import { packStash, unpackStash } from "./stage/stash";
 import { lastSelect } from "./stage/stage-data";
 import { StatementList } from "./statement-list";
 
@@ -67,13 +68,32 @@ export function LabWorkspace() {
   // Toàn bộ trạng thái phiên nằm ở đây, trên WorkspaceLayout, nên đổi qua mốc 900 px không mất gì.
   const [sql, setSql] = useState("");
   const { sqlRef } = useAuth();
+  // Câu hỏi của Mentor đi chung bản lưu tạm: lab giữ sqlRef, Mentor ghi câu hỏi qua askRef, đọc ra là bản ghép (stash.ts).
+  const sqlNow = useRef("");
+  const askText = useRef("");
+  const askRef = useMemo<RefObject<string>>(
+    () => ({
+      get current() {
+        return packStash(sqlNow.current, askText.current); // LoginDialog đọc để lưu tạm: phải là bản ghép
+      },
+      set current(v: string) {
+        askText.current = v;
+        sqlRef.current = packStash(sqlNow.current, v);
+      },
+    }),
+    [sqlRef],
+  );
   useEffect(() => {
-    sqlRef.current = sql; // để hộp thoại đăng nhập lưu tạm đúng SQL đang soạn
+    sqlNow.current = sql;
+    sqlRef.current = packStash(sql, askText.current); // để hộp thoại đăng nhập lưu tạm đúng SQL đang soạn
   }, [sql, sqlRef]);
   // Quay về từ đăng nhập: trả SQL đã lưu (và xóa bản lưu) nếu ô soạn còn trống.
   useEffect(() => {
     const saved = takeSql();
-    if (saved) setSql((cur) => (cur === "" ? saved : cur)); // eslint-disable-line react-hooks/set-state-in-effect -- đọc sessionStorage một lần sau mount
+    if (!saved) return;
+    const { sql: back, ask } = unpackStash(saved);
+    if (back) setSql((cur) => (cur === "" ? back : cur)); // eslint-disable-line react-hooks/set-state-in-effect -- đọc sessionStorage một lần sau mount
+    if (ask) stashSql(ask); // trả lại cho ô hỏi của Mentor, nó tự đọc khi tab được mở
   }, []);
   // eff: SQL đã bỏ khối COPY và LOCK (prepareDump), là chuỗi thật sự được parse và chạy; vị trí trong outcome tính trên eff.
   const [parsed, setParsed] = useState<{ sql: string; engine: typeof engine; outcome: ParseOutcome; eff: string; removed: { copyBlocks: number; lockStatements: number } } | null>(null);
@@ -481,7 +501,7 @@ export function LabWorkspace() {
       <ZonePlaceholder title={ts("tab.findings")} hint={ts("placeholder.findings")} />
     );
 
-  const stageZone = <Stage run={stageRun} working={working} mysql={mysql} />;
+  const stageZone = <Stage run={stageRun} working={working} mysql={mysql} askRef={askRef} />;
   const onStopped = async (code: StopCode) => {
     const db = await adapter.current;
     note({ kind: code });
