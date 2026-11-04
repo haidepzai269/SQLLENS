@@ -13,6 +13,7 @@ const ALTER_OK = new Set(["AT_AddColumn", "AT_AddConstraint", "AT_SetNotNull", "
 
 const sval = (n: unknown) => (isObj(n) && isObj(n.String) && typeof n.String.sval === "string" ? n.String.sval : undefined);
 
+// shortcut: người dùng tự tạo hàm/toán tử overload trùng tên hàm an toàn (vd public.length(int)) vẫn lọt; chỉ ảnh hưởng tab của chính họ, cùng họ rủi ro với DO (CLAUDE.md).
 // Duyệt cả cây: true nếu có thứ không được chạy. shortcut: không biết view/hàm do người dùng tạo gọi gì bên trong, nâng lên khi cho AI sửa schema.
 function unsafe(n: unknown): boolean {
   if (Array.isArray(n)) return n.some(unsafe);
@@ -25,7 +26,8 @@ function unsafe(n: unknown): boolean {
   const fc = n.FuncCall;
   if (isObj(fc) && Array.isArray(fc.funcname)) {
     const parts = fc.funcname.map(sval);
-    const name = parts.at(-1)?.toLowerCase();
+    // Tên có chữ hoa (đã bọc "...") là hàm khác với hàm có sẵn cùng tên viết thường.
+    const name = parts.at(-1);
     const qualifiedOk = parts.length === 1 || (parts.length === 2 && parts[0] === "pg_catalog");
     if (!name || !qualifiedOk || !SAFE_FUNCS.has(name)) return true;
   } else if (fc !== undefined) return true;

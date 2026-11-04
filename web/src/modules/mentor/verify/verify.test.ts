@@ -48,6 +48,14 @@ describe("splitAnswer (AC5)", () => {
     expect(splitAnswer("chỉ văn bản")).toEqual([{ kind: "text", text: "chỉ văn bản" }]);
     expect(splitAnswer("")).toEqual([]);
   });
+  it("rào trong blockquote, thụt lề, ~~~ có backtick ở info vẫn là khối", () => {
+    expect(splitAnswer("> ```sql\n> DROP TABLE t\n> ```\n")).toEqual([{ kind: "sql", sql: "> DROP TABLE t" }]);
+    expect(splitAnswer("1. x\n\n    ```sql\n    DROP TABLE t;\n    ```\n")).toEqual([
+      { kind: "text", text: "1. x\n\n" },
+      { kind: "sql", sql: "DROP TABLE t;" },
+    ]);
+    expect(splitAnswer("~~~sql `x`\nSELECT 1\n~~~\n")).toEqual([{ kind: "sql", sql: "SELECT 1" }]);
+  });
   it("ba backtick trong chuỗi SQL không đóng khối", () => {
     expect(splitAnswer("```sql\nSELECT '```' AS x\n```\n")).toEqual([{ kind: "sql", sql: "SELECT '```' AS x" }]);
     expect(splitAnswer("````sql\nSELECT 1\n```\nSELECT 2\n````\n")).toEqual([{ kind: "sql", sql: "SELECT 1\n```\nSELECT 2" }]);
@@ -80,6 +88,7 @@ describe("verifyAnswer với adapter giả", () => {
     "SELECT pg_advisory_lock(1)",
     "SELECT pg_catalog.pg_read_file('/etc/passwd')",
     "SELECT 1 FROM generate_series(1, 3)",
+    `SELECT "LOWER"('a')`,
     "CREATE INDEX CONCURRENTLY ON t(a)",
     "CREATE INDEX ON t(nextval('s'))",
     "ALTER TABLE t OWNER TO postgres",

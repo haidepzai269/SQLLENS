@@ -39,6 +39,7 @@ async function check(adapter: Adapter, sql: string, probe: string | undefined, s
   if (!allowed(stmt)) return hidden("notAllowed");
   const isSelect = stmt.kind === "select";
   if (!isSelect && !probe) return hidden("needsProbe");
+  signal?.throwIfAborted();
   called.n++;
   try {
     const outcome = await guarded<Outcome<Plan | TryChangeResult>>(isSelect ? adapter.explain(sql, { signal }) : adapter.tryChange(sql, probe!), ms, signal);
