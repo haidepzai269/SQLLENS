@@ -29,7 +29,7 @@
   "cancelled": "Đã hủy. Bảng của bạn không bị đổi và bảng tạm đã được xóa.",
   "error": "Không đo được: {message}",
   "scratchNote": "Mỗi mốc được đo trên một bảng tạm có cùng cột, dữ liệu sinh ngẫu nhiên. Bảng của bạn chỉ bị đọc cấu trúc, không bị ghi hay xóa, và bảng tạm bị xóa ngay khi đo xong. Index trong bảng tạm được dựng mới bằng CREATE INDEX nên gọn hơn index đã bị ghi nhiều lần (INSERT, UPDATE, DELETE), tức số đo có thể nhỏ hơn index thật của bạn.",
-  "warn500k": "Mốc 500.000 dòng cần khoảng 600 MB RAM và có thể mất từ vài chục giây đến vài phút. Máy ít RAM có thể bị chậm hoặc treo tab.",
+  "warn500k": "Mốc 500.000 dòng cần khoảng 600 MB RAM. Máy ít RAM có thể bị chậm hoặc treo tab.",
   "unmeasuredNow": "Mốc {rows, number} dòng chưa đo. Hãy nạp dữ liệu và đo để có số thật.",
   "needSample": "Chưa có số ở quy mô này: hãy đo ít nhất một mốc thật để làm mẫu cho công thức. Chưa mô phỏng được.",
   "estimateFrom": "Số này tính bằng công thức từ mẫu thật {rows, number} dòng, không chạy thật.",

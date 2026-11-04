@@ -203,7 +203,7 @@ export function CapacityPanel({ adapter, index, table, probe }: { adapter: Engin
               <span data-testid="capacity-rows" data-raw={rows} className="text-lg font-medium tabular-nums">
                 {t("scaleValue", { rows })}
               </span>
-              <Tag label={label} text={tb(`label.${label}`)} />
+              {(point || !measuredZone) && <Tag label={label} text={tb(`label.${label}`)} />}
             </span>
           </div>
           <input

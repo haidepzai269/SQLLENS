@@ -115,7 +115,7 @@ test.describe("máy tính 1440", () => {
     // kéo qua 500k bằng bàn phím: 100k -> 500k (thật, chưa đo) -> 1M (ước lượng)
     await sl.focus();
     await page.keyboard.press("ArrowRight");
-    await expect(label(page)).toHaveAttribute("data-label", "real");
+    await expect(label(page)).toHaveCount(0); // mốc chưa đo thì không gắn nhãn kết luận
     await expect(page.getByTestId("capacity-warn500k")).toBeVisible();
     await expect(page.getByTestId("capacity-height")).toHaveCount(0);
     await page.keyboard.press("ArrowRight");

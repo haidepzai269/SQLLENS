@@ -80,7 +80,8 @@ export async function measureLevel(
     }
     if (o.isCancelled()) throw new Cancelled();
     o.onStage({ stage: "index" });
-    // Không UNIQUE: cột đa khóa duy nhất không được đánh dấu nên dữ liệu sinh có thể trùng; kích thước index gần như không đổi.
+    // Không UNIQUE: cột đa khóa duy nhất không được đánh dấu nên dữ liệu sinh có thể trùng; với dữ liệu duy nhất kích thước không đổi.
+    // shortcut: index UNIQUE nhiều cột có thể có dữ liệu sinh trùng, B-Tree dedup (PG13+) làm số đo nhỏ hơn thật; nâng lên sinh dữ liệu duy nhất theo cả bộ cột khi cần.
     await run(`CREATE INDEX ${q(SCRATCH_INDEX)} ON public.${q(SCRATCH)}${chk.data.tail}`);
     if (o.isCancelled()) throw new Cancelled();
     o.onStage({ stage: "read" });

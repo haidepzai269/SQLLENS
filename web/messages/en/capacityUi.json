@@ -29,7 +29,7 @@
   "cancelled": "Cancelled. Your table was not changed and the temporary table was dropped.",
   "error": "Could not measure: {message}",
   "scratchNote": "Each point is measured on a temporary table with the same columns and randomly generated data. Only the structure of your table is read, nothing is written or deleted, and the temporary table is dropped as soon as the measurement ends. The index in the temporary table is built fresh with CREATE INDEX, so it is more compact than an index that has been written to many times (INSERT, UPDATE, DELETE); the measurement may be smaller than your real index.",
-  "warn500k": "The 500,000-row point needs about 600 MB of RAM and can take from tens of seconds to a few minutes. A machine with little RAM may slow down or freeze the tab.",
+  "warn500k": "The 500,000-row point needs about 600 MB of RAM. A machine with little RAM may slow down or freeze the tab.",
   "unmeasuredNow": "The {rows, number}-row point is not measured yet. Load the data and measure to get real numbers.",
   "needSample": "There is no number at this scale: measure at least one real point to use as the formula sample. Not simulated yet.",
   "estimateFrom": "This number comes from a formula applied to a real sample of {rows, number} rows. It was not run.",
