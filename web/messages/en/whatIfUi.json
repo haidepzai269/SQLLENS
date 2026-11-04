@@ -13,7 +13,6 @@
   "after": "After the change",
   "rows": "Rows returned",
   "pages": "Pages read",
-  "pagesCount": "{count, plural, one {# page} other {# pages}}",
   "delta": {
     "fewer": "Pages read: {before} before, {after} after, {diff} fewer in this scenario.",
     "more": "Pages read: {before} before, {after} after, {diff} more in this scenario.",
@@ -27,7 +26,6 @@
     "cancelled": "The run was cancelled.",
     "worker_crashed": "The engine stopped. Reload the page or rebuild the session, then run again.",
     "load_failed": "The engine could not be loaded.",
-    "sql": "The database rejected the SQL.",
     "unknown": "The run failed for an unexpected reason."
   }
 }

@@ -13,7 +13,6 @@
   "after": "Sau khi sửa",
   "rows": "Số dòng trả về",
   "pages": "Số trang đã đọc",
-  "pagesCount": "{count, plural, other {# trang}}",
   "delta": {
     "fewer": "Số trang đã đọc: {before} trước, {after} sau, ít hơn {diff} trang trong kịch bản này.",
     "more": "Số trang đã đọc: {before} trước, {after} sau, nhiều hơn {diff} trang trong kịch bản này.",
@@ -27,7 +26,6 @@
     "cancelled": "Lần chạy đã bị hủy.",
     "worker_crashed": "Engine đã dừng. Hãy tải lại trang hoặc dựng lại phiên rồi chạy lại.",
     "load_failed": "Không tải được engine.",
-    "sql": "Cơ sở dữ liệu từ chối câu SQL này.",
     "unknown": "Lần chạy lỗi vì một lý do không lường trước."
   }
 }
