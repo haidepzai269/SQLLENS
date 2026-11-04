@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { AuthProvider } from "@/modules/auth/auth-provider";
 import { defaultState, sanitize, STORAGE_KEY, toggleZone, type LayoutState, type SizedZone, type Zone } from "./layout-state";
 
 type Shell = {
@@ -57,5 +58,9 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     () => ({ state, ready, toggle, commitSizes, hasWorkspace, setHasWorkspace, mobileTab, setMobileTab }),
     [state, ready, toggle, commitSizes, hasWorkspace, mobileTab],
   );
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={value}>
+      <AuthProvider>{children}</AuthProvider>
+    </Ctx.Provider>
+  );
 }

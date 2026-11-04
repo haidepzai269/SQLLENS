@@ -2,5 +2,13 @@
   "notFound": "The requested resource was not found.",
   "methodNotAllowed": "This method is not allowed.",
   "payloadTooLarge": "The request payload is too large.",
-  "internal": "Something went wrong on the server."
+  "internal": "Something went wrong on the server.",
+  "authRequired": "You need to sign in to do this.",
+  "quotaExceeded": "You have used up the quota for today.",
+  "quotaUnavailable": "The quota cannot be checked right now. Please try again later.",
+  "notConfigured": "This feature is not configured on the server.",
+  "originMismatch": "The request was rejected because its origin does not match.",
+  "invalidState": "The sign-in session is invalid or expired. Please sign in again.",
+  "authUnavailable": "The sign-in service is temporarily unavailable. Please try again later.",
+  "rateLimited": "You are going too fast. Wait a moment and try again."
 }

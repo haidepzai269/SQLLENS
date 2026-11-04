@@ -25,7 +25,6 @@
   "rebuilding": "Đang dựng lại...",
   "rebuildHint": "Dựng lại sẽ chạy lại {count, plural, one {# câu} other {# câu}} đã thành công trước đó theo đúng thứ tự. Câu có kết quả ngẫu nhiên như random() có thể cho dữ liệu khác lần trước.",
   "rebuildError": "Dựng lại không thành công: {message}",
-  "mysqlNeedsLogin": "MySQL cần đăng nhập, sẽ có ở SP004.",
   "stopped": {
     "cancelled": "Đã hủy câu đang chạy. Phiên PostgreSQL đã bị dừng nên dữ liệu tạo bởi các câu trước đã mất.",
     "timeout": "Câu chạy quá thời gian nên đã bị dừng. Phiên PostgreSQL đã bị dừng nên dữ liệu tạo bởi các câu trước đã mất.",

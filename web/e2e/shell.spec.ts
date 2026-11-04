@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
+// Cổng đăng nhập hỏi /api/me; ở các test này chưa biết là ai (503) để hộp thoại không che giao diện, kể cả khi máy đang chạy Gin.
+test.beforeEach(({ page }) => page.route("**/api/me", (r) => r.fulfill({ status: 503, body: "{}" })));
+
 // DOM có thể giữ bản cũ đã ẩn sau khi đổi ngôn ngữ, nên chỉ chọn phần tử đang hiển thị (xem bàn giao Task007).
 const width = async (p: Page, sel: string) => (await p.locator(`${sel}:visible`).boundingBox())!.width;
 const toggle = (p: Page, name: RegExp) => p.getByRole("button", { name }).filter({ visible: true });

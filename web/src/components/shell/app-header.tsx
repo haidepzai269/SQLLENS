@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { AuthControls, AuthNotice } from "@/modules/auth/auth-controls";
 import { EngineTabs, type LockedId } from "./engine-tabs";
 import { PanelToggles } from "./panel-toggles";
 import { useShell } from "./shell-provider";
@@ -52,6 +53,7 @@ export function AppHeader() {
         <div className="flex h-[var(--h-top)] items-center">
           <LanguageSwitcher />
         </div>
+        <AuthControls />
       </header>
       <p
         role="status"
@@ -59,6 +61,7 @@ export function AppHeader() {
       >
         {note && t("lockedReason", { engine: t(`engines.${note}`) })}
       </p>
+      <AuthNotice />
     </>
   );
 }
