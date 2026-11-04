@@ -241,7 +241,8 @@ for (const l of ["vi", "en"] as const) {
       // giá trị lạ không hiện gì nhưng vẫn bị bỏ khỏi URL
       await page.goto(`/${l}?auth_error=<script>`);
       await expect(page).not.toHaveURL(/auth_error/);
-      await expect(page.getByRole("status").filter({ hasText: /\S/ })).toHaveCount(0);
+      // Vùng stage cũng có role status và hiện muộn hơn, nên chỉ kiểm câu lỗi đăng nhập.
+      for (const text of [t.cancelled, t.failed]) await expect(page.getByRole("status").filter({ hasText: text })).toHaveCount(0);
     });
 
     test("ca biên: cookie hết hạn giữa phiên (ping 401) thì về chưa đăng nhập, không vòng lặp", async ({ page }) => {

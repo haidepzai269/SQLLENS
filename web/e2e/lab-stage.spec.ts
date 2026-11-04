@@ -131,7 +131,9 @@ for (const l of ["vi", "en"] as const) {
       await pickTab(page, l, 1);
       await expect(stage(page).getByRole("status").filter({ hasText: l === "vi" ? "không có câu SELECT" : "no SELECT" })).toBeVisible();
       await pickTab(page, l, 3);
-      await expect(stage(page).getByRole("status").filter({ hasText: l === "vi" ? "không có câu SELECT" : "no SELECT" })).toBeVisible();
+      // Phân biệt câu của tab Thử sửa với tab Plan, và kiểm chỉ một panel hiện để bắt lỗi thật nếu panel cũ không ẩn.
+      await expect(stage(page).getByRole("status").filter({ hasText: l === "vi" ? "SELECT nào để đo" : "SELECT statement to measure" })).toBeVisible();
+      await expect(stage(page).getByRole("tabpanel")).toHaveCount(1);
       // index kiểu hash: không phải B-Tree, phải báo lý do, không vẽ cây giả
       await run(page, l, "CREATE INDEX z_hash ON z USING hash (id); SELECT 1");
       await pickTab(page, l, 2);

@@ -36,7 +36,8 @@ test.describe("máy tính 1440", () => {
 
   test("AC2 tab khóa không đổi engine và có giải thích (chuột, bàn phím)", async ({ page }) => {
     await go(page, "/en?engine=postgres");
-    const status = page.getByRole("status").filter({ visible: true });
+    // Vùng stage cũng có role status, nên chỉ lấy câu của tab khóa.
+    const status = page.getByRole("status").filter({ visible: true }).filter({ hasText: "is not available" });
     await page.getByRole("tab", { name: "NoSQL" }).click({ force: true });
     await expect(page).toHaveURL(/engine=postgres/);
     await expect(status).toContainText("NoSQL is not available");
