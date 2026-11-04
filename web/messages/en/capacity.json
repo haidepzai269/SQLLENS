@@ -1,0 +1,10 @@
+{
+  "measured": "Measured from the real index {index} with pageinspect: {rows} rows, {height} levels, {pages} pages (metapage included).",
+  "estimated": "Estimate by formula for {rows} rows, extrapolated from a real sample of {fromRows} rows of index {index}: {height} levels. Not a measurement.",
+  "countFailed": "Cannot measure: the row count of the table could not be read. Not simulated.",
+  "empty": "Cannot measure: the table is empty, so the index has no leaf pages to measure. Not simulated.",
+  "mustMeasure": "Cannot estimate: up to 500,000 rows must be measured on real data, not extrapolated. Not simulated.",
+  "tooLarge": "Cannot estimate: more than 1 billion rows is beyond the formula's range. Not simulated.",
+  "noFanout": "Cannot estimate: the sample has no valid leaf width. Not simulated.",
+  "noInternalFanout": "Cannot estimate: the sample tree has no internal page yet, so the node width above the leaves is unknown. Use a larger sample. Not simulated."
+}

@@ -1,0 +1,10 @@
+{
+  "measured": "Đo từ index thật {index} bằng pageinspect: {rows} dòng, {height} tầng, {pages} trang (tính cả metapage).",
+  "estimated": "Ước lượng bằng công thức cho {rows} dòng, ngoại suy từ mẫu thật {fromRows} dòng của index {index}: {height} tầng. Không phải số đo.",
+  "countFailed": "Không đo được: không đọc được số dòng của bảng. Chưa mô phỏng được.",
+  "empty": "Không đo được: bảng rỗng nên index chưa có trang leaf để đo. Chưa mô phỏng được.",
+  "mustMeasure": "Không ước lượng được: đến 500.000 dòng phải đo trên dữ liệu thật, không ngoại suy. Chưa mô phỏng được.",
+  "tooLarge": "Không ước lượng được: trên 1 tỷ dòng vượt phạm vi của công thức. Chưa mô phỏng được.",
+  "noFanout": "Không ước lượng được: mẫu không có độ rộng leaf hợp lệ. Chưa mô phỏng được.",
+  "noInternalFanout": "Không ước lượng được: cây mẫu chưa có trang internal nên chưa biết độ rộng node phía trên leaf. Hãy dùng mẫu lớn hơn. Chưa mô phỏng được."
+}
