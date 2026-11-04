@@ -1,0 +1,5 @@
+{
+  "pages": "In this scenario the query read {before} pages before the change and {after} pages after it. The change was rolled back, so your data is unchanged. This says nothing about other queries or other data sizes.",
+  "rows": "The query returned {before} rows before the change and {after} rows after it.",
+  "planUnreadable": "Cannot compare: the query plan returned by the database could not be read. Not simulated."
+}

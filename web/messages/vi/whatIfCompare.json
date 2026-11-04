@@ -1,0 +1,5 @@
+{
+  "pages": "Trong kịch bản này, câu truy vấn đọc {before} trang trước khi sửa và {after} trang sau khi sửa. Thay đổi đã được hoàn tác nên dữ liệu của bạn không đổi. Số này không nói gì về các câu khác hay quy mô dữ liệu khác.",
+  "rows": "Câu truy vấn trả {before} dòng trước khi sửa và {after} dòng sau khi sửa.",
+  "planUnreadable": "Không thể so sánh: không đọc được kế hoạch truy vấn mà cơ sở dữ liệu trả về. Chưa mô phỏng được."
+}
