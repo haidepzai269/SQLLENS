@@ -1,0 +1,53 @@
+{
+  "region": "AI Mentor",
+  "disclaimer": "The AI only receives the evidence the system gathered (SQL, plan, computed risks), never your data rows. Its answer may be wrong and is not a conclusion of the system.",
+  "questionLabel": "Ask about your SQL",
+  "questionPlaceholder": "For example: why does this query read so many pages?",
+  "count": "{count}/{max} characters",
+  "tooLong": "The question is {count} characters long, the limit is {max}. Shorten it before sending.",
+  "send": "Send",
+  "stop": "Stop",
+  "shortcut": "Ctrl+Enter also sends",
+  "empty": "No question yet. Type one and press Send. SQL suggested by the AI only appears after it has been trial-run in your browser.",
+  "asked": "Your question",
+  "answerLabel": "AI answer",
+  "aiTag": "AI words, not a conclusion of the system",
+  "phase": {
+    "sending": "Sending the question...",
+    "streaming": "The AI is answering...",
+    "verifying": "Trial-running the SQL blocks..."
+  },
+  "stopped": "Stopped at your request.",
+  "incomplete": "Not finished: this is only the part received before it stopped or failed. The SQL blocks in it were not trial-run, so they are not shown.",
+  "rebuildFailed": "The PostgreSQL session could not be rebuilt after stopping. Reload the page before running anything else.",
+  "emptyAnswer": "The AI returned an empty answer. Try asking again.",
+  "sqlPending": "A SQL block is waiting to be checked. Its content only appears if the trial run passes.",
+  "sqlUnchecked": "A SQL block was not checked, so it is not shown.",
+  "verifyFailed": "This SQL block could not be trial-run, so it is not shown.",
+  "hiddenCount": "{count, plural, one {# SQL block not shown} other {# SQL blocks not shown}}",
+  "ranHere": "Trial-run in your browser, no data changed.",
+  "label": { "real": "Real", "simulated": "Simulated", "estimated": "Estimated" },
+  "pages": "Pages read in the trial run: {pages}",
+  "pagesChange": "Pages read by the measured query: {before} before, {after} after, in this scenario.",
+  "apply": "Apply",
+  "applyRegion": "Try this suggestion",
+  "applyHint": "Nothing in your data has changed. Press Run to compare; the change only runs inside a transaction and is rolled back.",
+  "signIn": "Sign in",
+  "retryAfter": "Try again in about {seconds} seconds.",
+  "warn": {
+    "unknownTitle": "Numbers that are not in the evidence",
+    "unknownBody": "These numbers in the answer are not in the evidence sent to the AI, so do not trust them before checking yourself: {numbers}.",
+    "bannedTitle": "A sentence implies the design is fine",
+    "bannedBody": "The system does not conclude that; it can only say whether the scenario that ran broke or did not break, and at which step. The sentence was:"
+  },
+  "err": {
+    "auth": "Sign in to ask the AI",
+    "limit": "AI usage limit reached",
+    "unavailable": "The AI is temporarily unavailable",
+    "badRequest": "Invalid request",
+    "network": "The request could not be sent",
+    "interrupted": "The answer was cut off",
+    "stream": "The AI reported an error while answering",
+    "tooLong": "The answer is too long"
+  }
+}
