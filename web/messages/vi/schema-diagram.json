@@ -20,5 +20,8 @@
   "summaryTable": "Bảng {name} có {count, plural, other {# cột}}:",
   "summaryRelations": "{count, plural, other {# quan hệ khóa ngoại}}",
   "summaryRel": "{from}.{fromCol} tham chiếu {to}.{toCol}",
-  "summaryMissing": "{from}.{column} tham chiếu bảng {table}, bảng này không có trong danh sách"
+  "summaryMissing": "{from}.{column} tham chiếu bảng {table}, bảng này không có trong danh sách",
+  "search": "Tìm bảng",
+  "searchGo": "Tìm",
+  "searchMiss": "Không có bảng nào tên “{query}”."
 }

@@ -6,6 +6,7 @@ import { Maximize, Minus, Plus, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { TableInfo } from "@/modules/data-lab/generate/plan-data";
 import {
   autoLayout, cardHeight, CARD_W, COLLAPSE_OVER, loadPos, NARROW_MAX, relations, savePos, separate, tableKey, type Pos, type Rect,
@@ -22,6 +23,8 @@ function Inner({ tables }: { tables: TableInfo[] }) {
   const [narrow, setNarrow] = useState<boolean | null>(null);
   const [override, setOverride] = useState<boolean | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [miss, setMiss] = useState<string | null>(null);
   const many = tables.length > COLLAPSE_OVER;
   const collapsed = override ?? many;
   const { edges: rels, missing } = useMemo(() => relations(tables), [tables]);
@@ -30,10 +33,17 @@ function Inner({ tables }: { tables: TableInfo[] }) {
   useLayoutEffect(() => {
     const el = wrap.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setNarrow(el.clientWidth < NARROW_MAX));
+    // Khung từng ẩn (tab chưa mở, rộng 0) rồi mới hiện: fit lại, vì lần fit lúc ẩn tính trên khung 0 px.
+    let was = 0;
+    const ro = new ResizeObserver(() => {
+      const w = el.clientWidth;
+      setNarrow(w < NARROW_MAX);
+      if (was === 0 && w > 0) requestAnimationFrame(() => rf.fitView(fitOpts));
+      was = w;
+    });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [rf]);
 
   const heightOf = useMemo(() => new Map(tables.map((x) => [tableKey(x), cardHeight(x, collapsed)])), [tables, collapsed]);
   const rectOf = useCallback((k: string, p: Pos): Rect => ({ x: p.x, y: p.y, w: CARD_W, h: heightOf.get(k) ?? 0 }), [heightOf]);
@@ -51,12 +61,14 @@ function Inner({ tables }: { tables: TableInfo[] }) {
         placed.push(rectOf(k, position));
         return {
           id: k, type: "table", position, draggable: true,
+          // Kích thước biết trước: "Vừa màn hình" tính đúng ngay cả khi thẻ chưa được đo (sau khi đổi gọn/đủ cột, hoặc thẻ ngoài khung khi trên 60 bảng).
+          width: CARD_W, height: heightOf.get(k),
           ariaLabel: t("nodeLabel", { name: tb.name, count: tb.columns.length }),
-          data: { table: tb, collapsed, missing: missing.filter((m) => m.from === tb.name).map((m) => m.column) },
+          data: { table: tb, collapsed, narrow: !!narrow, missing: missing.filter((m) => m.from === tb.name).map((m) => m.column) },
         };
       });
     },
-    [tables, narrow, collapsed, missing, rectOf, t],
+    [tables, narrow, collapsed, missing, rectOf, heightOf, t],
   );
 
   useEffect(() => {
@@ -102,6 +114,18 @@ function Inner({ tables }: { tables: TableInfo[] }) {
     [rels, collapsed, dragging],
   );
 
+  // Tìm bảng theo tên (khớp đúng trước, rồi khớp một phần), đưa bảng đó vào giữa khung ở độ phóng đọc được.
+  const find = () => {
+    const q = query.trim().toLowerCase();
+    if (!q) return;
+    const hit = tables.find((x) => x.name.toLowerCase() === q) ?? tables.find((x) => x.name.toLowerCase().includes(q));
+    setMiss(hit ? null : query.trim());
+    if (!hit) return;
+    const id = tableKey(hit);
+    setNodes((cur) => cur.map((n) => ({ ...n, selected: n.id === id })));
+    rf.fitView({ nodes: [{ id }], maxZoom: 1, padding: 0.3, duration: 0 });
+  };
+
   const relayout = () => {
     savePos(!!narrow, null);
     setNodes(build(false));
@@ -126,6 +150,13 @@ function Inner({ tables }: { tables: TableInfo[] }) {
           </Button>
         )}
       </div>
+      {many && (
+        <form role="search" className="flex flex-wrap items-center gap-1.5" onSubmit={(e) => (e.preventDefault(), find())}>
+          <Input type="search" aria-label={t("search")} placeholder={t("search")} value={query} onChange={(e) => (setQuery(e.target.value), setMiss(null))} className="h-11 min-w-0 flex-1 sm:h-8 sm:max-w-xs" />
+          <Button type="submit" variant="outline" className="h-11 sm:h-8">{t("searchGo")}</Button>
+          {miss !== null && <p role="status" className="m-0 text-xs text-dim">{t("searchMiss", { query: miss })}</p>}
+        </form>
+      )}
       {many && collapsed && <p className="text-xs text-dim" role="note">{t("collapsedNote", { count: tables.length, limit: COLLAPSE_OVER })}</p>}
       {missing.length > 0 && <p className="text-xs text-dim" role="note">{t("missingNote", { count: missing.length })}</p>}
       <div
@@ -147,7 +178,7 @@ function Inner({ tables }: { tables: TableInfo[] }) {
               setDragging(null);
               settle(n.id, n.position);
             }}
-            minZoom={many ? 0.1 : 0.3}
+            minZoom={many ? 0.02 : 0.3}
             maxZoom={1.6}
             nodesConnectable={false}
             edgesFocusable={false}
