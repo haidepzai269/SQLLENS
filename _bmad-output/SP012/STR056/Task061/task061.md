@@ -9,6 +9,8 @@ Không làm: gắn vào vùng `stage` của màn hình chính (task riêng), AI 
 
 Hợp đồng: `<MentorPanel adapter={...} evidence={EvidencePack} probe?={string} />`. Dùng cổng đăng nhập của Task044, `checkAnswer`, `verifyAnswer`, `WhatIfCompare`.
 
+Ghi chú từ Task060: chỉ hiển thị phần `kind: "sql"` bằng thành phần riêng, không render lại Markdown gốc của câu trả lời. `verifyAnswer` nhận thêm `timeoutMs`. Muốn nút dừng hủy cả câu đang chạy trong worker thì gọi `adapter.cancel()` rồi `rebuild()`.
+
 Tiêu chí xong (test dùng route giả cho `/api/ai/chat`, không gọi model thật):
 - AC1: Chưa đăng nhập: được mời đăng nhập, quay lại không mất câu hỏi đang gõ, theo cách Task044 đã làm.
 - AC2: Câu trả lời hiện dần theo `delta`. Khối SQL khi đang stream chỉ hiện là đang chờ kiểm tra, chưa hiện nội dung. Hết stream, chạy `verifyAnswer`, chỉ khối đạt mới hiện, kèm nhãn Thật và số trang. Khối `hidden` hiện lý do, không hiện SQL.
