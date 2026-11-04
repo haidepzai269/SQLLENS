@@ -25,7 +25,6 @@
   "rebuilding": "Rebuilding...",
   "rebuildHint": "Rebuild re-runs the {count, plural, one {# statement} other {# statements}} that succeeded earlier, in order. Statements with random results such as random() may produce different data this time.",
   "rebuildError": "Rebuild failed: {message}",
-  "mysqlNeedsLogin": "MySQL requires sign-in, coming in SP004.",
   "stopped": {
     "cancelled": "The running statement was cancelled. The PostgreSQL session was stopped, so data created by earlier statements is gone.",
     "timeout": "The statement took too long and was stopped. The PostgreSQL session was stopped, so data created by earlier statements is gone.",

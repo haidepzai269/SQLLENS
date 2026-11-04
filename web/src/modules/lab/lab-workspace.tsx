@@ -24,6 +24,9 @@ import { disposeParser, parseSql, type ParseOutcome } from "@/modules/sql-intake
 import { ConfirmSchemaDialog } from "@/modules/sql-intake/ui/confirm-schema-dialog";
 import { DumpNotice } from "@/modules/sql-intake/ui/dump-notice";
 import { toDraft, type Draft } from "@/modules/sql-intake/ui/schema-draft";
+import { useAuth } from "@/modules/auth/auth-provider";
+import { MysqlAccess } from "@/modules/auth/mysql-access";
+import { takeSql } from "@/modules/auth/sql-stash";
 import { StatementList } from "./statement-list";
 
 type RunData = { statements: number; rows: number };
@@ -61,6 +64,15 @@ export function LabWorkspace() {
   const engine = parseEngine(useSearchParams().get("engine"));
   // Toàn bộ trạng thái phiên nằm ở đây, trên WorkspaceLayout, nên đổi qua mốc 900 px không mất gì.
   const [sql, setSql] = useState("");
+  const { sqlRef } = useAuth();
+  useEffect(() => {
+    sqlRef.current = sql; // để hộp thoại đăng nhập lưu tạm đúng SQL đang soạn
+  }, [sql, sqlRef]);
+  // Quay về từ đăng nhập: trả SQL đã lưu (và xóa bản lưu) nếu ô soạn còn trống.
+  useEffect(() => {
+    const saved = takeSql();
+    if (saved) setSql((cur) => (cur === "" ? saved : cur)); // eslint-disable-line react-hooks/set-state-in-effect -- đọc sessionStorage một lần sau mount
+  }, []);
   // eff: SQL đã bỏ khối COPY và LOCK (prepareDump), là chuỗi thật sự được parse và chạy; vị trí trong outcome tính trên eff.
   const [parsed, setParsed] = useState<{ sql: string; engine: typeof engine; outcome: ParseOutcome; eff: string; removed: { copyBlocks: number; lockStatements: number } } | null>(null);
   // Bản nháp schema suy từ query, gắn với đúng sql và engine đã sinh ra nó: query đổi thì bỏ.
@@ -356,7 +368,7 @@ export function LabWorkspace() {
   const terminalZone = (
     <Pane title={ts("tab.terminal")}>
       {mysql ? (
-        <p role="status">{t("mysqlNeedsLogin")}</p>
+        <MysqlAccess />
       ) : (
         <>
           <div role="status" className="flex min-w-0 flex-col items-start gap-2 text-sm text-muted-foreground">

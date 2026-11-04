@@ -12,7 +12,7 @@ const T = {
     empty: "Truy vấn không trả dòng nào",
     ran: "PostgreSQL vừa chạy 3 câu, câu cuối trả 2 dòng",
     lost: "dữ liệu tạo bởi các câu trước đã mất",
-    mysql: "MySQL cần đăng nhập, sẽ có ở SP004.",
+    mysql: "MySQL cần đăng nhập. Đăng nhập để tiếp tục.",
     mysqlTab: "MySQL",
     terminalTab: "Terminal",
   },
@@ -27,11 +27,14 @@ const T = {
     empty: "The query returned no rows",
     ran: "PostgreSQL just ran 3 statements, the last returned 2 rows",
     lost: "data created by earlier statements is gone",
-    mysql: "MySQL requires sign-in, coming in SP004.",
+    mysql: "MySQL requires sign-in. Sign in to continue.",
     mysqlTab: "MySQL",
     terminalTab: "Terminal",
   },
 } as const;
+// Cổng đăng nhập hỏi /api/me; ở các test này chưa biết là ai (503) để hộp thoại không che giao diện, kể cả khi máy đang chạy Gin.
+test.beforeEach(({ page }) => page.route("**/api/me", (r) => r.fulfill({ status: 503, body: "{}" })));
+
 const SHOTS = "../_bmad-output/SP006/STR025/Task032"; // không ghi đè ảnh của Task020
 const AC1_SQL = "CREATE TABLE t(id int); INSERT INTO t VALUES (1),(2); SELECT * FROM t;";
 const BAD_PHRASE = /thiết kế (này )?(đã )?ổn|design is (fine|ok|good)|good design/i;

@@ -2,5 +2,13 @@
   "notFound": "Không tìm thấy nội dung yêu cầu.",
   "methodNotAllowed": "Phương thức này không được phép.",
   "payloadTooLarge": "Dữ liệu gửi lên quá lớn.",
-  "internal": "Đã có lỗi xảy ra phía máy chủ."
+  "internal": "Đã có lỗi xảy ra phía máy chủ.",
+  "authRequired": "Bạn cần đăng nhập để làm việc này.",
+  "quotaExceeded": "Bạn đã hết hạn mức dùng trong ngày.",
+  "quotaUnavailable": "Tạm thời không kiểm tra được hạn mức. Hãy thử lại sau.",
+  "notConfigured": "Tính năng này chưa được cấu hình trên máy chủ.",
+  "originMismatch": "Yêu cầu bị từ chối vì nguồn gửi không khớp.",
+  "invalidState": "Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Hãy đăng nhập lại.",
+  "authUnavailable": "Dịch vụ đăng nhập tạm thời không dùng được. Hãy thử lại sau.",
+  "rateLimited": "Bạn thao tác quá nhanh. Hãy chờ một chút rồi thử lại."
 }
