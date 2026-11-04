@@ -1,0 +1,53 @@
+{
+  "region": "AI Mentor",
+  "disclaimer": "AI chỉ nhận bằng chứng của hệ thống (SQL, plan, rủi ro đã tính), không nhận dòng dữ liệu của bạn. Câu trả lời của AI có thể sai và không phải kết luận của hệ thống.",
+  "questionLabel": "Hỏi về SQL của bạn",
+  "questionPlaceholder": "Ví dụ: vì sao truy vấn này đọc nhiều trang?",
+  "count": "{count}/{max} ký tự",
+  "tooLong": "Câu hỏi dài {count} ký tự, tối đa {max}. Hãy rút ngắn trước khi gửi.",
+  "send": "Gửi",
+  "stop": "Dừng",
+  "shortcut": "Ctrl+Enter cũng gửi",
+  "empty": "Chưa có câu hỏi nào. Nhập câu hỏi rồi bấm Gửi. SQL AI đề xuất chỉ hiện sau khi đã chạy thử trong trình duyệt của bạn.",
+  "asked": "Câu hỏi của bạn",
+  "answerLabel": "Câu trả lời của AI",
+  "aiTag": "Lời AI, chưa phải kết luận của hệ thống",
+  "phase": {
+    "sending": "Đang gửi câu hỏi...",
+    "streaming": "AI đang trả lời...",
+    "verifying": "Đang chạy thử các khối SQL..."
+  },
+  "stopped": "Đã dừng theo yêu cầu của bạn.",
+  "incomplete": "Chưa hoàn tất: đây chỉ là phần đã nhận trước khi dừng hoặc gặp lỗi. Các khối SQL trong phần này chưa được chạy thử nên không hiển thị.",
+  "rebuildFailed": "Không dựng lại được phiên PostgreSQL sau khi dừng. Hãy tải lại trang trước khi chạy tiếp.",
+  "emptyAnswer": "AI trả về câu trả lời rỗng. Hãy thử hỏi lại.",
+  "sqlPending": "Có một khối SQL đang chờ kiểm tra. Nội dung chỉ hiện nếu chạy thử đạt.",
+  "sqlUnchecked": "Có một khối SQL chưa được kiểm tra nên không hiển thị.",
+  "verifyFailed": "Không chạy thử được khối SQL này nên không hiển thị.",
+  "hiddenCount": "{count, plural, other {# khối SQL không hiển thị}}",
+  "ranHere": "Đã chạy thử trong trình duyệt của bạn, không đổi dữ liệu.",
+  "label": { "real": "Thật", "simulated": "Mô phỏng", "estimated": "Ước lượng" },
+  "pages": "Số trang đã đọc khi chạy thử: {pages}",
+  "pagesChange": "Số trang đã đọc của truy vấn đo: trước {before}, sau {after}, trong kịch bản này.",
+  "apply": "Áp dụng",
+  "applyRegion": "Thử đề xuất này",
+  "applyHint": "Chưa có gì thay đổi trong dữ liệu của bạn. Bấm Chạy để so sánh; cách sửa chỉ chạy trong giao dịch rồi hoàn tác.",
+  "signIn": "Đăng nhập",
+  "retryAfter": "Thử lại sau khoảng {seconds} giây.",
+  "warn": {
+    "unknownTitle": "Có số không nằm trong bằng chứng",
+    "unknownBody": "Các số sau trong câu trả lời không có trong bằng chứng đã gửi cho AI, nên đừng tin khi chưa tự kiểm: {numbers}.",
+    "bannedTitle": "Có câu hàm ý thiết kế ổn",
+    "bannedBody": "Hệ thống không kết luận như vậy; chỉ nói được kịch bản đã chạy hỏng hay không hỏng ở bước nào. Câu đó là:"
+  },
+  "err": {
+    "auth": "Cần đăng nhập để hỏi AI",
+    "limit": "Đã chạm giới hạn dùng AI",
+    "unavailable": "AI tạm thời không dùng được",
+    "badRequest": "Yêu cầu không hợp lệ",
+    "network": "Không gửi được yêu cầu",
+    "interrupted": "Câu trả lời bị đứt giữa chừng",
+    "stream": "AI báo lỗi khi đang trả lời",
+    "tooLong": "Câu trả lời quá dài"
+  }
+}

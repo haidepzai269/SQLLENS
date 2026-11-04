@@ -48,10 +48,10 @@ function Column({ title, side, label, showRows }: { title: string; side: WhatIfS
   );
 }
 
-export function WhatIfCompare({ adapter, probe }: { adapter: Pick<EngineAdapter, "tryChange">; probe: string }) {
+export function WhatIfCompare({ adapter, probe, initialChange = "" }: { adapter: Pick<EngineAdapter, "tryChange">; probe: string; initialChange?: string }) {
   const t = useTranslations("whatIfUi");
   const tr = useTranslations() as unknown as (key: string, values?: Record<string, string | number>) => string; // khóa tryChange.*, whatIfCompare.*, guard.* do engine trả về
-  const [change, setChange] = useState("");
+  const [change, setChange] = useState(initialChange);
   const [state, setState] = useState<State>({ phase: "idle" });
   const [empty, setEmpty] = useState(false);
   const seq = useRef(0);

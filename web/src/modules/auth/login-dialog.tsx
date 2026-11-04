@@ -11,7 +11,7 @@ import { stashSql, storageWorks } from "./sql-stash";
 
 const PROVIDERS = ["google", "github"] as const;
 
-export function LoginDialog({ open, reason, onClose }: { open: boolean; reason: "mysql" | "manual"; onClose: () => void }) {
+export function LoginDialog({ open, reason, onClose }: { open: boolean; reason: "mysql" | "manual" | "ai"; onClose: () => void }) {
   const t = useTranslations("auth");
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -23,7 +23,7 @@ export function LoginDialog({ open, reason, onClose }: { open: boolean; reason: 
 }
 
 // Chỉ mount khi hộp thoại mở, nên được đọc window và sessionStorage ở đây.
-function Body({ t, reason, onClose }: { t: ReturnType<typeof useTranslations>; reason: "mysql" | "manual"; onClose: () => void }) {
+function Body({ t, reason, onClose }: { t: ReturnType<typeof useTranslations>; reason: "mysql" | "manual" | "ai"; onClose: () => void }) {
   const { sqlRef } = useAuth();
   const [blocked, setBlocked] = useState(false); // sessionStorage chặn hoặc SQL quá lớn để lưu
   useEffect(() => {

@@ -10,5 +10,8 @@
   "originMismatch": "Yêu cầu bị từ chối vì nguồn gửi không khớp.",
   "invalidState": "Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Hãy đăng nhập lại.",
   "authUnavailable": "Dịch vụ đăng nhập tạm thời không dùng được. Hãy thử lại sau.",
-  "rateLimited": "Bạn thao tác quá nhanh. Hãy chờ một chút rồi thử lại."
+  "rateLimited": "Bạn thao tác quá nhanh. Hãy chờ một chút rồi thử lại.",
+  "badRequest": "Yêu cầu không hợp lệ.",
+  "aiUnavailable": "Dịch vụ AI tạm thời không dùng được. Hãy thử lại sau.",
+  "aiTooLong": "Câu trả lời của AI quá dài nên bị cắt."
 }

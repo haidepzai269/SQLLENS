@@ -10,5 +10,8 @@
   "originMismatch": "The request was rejected because its origin does not match.",
   "invalidState": "The sign-in session is invalid or expired. Please sign in again.",
   "authUnavailable": "The sign-in service is temporarily unavailable. Please try again later.",
-  "rateLimited": "You are going too fast. Wait a moment and try again."
+  "rateLimited": "You are going too fast. Wait a moment and try again.",
+  "badRequest": "The request is not valid.",
+  "aiUnavailable": "The AI service is temporarily unavailable. Please try again later.",
+  "aiTooLong": "The AI answer was too long and was cut off."
 }
