@@ -218,7 +218,7 @@ export function Stage({ run, working, mysql }: { run: StageRun | null; working: 
   const t = useTranslations("labStage");
   const ts = useTranslations("shell");
   const [tab, setTab] = useState<Tab>("schema");
-  // Tab đã mở trong lần chạy này thì giữ dữ liệu khi chuyển tab, không đọc lại.
+  // Panel giữ mounted (keepMounted) nên chuyển tab không đọc lại: explain chạy thật câu SELECT, đọc lại sẽ làm nextval() nhảy thêm.
   const [seen, setSeen] = useState<{ id: number; tabs: Tab[] }>({ id: -1, tabs: [] });
   const open = (x: Tab) => run !== null && (tab === x || (seen.id === run.id && seen.tabs.includes(x)));
   const change = (v: unknown) => {
@@ -239,10 +239,10 @@ export function Stage({ run, working, mysql }: { run: StageRun | null; working: 
                 <TabsTrigger key={x} value={x}>{t(`tab.${x}`)}</TabsTrigger>
               ))}
             </TabsList>
-            <TabsContent value="schema" className="min-w-0"><SchemaTab run={run} on={open("schema")} /></TabsContent>
-            <TabsContent value="plan" className="min-w-0"><PlanTab run={run} on={open("plan")} /></TabsContent>
-            <TabsContent value="btree" className="min-w-0"><BTreeTab run={run} on={open("btree")} /></TabsContent>
-            <TabsContent value="whatif" className="min-w-0"><WhatIfTab run={run} /></TabsContent>
+            <TabsContent value="schema" className="min-w-0" keepMounted><SchemaTab run={run} on={open("schema")} /></TabsContent>
+            <TabsContent value="plan" className="min-w-0" keepMounted><PlanTab run={run} on={open("plan")} /></TabsContent>
+            <TabsContent value="btree" className="min-w-0" keepMounted><BTreeTab run={run} on={open("btree")} /></TabsContent>
+            <TabsContent value="whatif" className="min-w-0" keepMounted><WhatIfTab run={run} /></TabsContent>
           </Tabs>
         )}
       </div>

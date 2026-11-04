@@ -42,6 +42,7 @@ async function pickTab(p: Page, l: L, i: number) {
 // Đợi một lần chạy xong: lưới kết quả hiện ở terminal (điện thoại: tab terminal đang mở).
 const grid = (p: Page) => p.locator("tbody:visible tr");
 const gridText = async (p: Page) => (await grid(p).allInnerTexts()).join("|");
+const panel = (p: Page) => stage(p).locator('[role="tabpanel"]:not([hidden])'); // panel giữ mounted, chỉ panel đang mở hiện
 const noHScroll = (p: Page) => p.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 
 for (const l of ["vi", "en"] as const) {
@@ -81,7 +82,7 @@ for (const l of ["vi", "en"] as const) {
       await stage(page).locator("#stage-key").fill("5");
       await stage(page).getByTestId("stage-drop").click();
       await expect(stage(page).getByTestId("btree-drop")).toBeVisible({ timeout: 30_000 });
-      await expect(stage(page).getByTestId("stage-evidence")).toBeVisible();
+      await expect(panel(page).getByTestId("stage-evidence")).toBeVisible();
       // AC6: thử sửa với câu SELECT đang xem làm câu thăm dò
       await pickTab(page, l, 3);
       await expect(stage(page).getByTestId("whatif-probe")).toContainText("md5");
@@ -150,6 +151,27 @@ for (const l of ["vi", "en"] as const) {
       await page.getByRole("button", { name: T[l].rebuild, exact: true }).click();
       await expect(page.locator('[data-testid="stopped"]')).toHaveCount(0, { timeout: 60_000 });
       await expect(stage(page).getByRole("tab")).toHaveCount(0);
+    });
+
+    test("đổi tab qua lại không chạy lại explain (nextval không nhảy thêm)", async ({ page }) => {
+      await page.goto(`/${l}`);
+      // s: mở Plan rồi đổi tab qua lại 2 lần; t: chỉ mở Plan một lần. Nếu đổi tab chạy lại explain thì s nhảy nhiều hơn t.
+      await run(page, l, "CREATE SEQUENCE s; CREATE SEQUENCE t; SELECT nextval('s')");
+      await expect(grid(page)).toHaveCount(1, { timeout: 90_000 });
+      await pickTab(page, l, 1);
+      await expect(stage(page).getByTestId("plan-tree")).toBeVisible({ timeout: 30_000 });
+      for (let i = 0; i < 2; i++) {
+        await pickTab(page, l, 0);
+        await pickTab(page, l, 1);
+        await expect(stage(page).getByTestId("plan-tree")).toBeVisible();
+      }
+      await run(page, l, "SELECT nextval('t') AS n");
+      await expect(stage(page).getByTestId("stage-viewing")).toContainText("nextval('t')", { timeout: 30_000 });
+      await expect(stage(page).getByTestId("plan-tree")).toBeVisible({ timeout: 30_000 });
+      await run(page, l, "SELECT pg_sequence_last_value('s'::regclass) AS a, pg_sequence_last_value('t'::regclass) AS b, 'read' AS tag");
+      await expect.poll(() => gridText(page), { timeout: 60_000 }).toMatch(/read$/);
+      const [a, b] = (await gridText(page)).split("	");
+      expect(a).toBe(b);
     });
 
     test("bàn phím đổi tab", async ({ page }) => {
@@ -332,7 +354,7 @@ test.describe("tab B-Tree với cây 3 tầng", () => {
     await stage(page).locator("#stage-key").fill(KEY);
     await stage(page).getByTestId("stage-drop").click();
     await expect(stage(page).getByTestId("btree-drop")).toBeVisible({ timeout: 60_000 });
-    await expect(stage(page).getByTestId("stage-evidence")).toContainText("3 tầng");
+    await expect(panel(page).getByTestId("stage-evidence")).toContainText("3 tầng");
     await page.waitForTimeout(800);
     const frame = (await stage(page).getByTestId("btree-scroll").boundingBox())!;
     // Mỗi tầng (root, internal, leaf) phải có ít nhất một node nằm trọn trong khung ngay khi mở, không cần cuộn.
