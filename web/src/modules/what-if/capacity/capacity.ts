@@ -12,6 +12,14 @@ const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
 
 type Adapter = Pick<EngineAdapter, "readBTree" | "explain" | "execute">;
 
+// Mỗi trang không phải root có đúng một cha. Khi root là trang internal duy nhất, nó thường chưa đầy nên số con thấp hơn độ rộng thật:
+// lấy thêm cận dưới theo cấu trúc, mục internal cùng cỡ mục leaf mà CREATE INDEX đổ internal đến 70% (BTREE_NONLEAF_FILLFACTOR) còn leaf 90% (mặc định).
+// shortcut: hằng 70/90 chỉ đúng với index dựng bằng CREATE INDEX và fillfactor mặc định, nâng lên đọc fillfactor khi cần.
+function internalFanoutOf(leafPages: number, internalPages: number, leafFanout: number) {
+  const measured = (leafPages + internalPages - 1) / internalPages;
+  return internalPages === 1 ? Math.max(measured, (leafFanout * 70) / 90) : measured;
+}
+
 // undefined khi không nút nào có số trang, để không biến "không đo được" thành 0.
 function pagesOf(n: PlanNode): number | undefined {
   const parts = [n.pagesRead, ...n.children.map(pagesOf)].filter((x): x is number => x !== undefined);
@@ -58,7 +66,7 @@ export async function measureCapacity(
     leafPages,
     leafFanout: rows / leafPages,
     // Mỗi trang không phải root có đúng một cha, nên số con của mọi trang internal cộng lại là (số trang trừ root).
-    ...(internalPages ? { internalFanout: (leafPages + internalPages - 1) / internalPages } : {}),
+    ...(internalPages ? { internalFanout: internalFanoutOf(leafPages, internalPages, rows / leafPages) } : {}),
     ...(pagesRead !== undefined ? { pagesRead } : {}),
   };
   return {

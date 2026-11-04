@@ -48,6 +48,7 @@ beforeAll(async () => {
   s = await createSession(await PGlite.create({ extensions: { pageinspect } }));
   await s.run(`CREATE TABLE t(i int, tx text, u uuid);
     INSERT INTO t SELECT g, md5(g::text), md5(g::text || 'u')::uuid FROM generate_series(1, 100000) g;
+    CREATE TABLE w(tx text); INSERT INTO w SELECT md5(g::text) FROM generate_series(1, 10000) g; CREATE INDEX w_tx ON w(tx);
     CREATE TABLE e(i int); CREATE INDEX e_i ON e(i);
     CREATE TABLE small(i int); INSERT INTO small SELECT generate_series(1, 100); CREATE INDEX small_i ON small(i);`);
   await rebuild();
@@ -80,6 +81,13 @@ describe("measureCapacity", { timeout: 60_000 }, () => {
     expect(r.data.height).toBe(1);
     expect(r.data.internalFanout).toBeUndefined();
     expect(await measureCapacity(adapter, { index: "e_i", table: "e" })).toEqual({ kind: "not_simulated", reasonKey: "capacity.empty" });
+  });
+
+  it("mẫu chỉ có root làm internal: internalFanout không thấp hơn cận dưới theo cấu trúc (10k text)", async () => {
+    const r = await measureCapacity(adapter, { index: "w_tx", table: "w" });
+    if (r.kind !== "conclusion") throw new Error(r.reasonKey);
+    expect(r.data.height).toBe(2);
+    expect(r.data.internalFanout).toBeGreaterThanOrEqual((r.data.leafFanout * 70) / 90);
   });
 
   it("readBTree NotSimulated thì chuyển nguyên reasonKey", async () => {
@@ -151,5 +159,19 @@ describe.skipIf(!BIG)("500k trên PGlite (T055_BIG=1)", { timeout: 600_000 }, ()
       expect(dev).toBeLessThanOrEqual(0.15);
     }
     console.log(out.join("\n"));
+  });
+
+  it("mẫu 10k text (chỉ có root là internal) ngoại suy 1M: đúng số tầng và indexBytes lệch tối đa 15%", async () => {
+    const sample = await measureCapacity(adapter, { index: "w_tx", table: "w" });
+    if (sample.kind !== "conclusion") throw new Error(sample.reasonKey);
+    await s.run("INSERT INTO w SELECT md5(g::text) FROM generate_series(10001, 1000000) g");
+    await s.run("DROP INDEX w_tx; CREATE INDEX w_tx ON w(tx)");
+    const t = await truth("w_tx");
+    const est = estimateCapacity(sample.data, 1_000_000);
+    if (est.kind !== "conclusion") throw new Error(est.reasonKey);
+    const dev = Math.abs(est.data.indexBytes - t.pages * 8192) / (t.pages * 8192);
+    console.log(`10k->1M text: real h=${t.height} bytes=${t.pages * 8192}; est h=${est.data.height} bytes=${est.data.indexBytes}; lech ${(dev * 100).toFixed(2)}%`);
+    expect(est.data.height).toBe(t.height);
+    expect(dev).toBeLessThanOrEqual(0.15);
   });
 });
