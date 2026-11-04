@@ -22,3 +22,5 @@ Hợp đồng chung: `web/src/contracts/whatif.ts` (`WhatIfData`, `CapacitySampl
 | Task055 | `web/src/modules/what-if/capacity/**`, `web/messages/*/capacity.json` |
 | Task056 | `web/src/modules/what-if/compare-ui/**`, `web/src/app/[locale]/e2e-whatif/**`, `web/messages/*/whatIfUi.json`, `web/e2e/whatif.spec.ts` |
 | Task057 | `web/src/modules/what-if/capacity-ui/**`, `web/src/app/[locale]/e2e-capacity/**`, `web/messages/*/capacityUi.json`, `web/e2e/capacity.spec.ts` |
+
+Trạng thái: Task054 đến Task057 đã merge ngày 2026-11-04. Còn STR044 chờ adapter MySQL. Gắn Capacity vào vùng `stage` là việc riêng.

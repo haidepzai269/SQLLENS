@@ -24,3 +24,5 @@ Hợp đồng chung: `web/src/contracts/mentor.ts` (`EvidencePack`, `MentorReque
 | Task059 | `web/src/modules/mentor/evidence/**` |
 | Task060 | `web/src/modules/mentor/verify/**`, `web/messages/*/mentorVerify.json` |
 | Task061 | `web/src/modules/mentor/ui/**`, `web/src/app/[locale]/e2e-mentor/**`, `web/messages/*/mentor.json`, `web/messages/*/error.json`, `web/src/modules/auth/login-dialog.tsx`, `web/e2e/mentor.spec.ts` |
+
+Trạng thái: Task058 đến Task061 đã merge ngày 2026-11-04, chưa kiểm với model thật. Còn STR057. Gắn Mentor vào vùng `stage` là việc riêng.
