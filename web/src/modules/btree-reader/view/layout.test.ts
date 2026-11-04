@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bigFixture, smallFixture } from "./fixtures";
-import { hid, layoutTree, pid, settle } from "./layout";
+import { firstPath, hid, layoutTree, pid, settle } from "./layout";
 
 describe("layoutTree", () => {
   it("đặt đúng tầng và nối đúng trang con", () => {
@@ -24,6 +24,28 @@ describe("layoutTree", () => {
     const e = layoutTree(m, [2, 11]).edges;
     expect(e).toHaveLength(1);
     expect(e[0].lit).toBe(true);
+  });
+  it("align: tổ tiên nằm ngay trên con của đường đi, nên cả đường đi cùng một cột dù tầng leaf rộng", () => {
+    const leaves = Array.from({ length: 30 }, (_, i) => ({ page: 10 + i, level: 0, keys: [String(i)], totalKeys: 1 }));
+    const m = { ...smallFixture(), height: 2, rootPage: 1, totalPages: 31, hidden: [],
+      nodes: [{ page: 1, level: 1, keys: ["", "5"], children: leaves.map((l) => l.page), totalKeys: 30 }, ...leaves] };
+    const mid = (l: ReturnType<typeof layoutTree>, p: number) => { const i = l.items.find((x) => x.id === pid(p))!; return i.x + i.w / 2; };
+    expect(Math.abs(mid(layoutTree(m), 1) - mid(layoutTree(m), 10))).toBeGreaterThan(1000); // mặc định: root giữa các leaf
+    for (const leaf of [10, 39]) {
+      const l = layoutTree(m, [], [1, leaf]);
+      expect(mid(l, 1)).toBeCloseTo(mid(l, leaf), 5);
+    }
+  });
+  it("align với trang chưa đọc: dùng khối hidden của đúng tầng", () => {
+    const l = layoutTree(bigFixture(), [], [bigFixture().rootPage, 99999]);
+    expect(l.items.length).toBeGreaterThan(0); // không ném lỗi, trang lạ không có item thì bỏ qua
+  });
+  it("firstPath đi theo con đầu tiên từ root, không quá height", () => {
+    const m = smallFixture();
+    const p = firstPath(m);
+    expect(p[0]).toBe(m.rootPage);
+    expect(p.length).toBeLessThanOrEqual(m.height);
+    expect(p[1]).toBe(m.nodes.find((n) => n.page === m.rootPage)!.children![0]);
   });
   it("cây một node", () => {
     const l = layoutTree({ ...smallFixture(), height: 1, nodes: [{ page: 1, level: 0, keys: ["1"], totalKeys: 1 }], hidden: [] });

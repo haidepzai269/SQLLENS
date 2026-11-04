@@ -1,6 +1,13 @@
 {
   "tabsLabel": "Các cảnh mô phỏng",
-  "tab": { "schema": "Sơ đồ", "plan": "Plan", "btree": "B-Tree", "whatif": "Thử sửa" },
+  "tab": {
+    "schema": "Sơ đồ",
+    "plan": "Plan",
+    "btree": "B-Tree",
+    "whatif": "Thử sửa",
+    "capacity": "Capacity",
+    "mentor": "Mentor"
+  },
   "working": "Đang chạy. Cảnh mô phỏng sẽ hiện khi chạy xong.",
   "loading": "Đang đọc dữ liệu từ database...",
   "error": "Không đọc được: {message}",
@@ -30,5 +37,20 @@
   },
   "whatif": {
     "noSelect": "SQL vừa chạy không có câu SELECT nào để đo, nên chưa thử sửa được."
+  },
+  "capacity": {
+    "none": "Schema hiện chưa có index nào để đo, nên chưa có số Capacity. Tạo index (ví dụ CREATE INDEX) rồi chạy lại.",
+    "indexLabel": "Index muốn đo",
+    "choose": "Chọn một index",
+    "pick": "Chọn một index để xem số tầng, dung lượng và số trang đọc khi dữ liệu tăng.",
+    "probe": "Câu thăm dò: câu SELECT thứ {n} đang xem.",
+    "noProbe": "Câu SELECT đang xem không đọc bảng {table}, nên chưa đo số trang đọc. Số tầng và dung lượng vẫn đo được.",
+    "noSelect": "SQL vừa chạy không có câu SELECT, nên chưa đo số trang đọc. Số tầng và dung lượng vẫn đo được."
+  },
+  "mentor": {
+    "noSelect": "SQL vừa chạy không có câu SELECT nào để hỏi, nên Mentor chưa có bằng chứng.",
+    "invite": "AI Mentor cần đăng nhập. SQL đang soạn và câu hỏi của bạn được giữ lại khi quay về.",
+    "signIn": "Đăng nhập",
+    "planNote": "Bằng chứng gửi đi chỉ gồm câu SELECT thứ {n} và plan của nó, không có dòng dữ liệu."
   }
 }

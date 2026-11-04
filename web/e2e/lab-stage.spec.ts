@@ -3,9 +3,10 @@ import { expect, test, type Page } from "@playwright/test";
 const SHOTS = "../_bmad-output/SP999/STR062/Task062/anh";
 type L = "vi" | "en";
 const T = {
-  vi: { run: "Chạy", stage: "Mô phỏng", tabs: ["Sơ đồ", "Plan", "B-Tree", "Thử sửa"], hint: "Chưa có cảnh để hiện", cancel: "Hủy", rebuild: "Dựng lại" },
-  en: { run: "Run", stage: "Simulation", tabs: ["Schema", "Plan", "B-Tree", "Try a fix"], hint: "Nothing to show yet", cancel: "Cancel", rebuild: "Rebuild" },
+  vi: { run: "Chạy", stage: "Mô phỏng", tabs: ["Sơ đồ", "Plan", "B-Tree", "Thử sửa", "Capacity", "Mentor"], hint: "Chưa có cảnh để hiện", cancel: "Hủy", rebuild: "Dựng lại" },
+  en: { run: "Run", stage: "Simulation", tabs: ["Schema", "Plan", "B-Tree", "Try a fix", "Capacity", "Mentor"], hint: "Nothing to show yet", cancel: "Cancel", rebuild: "Rebuild" },
 } as const;
+const SHOTS63 = "../_bmad-output/SP999/STR062/Task063/anh";
 const BAD = /thiết kế (này )?(đã )?ổn|design is (fine|ok|good)|good design/i;
 
 const SETUP =
@@ -367,5 +368,293 @@ test.describe("tab B-Tree với cây 3 tầng", () => {
     await page.screenshot({ path: `${SHOTS}/1440-vi-btree-3-tang.png` });
     const inFrame = boxes.filter((b) => b.x >= frame.x - 1 && b.x + b.width <= frame.x + frame.width + 1 && b.y >= frame.y - 1 && b.y + b.height <= frame.y + frame.height + 1);
     expect(new Set(inFrame.map((b) => b.y)).size).toBe(3);
+  });
+});
+
+// Task063 AC4: mọi trang trên đường đi path.pages nằm trọn trong khung cuộn, ngay khi vẽ và ở mỗi bước, kể cả leaf đích.
+const WIDE = (n: number) => `${"k".repeat(50)}${String(n).padStart(7, "0")}`;
+async function pathOutsideFrame(p: Page): Promise<string[]> {
+  return p.evaluate(() => {
+    const txt = document.querySelector('[data-testid="drop-summary"]')?.textContent ?? "";
+    const pages = (/((?:\d+ → )*\d+)/.exec(txt.replace(/^.*?:/, "")) ?? [])[1]?.split(" → ").map(Number) ?? [];
+    const sc = document.querySelector<HTMLElement>('[data-testid="btree-scroll"]')!.getBoundingClientRect();
+    const zone = document.getElementById("stage")!.getBoundingClientRect(); // vùng stage cắt nội dung của nó
+    const f = { l: Math.max(sc.left, zone.left, 0), r: Math.min(sc.right, zone.right, innerWidth), t: Math.max(sc.top, zone.top, 0), b: Math.min(sc.bottom, zone.bottom, innerHeight) };
+    const bad: string[] = [];
+    if (!pages.length) bad.push("no-path");
+    pages.forEach((pg, i) => {
+      const el = document.querySelector(`g[data-page="${pg}"]`) ?? document.querySelector(`g[data-hidden-level="${pages.length - 1 - i}"]`);
+      if (!el) return void bad.push(`${pg}:missing`);
+      const r = el.getBoundingClientRect();
+      if (r.left < f.l - 1 || r.right > f.r + 1 || r.top < f.t - 1 || r.bottom > f.b + 1) bad.push(`${pg}:${Math.round(r.left)}-${Math.round(r.right)}/${Math.round(r.top)}-${Math.round(r.bottom)} khung ${Math.round(f.l)}-${Math.round(f.r)}/${Math.round(f.t)}-${Math.round(f.b)}`);
+    });
+    return bad;
+  });
+}
+for (const [rows, levels] of [[3000, 2], [100_000, 3]] as const) {
+  for (const w of [1440, 390] as const) {
+    test.describe(`AC4 cây ${levels} tầng ${w}px`, () => {
+      test.use({ viewport: { width: w, height: w === 1440 ? 900 : 844 } });
+      test(`đường đi nằm trong khung với khóa nhỏ nhất và lớn nhất`, async ({ page }) => {
+        test.setTimeout(300_000);
+        await page.goto("/vi");
+        await run(page, "vi", `CREATE TABLE big(k text); INSERT INTO big SELECT repeat('k', 50) || lpad(g::text, 7, '0') FROM generate_series(1, ${rows}) g; CREATE INDEX big_k ON big(k); SELECT 1`);
+        await expect(grid(page)).toHaveCount(1, { timeout: 200_000 });
+        await openStage(page, "vi");
+        await expect(stageTab(page, "vi", 2)).toBeVisible({ timeout: 200_000 });
+        await pickTab(page, "vi", 2);
+        await stage(page).locator("#stage-index").selectOption("big_k");
+        for (const key of [WIDE(1), WIDE(rows)]) {
+          await stage(page).locator("#stage-key").fill(key);
+          await stage(page).getByTestId("stage-drop").click();
+          await expect(stage(page).getByTestId("btree-drop")).toBeVisible({ timeout: 60_000 });
+          await expect(panel(page).getByTestId("stage-evidence")).toContainText(`${levels} tầng`);
+          await expect(stage(page).getByTestId("drop-summary")).toContainText(key);
+          await page.waitForTimeout(600);
+          expect(await pathOutsideFrame(page), `khóa ${key.slice(-7)} lúc vừa vẽ`).toEqual([]);
+          const total = Number(/\/\s*(\d+)/.exec((await stage(page).getByTestId("drop-counter").innerText()))?.[1] ?? 0);
+          expect(total).toBeGreaterThanOrEqual(levels);
+          for (let s = 1; s <= levels; s++) {
+            await stage(page).getByRole("button", { name: "Bước tới" }).click();
+            await expect(stage(page).getByTestId("btree-drop")).toHaveAttribute("data-step", String(s));
+            await page.waitForTimeout(250);
+            expect(await pathOutsideFrame(page), `khóa ${key.slice(-7)} bước ${s}`).toEqual([]);
+          }
+          if (levels === 3 && w === 1440 && key === WIDE(rows)) await page.screenshot({ path: `${SHOTS63}/ac4-1440-vi-btree-3-tang-max.png` });
+        }
+      });
+    });
+  }
+}
+
+// ---- Task063: tab Capacity và Mentor ----
+const ASK = "SELECT email FROM users WHERE id = 7"; // kết quả của câu này chứa chuỗi đánh dấu, chuỗi đó không được lên AI
+const MARK = "SECRET_MARK_7f3a9c";
+const SETUP63 = SETUP.replace("'u' || g", `'${MARK}' || g`);
+const sse = (o: unknown) => `data: ${JSON.stringify(o)}\n\n`;
+const ME = { id: "u1", name: "Tester", provider: "google" };
+const capTab = 4;
+const mentorTab = 5;
+// Không nhắc tên bảng nào: câu có tên bảng lạ sẽ mở hộp thoại suy schema.
+const SCRATCH_GONE = "SELECT to_regclass('sqllens_capacity_scratch') IS NULL AS gone";
+
+async function asUser(p: Page, onChat?: (body: string) => void) {
+  await p.route("**/api/me", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(ME) }));
+  await p.route("**/api/ai/chat", (r) => {
+    onChat?.(r.request().postData() ?? "");
+    return r.fulfill({
+      status: 200,
+      headers: { "content-type": "text/event-stream" },
+      body: sse({ type: "delta", text: "Thử tạo index: \n```sql\nCREATE INDEX o_total_idx ON orders(total)\n```\n" }) + sse({ type: "done" }),
+    });
+  });
+}
+async function measure(p: Page, n: number) {
+  await stage(p).getByTestId(`level-measure-${n}`).click();
+  await expect(stage(p).getByTestId(`level-status-${n}`)).not.toHaveText(/Đang đo|Measuring/, { timeout: 120_000 });
+  await expect(stage(p).getByTestId("capacity-error")).toHaveCount(0);
+}
+
+for (const l of ["vi", "en"] as const) {
+  test.describe(`Task063 ${l} 1440`, () => {
+    test.use({ viewport: { width: 1440, height: 900 } });
+
+    test("AC1 AC6 Capacity: đo trên bảng tạm, dữ liệu không đổi, chạy lại bỏ số cũ", async ({ page }) => {
+      test.setTimeout(240_000);
+      await page.goto(`/${l}`);
+      await run(page, l, SETUP + SUM);
+      await expect(grid(page)).toHaveCount(1, { timeout: 90_000 });
+      const before = await gridText(page);
+      await run(page, l, "SELECT count(*) AS c FROM orders WHERE user_id = 7");
+      await expect(stageTab(page, l, capTab)).toBeVisible({ timeout: 60_000 });
+      await pickTab(page, l, capTab);
+      await stage(page).locator("#stage-cap-index").selectOption("orders_user_idx");
+      await expect(stage(page).getByTestId("stage-cap-probe")).toContainText(l === "vi" ? "thứ 1" : "number 1");
+      await measure(page, 10_000);
+      await expect(stage(page).getByTestId("capacity-label").first()).toHaveAttribute("data-label", "real");
+      expect(Number(await stage(page).getByTestId("capacity-height").getAttribute("data-raw"))).toBeGreaterThanOrEqual(1);
+      expect(Number(await stage(page).getByTestId("capacity-size").getAttribute("data-raw"))).toBeGreaterThan(0);
+      expect(Number(await stage(page).getByTestId("capacity-pages").getAttribute("data-raw"))).toBeGreaterThan(0); // có câu thăm dò
+      // đổi tab qua lại không đo lại, số còn nguyên
+      const size = await stage(page).getByTestId("capacity-size").getAttribute("data-raw");
+      await pickTab(page, l, 0);
+      await pickTab(page, l, capTab);
+      await expect(stage(page).getByTestId("capacity-size")).toHaveAttribute("data-raw", size!);
+      // AC6: chạy lại thì số cũ biến mất; dữ liệu của người dùng không đổi (checksum) và bảng tạm đã dọn
+      await run(page, l, SUM.replace("FROM orders", ", 'again' AS tag FROM orders"));
+      await expect.poll(() => gridText(page), { timeout: 60_000 }).toBe(`${before}	again`);
+      await expect(stage(page).getByTestId("capacity-panel")).toHaveCount(0);
+      await run(page, l, SCRATCH_GONE);
+      await expect(grid(page)).toHaveText(/^t$/, { timeout: 60_000 });
+    });
+
+    test("ca biên Capacity: không index, không SELECT, SELECT không đọc bảng của index, chạy lại lúc đang đo", async ({ page }) => {
+      test.setTimeout(240_000);
+      await page.goto(`/${l}`);
+      await run(page, l, "SELECT 1");
+      await expect(stageTab(page, l, capTab)).toBeVisible({ timeout: 90_000 });
+      await pickTab(page, l, capTab);
+      await expect(stage(page).getByRole("status").filter({ hasText: l === "vi" ? "chưa có index" : "no index" })).toBeVisible();
+      await run(page, l, SETUP + "CREATE TABLE z(id int primary key)");
+      await expect(stage(page).getByRole("tab").first()).toBeVisible({ timeout: 90_000 });
+      await pickTab(page, l, capTab);
+      await stage(page).locator("#stage-cap-index").selectOption("orders_user_idx");
+      await expect(stage(page).getByTestId("stage-cap-probe")).toContainText(l === "vi" ? "không có câu SELECT" : "no SELECT");
+      await run(page, l, "SELECT count(*) FROM users");
+      await expect(stage(page).getByTestId("stage-viewing")).toHaveCount(0);
+      await pickTab(page, l, capTab);
+      await stage(page).locator("#stage-cap-index").selectOption("orders_user_idx");
+      await expect(stage(page).getByTestId("stage-cap-probe")).toContainText(l === "vi" ? "không đọc bảng orders" : "does not read table orders");
+      // bắt đầu đo 100k rồi chạy lại ngay: panel bị bỏ, đo dừng và bảng tạm được dọn
+      await stage(page).getByTestId("level-measure-100000").click();
+      await expect(stage(page).getByTestId("capacity-progress")).toBeVisible();
+      await run(page, l, SCRATCH_GONE);
+      await expect(stage(page).getByTestId("capacity-panel")).toHaveCount(0);
+      await expect(grid(page)).toHaveText(/^[tf]$/, { timeout: 120_000 }); // câu này xếp hàng sau lô đang nạp, có thể thấy bảng tạm còn
+      await run(page, l, SCRATCH_GONE + " /* lần 2 */"); // đo đã dừng và dọn: lần hỏi sau thấy bảng tạm đã mất
+      await expect(grid(page)).toHaveText(/^t$/, { timeout: 120_000 });
+    });
+
+    test("AC2 Mentor chưa đăng nhập: có lời mời, SQL và câu hỏi còn sau khi quay lại", async ({ page }) => {
+      test.setTimeout(240_000);
+      await page.route("**/api/me", (r) => r.fulfill({ status: 401, body: "{}" }));
+      await page.route("**/api/auth/google/start**", (r) => r.fulfill({ status: 302, headers: { location: `/${l}` } }));
+      await page.goto(`/${l}`);
+      await run(page, l, SETUP + ASK);
+      await expect(stageTab(page, l, mentorTab)).toBeVisible({ timeout: 90_000 });
+      await pickTab(page, l, mentorTab);
+      await expect(stage(page).getByTestId("mentor-invite")).toBeVisible({ timeout: 30_000 });
+      const q = l === "vi" ? "Vì sao truy vấn này chậm? #AC2" : "Why is this slow? #AC2";
+      await stage(page).getByTestId("mentor-question").fill(q);
+      await stage(page).getByTestId("mentor-send").click(); // chưa đăng nhập: mở hộp thoại, không gửi
+      await page.getByRole("link", { name: /Google/ }).click();
+      await expect(sqlBox(page)).toContainText("SELECT email FROM users", { timeout: 30_000 }); // SQL còn trong ô soạn
+      await run(page, l, "SELECT 1 AS back");
+      await expect(stageTab(page, l, mentorTab)).toBeVisible({ timeout: 90_000 });
+      await pickTab(page, l, mentorTab);
+      await expect(stage(page).getByTestId("mentor-question")).toHaveValue(q);
+    });
+
+    test("AC3 AC6 Mentor đã đăng nhập: gói gửi đi chỉ có SQL và plan, Áp dụng không commit, chạy lại bỏ câu trả lời", async ({ page }) => {
+      test.setTimeout(240_000);
+      const bodies: string[] = [];
+      await asUser(page, (b) => bodies.push(b));
+      await page.goto(`/${l}`);
+      await run(page, l, SETUP63 + ASK);
+      await expect(grid(page)).toHaveCount(1, { timeout: 90_000 });
+      expect(await gridText(page)).toContain(MARK); // dữ liệu có thật trong kết quả
+      await pickTab(page, l, mentorTab);
+      await expect(stage(page).getByTestId("mentor-invite")).toHaveCount(0);
+      await stage(page).getByTestId("mentor-question").fill("Index nào giúp?");
+      await stage(page).getByTestId("mentor-send").click();
+      await expect(stage(page).getByTestId("mentor-sql-ok")).toHaveCount(1, { timeout: 90_000 });
+      expect(bodies).toHaveLength(1);
+      const sent = JSON.parse(bodies[0]) as { question: string; evidence: { sql: string; engine: string; plan?: { root: unknown } }; locale: string };
+      expect(sent.evidence.sql).toBe(ASK);
+      expect(sent.evidence.engine).toBe("postgres");
+      expect(sent.evidence.plan?.root).toBeTruthy();
+      expect(bodies[0]).not.toContain(MARK);
+      // Áp dụng: mở so sánh tại chỗ, chưa tạo gì
+      await stage(page).getByTestId("mentor-apply").click();
+      await expect(stage(page).getByTestId("mentor-applied")).toBeVisible();
+      await run(page, l, "SELECT to_regclass('o_total_idx') IS NULL AS gone");
+      await expect(grid(page)).toHaveText(/^t$/, { timeout: 60_000 });
+      // AC6: chạy lại thì câu trả lời cũ và ô hỏi không còn
+      await expect(stage(page).getByTestId("mentor-answer")).toHaveCount(0);
+      await expect(stage(page).getByTestId("mentor-turn")).toHaveCount(0);
+      await expect(stage(page).getByTestId("mentor-question")).toHaveValue(""); // tab dựng mới cho lần chạy mới
+    });
+
+    test("ca biên Mentor: không SELECT; đang gửi thì chạy lại SQL", async ({ page }) => {
+      test.setTimeout(240_000);
+      await asUser(page);
+      await page.route("**/api/ai/chat", () => new Promise(() => {})); // route đăng ký sau được ưu tiên: không bao giờ trả lời
+      await page.goto(`/${l}`);
+      await run(page, l, "CREATE TABLE z(id int)");
+      await expect(stageTab(page, l, mentorTab)).toBeVisible({ timeout: 90_000 });
+      await pickTab(page, l, mentorTab);
+      await expect(stage(page).getByRole("status").filter({ hasText: l === "vi" ? "không có câu SELECT" : "no SELECT" })).toBeVisible();
+      await run(page, l, "SELECT 1 AS a");
+      await expect(stageTab(page, l, mentorTab)).toBeVisible({ timeout: 60_000 });
+      await pickTab(page, l, mentorTab);
+      await stage(page).getByTestId("mentor-question").fill("hỏi");
+      await stage(page).getByTestId("mentor-send").click();
+      await expect(stage(page).getByTestId("mentor-turn")).toHaveAttribute("data-phase", "sending");
+      await run(page, l, "SELECT 2 AS b");
+      await expect(grid(page)).toHaveText(/2/, { timeout: 60_000 });
+      await expect(stage(page).getByTestId("mentor-turn")).toHaveCount(0);
+      await expect(stage(page).getByTestId("mentor-error")).toHaveCount(0);
+    });
+  });
+
+  for (const w of [1440, 390] as const) {
+    test.describe(`Task063 ảnh ${l} ${w}`, () => {
+      test.use({ viewport: { width: w, height: w === 1440 ? 900 : 844 } });
+      test("sáu tab vừa khung, không cuộn ngang; ảnh Capacity và Mentor", async ({ page }) => {
+        test.setTimeout(240_000);
+        await asUser(page);
+        await page.goto(`/${l}`);
+        await run(page, l, SETUP + "SELECT count(*) AS c FROM orders WHERE user_id = 7");
+        await expect(grid(page)).toHaveCount(1, { timeout: 90_000 });
+        await openStage(page, l);
+        await expect(stageTab(page, l, 0)).toBeVisible({ timeout: 90_000 });
+        const vw = page.viewportSize()!.width;
+        for (let i = 0; i < 6; i++) {
+          const b = (await stageTab(page, l, i).boundingBox())!;
+          expect(b.x).toBeGreaterThanOrEqual(0);
+          expect(b.x + b.width).toBeLessThanOrEqual(vw);
+        }
+        await pickTab(page, l, capTab);
+        await stage(page).locator("#stage-cap-index").selectOption("orders_user_idx");
+        await measure(page, 10_000);
+        await stage(page).getByTestId("capacity-panel").scrollIntoViewIfNeeded();
+        expect(await noHScroll(page)).toBe(true);
+        await page.screenshot({ path: `${SHOTS63}/${w}-${l}-capacity.png` });
+        await pickTab(page, l, mentorTab);
+        await stage(page).getByTestId("mentor-question").fill(l === "vi" ? "Index nào giúp truy vấn này?" : "Which index helps this query?");
+        await stage(page).getByTestId("mentor-send").click();
+        await expect(stage(page).getByTestId("mentor-sql-ok")).toHaveCount(1, { timeout: 90_000 });
+        await stage(page).getByTestId("mentor-apply").click();
+        await expect(stage(page).getByTestId("mentor-applied")).toBeVisible();
+        expect(await noHScroll(page)).toBe(true);
+        await page.screenshot({ path: `${SHOTS63}/${w}-${l}-mentor.png` });
+        expect(await page.evaluate(() => document.body.innerText)).not.toMatch(BAD);
+      });
+    });
+  }
+}
+
+// Task063 AC5: CapacityPanel với cây 3 tầng thật: root, internal, leaf đều có node nằm trọn trong khung cuộn.
+test.describe("Task063 AC5 Capacity cây 3 tầng", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+  test("tầng internal thấy được trong khung", async ({ page }) => {
+    test.setTimeout(280_000);
+    await page.goto("/vi");
+    await run(page, "vi", "CREATE TABLE accounts(email text PRIMARY KEY); INSERT INTO accounts SELECT 'u' || g FROM generate_series(1, 20) g; SELECT count(*) FROM accounts");
+    await expect(grid(page)).toHaveCount(1, { timeout: 90_000 });
+    await pickTab(page, "vi", 4);
+    await stage(page).locator("#stage-cap-index").selectOption("accounts_pkey");
+    await measure(page, 100_000);
+    await expect(stage(page).getByTestId("capacity-tiers")).toHaveAttribute("data-height", "3");
+    await stage(page).getByTestId("btree-scroll").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    const rows = await stage(page).getByTestId("capacity-panel").evaluate((panel) => {
+      const zone = document.getElementById("stage")!.getBoundingClientRect();
+      const s0 = panel.querySelector<HTMLElement>('[data-testid="btree-scroll"]')!.getBoundingClientRect();
+      const sc = { left: Math.max(s0.left, zone.left, 0), right: Math.min(s0.right, zone.right, innerWidth), top: Math.max(s0.top, zone.top, 0), bottom: Math.min(s0.bottom, zone.bottom, innerHeight) };
+      const ys = new Map<number, { all: number; inside: number }>();
+      for (const g of panel.querySelectorAll("g[data-page],g[data-hidden-level]")) {
+        const r = g.getBoundingClientRect();
+        const y = Math.round(r.top);
+        const c = ys.get(y) ?? { all: 0, inside: 0 };
+        c.all++;
+        if (r.left >= sc.left - 1 && r.right <= sc.right + 1 && r.top >= sc.top - 1 && r.bottom <= sc.bottom + 1) c.inside++;
+        ys.set(y, c);
+      }
+      return [...ys.entries()].sort((a, b) => a[0] - b[0]).map(([y, c]) => ({ y, ...c }));
+    });
+    await page.screenshot({ path: `${SHOTS63}/ac5-1440-vi-capacity-3-tang.png` });
+    expect(rows.length).toBe(3);
+    for (const r of rows) expect(r.inside, JSON.stringify(rows)).toBeGreaterThan(0);
   });
 });

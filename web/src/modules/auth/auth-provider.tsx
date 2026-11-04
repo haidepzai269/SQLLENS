@@ -19,6 +19,8 @@ type Auth = {
 };
 
 const Ctx = createContext<Auth | null>(null);
+export type { Auth };
+export const AuthContext = Ctx; // để vùng stage cấp sqlRef riêng cho ô hỏi của Mentor (xem lab/stage/stash.ts)
 export const useAuth = () => {
   const c = useContext(Ctx);
   if (!c) throw new Error("useAuth ngoài AuthProvider");

@@ -35,7 +35,25 @@ function orderNodes(m: BTreeModel) {
   return order.map((p) => byPage.get(p)!);
 }
 
-export function layoutTree(m: BTreeModel, pathPages: number[] = []): Layout {
+// Item của từng trang trên đường đi, từ root xuống; trang chưa đọc thì dùng khối hidden của đúng tầng. Bỏ qua trang không có item.
+export function pathItemIds(items: Item[], height: number, pages: number[]): string[] {
+  const ids = new Set(items.map((i) => i.id));
+  return pages.flatMap((p, i) => [pid(p), hid(Math.max(0, height - 1 - i))].filter((id) => ids.has(id)).slice(0, 1));
+}
+
+/** Đường đi trái nhất từ root xuống: để cây không có khóa nào được xem vẫn cho thấy đủ các tầng trong một khung (Task063). */
+export function firstPath(m: BTreeModel): number[] {
+  const byPage = new Map(m.nodes.map((n) => [n.page, n]));
+  const out: number[] = [];
+  for (let p: number | undefined = m.rootPage; p !== undefined && out.length < m.height; p = byPage.get(p)?.children?.[0]) out.push(p);
+  return out;
+}
+
+/**
+ * `align`: các trang trên đường đi của khóa đang xem. Mỗi tổ tiên đặt ngay trên con nằm trên đường đi, thay vì giữa các con,
+ * nên cả đường đi nằm trong một cột và vừa khung dù tầng leaf rất rộng (Task063). Thứ tự trái phải trong tầng không đổi.
+ */
+export function layoutTree(m: BTreeModel, pathPages: number[] = [], align: number[] = []): Layout {
   const height = Math.max(1, m.height);
   const clamp = (l: number) => Math.min(height - 1, Math.max(0, l));
   const rows: Item[][] = Array.from({ length: height }, () => []);
@@ -59,6 +77,9 @@ export function layoutTree(m: BTreeModel, pathPages: number[] = []): Layout {
     }
     if (n.next !== undefined && byId.has(pid(n.next))) edges.push({ from, to: pid(n.next), kind: "next", lit: false });
   }
+  const down = new Map<string, Item>(); // tổ tiên -> con nằm trên đường đi (chỉ khi `align`)
+  const chain = pathItemIds(items, height, align);
+  for (let i = 1; i < chain.length; i++) down.set(chain[i - 1], byId.get(chain[i])!);
   const kidsOf = new Map<string, Item[]>();
   for (const e of edges) if (e.kind === "child" && !e.to.startsWith("h")) kidsOf.set(e.from, [...(kidsOf.get(e.from) ?? []), byId.get(e.to)!]);
   // Leaf xếp sát trái; mỗi tầng trên đặt giữa các con đang hiện, không chồng nhau.
@@ -67,7 +88,8 @@ export function layoutTree(m: BTreeModel, pathPages: number[] = []): Layout {
     let prev = ri === height - 1 ? LANE + PAD - GAP : -Infinity;
     for (const it of rows[ri]) {
       const kids = kidsOf.get(it.id) ?? [];
-      const want = kids.length ? kids.reduce((s, k) => s + k.x + k.w / 2, 0) / kids.length - it.w / 2 : -Infinity;
+      const on = down.get(it.id);
+      const want = on ? on.x + on.w / 2 - it.w / 2 : kids.length ? kids.reduce((s, k) => s + k.x + k.w / 2, 0) / kids.length - it.w / 2 : -Infinity;
       it.x = Math.max(want, prev + GAP, LANE + PAD);
       it.y = PAD + ri * ROW;
       prev = it.x + it.w;

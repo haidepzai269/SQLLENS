@@ -56,7 +56,7 @@ function Scene({ model, path, label }: { model: BTreeModel; path?: BTreePath; la
     hostRef.current = wrap.current?.querySelector<HTMLElement>('[data-testid="btree-scroll"]') ?? null;
     setHost(hostRef.current);
   }, []);
-  const view = useMemo(() => <BTreeView model={model} label={label} mode={mode} onModeChange={setMode} />, [model, label, mode]);
+  const view = useMemo(() => <BTreeView model={model} label={label} mode={mode} onModeChange={setMode} align={path?.pages} />, [model, label, mode, path]);
 
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
