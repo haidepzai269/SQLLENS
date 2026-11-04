@@ -110,11 +110,21 @@ test.describe("máy tính 1440", () => {
     await node(page, "orders").waitFor();
     expect(Math.abs((await relY(page)) - r1)).toBeLessThan(3);
     await page.getByRole("button", { name: "Xếp lại", exact: true }).click();
-    const r2 = await relY(page);
+    // Xếp lại gọi fitView ở khung hình sau, đo ngay sẽ ra số trước khi zoom xong (CI từng lệch 83,5 px).
+    let prev = NaN;
+    await expect
+      .poll(async () => {
+        const cur = await relY(page);
+        const stable = Math.abs(cur - prev) < 0.5;
+        prev = cur;
+        return stable;
+      })
+      .toBe(true);
+    const r2 = prev;
     expect(Math.abs(r2 - r1)).toBeGreaterThan(50);
     await page.reload();
     await node(page, "orders").waitFor();
-    expect(Math.abs((await relY(page)) - r2)).toBeLessThan(3);
+    await expect.poll(async () => Math.abs((await relY(page)) - r2)).toBeLessThan(3);
   });
 
   test("AC7 bàn phím, tóm tắt cho trình đọc màn hình, tên bảng có HTML hiện thành chữ", async ({ page }) => {
