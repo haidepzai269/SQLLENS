@@ -84,10 +84,9 @@ export function MentorPanel({ adapter, evidence, probe }: { adapter: Adapter; ev
   const seq = useRef(0);
   const ctl = useRef<AbortController | null>(null);
   const adapterRef = useRef(adapter);
-  const turnRef = useRef<Turn | null>(null);
+  const verifying = useRef(false); // đọc đồng bộ, không phụ thuộc lần render (tránh dừng đúng lúc chuyển pha)
   useEffect(() => {
     adapterRef.current = adapter;
-    turnRef.current = turn;
   });
 
   // Để hộp thoại đăng nhập lưu tạm đúng câu đang gõ; quay về thì trả lại (theo cách Task044).
@@ -102,10 +101,11 @@ export function MentorPanel({ adapter, evidence, probe }: { adapter: Adapter; ev
   const patch = useCallback((id: number, p: Partial<Turn>) => setTurn((cur) => (cur && cur.id === id ? { ...cur, ...p } : cur)), []);
 
   // Hủy yêu cầu và cả bước chạy thử: câu đang chạy trong worker chỉ dừng bằng cancel rồi rebuild.
-  const abortTurn = useCallback(async (wasVerifying: boolean) => {
+  const abortTurn = useCallback(async () => {
     ctl.current?.abort();
     ctl.current = null;
-    if (!wasVerifying) return true;
+    if (!verifying.current) return true;
+    verifying.current = false;
     try {
       await adapterRef.current.cancel();
       await adapterRef.current.rebuild();
@@ -117,7 +117,7 @@ export function MentorPanel({ adapter, evidence, probe }: { adapter: Adapter; ev
 
   useEffect(
     () => () => {
-      void abortTurn(turnRef.current?.phase === "verifying");
+      void abortTurn();
     },
     [abortTurn],
   );
@@ -126,11 +126,10 @@ export function MentorPanel({ adapter, evidence, probe }: { adapter: Adapter; ev
     const q = question.trim();
     if (!q || len(q) > MAX_QUESTION) return;
     if (status === "anon") return setLoginOpen(true);
-    const wasVerifying = turn?.phase === "verifying";
     const id = ++seq.current; // câu cũ trả về muộn không được ghi đè câu mới
     setApplied(null);
     setTurn({ id, question: q, text: "", phase: "sending" });
-    const rebuilt = abortTurn(wasVerifying);
+    const rebuilt = abortTurn();
     const ac = new AbortController();
     ctl.current = ac;
     let text = "";
@@ -182,11 +181,15 @@ export function MentorPanel({ adapter, evidence, probe }: { adapter: Adapter; ev
         return fail({ kind: "interrupted" });
       }
       patch(id, { phase: "verifying", check: checkAnswer(text, evidence) });
+      verifying.current = true;
       try {
         const verified = await verifyAnswer(adapterRef.current, text, { probe, signal: ac.signal });
+        if (ac.signal.aborted) return; // đã dừng hoặc bị câu mới thay: không ghi đè
+        verifying.current = false;
         patch(id, { phase: "done", verified });
       } catch {
         if (ac.signal.aborted) return;
+        verifying.current = false;
         patch(id, { phase: "done", verifyFailed: true });
       }
     } catch {
@@ -199,7 +202,7 @@ export function MentorPanel({ adapter, evidence, probe }: { adapter: Adapter; ev
   async function stop() {
     if (!turn || !BUSY.has(turn.phase)) return;
     patch(turn.id, { phase: "stopped", check: turn.check ?? (turn.text ? checkAnswer(turn.text, evidence) : undefined) });
-    if (!(await abortTurn(turn.phase === "verifying"))) patch(turn.id, { rebuildFailed: true });
+    if (!(await abortTurn())) patch(turn.id, { rebuildFailed: true });
   }
 
   const busy = turn !== null && BUSY.has(turn.phase);
