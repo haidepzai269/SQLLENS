@@ -31,4 +31,7 @@ services:
       - key: SANDBOX_TOKEN
         sync: false
       - key: SANDBOX_CERT_SHA256
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
         sync: false
