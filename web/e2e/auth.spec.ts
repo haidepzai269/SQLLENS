@@ -74,23 +74,19 @@ for (const l of ["vi", "en"] as const) {
   test.describe(`ngôn ngữ ${l}`, () => {
     test.use({ viewport: { width: 1440, height: 900 } });
 
-    test("AC1 skeleton khi đang tải, rồi nút đăng nhập mở hộp thoại hai lựa chọn", async ({ page }) => {
+    test("AC1 skeleton khi đang tải, rồi nút đăng nhập dẫn tới trang /login", async ({ page }) => {
       let release!: () => void;
       const s = await mock(page, { holdMe: new Promise<void>((r) => (release = r)) });
       await page.goto(`/${l}`);
       await expect(page.getByTestId("auth-skeleton")).toBeVisible();
-      await expect(page.getByRole("button", { name: t.signIn })).toHaveCount(0); // không nháy sai trạng thái
+      await expect(page.getByRole("link", { name: t.signIn, exact: true })).toHaveCount(0); // không nháy sai trạng thái
       release();
-      await page.getByRole("button", { name: t.signIn }).click();
-      const d = page.getByRole("dialog");
-      await expect(d.getByRole("link", { name: t.google })).toBeVisible();
-      await expect(d.getByRole("link", { name: t.github })).toBeVisible();
-      expect(s.me).toBe(1);
-      await page.screenshot({ path: `${SHOTS}/anh-dangnhap-${l}-1440.png` });
-      await page.setViewportSize({ width: 390, height: 800 });
-      await expect(d).toBeVisible();
-      expect(await noHScroll(page)).toBe(true);
-      await page.screenshot({ path: `${SHOTS}/anh-dangnhap-${l}-390.png` });
+      // Task066: nút Đăng nhập là liên kết tới trang /login, giữ next
+      await page.getByRole("link", { name: t.signIn, exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`/${l}/login\\?next=%2F${l}$`));
+      await expect(page.getByRole("link", { name: t.google })).toBeVisible();
+      await expect(page.getByRole("link", { name: t.github })).toBeVisible();
+      expect(s.me).toBeGreaterThanOrEqual(1);
     });
 
     test("AC1 đã đăng nhập: ảnh và tên trong menu, có Đăng xuất", async ({ page }) => {
@@ -98,7 +94,7 @@ for (const l of ["vi", "en"] as const) {
       await page.goto(`/${l}`);
       const trigger = page.getByRole("button", { name: t.account });
       await expect(trigger).toBeVisible();
-      await expect(page.getByRole("button", { name: t.signIn })).toHaveCount(0);
+      await expect(page.getByRole("link", { name: t.signIn, exact: true })).toHaveCount(0);
       await expect(trigger.locator("img")).toHaveAttribute("src", AVATAR);
       await trigger.click();
       await expect(page.getByRole("menuitem", { name: t.signOut })).toBeVisible();
@@ -108,7 +104,7 @@ for (const l of ["vi", "en"] as const) {
     test("AC2 chọn MySQL khi chưa đăng nhập: có lý do; hủy thì về PostgreSQL", async ({ page }) => {
       await mock(page);
       await page.goto(`/${l}`);
-      await expect(page.getByRole("button", { name: t.signIn })).toBeVisible();
+      await expect(page.getByRole("link", { name: t.signIn, exact: true })).toBeVisible();
       await mysqlTab(page).click();
       const d = page.getByRole("dialog");
       await expect(d).toContainText(t.reason);
@@ -215,7 +211,7 @@ for (const l of ["vi", "en"] as const) {
       await page.getByRole("button", { name: t.account }).click();
       await page.getByRole("menuitem", { name: t.signOut }).click();
       await expect(page).toHaveURL(/engine=postgres/);
-      await expect(page.getByRole("button", { name: t.signIn })).toBeVisible();
+      await expect(page.getByRole("link", { name: t.signIn, exact: true })).toBeVisible();
       expect(s.logoutOrigins).toEqual([`http://localhost:${port}`]);
       expect(s.starts).toHaveLength(0);
       await expect(page.getByRole("dialog")).toHaveCount(0); // về PostgreSQL thì không mở cổng
@@ -258,7 +254,7 @@ for (const l of ["vi", "en"] as const) {
     test("ca biên: /me lỗi mạng hoặc 5xx không mở cổng, vẫn dùng được PostgreSQL", async ({ page }) => {
       await page.route("**/api/me", (r) => r.abort());
       await page.goto(`/${l}?engine=mysql`);
-      await expect(page.getByRole("button", { name: t.signIn })).toBeVisible();
+      await expect(page.getByRole("link", { name: t.signIn, exact: true })).toBeVisible();
       await expect(page.getByRole("dialog")).toHaveCount(0);
       await expect(page.getByText(t.needs).filter({ visible: true })).toBeVisible();
     });

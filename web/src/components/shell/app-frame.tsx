@@ -3,9 +3,9 @@
 import { usePathname } from "@/i18n/navigation";
 import { AppHeader } from "./app-header";
 
-// /about là trang quảng bá: không có khung ứng dụng, cuộn bằng cửa sổ (globals.css đọc data-bare).
+// /about và /login: không có khung ứng dụng, cuộn bằng cửa sổ (globals.css đọc data-bare).
 export function AppFrame({ children }: { children: React.ReactNode }) {
-  if (usePathname() === "/about") return <div data-bare>{children}</div>;
+  if (["/about", "/login"].includes(usePathname())) return <div data-bare>{children}</div>;
   return (
     <>
       <AppHeader />

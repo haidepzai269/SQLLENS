@@ -5,7 +5,7 @@ import type { Me } from "./api";
 
 // unavailable: /me lỗi mạng hoặc 5xx. Chưa biết là ai nên không mở cổng, Gin vẫn chặn thật.
 export type AuthStatus = "loading" | "anon" | "user" | "unavailable";
-export type Banner = "cancelled" | "failed" | "logoutFailed";
+export type Banner = "cancelled" | "failed" | "logoutFailed" | "storageBlocked";
 
 type Auth = {
   status: AuthStatus;

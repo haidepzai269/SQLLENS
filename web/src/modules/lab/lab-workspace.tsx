@@ -25,6 +25,7 @@ import { ConfirmSchemaDialog } from "@/modules/sql-intake/ui/confirm-schema-dial
 import { DumpNotice } from "@/modules/sql-intake/ui/dump-notice";
 import { toDraft, type Draft } from "@/modules/sql-intake/ui/schema-draft";
 import { useAuth } from "@/modules/auth/auth-provider";
+import { GuestNote, guestCheck, guestRunDone, type GuestGate } from "@/modules/auth/guest";
 import { MysqlAccess } from "@/modules/auth/mysql-access";
 import { stashSql, takeSql } from "@/modules/auth/sql-stash";
 import { Tip } from "@/components/shell/tip";
@@ -68,7 +69,9 @@ export function LabWorkspace() {
   const engine = parseEngine(useSearchParams().get("engine"));
   // Toàn bộ trạng thái phiên nằm ở đây, trên WorkspaceLayout, nên đổi qua mốc 900 px không mất gì.
   const [sql, setSql] = useState("");
-  const { sqlRef } = useAuth();
+  const { sqlRef, status: authStatus } = useAuth();
+  const [gate, setGate] = useState<GuestGate | null>(null); // lý do khách bị chặn ở lần bấm Chạy gần nhất
+  const guestRun = useRef(false); // lần chạy này của khách, tính lượt khi chạy xong
   // Câu hỏi của Mentor đi chung bản lưu tạm: lab giữ sqlRef, Mentor ghi câu hỏi qua askRef, đọc ra là bản ghép (stash.ts).
   const sqlNow = useRef("");
   const askText = useRef("");
@@ -216,6 +219,11 @@ export function LabWorkspace() {
         } catch {
           /* không parse được thì không có câu SELECT để đo, các tab khác vẫn chạy */
         }
+        // Chạy xong mới tính lượt; lỗi hoặc bị hủy thì không.
+        if (guestRun.current) {
+          guestRun.current = false;
+          guestRunDone();
+        }
         setStageRun({ id: ++stageSeq.current, db, select });
         setState({
           phase: "done",
@@ -288,7 +296,14 @@ export function LabWorkspace() {
     if (busy.current || (confirmOpen && dialogOn)) return;
     busy.current = true; // chặn bấm đúp trong lúc parse
     let ask = false;
+    guestRun.current = false;
     try {
+      if (authStatus === "anon" && engine === "postgres") {
+        const g = await guestCheck(prepareDump(sql, engine).sql, engine);
+        setGate(g);
+        if (g) return; // không chạy gì, không tính lượt, SQL trong ô soạn giữ nguyên
+        guestRun.current = true;
+      } else setGate(null);
       ask = await needsConfirm();
     } finally {
       busy.current = false;
@@ -385,6 +400,7 @@ export function LabWorkspace() {
           </Button>
         </Tip>
       </div>
+      <GuestNote gate={gate} />
       <div className="flex flex-col items-start gap-1">
         <Tip label={ts("tip.generate")} side="right">
         <Button

@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, type ReactNode, type RefObject } from "react";
+import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Tip } from "@/components/shell/tip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -15,6 +16,7 @@ import type { EngineAdapter } from "@/contracts/engine";
 import type { EvidencePack } from "@/contracts/mentor";
 import type { Plan } from "@/contracts/plan";
 import { AuthContext, useAuth } from "@/modules/auth/auth-provider";
+import { GUEST_LOCKED_TABS, LockedTab, useGuest } from "@/modules/auth/guest";
 import { LoginDialog } from "@/modules/auth/login-dialog";
 import { buildEvidencePack } from "@/modules/mentor/evidence";
 import { parseSchema } from "@/modules/data-lab/generate/plan-data";
@@ -301,9 +303,12 @@ export function Stage({ run, working, mysql, askRef }: { run: StageRun | null; w
   const t = useTranslations("labStage");
   const ts = useTranslations("shell");
   const [tab, setTab] = useState<Tab>("schema");
+  const { guest } = useGuest();
+  const locked = (x: Tab) => guest && GUEST_LOCKED_TABS.has(x); // khách chỉ xem Sơ đồ và Plan
+  const gated = (x: Tab, node: ReactNode) => (locked(x) ? <LockedTab name={t(`tab.${x}`)} /> : node);
   // Panel giữ mounted (keepMounted) nên chuyển tab không đọc lại: explain chạy thật câu SELECT, đọc lại sẽ làm nextval() nhảy thêm.
   const [seen, setSeen] = useState<{ id: number; tabs: Tab[] }>({ id: -1, tabs: [] });
-  const open = (x: Tab) => run !== null && (tab === x || (seen.id === run.id && seen.tabs.includes(x)));
+  const open = (x: Tab) => !locked(x) && run !== null && (tab === x || (seen.id === run.id && seen.tabs.includes(x)));
   const change = (v: unknown) => {
     if (run) setSeen((s) => ({ id: run.id, tabs: [...new Set([...(s.id === run.id ? s.tabs : []), tab])] }));
     setTab(v as Tab);
@@ -324,15 +329,15 @@ export function Stage({ run, working, mysql, askRef }: { run: StageRun | null; w
           <Tabs value={tab} onValueChange={change}>
             <TabsList className="w-full" aria-label={t("tabsLabel")} activateOnFocus>
               {TABS.map((x) => (
-                <Tip key={x} label={ts(`tip.tab.${x}`)}><TabsTrigger value={x}>{t(`tab.${x}`)}</TabsTrigger></Tip>
+                <Tip key={x} label={ts(`tip.tab.${x}`)}><TabsTrigger value={x}>{t(`tab.${x}`)}{locked(x) && <Lock aria-hidden className="size-3" />}</TabsTrigger></Tip>
               ))}
             </TabsList>
             <TabsContent value="schema" className="min-w-0" keepMounted><SchemaTab run={run} on={open("schema")} /></TabsContent>
             <TabsContent value="plan" className="min-w-0" keepMounted><PlanTab run={run} r={plan} /></TabsContent>
-            <TabsContent value="btree" className="min-w-0" keepMounted><BTreeTab run={run} on={open("btree")} list={indexes} /></TabsContent>
-            <TabsContent value="whatif" className="min-w-0" keepMounted><WhatIfTab run={run} /></TabsContent>
-            <TabsContent value="capacity" className="min-w-0" keepMounted>{open("capacity") && <CapacityTab run={run} list={indexes} />}</TabsContent>
-            <TabsContent value="mentor" className="min-w-0" keepMounted>{open("mentor") && <MentorTab run={run} plan={plan} askRef={askRef} />}</TabsContent>
+            <TabsContent value="btree" className="min-w-0" keepMounted>{gated("btree", <BTreeTab run={run} on={open("btree")} list={indexes} />)}</TabsContent>
+            <TabsContent value="whatif" className="min-w-0" keepMounted>{gated("whatif", <WhatIfTab run={run} />)}</TabsContent>
+            <TabsContent value="capacity" className="min-w-0" keepMounted>{gated("capacity", open("capacity") && <CapacityTab run={run} list={indexes} />)}</TabsContent>
+            <TabsContent value="mentor" className="min-w-0" keepMounted>{gated("mentor", open("mentor") && <MentorTab run={run} plan={plan} askRef={askRef} />)}</TabsContent>
           </Tabs>
         )}
       </div>
