@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth } from "./auth-provider";
+import { SignInLink } from "./guest";
 import { LoginDialog } from "./login-dialog";
 
 const toPostgres = (router: ReturnType<typeof useRouter>, pathname: string) => {
@@ -26,7 +27,6 @@ function Controls() {
   const engine = parseEngine(useSearchParams().get("engine"));
   const router = useRouter();
   const pathname = usePathname();
-  const [manual, setManual] = useState(false);
   // Đang đăng xuất khỏi MySQL: URL đổi sau một nhịp, trong lúc đó không mở cổng.
   const [leaving, setLeaving] = useState(false);
   useEffect(() => {
@@ -34,10 +34,7 @@ function Controls() {
   }, [engine]);
   // Cổng MySQL suy ra từ URL và trạng thái, không qua effect: hủy thì về PostgreSQL, đăng nhập xong thì tự tắt.
   const gate = engine === "mysql" && status === "anon" && !leaving;
-  const close = () => {
-    setManual(false);
-    if (gate) toPostgres(router, pathname);
-  };
+  const close = () => toPostgres(router, pathname);
 
   return (
     <div className="flex h-[var(--h-top)] items-center px-1">
@@ -79,12 +76,10 @@ function Controls() {
         </DropdownMenu>
       ) : (
         <Tip label={ts("tip.signIn")}>
-          <Button variant="outline" size="sm" onClick={() => setManual(true)}>
-            {t("signIn")}
-          </Button>
+          <SignInLink className={buttonVariants({ variant: "outline", size: "sm" })}>{t("signIn")}</SignInLink>
         </Tip>
       )}
-      <LoginDialog open={manual || gate} reason={gate ? "mysql" : "manual"} onClose={close} />
+      <LoginDialog open={gate} reason="mysql" onClose={close} />
     </div>
   );
 }
