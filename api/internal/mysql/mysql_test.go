@@ -193,13 +193,13 @@ func TestNotConfigured(t *testing.T) {
 			}
 		}
 	}
-	// Chưa đăng nhập vẫn là 401, không lộ trạng thái cấu hình.
+	// Chưa cấu hình thì 503 trước cả cổng đăng nhập: không tốn hạn mức của ai.
 	g := newRig(t, func(c *Config) { c.URL = "" })
 	req := httptest.NewRequest("POST", "/mysql/sessions", nil)
 	w := httptest.NewRecorder()
 	g.h.ServeHTTP(w, req)
-	if w.Code != 401 {
-		t.Fatalf("chưa đăng nhập: %d", w.Code)
+	if w.Code != 503 {
+		t.Fatalf("chưa cấu hình: %d", w.Code)
 	}
 }
 

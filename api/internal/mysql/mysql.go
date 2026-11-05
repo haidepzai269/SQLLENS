@@ -63,8 +63,9 @@ func routes(r *gin.Engine, gate func(quota.Rule) []gin.HandlerFunc, h *handler) 
 	g.DELETE("/:id", chain(gate(QueryRule), h.configured, h.del)...)
 }
 
-func chain(gate []gin.HandlerFunc, rest ...gin.HandlerFunc) []gin.HandlerFunc {
-	return append(append([]gin.HandlerFunc{}, gate...), rest...)
+// chain runs configured first, so a missing config never spends the user's quota.
+func chain(gate []gin.HandlerFunc, cfg gin.HandlerFunc, rest ...gin.HandlerFunc) []gin.HandlerFunc {
+	return append(append([]gin.HandlerFunc{cfg}, gate...), rest...)
 }
 
 func (h *handler) configured(c *gin.Context) {
