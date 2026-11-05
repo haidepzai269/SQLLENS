@@ -5,8 +5,8 @@ import type { Plan, PlanNode } from "@/contracts/plan";
 const SCAN_KINDS = new Set(["seq_scan", "index_scan", "index_only_scan", "bitmap_scan"]);
 const base = (t: string) => t.toLowerCase().split(".").pop()!;
 const mentions = (text: string | undefined, col: string) =>
-  !!text && new RegExp(`(?<![\\w])"?${col.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"?(?![\\w])`, "i").test(text);
-const notSim =(reasonKey: string): Outcome<FindingData> => ({ kind: "not_simulated", reasonKey });
+  !!text && new RegExp(`(?<![\\w.])"?${col.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"?(?![\\w])`, "i").test(text);
+const notSim = (reasonKey: string): Outcome<FindingData> => ({ kind: "not_simulated", reasonKey });
 
 // Tìm theo tên bảng thật (plan không mang bí danh), nên một bảng xuất hiện hai lần cho hai nút.
 function scansOf(n: PlanNode, table: string, out: PlanNode[] = []): PlanNode[] {
@@ -25,7 +25,9 @@ function fromPlan(hit: RuleHit, plan: Plan): Outcome<FindingData> {
   const real = plan.analyzed;
   const values = { table: hit.table!, scan: node.label };
   // Dùng index chưa đủ để xanh: nút phải lọc theo chính cột của luật. Nếu không thì chỉ quan sát được một index khác đang phục vụ (ví dụ khóa chính).
-  const unrelated = real && !seq && !(hit.column && mentions(node.condition, hit.column));
+  // shortcut: normalize chỉ giữ một condition (Index Cond, nếu không có thì Filter), nên nút index chỉ có Filter theo cột của luật vẫn bị coi là liên quan; sửa khi Plan tách Index Cond khỏi Filter.
+  // Cột có tiền tố (alias.col) không khớp: nghiêng về unverified thay vì xanh sai.
+  const unrelated =real && !seq && !(hit.column && mentions(node.condition, hit.column));
   const evidence: [Evidence, ...Evidence[]] = [
     unrelated
       ? { kind: "plan-node", messageKey: "findings.evidence.indexUnrelated", values: { ...values, column: hit.column ?? "" } }
