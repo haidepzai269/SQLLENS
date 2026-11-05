@@ -6,7 +6,7 @@ Kết quả: Sản phẩm có trang giới thiệu, luồng không đứt đoạ
 
 | Story | Task | Việc | Phụ thuộc | Đợt |
 |---|---|---|---|---|
-| STR058 Landing | Task067 | Trang `/about` | Không | 1 |
+| STR058 Landing | Task067 | Trang `/about` | Không | 1, xong |
 | STR059 Đánh bóng luồng | chưa chia | | Các Epic khác | sau |
 | STR060 E2E | chưa chia | | Các Epic khác | sau |
 | STR061 Kiểm tra cuối | chưa chia | | Tất cả | cuối |
