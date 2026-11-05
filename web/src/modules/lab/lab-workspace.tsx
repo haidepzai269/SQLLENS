@@ -29,7 +29,10 @@ import { DumpNotice } from "@/modules/sql-intake/ui/dump-notice";
 import { toDraft, type Draft } from "@/modules/sql-intake/ui/schema-draft";
 import { useAuth } from "@/modules/auth/auth-provider";
 import { GuestNote, LockedTab, guestCheck, guestRunDone, type GuestGate } from "@/modules/auth/guest";
-import { MysqlAccess } from "@/modules/auth/mysql-access";
+import type { Failure } from "@/modules/auth/api";
+import { MysqlGate, SandboxFailureView } from "@/modules/auth/mysql-access";
+import { createMysqlAdapter, SandboxError, type MysqlAdapter } from "@/engines/mysql/adapter";
+import { usePathname, useRouter } from "@/i18n/navigation";
 import { stashSql, takeSql } from "@/modules/auth/sql-stash";
 import { Tip } from "@/components/shell/tip";
 import { Stage, type StageFocus, type StageRun } from "./stage/stage";
@@ -41,6 +44,7 @@ type RunData = { statements: number; rows: number };
 type Stop = "cancelled" | "timeout" | "worker_crashed";
 type State =
   | { phase: "idle" | "loading" | "running" | "rebuilding" }
+  | { phase: "sandbox_error"; failure: Failure; count: number }
   | { phase: "load_error"; message: string }
   | { phase: "sql_error"; message: string; position?: number; sql: string }
   | { phase: "guard_error"; reasonKey: string; statementIndex?: number }
@@ -51,6 +55,7 @@ type Log = { kind: "loaded" | "ran" | "error" | "cancelled" | "timeout" | "worke
 
 // Engine báo position 1-based theo code point; ô soạn cần chỉ số 0-based theo UTF-16.
 const engineToEditorPos = (sql: string, p: number) => Array.from(sql).slice(0, p - 1).join("").length;
+const IDLE: State = { phase: "idle" };
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const mb = (b?: number) => (b === undefined ? undefined : (b / 1048576).toFixed(1));
 const stopCode = (e: unknown): Stop | null =>
@@ -72,7 +77,10 @@ export function LabWorkspace() {
   const engine = parseEngine(useSearchParams().get("engine"));
   // Toàn bộ trạng thái phiên nằm ở đây, trên WorkspaceLayout, nên đổi qua mốc 900 px không mất gì.
   const [sql, setSql] = useState("");
-  const { sqlRef, status: authStatus } = useAuth();
+  const { sqlRef, markAnon, status: authStatus } = useAuth();
+  const tm = useTranslations("mysql");
+  const router = useRouter();
+  const pathname = usePathname();
   const [gate, setGate] = useState<GuestGate | null>(null); // lý do khách bị chặn ở lần bấm Chạy gần nhất
   const guestRun = useRef(false); // lần chạy này của khách, tính lượt khi chạy xong
   // Câu hỏi của Mentor đi chung bản lưu tạm: lab giữ sqlRef, Mentor ghi câu hỏi qua askRef, đọc ra là bản ghép (stash.ts).
@@ -113,16 +121,47 @@ export function LabWorkspace() {
   const tin = useTranslations("sql-intake");
   const [selected, setSelected] = useState(0);
   const [pendingSample, setPendingSample] = useState<string | null>(null);
-  const [state, setState] = useState<State>({ phase: "idle" });
+  // Trạng thái, nhật ký và cảnh stage thuộc về engine đã chạy ra chúng (owner); đổi sang engine khác thì hiện như chưa chạy, quay lại thì thấy lại.
+  const [rawState, setState] = useState<State>(IDLE);
+  const [owner, setOwner] = useState(engine);
   const [progress, setProgress] = useState<LoadProgress | null>(null);
-  const [log, setLog] = useState<Log[]>([]);
-  const adapter = useRef<Promise<EngineAdapter> | null>(null);
+  const [rawLog, setLog] = useState<Log[]>([]);
+  const [mysqlReady, setMysqlReady] = useState(false);
+  const pool = useRef<Partial<Record<typeof engine, Promise<EngineAdapter> | null>>>({});
+  const adapter = useMemo(
+    () => ({
+      get current() {
+        return pool.current[engine] ?? null;
+      },
+      set current(v: Promise<EngineAdapter> | null) {
+        pool.current[engine] = v;
+      },
+    }),
+    [engine],
+  );
   const busy = useRef(false);
   const abort = useRef<AbortController | null>(null);
   const note = (l: Log) => setLog((x) => [...x.slice(-49), l]);
   const [hasTables, setHasTables] = useState(false);
   // Dữ liệu cho vùng stage của lần chạy gần nhất đã xong; null khi đang chạy, lỗi, bị hủy hay engine dựng lại, để tab không hiện số cũ.
-  const [stageRun, setStageRun] = useState<StageRun | null>(null);
+  const [rawStageRun, setStageRun] = useState<StageRun | null>(null);
+  const mine = owner === engine;
+  const state = mine ? rawState : IDLE;
+  const log = mine ? rawLog : [];
+  const stageRun = mine ? rawStageRun : null;
+  // Rời MySQL: phiên bị hủy (effect bên dưới), nên bỏ luôn màn hình của nó.
+  const [lastEngine, setLastEngine] = useState(engine);
+  if (lastEngine !== engine) {
+    setLastEngine(engine);
+    if (lastEngine === "mysql") {
+      setMysqlReady(false);
+      if (owner === "mysql") {
+        setState(IDLE);
+        setStageRun(null);
+        setLog([]);
+      }
+    }
+  }
   const stageSeq = useRef(0);
   const [focus, setFocus] = useState<(Focus & { nonce: number }) | null>(null); // mục rủi ro vừa bấm
   const [genOpen, setGenOpen] = useState(false);
@@ -137,10 +176,11 @@ export function LabWorkspace() {
       generated.current = false;
       note({ kind: "note", text: tth("notKept") });
     }
-    if (!db.guardActive) note({ kind: "guardOff" });
+    if (db.engine === "postgres" && !db.guardActive) note({ kind: "guardOff" });
   }
 
   async function refreshTables(db: EngineAdapter) {
+    if (db.engine !== "postgres") return; // câu kiểm bảng là catalog PostgreSQL
     try {
       const r = await db.execute(
         "SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind IN ('r','p') LIMIT 1",
@@ -155,12 +195,21 @@ export function LabWorkspace() {
   // Rời trang thì dispose. Ref được xóa nên strict mode mount lại sẽ tạo instance mới.
   useEffect(
     () => () => {
-      adapter.current?.then((a) => a.dispose(), () => {});
-      adapter.current = null;
+      for (const p of Object.values(pool.current)) p?.then((a) => a.dispose(), () => {});
+      pool.current = {};
       disposeParser();
     },
     [],
   );
+  // Rời MySQL thì hủy phiên của nó (Task075 AC4).
+  useEffect(() => {
+    if (engine !== "mysql") return;
+    const slot = pool.current;
+    return () => {
+      slot.mysql?.then((a) => a.dispose(), () => {});
+      slot.mysql = null;
+    };
+  }, [engine]);
 
   // Parse sau 300 ms yên lặng. Cleanup đặt cờ nên kết quả của lần gõ cũ không bao giờ đè lần mới.
   useEffect(() => {
@@ -195,6 +244,8 @@ export function LabWorkspace() {
     }
     if (blocked) return;
     guestRun.current = authStatus === "anon" && engine === "postgres"; // tính lượt ở cuối lần chạy này, và chỉ lần này
+    setOwner(engine);
+    if (!mine) setLog([]);
     setStageRun(null);
     setMobileTab("terminal");
     if (!shell.open.terminal) toggle("terminal"); // vùng terminal đang tắt thì mở lại để thấy kết quả
@@ -203,11 +254,22 @@ export function LabWorkspace() {
       try {
         if (!adapter.current) {
           setProgress(null);
-          setState({ phase: "loading" });
-          adapter.current = createPostgresAdapter({ onProgress: setProgress });
+          setState({ phase: engine === "mysql" ? "running" : "loading" }); // MySQL: phiên chỉ tạo ở câu đầu, adapter báo qua onStatus
+          adapter.current =
+            engine === "mysql"
+              ? Promise.resolve(
+                  createMysqlAdapter({
+                    onStatus: (s) => {
+                      setMysqlReady(s === "ready");
+                      if (s !== "ended") setState({ phase: s === "starting" ? "loading" : "running" });
+                    },
+                    onAuthLost: markAnon,
+                  }),
+                )
+              : createPostgresAdapter({ onProgress: setProgress });
           db = await adapter.current;
-          note({ kind: "loaded" });
-          if (!db.guardActive) note({ kind: "guardOff" }); // parser của lớp bảo vệ một không tải được sau khi thử lại
+          if (engine === "postgres") note({ kind: "loaded" });
+          if (db.engine === "postgres" && !db.guardActive) note({ kind: "guardOff" }); // parser của lớp bảo vệ một không tải được sau khi thử lại
         } else db = await adapter.current;
       } catch (e) {
         adapter.current = null; // cho phép thử lại
@@ -258,7 +320,7 @@ export function LabWorkspace() {
             kind: "conclusion",
             label: "real",
             data,
-            evidence: [{ kind: "execution", messageKey: "evidence.executed", values: data }],
+            evidence: [{ kind: "execution", messageKey: engine === "mysql" ? "evidence.executedMysql" : "evidence.executed", values: data }],
           },
         });
       } catch (e) {
@@ -268,6 +330,10 @@ export function LabWorkspace() {
           setSchemaError(e.message);
           setConfirmOpen(true);
           setState({ phase: "idle" });
+          return;
+        }
+        if (e instanceof SandboxError) {
+          setState({ phase: "sandbox_error", failure: e.failure, count: db.history().length });
           return;
         }
         const code = stopCode(e);
@@ -354,7 +420,11 @@ export function LabWorkspace() {
       await refreshTables(db);
       setState({ phase: "idle" });
     } catch (e) {
-      setState({ phase: "stopped", code: stopCode(e) ?? "worker_crashed", count, rebuildError: errMsg(e) });
+      setState(
+        e instanceof SandboxError
+          ? { phase: "sandbox_error", failure: e.failure, count }
+          : { phase: "stopped", code: stopCode(e) ?? "worker_crashed", count, rebuildError: errMsg(e) },
+      );
     } finally {
       busy.current = false;
     }
@@ -388,11 +458,12 @@ export function LabWorkspace() {
       : undefined;
   const loadSample = (text: string) => (sql.trim() === "" || sql === text ? setSql(text) : setPendingSample(text));
 
+  const sqlLabel = mysql ? tm("sqlLabel") : t("sqlLabel");
   const sqlZone = (
     <Pane title={ts("tab.sql")}>
-      <span className="text-sm font-medium">{t("sqlLabel")}</span>
+      <span className="text-sm font-medium">{sqlLabel}</span>
       <div className="h-56 border border-line" id="sql-input">
-        <SqlEditor value={sql} onChange={setSql} engine={engine} error={editorError} highlight={highlight} ariaLabel={t("sqlLabel")} />
+        <SqlEditor value={sql} onChange={setSql} engine={engine} error={editorError} highlight={highlight} ariaLabel={sqlLabel} />
       </div>
       {sql.trim() === "" && (
         <div className="flex flex-col items-start gap-2">
@@ -425,7 +496,7 @@ export function LabWorkspace() {
       )}
       <div>
         <Tip label={ts("tip.run")} side="right">
-          <Button ref={runBtn} onClick={onRun} disabled={sql.trim() === "" || working || (confirmOpen && dialogOn) || state.phase === "stopped" || mysql}>
+          <Button ref={runBtn} onClick={onRun} disabled={sql.trim() === "" || working || (confirmOpen && dialogOn) || state.phase === "stopped" || (mysql && authStatus !== "user")}>
             {t("run")}
           </Button>
         </Tip>
@@ -455,12 +526,16 @@ export function LabWorkspace() {
 
   const terminalZone = (
     <Pane title={ts("tab.terminal")}>
-      {mysql ? (
-        <MysqlAccess />
-      ) : (
+      <MysqlGate on={mysql}>
         <>
           <div role="status" className="flex min-w-0 flex-col items-start gap-2 text-sm text-muted-foreground">
-            {state.phase === "loading" && (
+            {state.phase === "loading" && mysql && (
+              <>
+                <span>{tm("starting")}</span>
+                <progress aria-label={tm("starting")} className="w-full max-w-xs" />
+              </>
+            )}
+            {state.phase === "loading" && !mysql && (
               <>
                 <span>{progress?.phase === "init" ? t("initializing") : t("loading")}</span>
                 <progress
@@ -488,6 +563,19 @@ export function LabWorkspace() {
             )}
             {state.phase === "rebuilding" && <span>{t("rebuilding")}</span>}
           </div>
+          {mysql && mysqlReady && state.phase !== "loading" && (
+            <p className="m-0 text-xs text-dim" data-testid="mysql-ready">{tm("ready")}</p>
+          )}
+          {state.phase === "sandbox_error" && (
+            <SandboxFailureView
+              failure={state.failure}
+              historyCount={state.count}
+              onRetry={() => run()}
+              onFresh={async () => ((await adapter.current) as MysqlAdapter | null)?.fresh().then(() => setState(IDLE))}
+              onReplay={rebuild}
+              onUsePostgres={() => router.replace(`${pathname}?engine=postgres`)}
+            />
+          )}
           {state.phase === "load_error" && (
             <Alert variant="destructive" data-testid="error">
               <AlertDescription className="flex flex-col items-start gap-2">
@@ -500,7 +588,7 @@ export function LabWorkspace() {
           )}
           {state.phase === "sql_error" && (
             <div data-testid="error">
-              <SqlErrorView message={state.message} position={state.position} sql={state.sql} />
+              <SqlErrorView message={state.message} position={state.position} sql={state.sql} title={mysql ? tm("sqlErrorTitle") : undefined} />
             </div>
           )}
           {state.phase === "guard_error" && (
@@ -511,7 +599,7 @@ export function LabWorkspace() {
           {state.phase === "stopped" && (
             <Alert variant="destructive" data-testid="stopped">
               <AlertDescription className="flex flex-col items-start gap-2">
-                <p>{t(`stopped.${state.code}`)}</p>
+                <p>{t(mysql ? `stoppedMysql.${state.code}` : `stopped.${state.code}`)}</p>
                 {state.count > 0 && <p>{t("rebuildHint", { count: state.count })}</p>}
                 {state.rebuildError && <p>{t("rebuildError", { message: state.rebuildError })}</p>}
                 <Button variant="outline" onClick={rebuild}>
@@ -532,9 +620,9 @@ export function LabWorkspace() {
               ))}
             </ol>
           )}
-          {state.phase === "idle" && log.length === 0 && <p className="text-dim">{ts("placeholder.terminal")}</p>}
+          {state.phase === "idle" && log.length === 0 && <p className="text-dim">{mysql ? tm("idle") : ts("placeholder.terminal")}</p>}
         </>
-      )}
+      </MysqlGate>
     </Pane>
   );
 
@@ -564,7 +652,7 @@ export function LabWorkspace() {
       <ZonePlaceholder title={ts("tab.findings")} hint={ts("placeholder.findings")} />
     );
 
-  const stageZone = <Stage run={stageRun} working={working} mysql={mysql} askRef={askRef} focus={focus as StageFocus | null} findings={{ hits: findingsHits ?? [], pending: !!stageRun && found === null }} />;
+  const stageZone = <Stage run={stageRun} working={working} askRef={askRef} focus={focus as StageFocus | null} findings={{ hits: findingsHits ?? [], pending: !!stageRun && found === null }} />;
   const onStopped = async (code: StopCode) => {
     const db = await adapter.current;
     note({ kind: code });

@@ -10,7 +10,7 @@ const T = {
   vi: {
     signIn: "Đăng nhập", signOut: "Đăng xuất", reason: /MySQL chạy trên máy chủ thật/, free: /PostgreSQL chạy ngay trong trình duyệt/,
     cancel: "Hủy, dùng PostgreSQL", google: "Tiếp tục với Google", github: "Tiếp tục với GitHub", check: "Kiểm tra quyền dùng MySQL",
-    exceeded: "Đã dùng hết 20 lượt MySQL trong ngày", still: "PostgreSQL vẫn dùng được bình thường.",
+    exceeded: "Đã hết lượt tạo phiên MySQL trong ngày", still: "PostgreSQL vẫn dùng được bình thường.",
     unavailable: "MySQL tạm thời không dùng được", notOut: /không phải do bạn hết lượt/, storage: /SQL bạn đang soạn có thể mất/,
     cancelled: "Bạn đã hủy đăng nhập.", failed: "Đăng nhập chưa thành công.", logoutFailed: "Chưa đăng xuất được.", needs: "MySQL cần đăng nhập. Đăng nhập để tiếp tục.",
     ok: "Đã qua cổng đăng nhập và hạn mức.", account: "Tài khoản của An",
@@ -18,7 +18,7 @@ const T = {
   en: {
     signIn: "Sign in", signOut: "Sign out", reason: /MySQL runs on a real server/, free: /PostgreSQL runs in your browser/,
     cancel: "Cancel, use PostgreSQL", google: "Continue with Google", github: "Continue with GitHub", check: "Check MySQL access",
-    exceeded: "All 20 MySQL uses for today are spent", still: "PostgreSQL still works as usual.",
+    exceeded: "All MySQL sessions for today are spent", still: "PostgreSQL still works as usual.",
     unavailable: "MySQL is temporarily unavailable", notOut: /not because you ran out/, storage: /SQL you are writing may be lost/,
     cancelled: "You cancelled the sign-in.", failed: "Sign-in did not succeed.", logoutFailed: "Could not sign out.", needs: "MySQL requires sign-in. Sign in to continue.",
     ok: "Passed the sign-in gate and quota.", account: "Account of An",
@@ -36,7 +36,7 @@ type St = {
 };
 
 async function mock(page: Page, init: Partial<St> = {}) {
-  const s: St = { user: false, me: 0, starts: [], logoutOrigins: [], ping: (r) => r.fulfill({ status: 204 }), ...init };
+  const s: St = { user: false, me: 0, starts: [], logoutOrigins: [], ping: (r) => r.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ id: "0123456789abcdef0123456789abcd", expiresAt: "2030-01-01T00:00:00Z" }) }), ...init };
   await page.route("**/api/me", async (r) => {
     s.me++;
     await s.holdMe;
@@ -57,7 +57,11 @@ async function mock(page: Page, init: Partial<St> = {}) {
     s.user = false;
     return r.fulfill({ status: 204 });
   });
-  await page.route("**/api/mysql/ping", (r) => s.ping(r));
+  // Từ Task075, "cổng" MySQL là bước tạo phiên khi bấm Chạy; `ping` giờ là bộ xử lý của POST /api/mysql/sessions.
+  await page.route("**/api/mysql/sessions", (r) => s.ping(r));
+  await page.route(/\/api\/mysql\/sessions\/[0-9a-f]{30}(\/query)?$/, (r) =>
+    r.request().method() === "DELETE" ? r.fulfill({ status: 204 }) : r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ results: [{ columns: ["n"], rows: [[1]] }], truncated: false }) }),
+  );
   return s;
 }
 
@@ -65,6 +69,13 @@ const sqlBox = (p: Page) => p.locator(".cm-content").first();
 const noHScroll = (p: Page) => p.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
 const quota = (code: string, key: string, status: number, headers: Record<string, string> = {}) => (r: Route) =>
   r.fulfill({ status, contentType: "application/json", headers, body: err(code, key) });
+async function runMysql(p: Page) {
+  const tab = p.getByRole("tab", { name: "SQL", exact: true });
+  await tab.or(sqlBox(p)).first().waitFor();
+  if (await tab.isVisible()) await tab.click();
+  await p.locator(".cm-content:visible").first().fill("SELECT 1");
+  await p.getByRole("button", { name: /^(Chạy|Run)$/ }).first().click();
+}
 const mysqlTab = (p: Page) => p.getByRole("tab", { name: "MySQL" }).filter({ visible: true });
 
 test.use({ timezoneId: "UTC" });
@@ -163,8 +174,8 @@ for (const l of ["vi", "en"] as const) {
         ping: quota("quota_exceeded", "quotaExceeded", 429, { "Retry-After": "3600", "X-Quota-Reset": "2030-01-02T03:04:05Z" }),
       });
       await page.goto(`/${l}?engine=mysql`);
-      await page.getByRole("button", { name: t.check }).filter({ visible: true }).click();
-      const a = page.getByTestId("quota-exceeded").filter({ visible: true });
+      await runMysql(page);
+      const a = page.getByTestId("mysql-failure").filter({ visible: true });
       await expect(a).toContainText(t.exceeded);
       await expect(a).toContainText(/3:04/);
       await expect(a).toContainText(/2030|30/);
@@ -179,9 +190,8 @@ for (const l of ["vi", "en"] as const) {
         ping: quota("quota_exceeded", "quotaExceeded", 429, { "Retry-After": "3600", "X-Quota-Reset": "2030-01-02T03:04:05Z" }),
       });
       await page.goto(`/${l}?engine=mysql`);
-      await page.getByRole("tab", { name: "Terminal" }).filter({ visible: true }).click();
-      await page.getByRole("button", { name: t.check }).filter({ visible: true }).click();
-      const a = page.getByTestId("quota-exceeded").filter({ visible: true });
+      await runMysql(page);
+      const a = page.getByTestId("mysql-failure").filter({ visible: true });
       await expect(a).toContainText(t.exceeded);
       expect(await noHScroll(page)).toBe(true);
       await page.screenshot({ path: `${SHOTS}/anh-quota-${l}-390.png` });
@@ -190,19 +200,19 @@ for (const l of ["vi", "en"] as const) {
     test("AC5 quota_unavailable: báo tạm thời, không nói hết quota", async ({ page }) => {
       await mock(page, { user: true, ping: quota("quota_unavailable", "quotaUnavailable", 503) });
       await page.goto(`/${l}?engine=mysql`);
-      await page.getByRole("button", { name: t.check }).filter({ visible: true }).click();
-      const a = page.getByTestId("quota-unavailable").filter({ visible: true });
+      await runMysql(page);
+      const a = page.getByTestId("mysql-failure").filter({ visible: true });
       await expect(a).toContainText(t.unavailable);
       await expect(a).toContainText(t.notOut);
-      await expect(page.getByTestId("quota-exceeded")).toHaveCount(0);
+      await expect(a).not.toContainText(t.exceeded);
       await page.screenshot({ path: `${SHOTS}/anh-tamthoi-${l}-1440.png` });
     });
 
-    test("qua cổng: 204 báo đã qua", async ({ page }) => {
+    test("qua cổng: tạo phiên 201 thì sẵn sàng", async ({ page }) => {
       await mock(page, { user: true });
       await page.goto(`/${l}?engine=mysql`);
-      await page.getByRole("button", { name: t.check }).filter({ visible: true }).click();
-      await expect(page.getByText(t.ok).filter({ visible: true })).toBeVisible();
+      await runMysql(page);
+      await expect(page.getByTestId("mysql-ready")).toBeVisible();
     });
 
     test("AC6 đăng xuất gửi POST có Origin đúng, rồi về PostgreSQL", async ({ page }) => {
@@ -244,7 +254,7 @@ for (const l of ["vi", "en"] as const) {
     test("ca biên: cookie hết hạn giữa phiên (ping 401) thì về chưa đăng nhập, không vòng lặp", async ({ page }) => {
       const s = await mock(page, { user: true, ping: quota("auth_required", "authRequired", 401) });
       await page.goto(`/${l}?engine=mysql`);
-      await page.getByRole("button", { name: t.check }).filter({ visible: true }).click();
+      await runMysql(page);
       await expect(page.getByRole("dialog")).toContainText(t.reason);
       await page.waitForTimeout(500);
       expect(s.me).toBe(1);

@@ -1,5 +1,6 @@
 "use client";
 
+import { endMysqlSession } from "@/engines/mysql/adapter";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Me } from "./api";
 
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    await endMysqlSession(); // hủy phiên MySQL trước khi cookie mất, nếu không yêu cầu hủy sẽ bị 401
     try {
       // Trình duyệt tự gửi Origin cho POST cùng nguồn; Gin kiểm Origin.
       const r = await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
