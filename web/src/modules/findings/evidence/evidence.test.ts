@@ -56,6 +56,15 @@ describe("attachEvidence, plan tổng hợp", () => {
     expect(data(only([hit()], [{ statementIndex: 0, plan: plan(node({ id: "n1", kind: "index_scan", table: "t", condition: "(abc = 1)" })) }])).data.severity).toBe("unverified");
   });
 
+  it("Task076: index chỉ có filter theo cột của luật (không có condition) là unverified; condition có tiền tố bí danh vẫn khớp cột", () => {
+    const run = (o: Partial<PlanNode>) => data(only([hit()], [{ statementIndex: 0, plan: plan(node({ id: "n1", kind: "index_scan", table: "t", ...o })) }])).data.severity;
+    expect(run({ filter: "(c ~~ '%7')" })).toBe("unverified");
+    expect(run({ condition: "(id > 0)", filter: "(c ~~ '%7')" })).toBe("unverified");
+    expect(run({ condition: "(c = 1)", filter: "(id > 0)" })).toBe("not_broken");
+    // shortcut cũ: "alias.col" không khớp, nghiêng về unverified
+    expect(run({ condition: "(t.c = 1)" })).toBe("unverified");
+  });
+
   it("AC3: không plan, plan NotSimulated: NotSimulated; MySQL ước lượng: unverified, estimated", () => {
     expect(only([hit()], [])).toEqual({ kind: "not_simulated", reasonKey: "findings.notSimulated.noPlan" });
     expect(only([hit()], [{ statementIndex: 0, plan: { kind: "not_simulated", reasonKey: "plan.notSimulated.multiple" } }])).toEqual({ kind: "not_simulated", reasonKey: "plan.notSimulated.multiple" });
@@ -119,6 +128,31 @@ describe("attachEvidence với explain thật trên PGlite (AC7)", () => {
     expect(o).toMatchObject({ label: "real", data: { severity: "broken" } });
     expect(o.data.planNodeId).toBeTruthy();
     expect(o.evidence[1].values!.pages).toBeGreaterThan(0);
+  }, 30_000);
+
+  it("Task076 AC2: WHERE email LIKE '%77' ORDER BY id LIMIT 5 đi Index Scan trên PK thì unverified, không xanh", async () => {
+    const query = "SELECT * FROM users WHERE email LIKE '%77' ORDER BY id LIMIT 5";
+    const p = await runExplain(s.run, query);
+    if (p.kind !== "conclusion") throw new Error("no plan");
+    const scan = (n: PlanNode): PlanNode | undefined => (n.table === "users" ? n : n.children.map(scan).find(Boolean));
+    const node = scan(p.data.root)!;
+    // Planner chọn Index Scan trên PK (tiền đề của AC2); nếu đổi phiên bản mà không còn thì test này phải bị chú ý.
+    expect(node.kind).toBe("index_scan");
+    expect(node.index).toBe("users_pkey");
+    expect(node.condition).toBeUndefined();
+    expect(node.filter).toContain("email");
+    const hits: RuleHit[] = [{ ruleId: "leading-wildcard", messageKey: "findings.query.leading-wildcard", table: "users", column: "email", statementIndex: 0 }];
+    const o = data(attachEvidence(hits, { plans: [{ statementIndex: 0, plan: p }] })[0]);
+    expect(o).toMatchObject({ label: "real", data: { severity: "unverified" } });
+    expect(o.evidence[0].messageKey).toBe("findings.evidence.indexUnrelated");
+  }, 30_000);
+
+  it("Task076 AC3: Index Scan có Index Cond đúng cột của luật vẫn là not_broken", async () => {
+    const p = await runExplain(s.run, "SELECT * FROM users WHERE email = 'u77'");
+    if (p.kind !== "conclusion") throw new Error("no plan");
+    const hits: RuleHit[] = [{ ruleId: "x", messageKey: "findings.query.leading-wildcard", table: "users", column: "email", statementIndex: 0 }];
+    const o = data(attachEvidence(hits, { plans: [{ statementIndex: 0, plan: p }] })[0]);
+    expect(o.data.severity).toBe("not_broken");
   }, 30_000);
 });
 

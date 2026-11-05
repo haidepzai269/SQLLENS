@@ -36,6 +36,11 @@ const MentorPanel = dynamic(() => import("@/modules/mentor/ui/mentor-panel").the
   ssr: false,
   loading: () => <Skeleton className="h-64 w-full" aria-hidden />,
 });
+// Tranh chấp kéo Cytoscape: chỉ tải khi mở tab của nó.
+const ConflictPanel = dynamic(() => import("@/modules/conflict-sim/ui/conflict-panel").then((m) => m.ConflictPanel), {
+  ssr: false,
+  loading: () => <Skeleton className="h-64 w-full" aria-hidden />,
+});
 // BTreeDrop kéo GSAP: chỉ tải khi mở tab B-Tree.
 const BTreeDrop = dynamic(() => import("@/modules/btree-reader/anim/btree-drop").then((m) => m.BTreeDrop), {
   ssr: false,
@@ -48,8 +53,8 @@ export type StageRun = { id: number; db: EngineAdapter; select?: { n: number; sq
 export type StageFocus = { nonce: number; runId: number; tab?: "schema" | "plan"; table?: string; planNodeId?: string };
 /** Rủi ro đã kiểm cho Mentor; `pending` thì chờ kiểm xong rồi mới dựng gói bằng chứng. */
 export type StageFindings = { hits: RuleHit[]; pending: boolean };
-type Tab = "schema" | "plan" | "btree" | "whatif" | "capacity" | "mentor";
-const TABS = ["schema", "plan", "btree", "whatif", "capacity", "mentor"] as const;
+type Tab = "schema" | "plan" | "btree" | "whatif" | "capacity" | "mentor" | "conflict";
+const TABS = ["schema", "plan", "btree", "whatif", "capacity", "mentor", "conflict"] as const;
 type Load<T> = { ok: true; v: T } | { ok: false; e: string } | null; // null: đang tải
 
 const MAX_JOINS = 3;
@@ -347,7 +352,7 @@ export function Stage({ run, working, askRef, focus, findings }: { run: StageRun
           <Note>{hint}</Note>
         ) : (
           <Tabs value={tab} onValueChange={change}>
-            <TabsList className="w-full" aria-label={t("tabsLabel")} activateOnFocus>
+            <TabsList className="h-auto w-full flex-wrap" aria-label={t("tabsLabel")} activateOnFocus>
               {TABS.map((x) => (
                 <Tip key={x} label={ts(`tip.tab.${x}`)}><TabsTrigger value={x}>{t(`tab.${x}`)}</TabsTrigger></Tip>
               ))}
@@ -358,6 +363,7 @@ export function Stage({ run, working, askRef, focus, findings }: { run: StageRun
             <TabsContent value="whatif" className="min-w-0" keepMounted>{my ? <MysqlNotSim run={run} which="whatif" /> : <WhatIfTab run={run} />}</TabsContent>
             <TabsContent value="capacity" className="min-w-0" keepMounted>{open("capacity") && (my ? <MysqlNotSim run={run} which="capacity" /> : <CapacityTab run={run} list={indexes} />)}</TabsContent>
             <TabsContent value="mentor" className="min-w-0" keepMounted>{open("mentor") && (my ? <MysqlNotSim run={run} which="mentor" /> : <MentorTab run={run} plan={plan} askRef={askRef} findings={findings} />)}</TabsContent>
+            <TabsContent value="conflict" className="min-w-0" keepMounted>{open("conflict") && <ConflictPanel />}</TabsContent>
           </Tabs>
         )}
       </div>

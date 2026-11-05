@@ -60,7 +60,8 @@
       "btree": "See the real B-Tree of an index and drop a key to follow its path from root to leaf.",
       "whatif": "Try adding or removing an index and compare pages read before and after, without changing real data.",
       "capacity": "Drag the data size to see how the index grows taller and bigger.",
-      "mentor": "Ask the AI to explain the results. It only gets the plan and the SELECT, never table data."
+      "mentor": "Ask the AI to explain the results. It only gets the plan and the SELECT, never table data.",
+      "conflict": "Pick a two-session conflict scenario and watch it tick by tick, including who waits for whom."
     },
     "drop": "Drop this key into the tree to watch it go from root to leaf."
   }

@@ -8,6 +8,7 @@
     "table": "Bảng",
     "index": "Index",
     "condition": "Điều kiện",
+    "filter": "Bộ lọc (áp sau khi đọc dòng)",
     "estRows": "Dòng ước tính (mỗi lần chạy)",
     "loops": "Số lần chạy",
     "estTotal": "Dòng ước tính (cả các lần)",

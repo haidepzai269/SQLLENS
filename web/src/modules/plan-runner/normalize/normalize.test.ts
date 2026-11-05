@@ -11,9 +11,18 @@ describe("normalizeMysql (mẫu thật từ mysql:8.4.13)", () => {
     const p = normalizeMysql(sample("full-scan"));
     expect(p).toMatchObject({ engine: "mysql", analyzed: false });
     expect(p.root).toMatchObject({ kind: "seq_scan", label: "ALL", table: "users", estimatedRows: 200, children: [] });
-    expect(p.root.condition).toContain("email");
+    expect(p.root.filter).toContain("email");
+    expect(p.root.condition).toBeUndefined();
     expect(p.root.actualRows).toBeUndefined();
     expect(p.root.pagesRead).toBeUndefined();
+  });
+
+  it("Task076: index_condition vào condition; attached_condition của hash join là điều kiện nối", () => {
+    const sort = normalizeMysql(sample("sort"));
+    const withIc = flat(sort.root).find((n) => n.condition?.includes("user_id"))!;
+    expect(withIc.condition).toContain("< 50");
+    const hj = flat(normalizeMysql(sample("hash-join")).root).find((n) => n.condition?.includes("`x`"))!;
+    expect(hj.filter).toBeUndefined();
   });
 
   it("index lookup", () => {
@@ -115,5 +124,16 @@ describe("normalizePostgres", () => {
     expect(d).toBe(1000);
     expect(() => normalizePostgres([])).toThrow(TypeError);
     expect(() => normalizePostgres(null)).toThrow(TypeError);
+  });
+
+  it("Task076: Index/Recheck/Hash/Merge Cond vào condition; Join Filter và Filter vào filter", () => {
+    const n = (o: object) => normalizePostgres([{ Plan: { "Node Type": "x", ...o } }]).root;
+    expect(n({ "Index Cond": "(id = 1)", Filter: "(email ~~ '%7')" })).toMatchObject({ condition: "(id = 1)", filter: "(email ~~ '%7')" });
+    // Bitmap Heap Scan có Recheck Cond và Filter cùng lúc
+    expect(n({ "Recheck Cond": "(a = 1)", Filter: "(b = 2)" })).toMatchObject({ condition: "(a = 1)", filter: "(b = 2)" });
+    expect(n({ "Hash Cond": "(o.x = c.x)" })).toMatchObject({ condition: "(o.x = c.x)", filter: undefined });
+    expect(n({ "Merge Cond": "(o.x = c.x)" }).condition).toBe("(o.x = c.x)");
+    expect(n({ "Join Filter": "(o.y > c.y)", Filter: "(o.z = 1)" })).toMatchObject({ condition: undefined, filter: "(o.y > c.y) AND (o.z = 1)" });
+    expect(n({ "Join Filter": "(o.y > c.y)" }).filter).toBe("(o.y > c.y)");
   });
 });
