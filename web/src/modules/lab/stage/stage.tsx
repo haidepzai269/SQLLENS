@@ -327,7 +327,7 @@ export function Stage({ run, working, mysql, askRef }: { run: StageRun | null; w
           <Note>{hint}</Note>
         ) : (
           <Tabs value={tab} onValueChange={change}>
-            <TabsList className="w-full" aria-label={t("tabsLabel")} activateOnFocus>
+            <TabsList className="h-auto w-full flex-wrap" aria-label={t("tabsLabel")} activateOnFocus>
               {TABS.map((x) => (
                 <Tip key={x} label={ts(`tip.tab.${x}`)}><TabsTrigger value={x}>{t(`tab.${x}`)}</TabsTrigger></Tip>
               ))}

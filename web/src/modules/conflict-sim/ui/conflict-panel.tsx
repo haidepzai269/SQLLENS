@@ -29,11 +29,11 @@ function DataTables({ data, id, title }: { data: Tables; id: string; title: stri
         const cols = Object.keys(rows[0] ?? {});
         return (
           <div key={name} className="min-w-0 overflow-x-auto" data-testid={`tbl-${id}-${name}`}>
+            <span className="font-mono text-xs text-dim">{name}</span>
             <Table className="text-xs">
               <TableHeader>
                 <TableRow>
-                  <TableHead scope="col">{name}</TableHead>
-                  {cols.slice(1).map((c) => <TableHead key={c} scope="col">{c}</TableHead>)}
+                  {cols.map((c) => <TableHead key={c} scope="col">{c}</TableHead>)}
                 </TableRow>
               </TableHeader>
               <TableBody>

@@ -601,7 +601,7 @@ for (const l of ["vi", "en"] as const) {
         await openStage(page, l);
         await expect(stageTab(page, l, 0)).toBeVisible({ timeout: 90_000 });
         const vw = page.viewportSize()!.width;
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 7; i++) {
           const b = (await stageTab(page, l, i).boundingBox())!;
           expect(b.x).toBeGreaterThanOrEqual(0);
           expect(b.x + b.width).toBeLessThanOrEqual(vw);
