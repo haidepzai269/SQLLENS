@@ -7,11 +7,16 @@ test.beforeEach(({ page }) => page.route("**/api/me", (r) => r.fulfill({ status:
 const width = async (p: Page, sel: string) => (await p.locator(`${sel}:visible`).boundingBox())!.width;
 const gear = (p: Page) => p.getByRole("button", { name: /^(Layout: show or hide panels|Bố cục: bật tắt các vùng)$/ });
 const item = (p: Page, name: RegExp) => p.getByRole("menuitemcheckbox", { name });
+// Đợi menu đóng hẳn: bấm bánh răng giữa lúc menu đang đóng có thể đóng nó thay vì mở (CI từng treo 30 giây).
+const closeMenu = async (p: Page) => {
+  await p.keyboard.press("Escape");
+  await expect(p.getByRole("menu")).toHaveCount(0);
+};
 // Bốn vùng nay bật tắt trong menu bánh răng: mở menu, bấm mục, đóng menu.
 const flip = async (p: Page, name: RegExp) => {
   await gear(p).click();
   await item(p, name).click();
-  await p.keyboard.press("Escape");
+  await closeMenu(p);
 };
 // Vùng làm việc chỉ hiện sau khi hydrate xong, nên đợi nó trước khi bấm để khỏi bấm vào HTML chưa có sự kiện.
 const go = async (p: Page, url: string) => {
@@ -76,7 +81,7 @@ test.describe("máy tính 1440", () => {
     await expect(item(page, /Terminal/)).toHaveAttribute("aria-disabled", "true");
     await item(page, /Terminal/).click({ force: true });
     await expect(page.locator("#terminal")).toBeVisible();
-    await page.keyboard.press("Escape");
+    await closeMenu(page);
     await flip(page, /SQL column/);
     await expect(page.locator("#sql")).toBeVisible();
   });
