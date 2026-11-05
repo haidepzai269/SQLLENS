@@ -261,3 +261,12 @@ func (a *Auth) takeState(state string) (pending, bool) {
 }
 
 func eq(a, b [32]byte) bool { return subtle.ConstantTimeCompare(a[:], b[:]) == 1 }
+
+// UserID returns the signed-in user's id. Empty when called outside a Gate/requireUser route.
+func UserID(c *gin.Context) string {
+	u, _ := c.Get(userKey)
+	if v, ok := u.(store.User); ok {
+		return v.ID
+	}
+	return ""
+}

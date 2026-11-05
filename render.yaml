@@ -26,3 +26,9 @@ services:
         sync: false
       - key: PUBLIC_ORIGIN
         sync: false
+      - key: SANDBOX_URL
+        sync: false
+      - key: SANDBOX_TOKEN
+        sync: false
+      - key: SANDBOX_CERT_SHA256
+        sync: false
