@@ -209,6 +209,8 @@ for (const l of ["vi", "en"] as const) {
       await expect(done(page)).toHaveCount(0); // lần 3 không chạy gì
       await page.screenshot({ path: `${SHOTS}/het-luot-${l}-1440.png` });
       await page.setViewportSize({ width: 390, height: 844 });
+      await page.getByRole("tab", { name: "SQL", exact: true }).click(); // điện thoại: ô SQL và lời mời nằm trong tab SQL
+      await expect(page.getByTestId("guest-limit")).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: `${SHOTS}/het-luot-${l}-390.png` });
     });

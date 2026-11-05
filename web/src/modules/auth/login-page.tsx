@@ -44,7 +44,7 @@ function Scene() {
   );
   return (
     <div ref={root} className="mx-auto flex h-full w-full max-w-[560px] flex-col justify-center gap-4">
-      <div className="[&_svg]:mx-auto [&_svg]:max-h-[19svh] [&_svg]:w-auto md:[&_svg]:max-h-[62svh]">
+      <div className="[&_svg]:mx-auto [&_svg]:max-h-[22svh] [&_svg]:w-auto md:[&_svg]:max-h-[62svh]">
         <Tree label={tl("hero.treeLabel")} lit={ROUTES["7421"]} />
       </div>
       <p data-read className="m-0 text-[15px] tabular-nums text-ink2" aria-live="off">{t("read", { n: 4, total: 4 })}</p>
