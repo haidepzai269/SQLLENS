@@ -17,6 +17,14 @@ describe("normalizeMysql (mẫu thật từ mysql:8.4.13)", () => {
     expect(p.root.pagesRead).toBeUndefined();
   });
 
+  it("Task076: index_condition vào condition; attached_condition của hash join là điều kiện nối", () => {
+    const sort = normalizeMysql(sample("sort"));
+    const withIc = flat(sort.root).find((n) => n.condition?.includes("user_id"))!;
+    expect(withIc.condition).toContain("< 50");
+    const hj = flat(normalizeMysql(sample("hash-join")).root).find((n) => n.condition?.includes("`x`"))!;
+    expect(hj.filter).toBeUndefined();
+  });
+
   it("index lookup", () => {
     const p = normalizeMysql(sample("index-lookup"));
     expect(p.root).toMatchObject({ kind: "index_scan", index: "PRIMARY", table: "users", estimatedRows: 1 });

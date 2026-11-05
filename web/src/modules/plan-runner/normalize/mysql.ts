@@ -40,8 +40,9 @@ function table(t: Obj, c: Ctx): PlanNode {
     table: str(t.table_name),
     index: key,
     // index_condition được đẩy xuống index (ICP); attached_condition là phần WHERE lọc sau khi đọc dòng.
-    condition: str(t.index_condition),
-    filter: str(t.attached_condition),
+    // Bảng nối bằng hash join: attached_condition là điều kiện nối (tương đương Hash Cond của PostgreSQL), không phải bộ lọc.
+    condition: str(t.index_condition) ?? (str(t.using_join_buffer)?.includes("hash") ? str(t.attached_condition) : undefined),
+    filter: str(t.using_join_buffer)?.includes("hash") && !t.index_condition ? undefined : str(t.attached_condition),
     // MySQL chỉ ước lượng (không có ANALYZE ở dạng JSON): rows_produced_per_join là số dòng sau lọc và sau mọi bảng trước.
     estimatedRows: num(t.rows_produced_per_join) ?? num(t.rows_examined_per_scan),
   });
