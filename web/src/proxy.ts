@@ -12,4 +12,5 @@ export default function proxy(request: NextRequest) {
   return intl(request);
 }
 
-export const config = { matcher: ["/((?!api|_next|_vercel|.*\..*).*)"] };
+// Không dùng `\.`: Next đọc matcher bằng phân tích tĩnh và làm rơi dấu gạch chéo, khiến `.*..*` loại mọi đường dẫn từ 2 ký tự (đo ở .next/server/functions-config-manifest.json).
+export const config = { matcher: ["/((?!api|_next|_vercel|.*[.].*).*)"] };
