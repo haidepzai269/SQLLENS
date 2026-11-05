@@ -1,0 +1,122 @@
+{
+  "title": "Conflicts between two sessions",
+  "intro": "Pick a scenario, then watch sessions A and B run tick by tick. The model runs in your browser and never touches your data.",
+  "label": "Simulated",
+  "labelNote": "The result is computed by the project model, checked against real PostgreSQL in CI. It is not a run on your database, and it has no run time.",
+  "scenario": {
+    "label": "Scenario",
+    "lost_update": "Lost update",
+    "deadlock_reverse_order": "Deadlock from updates in reverse order",
+    "write_skew": "Write skew",
+    "double_booking": "Double booking",
+    "non_repeatable_read": "Non-repeatable read",
+    "about": {
+      "lost_update": "Two sessions read a balance of 100, each adds its own amount and writes it back. One addition can vanish.",
+      "deadlock_reverse_order": "Two sessions update two rows in opposite order, so each holds a lock the other needs.",
+      "write_skew": "Two doctors each check that someone is still on call, then each goes off call. The writes hit different rows but break the same rule.",
+      "double_booking": "Two sessions both see a free slot and both book it.",
+      "non_repeatable_read": "One session reads the same row twice in one transaction, and another session commits in between."
+    }
+  },
+  "isolation": {
+    "label": "Isolation level",
+    "read_committed": "READ COMMITTED",
+    "repeatable_read": "REPEATABLE READ",
+    "serializable": "SERIALIZABLE"
+  },
+  "guard": {
+    "label": "Protection",
+    "none": "No protection",
+    "unique": "UNIQUE constraint",
+    "for_update": "SELECT ... FOR UPDATE"
+  },
+  "controls": {
+    "label": "Controls",
+    "run": "Run",
+    "pause": "Pause",
+    "next": "Step forward",
+    "prev": "Step back",
+    "reset": "Back to start",
+    "seek": "Tick being viewed",
+    "position": "Tick {current} of {total}"
+  },
+  "session": {
+    "label": "Session {id}",
+    "empty": "No tick of this session yet.",
+    "step": "Tick {n}",
+    "state": {
+      "idle": "Not started",
+      "running": "Running",
+      "waiting": "Waiting",
+      "aborted": "Aborted",
+      "committed": "Committed",
+      "rolledBack": "Rolled back"
+    },
+    "status": {
+      "ran": "Ran",
+      "waiting": "Waiting",
+      "resumed": "Resumed after waiting",
+      "error": "Error"
+    }
+  },
+  "tables": {
+    "committed": "Committed data",
+    "seen": "Session {id} sees",
+    "empty": "Empty table",
+    "start": "Before the first tick"
+  },
+  "graph": {
+    "title": "Lock wait graph",
+    "aria": "Lock wait graph for the current tick. An arrow goes from the waiting session to the session holding the lock.",
+    "none": "At this tick no session is waiting for a lock.",
+    "edge": "Session {waiter} waits for session {holder} (lock {resource}).",
+    "cycle": "The two sessions wait for each other in a cycle: this is a deadlock."
+  },
+  "result": {
+    "title": "Result",
+    "pending": "The result appears when you reach the last tick.",
+    "observed": "Value the model read at the end: {observed}"
+  },
+  "tick": {
+    "begin": "Opens a transaction at isolation level {isolation}.",
+    "waiting": "Row {resource} is locked by session {holder}, so this session must wait.",
+    "select": "Reads data and gets {rows} rows.",
+    "update": "Changes {rows} rows and keeps their locks until commit.",
+    "insert": "Inserts {rows} rows. If it is 0, the statement condition did not allow the insert.",
+    "commit": "Commit: this session changes are saved and its locks are released.",
+    "rollback": "Rollback: every change of this transaction is discarded.",
+    "rollbackOfAborted": "The transaction was already aborted, so this COMMIT is really a rollback and writes nothing."
+  },
+  "error": {
+    "deadlock": "The two sessions wait for each other in a cycle (code 40P01). The model aborts one side so the other can continue. Real PostgreSQL may abort the other side.",
+    "serializeConcurrent": "Another session changed and committed this row after the transaction started, so it is rejected (code 40001). The application must retry the transaction.",
+    "serializeDependencies": "PostgreSQL found two transactions that read and write across each other in a way that cannot be put in a serial order, so it rejects the one that commits later (code 40001).",
+    "abortedTransaction": "The transaction is in an aborted state, so every statement is ignored until rollback (code 25P02).",
+    "uniqueViolation": "UNIQUE constraint violated: a row with the same value already exists (code 23505)."
+  },
+  "outcome": {
+    "broken": "Broken in this scenario at this isolation level: the final result differs from running the two sessions one after the other.",
+    "not_broken": "Not broken in this scenario at this isolation level. This is the result of one two-session scenario only, not a conclusion about the whole design.",
+    "deadlock": "Deadlock in this scenario: the two sessions wait for each other in a cycle and one is aborted. The model picks the aborted side, real PostgreSQL may pick the other.",
+    "serialization_failure": "PostgreSQL rejects one transaction (code 40001) in this scenario at this isolation level. The application must retry that transaction."
+  },
+  "notSimulated": {
+    "title": "Cannot be simulated yet",
+    "emptyScenario": "The scenario has no steps.",
+    "unknownSession": "The scenario uses a session other than A and B.",
+    "unsupportedSql": "The scenario has SQL the model does not understand.",
+    "unknownTable": "The SQL uses a table that was never created.",
+    "unknownColumn": "The SQL uses a column the table does not have.",
+    "nestedBegin": "A session opens a transaction while already inside one.",
+    "isolationMismatch": "The isolation level in BEGIN differs from the one chosen for the scenario.",
+    "noTransaction": "A statement runs outside a transaction, which the model does not support.",
+    "ddlInTransaction": "A statement that creates or alters a table is inside a transaction, which the model does not support.",
+    "updateUniqueColumn": "An UPDATE changes a UNIQUE column, which the model does not support.",
+    "arithmeticOnNonNumber": "An UPDATE does arithmetic on a non-numeric column.",
+    "notNullViolation": "The data violates a NOT NULL constraint.",
+    "uniqueInSerializable": "UNIQUE at SERIALIZABLE is outside what the model can compute.",
+    "noProgress": "The model cannot find a way to continue the two sessions.",
+    "stuckSession": "A session is still stuck waiting after the scenario ran out of steps.",
+    "checkNotNumeric": "The final check value of the scenario is not a number."
+  }
+}

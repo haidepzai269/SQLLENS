@@ -6,7 +6,8 @@
     "btree": "B-Tree",
     "whatif": "Thử sửa",
     "capacity": "Capacity",
-    "mentor": "Mentor"
+    "mentor": "Mentor",
+    "conflict": "Tranh chấp"
   },
   "working": "Đang chạy. Cảnh mô phỏng sẽ hiện khi chạy xong.",
   "loading": "Đang đọc dữ liệu từ database...",
