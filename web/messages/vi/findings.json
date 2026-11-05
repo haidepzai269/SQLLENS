@@ -3,7 +3,7 @@
     "function-on-indexed-column": "Cột {column} của bảng {table} có index, nhưng điều kiện bọc nó trong hàm {function}, nên index thường không dùng được cho điều kiện này.",
     "leading-wildcard": "Mẫu {pattern} trên cột {column} của bảng {table} bắt đầu bằng ký tự đại diện, nên index B-Tree của cột này không thu hẹp được phạm vi tìm.",
     "composite-prefix": "Index ({index}) bắt đầu bằng {leading}, nhưng điều kiện trên bảng {table} chỉ dùng cột {column} ở phía sau, không dùng cột đầu, nên index này thường không dùng được cho điều kiện đó.",
-    "implicit-cast": "Cột {column} của bảng {table} được so với giá trị {literal}: {effect, select, literal-cast {{literal} là chữ và bị đổi sang kiểu số của cột, nên index của cột vẫn dùng được.} column-cast {{column} là cột chữ nên mỗi dòng bị ép kiểu để so với số, vì vậy index của cột thường không dùng được.} error {{column} là cột chữ nên PostgreSQL từ chối so với số {literal} và báo lỗi.} other {{column} và {literal} khác kiểu nên có phép ép kiểu ngầm.}}"
+    "implicit-cast": "Cột {column} của bảng {table} được so với giá trị {literal}: {effect, select, literalCast {{literal} là chữ và bị đổi sang kiểu số của cột, nên index của cột vẫn dùng được.} columnCast {{column} là cột chữ nên mỗi dòng bị ép kiểu để so với số, vì vậy index của cột thường không dùng được.} error {{column} là cột chữ nên PostgreSQL từ chối so với số {literal} và báo lỗi.} other {{column} và {literal} khác kiểu nên có phép ép kiểu ngầm.}}"
   },
   "schema": {
     "missing-pk": "Bảng {table} chưa khai báo khóa chính.",
@@ -18,7 +18,8 @@
     "estimatedScanIndex": "Câu chưa chạy thật. Theo ước lượng của optimizer, bảng {table} sẽ được đọc bằng index ({scan}).",
     "counts": "Nút này đọc {rows} dòng và {pages} trang.",
     "estimatedRows": "Optimizer ước lượng nút này trả khoảng {rows} dòng.",
-    "structureOnly": "Mô tả đọc từ cấu trúc trong SQL của bạn. Chưa chạy kịch bản nào cho thấy cấu trúc này gây hỏng."
+    "structureOnly": "Mô tả đọc từ cấu trúc trong SQL của bạn. Chưa chạy kịch bản nào cho thấy cấu trúc này gây hỏng.",
+    "indexUnrelated": "Trong kịch bản đã chạy, bảng {table} được đọc qua một index ({scan}), nhưng bước này không lọc theo cột {column}. Điều quan sát được là một index khác đang phục vụ câu lệnh, nên lần chạy này không xác nhận cũng không loại trừ luật."
   },
   "notSimulated": {
     "noPlan": "Chưa mô phỏng được: câu này chưa có plan để đối chiếu.",

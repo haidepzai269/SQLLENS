@@ -116,13 +116,13 @@ export function GuestNote({ gate }: { gate: GuestGate | null }) {
   );
 }
 
-export function LockedTab({ name }: { name: string }) {
+export function LockedTab({ name, feature }: { name: string; feature?: boolean }) {
   const t = useTranslations("auth.guest");
   return (
     <Alert data-testid="locked-tab">
       <Lock aria-hidden />
       <AlertDescription className="flex flex-col items-start gap-2">
-        <span>{t("locked", { tab: name })}</span>
+        <span>{t(feature ? "lockedFeature" : "locked", { tab: name })}</span>
         <SignInLink className={outline}>{t("signIn")}</SignInLink>
       </AlertDescription>
     </Alert>

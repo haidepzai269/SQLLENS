@@ -42,7 +42,9 @@ function node(n: Obj, id: string): PlanNode {
     label,
     table: str(n["Relation Name"]),
     index: str(n["Index Name"]),
-    condition: ["Index Cond", "Hash Cond", "Merge Cond", "Join Filter", "Filter", "Recheck Cond"].map((k) => str(n[k])).find(Boolean),
+    condition: ["Index Cond", "Recheck Cond", "Hash Cond", "Merge Cond"].map((k) => str(n[k])).find(Boolean),
+    // Nút join có thể có cả Join Filter lẫn Filter; nối lại để không mất cái nào.
+    filter: ["Join Filter", "Filter"].map((k) => str(n[k])).filter(Boolean).join(" AND ") || undefined,
     // Plan Rows là ước lượng cho MỘT lần chạy nút; giữ nguyên, kèm `loops` để người dùng tự nhân.
     estimatedRows: num(n["Plan Rows"]),
     // Actual Rows của PostgreSQL là trung bình mỗi vòng lặp; đây là TỔNG qua mọi vòng (Actual Rows x Actual Loops).

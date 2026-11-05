@@ -8,13 +8,13 @@ const T = {
     run: "Chạy", signIn: "Đăng nhập", google: "Tiếp tục với Google", github: "Tiếp tục với GitHub", trial: "Dùng thử không đăng nhập",
     about: "Xem SQLLens làm được gì", left: (n: number) => `Còn ${n}/2 lượt chạy thử`, limit: /đã dùng hết 2 lượt chạy thử/i,
     blocked: /Câu lệnh này cần đăng nhập/, cancelled: "Bạn đã hủy đăng nhập.", failed: "Đăng nhập chưa thành công.",
-    locked: /cần đăng nhập\. Khi chưa đăng nhập bạn xem được Sơ đồ và Plan/, tabs: ["B-Tree", "Thử sửa", "Capacity", "Mentor"],
+    locked: /cần đăng nhập\. Khi chưa đăng nhập bạn xem được Sơ đồ, Plan và Tranh chấp/, tabs: ["B-Tree", "Thử sửa", "Capacity", "Mentor"],
   },
   en: {
     run: "Run", signIn: "Sign in", google: "Continue with Google", github: "Continue with GitHub", trial: "Try without signing in",
     about: "See what SQLLens can do", left: (n: number) => `${n} of 2 trial runs left`, limit: /used all 2 trial runs/i,
     blocked: /This statement needs sign-in/, cancelled: "You cancelled the sign-in.", failed: "Sign-in did not succeed.",
-    locked: /tab needs sign-in\. Without signing in you can view Schema and Plan/, tabs: ["B-Tree", "Try a fix", "Capacity", "Mentor"],
+    locked: /tab needs sign-in\. Without signing in you can view Schema, Plan and Conflicts/, tabs: ["B-Tree", "Try a fix", "Capacity", "Mentor"],
   },
 } as const;
 
@@ -273,6 +273,50 @@ for (const l of ["vi", "en"] as const) {
       // Sơ đồ và Plan vẫn mở được
       await stageTab(page, "Plan").click();
       await expect(page.getByTestId("locked-tab").filter({ visible: true })).toHaveCount(0);
+    });
+
+    test("AC5/AC6 Thử lại sau lỗi tải đi qua cùng cổng; Sinh dữ liệu khóa cho khách; tab Tranh chấp mở", async ({ page }) => {
+      await mock(page, "anon");
+      await page.setViewportSize({ width: 1440, height: 900 });
+      let fail = true;
+      await page.route(/.wasm/, (r) => (fail ? r.abort() : r.continue()));
+      await page.goto(`/${l}`);
+      await run(page, l, "SELECT 1");
+      await expect(page.locator([data-testid=error]:visible)).toBeVisible({ timeout: 60_000 });
+      fail = false;
+      await setSql(page, "DROP TABLE t");
+      await page.getByRole("button", { name: l === "vi" ? "Thử lại" : "Retry" }).click();
+      await expect(page.getByTestId("guest-blocked")).toContainText(t.blocked);
+      await expect(left(page)).toContainText(t.left(2)); // không chạy, không tính lượt
+      const gen = page.getByRole("button", { name: l === "vi" ? "Sinh dữ liệu" : "Generate data" });
+      await expect(gen).toBeEnabled();
+      await gen.click();
+      await expect(page.getByTestId("locked-tab")).toBeVisible();
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      // Tab Tranh chấp không tốn gì nên khách dùng được
+      await run(page, l, "CREATE TABLE t(id int); SELECT * FROM t;");
+      await expect(done(page)).toBeVisible({ timeout: 60_000 });
+      await stageTab(page, l === "vi" ? "Tranh chấp" : "Conflicts").click();
+      await expect(page.getByTestId("locked-tab").filter({ visible: true })).toHaveCount(0);
+    });
+
+    test("AC5 hết lượt rồi Thử lại cũng bị chặn", async ({ page }) => {
+      await mock(page, "anon");
+      await page.goto(`/${l}`);
+      await page.evaluate(() => localStorage.setItem("sqllens.guestRuns", "2"));
+      await page.reload();
+      let fail = true;
+      await page.route(/.wasm/, (r) => (fail ? r.abort() : r.continue()));
+      // lượt đã hết nên bị chặn ngay ở lần Chạy; dùng lượt còn 1 để vào được lỗi tải
+      await page.evaluate(() => localStorage.setItem("sqllens.guestRuns", "1"));
+      await page.reload();
+      await run(page, l, "SELECT 1");
+      await expect(page.locator([data-testid=error]:visible)).toBeVisible({ timeout: 60_000 });
+      await page.evaluate(() => localStorage.setItem("sqllens.guestRuns", "2")); // tab khác dùng nốt lượt
+      fail = false;
+      await page.getByRole("button", { name: l === "vi" ? "Thử lại" : "Retry" }).click();
+      await expect(page.getByTestId("guest-limit")).toBeVisible();
+      await expect(done(page)).toHaveCount(0);
     });
 
     test("AC6 đã đăng nhập: các tab mở, không còn giới hạn lượt", async ({ page }) => {

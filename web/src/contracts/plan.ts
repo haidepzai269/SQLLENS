@@ -23,7 +23,10 @@ export type PlanNode = {
   label: string;
   table?: string;
   index?: string;
+  // Điều kiện dùng để tìm trong index hoặc để nối (Index Cond, Recheck Cond, Hash Cond, Merge Cond).
   condition?: string;
+  // Điều kiện lọc sau khi đã đọc dòng (Filter, Join Filter); không chứng tỏ index dùng được cột đó.
+  filter?: string;
   estimatedRows?: number;
   actualRows?: number;
   loops?: number;

@@ -74,7 +74,7 @@ function runScope(scope: Scope, schema: Schema, emit: Emit, engine: EngineId) {
         if (!t || !dir) continue;
         // PostgreSQL: literal chuỗi tự nhận kiểu cột (index vẫn dùng được), còn cột chữ so với số thì báo lỗi.
         // MySQL: chuỗi đổi thành số một lần, nhưng cột chữ so với số thì mỗi dòng bị ép kiểu nên index không dùng được.
-        const effect = dir === "number-vs-string" ? "literal-cast" : engine === "postgres" ? "error" : "column-cast";
+        const effect = dir === "number-vs-string" ? "literalCast" : engine === "postgres" ? "error" : "columnCast";
         emit("implicit-cast", c, t.name, lc(c.name), { direction: dir, effect, literal: v.v });
       }
     }

@@ -1,3 +1,5 @@
+import type { Outcome } from "@/contracts/conclusion";
+import type { EngineAdapter } from "@/contracts/engine";
 import type { Plan, PlanNode } from "@/contracts/plan";
 import type { ParsedStatement } from "@/modules/sql-intake/parser";
 import { SCHEMA_QUERY } from "@/modules/data-lab/generate/plan-data";
@@ -32,4 +34,14 @@ export function joinNodes(plan: Plan): PlanNode[] {
   const walk = (n: PlanNode) => (JOINS.includes(n.kind) && out.push(n), n.children.forEach(walk));
   walk(plan.root);
   return out;
+}
+
+/** explain nhớ theo câu SQL cho một lần chạy: tab Plan và cột Rủi ro dùng chung, mỗi câu chỉ chạy một lần (explain chạy thật câu SELECT). */
+export function memoExplain(db: EngineAdapter): (sql: string) => Promise<Outcome<Plan>> {
+  const cache = new Map<string, Promise<Outcome<Plan>>>();
+  return (sql) => {
+    let p = cache.get(sql);
+    if (!p) cache.set(sql, (p = db.explain(sql)));
+    return p;
+  };
 }

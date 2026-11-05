@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { ResultGrid } from "@/components/result-grid/result-grid";
@@ -15,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { SampleButton } from "@/components/sql-editor/sample-button";
 import { SqlEditor } from "@/components/sql-editor/sql-editor";
 import type { Conclusion } from "@/contracts/conclusion";
+import { FindingsPanel, type Focus } from "@/modules/findings/ui/findings-panel";
+import { hitsOf, useFindings } from "@/modules/findings/ui/use-findings";
 import { EngineError, type EngineAdapter, type LoadProgress, type QueryResult } from "@/contracts/engine";
 import { createPostgresAdapter } from "@/engines/postgres/adapter";
 import { GenerateDialog, type StopCode } from "@/modules/data-lab/ui/generate-dialog";
@@ -25,13 +28,13 @@ import { ConfirmSchemaDialog } from "@/modules/sql-intake/ui/confirm-schema-dial
 import { DumpNotice } from "@/modules/sql-intake/ui/dump-notice";
 import { toDraft, type Draft } from "@/modules/sql-intake/ui/schema-draft";
 import { useAuth } from "@/modules/auth/auth-provider";
-import { GuestNote, guestCheck, guestRunDone, type GuestGate } from "@/modules/auth/guest";
+import { GuestNote, LockedTab, guestCheck, guestRunDone, type GuestGate } from "@/modules/auth/guest";
 import { MysqlAccess } from "@/modules/auth/mysql-access";
 import { stashSql, takeSql } from "@/modules/auth/sql-stash";
 import { Tip } from "@/components/shell/tip";
-import { Stage, type StageRun } from "./stage/stage";
+import { Stage, type StageFocus, type StageRun } from "./stage/stage";
 import { packStash, unpackStash } from "./stage/stash";
-import { lastSelect } from "./stage/stage-data";
+import { lastSelect, memoExplain } from "./stage/stage-data";
 import { StatementList } from "./statement-list";
 
 type RunData = { statements: number; rows: number };
@@ -121,7 +124,9 @@ export function LabWorkspace() {
   // Dữ liệu cho vùng stage của lần chạy gần nhất đã xong; null khi đang chạy, lỗi, bị hủy hay engine dựng lại, để tab không hiện số cũ.
   const [stageRun, setStageRun] = useState<StageRun | null>(null);
   const stageSeq = useRef(0);
+  const [focus, setFocus] = useState<(Focus & { nonce: number }) | null>(null); // mục rủi ro vừa bấm
   const [genOpen, setGenOpen] = useState(false);
+  const [genLock, setGenLock] = useState(false); // khách bấm Sinh dữ liệu: hiện lời mời thay vì mở hộp thoại
   const generated = useRef(false); // đã sinh dữ liệu từ lần dựng gần nhất; dựng lại không giữ (câu sinh dữ liệu không vào history)
   const tth = useTranslations("data-lab");
   const tg = useTranslations() as unknown as (key: string, values: { index: number }) => string; // khóa guard.* của EngineError.guard.reasonKey
@@ -171,9 +176,22 @@ export function LabWorkspace() {
     };
   }, [sql, engine]);
 
+  // Cổng của khách: mọi đường chạy (Chạy, Thử lại, xác nhận schema) đều qua đây. true là bị chặn: không chạy gì, không tính lượt.
+  async function guestBlocked(): Promise<boolean> {
+    if (authStatus !== "anon" || engine !== "postgres") return setGate(null), false;
+    const g = await guestCheck(prepareDump(sql, engine).sql, engine);
+    setGate(g);
+    return g !== null;
+  }
+
   async function run(schemaSql?: string) {
     if (busy.current) return;
     busy.current = true;
+    if (await guestBlocked()) {
+      busy.current = false;
+      return;
+    }
+    guestRun.current = authStatus === "anon" && engine === "postgres"; // tính lượt ở cuối lần chạy này, và chỉ lần này
     setStageRun(null);
     setMobileTab("terminal");
     if (!shell.open.terminal) toggle("terminal"); // vùng terminal đang tắt thì mở lại để thấy kết quả
@@ -213,9 +231,13 @@ export function LabWorkspace() {
         note({ kind: "ran", n: results.length });
         await refreshTables(db);
         let select: StageRun["select"];
+        let statements: StageRun["statements"];
         try {
           const po = await parseSql(toRun, engine);
-          if (po.ok) select = lastSelect(toRun, po.statements);
+          if (po.ok) {
+            select = lastSelect(toRun, po.statements);
+            statements = po.statements;
+          }
         } catch {
           /* không parse được thì không có câu SELECT để đo, các tab khác vẫn chạy */
         }
@@ -224,7 +246,8 @@ export function LabWorkspace() {
           guestRun.current = false;
           guestRunDone();
         }
-        setStageRun({ id: ++stageSeq.current, db, select });
+        setStageRun({ id: ++stageSeq.current, db, select, sql: toRun, srcSql: sql, statements, explain: memoExplain(db) });
+
         setState({
           phase: "done",
           results,
@@ -296,14 +319,8 @@ export function LabWorkspace() {
     if (busy.current || (confirmOpen && dialogOn)) return;
     busy.current = true; // chặn bấm đúp trong lúc parse
     let ask = false;
-    guestRun.current = false;
     try {
-      if (authStatus === "anon" && engine === "postgres") {
-        const g = await guestCheck(prepareDump(sql, engine).sql, engine);
-        setGate(g);
-        if (g) return; // không chạy gì, không tính lượt, SQL trong ô soạn giữ nguyên
-        guestRun.current = true;
-      } else setGate(null);
+      if (await guestBlocked()) return; // chặn trước khi hiện hộp xác nhận schema
       ask = await needsConfirm();
     } finally {
       busy.current = false;
@@ -356,13 +373,23 @@ export function LabWorkspace() {
         : undefined;
   // Lỗi parse không vị trí là parser không chạy được (tải hỏng, worker chết), không phải SQL sai.
   const parserDown = Boolean(outcome && !outcome.ok && outcome.error.position === undefined);
+  const frun = useMemo(
+    () => stageRun && { id: stageRun.id, engine: stageRun.db.engine, sql: stageRun.sql, srcSql: stageRun.srcSql, statements: stageRun.statements, explain: stageRun.explain },
+    [stageRun],
+  );
+  const found = useFindings(frun);
+  const findingsHits = found?.kind === "ok" ? hitsOf(found.items) : undefined;
+  const highlight =
+    focus && stageRun && focus.runId === stageRun.id && stageRun.srcSql === sql && stageRun.sql === sql && focus.start !== undefined && focus.end !== undefined
+      ? { from: focus.start, to: focus.end, nonce: focus.nonce }
+      : undefined;
   const loadSample = (text: string) => (sql.trim() === "" || sql === text ? setSql(text) : setPendingSample(text));
 
   const sqlZone = (
     <Pane title={ts("tab.sql")}>
       <span className="text-sm font-medium">{t("sqlLabel")}</span>
       <div className="h-56 border border-line" id="sql-input">
-        <SqlEditor value={sql} onChange={setSql} engine={engine} error={editorError} ariaLabel={t("sqlLabel")} />
+        <SqlEditor value={sql} onChange={setSql} engine={engine} error={editorError} highlight={highlight} ariaLabel={t("sqlLabel")} />
       </div>
       {sql.trim() === "" && (
         <div className="flex flex-col items-start gap-2">
@@ -405,14 +432,16 @@ export function LabWorkspace() {
         <Tip label={ts("tip.generate")} side="right">
         <Button
           variant="outline"
-          onClick={() => setGenOpen(true)}
-          disabled={!hasTables || working || state.phase === "stopped" || mysql}
+          onClick={() => (authStatus === "anon" ? setGenLock(true) : setGenOpen(true))}
+          disabled={(!hasTables && authStatus !== "anon") || working || state.phase === "stopped" || mysql}
           aria-describedby={hasTables ? undefined : "gen-hint"}
         >
           {tth("open")}
+          {authStatus === "anon" && <Lock aria-hidden />}
         </Button>
         </Tip>
-        {!hasTables && !mysql && (
+        {genLock && authStatus === "anon" && <LockedTab name={tth("open")} feature />}
+        {!hasTables && !mysql && authStatus !== "anon" && (
           <p id="gen-hint" className="text-xs text-muted-foreground">
             {tth("openDisabled")}
           </p>
@@ -517,12 +546,22 @@ export function LabWorkspace() {
             </p>
           ))}
         </div>
+        {stageRun && (
+          <FindingsPanel
+            key={stageRun.id}
+            run={frun!}
+            result={found}
+            stale={stageRun.srcSql !== sql}
+            planStatement={stageRun.select ? stageRun.select.n - 1 : undefined}
+            onFocus={(f) => (setFocus({ ...f, nonce: Date.now() + Math.random() }), setMobileTab(f.where))}
+          />
+        )}
       </Pane>
     ) : (
       <ZonePlaceholder title={ts("tab.findings")} hint={ts("placeholder.findings")} />
     );
 
-  const stageZone = <Stage run={stageRun} working={working} mysql={mysql} askRef={askRef} />;
+  const stageZone = <Stage run={stageRun} working={working} mysql={mysql} askRef={askRef} focus={focus as StageFocus | null} findings={{ hits: findingsHits ?? [], pending: !!stageRun && found === null }} />;
   const onStopped = async (code: StopCode) => {
     const db = await adapter.current;
     note({ kind: code });
@@ -553,7 +592,7 @@ export function LabWorkspace() {
         onSummary={(text, wrote) => {
           if (wrote) {
             generated.current = true;
-            setStageRun((r) => r && { ...r, id: ++stageSeq.current }); // dữ liệu đổi: plan và cây đọc lại
+            setStageRun((r) => r && { ...r, id: ++stageSeq.current, explain: memoExplain(r.db) }); // dữ liệu đổi: plan, cây và rủi ro đọc lại
           }
           note({ kind: "note", text });
           setMobileTab("terminal");

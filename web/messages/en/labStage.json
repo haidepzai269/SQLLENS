@@ -6,7 +6,8 @@
     "btree": "B-Tree",
     "whatif": "Try a fix",
     "capacity": "Capacity",
-    "mentor": "Mentor"
+    "mentor": "Mentor",
+    "conflict": "Conflicts"
   },
   "working": "Running. The scenes appear when the run finishes.",
   "loading": "Reading data from the database...",

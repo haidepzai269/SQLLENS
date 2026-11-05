@@ -141,6 +141,7 @@ function Detail({ step, analyzed, label, onClose, returnTo }: { step: PlanNode |
         [t("fields.table"), step.table ?? t("none"), step.table === undefined],
         [t("fields.index"), step.index ?? t("none"), step.index === undefined],
         [t("fields.condition"), step.condition ?? t("none"), step.condition === undefined],
+        [t("fields.filter"), step.filter ?? t("none"), step.filter === undefined],
         [t("fields.estRows"), num(step.estimatedRows), step.estimatedRows === undefined],
         [t("fields.loops"), num(step.loops), step.loops === undefined],
         [t("fields.estTotal"), num(expectedTotal(step)), step.estimatedRows === undefined],
@@ -185,13 +186,19 @@ function Detail({ step, analyzed, label, onClose, returnTo }: { step: PlanNode |
   );
 }
 
-function Canvas({ plan, label, narrow, flat, sig, onReset }: { plan: Plan; label: EvidenceLabel; narrow: boolean; flat: Flat[]; sig: string; onReset: () => void }) {
+function Canvas({ plan, label, narrow, flat, sig, onReset, openNode }: { plan: Plan; label: EvidenceLabel; narrow: boolean; flat: Flat[]; sig: string; onReset: () => void; openNode?: { id: string; nonce: number } }) {
   const t = useTranslations("plan-tree");
   const num = useNum();
   const rf = useReactFlow();
   const [openId, setOpenId] = useState<string>();
   const [dragId, setDragId] = useState<string>();
   const returnTo = useRef<HTMLElement | null>(null);
+  // Bấm "Mở nút trong Plan" ở cột Rủi ro: mở đúng nút đó, một lần cho mỗi lần bấm.
+  const [shownNonce, setShownNonce] = useState<number>();
+  if (openNode && openNode.nonce !== shownNonce) {
+    setShownNonce(openNode.nonce);
+    if (flat.some((f) => f.node.id === openNode.id)) setOpenId(openNode.id);
+  }
 
   const save = useCallback(
     (ns: Node[]) => store.set(storeKey(narrow), JSON.stringify({ sig, pos: Object.fromEntries(ns.map((n) => [n.id, n.position])) })),
@@ -325,7 +332,7 @@ function Canvas({ plan, label, narrow, flat, sig, onReset }: { plan: Plan; label
   );
 }
 
-export default function PlanTreeFlow({ plan, label }: { plan: Plan; label: EvidenceLabel }) {
+export default function PlanTreeFlow({ plan, label, openNode }: { plan: Plan; label: EvidenceLabel; openNode?: { id: string; nonce: number } }) {
   const t = useTranslations("plan-tree");
   const wrap = useRef<HTMLDivElement>(null);
   const [narrow, setNarrow] = useState<boolean>();
@@ -347,7 +354,7 @@ export default function PlanTreeFlow({ plan, label }: { plan: Plan; label: Evide
         <p className="text-xs text-dim">{t("loading")}</p>
       ) : (
         <ReactFlowProvider key={`${narrow}|${sig}|${resets}`}>
-          <Canvas plan={plan} label={label} narrow={narrow} flat={flat} sig={sig} onReset={() => setResets((n) => n + 1)} />
+          <Canvas plan={plan} label={label} narrow={narrow} flat={flat} sig={sig} openNode={openNode} onReset={() => setResets((n) => n + 1)} />
         </ReactFlowProvider>
       )}
     </div>

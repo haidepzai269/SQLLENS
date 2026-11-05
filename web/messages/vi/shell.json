@@ -60,7 +60,8 @@
       "btree": "Xem cây B-Tree thật của một index và thả một khóa để thấy đường đi từ gốc xuống lá.",
       "whatif": "Thử thêm hoặc bỏ index rồi so sánh số trang đọc trước và sau, không đổi dữ liệu thật.",
       "capacity": "Kéo quy mô dữ liệu để xem index cao thêm và to ra thế nào.",
-      "mentor": "Hỏi AI giải thích kết quả. AI chỉ nhận plan và câu SELECT, không nhận dữ liệu bảng."
+      "mentor": "Hỏi AI giải thích kết quả. AI chỉ nhận plan và câu SELECT, không nhận dữ liệu bảng.",
+      "conflict": "Chọn một kịch bản tranh chấp giữa hai session và xem từng nhịp, kể cả ai chờ ai."
     },
     "drop": "Thả khóa này vào cây để xem nó đi từ gốc xuống lá."
   }
