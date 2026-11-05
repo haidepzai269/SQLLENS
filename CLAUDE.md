@@ -132,7 +132,7 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 1. **Mỗi kết luận mang đúng một nhãn:**
    - **Thật:** database vừa chạy ra kết quả này.
    - **Mô phỏng:** engine của dự án tính, đã đối chiếu với database thật.
-   - **Ước lượng:** ngoại suy khi vượt quy mô chạy được.
+   - **Ước lượng:** ngoại suy khi vượt quy mô chạy được, số dòng do optimizer tự ước tính (MySQL), hoặc rủi ro suy ra từ cấu trúc mà chưa chạy kịch bản hỏng (luật schema, Task068).
 2. **Không bao giờ nói "thiết kế này ổn".** Chỉ nói: với giả định này, kịch bản này hỏng hoặc không hỏng ở bước nào.
 3. **Không trình bày thời gian chạy trong sandbox như dự đoán cho production.** So sánh bằng số dòng và số trang đã đọc.
 4. **Không đoán khi chưa mô phỏng được.** Báo rõ "chưa mô phỏng được".
