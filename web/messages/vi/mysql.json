@@ -18,23 +18,69 @@
     "unsupported": "Không giải thích được: chỉ SELECT, INSERT, UPDATE, DELETE, REPLACE mới giải thích được, hoặc MySQL trả plan dạng chưa đọc được. Chưa mô phỏng được."
   },
   "err": {
-    "full": { "title": "Máy chủ MySQL đang hết chỗ", "body": "Các phiên MySQL đang được người khác dùng hết. Hãy thử lại sau ít phút, hoặc dùng PostgreSQL ngay bây giờ." },
-    "userLimit": { "title": "Bạn đang có một phiên MySQL khác", "body": "Mỗi người chỉ có một phiên cùng lúc. Có thể phiên ở tab khác hoặc lần trước chưa kết thúc; nó tự hết sau tối đa 15 phút. Đóng tab kia hoặc chờ rồi thử lại." },
-    "quota": { "title": "Đã hết lượt tạo phiên MySQL trong ngày", "body": "PostgreSQL vẫn dùng được bình thường." },
-    "timeBudget": { "title": "Đã hết thời gian chạy câu lệnh MySQL trong 24 giờ", "body": "Thời gian chạy câu lệnh trên máy chủ có hạn mức riêng. PostgreSQL vẫn dùng được bình thường." },
-    "rate": { "title": "Bạn thao tác quá nhanh", "body": "Hãy chờ một chút rồi thử lại." },
-    "unreachable": { "title": "Không nối được tới máy chạy MySQL", "body": "Đây là lỗi phía máy chủ, không phải SQL của bạn và không phải do bạn hết lượt. Hãy thử lại sau ít phút." },
-    "timeout": { "title": "Máy chạy MySQL trả lời quá lâu", "body": "Yêu cầu đã quá thời hạn. Câu lệnh có thể vẫn đang chạy; nếu thử lại gặp lỗi, hãy tạo phiên mới." },
-    "tooLarge": { "title": "Kết quả quá lớn", "body": "Kết quả vượt giới hạn truyền về trình duyệt. Hãy thêm LIMIT hoặc chọn ít cột hơn." },
-    "notConfigured": { "title": "MySQL chưa sẵn sàng", "body": "Máy chủ chưa được cấu hình để chạy MySQL. Hãy dùng PostgreSQL." },
-    "unavailable": { "title": "MySQL tạm thời không dùng được", "body": "Không kiểm tra được hạn mức hoặc máy chủ đang thiếu chỗ đĩa. Đây không phải do bạn hết lượt; hãy thử lại sau ít phút." },
-    "busy": { "title": "Kết nối đang bận", "body": "Câu lệnh trước vẫn đang chạy. Chờ nó xong rồi thử lại." },
-    "queryTimeout": { "title": "Câu lệnh chạy quá 15 giây nên bị cắt", "body": "Hãy đơn giản hóa câu lệnh hoặc giảm lượng dữ liệu." },
-    "diskQuota": { "title": "Phiên đã dùng hết dung lượng đĩa", "body": "Phiên đã bị hủy. Hãy tạo phiên mới với ít dữ liệu hơn." },
-    "expired": { "title": "Phiên MySQL đã hết hạn", "body": "Dữ liệu bạn đã tạo trong phiên (bảng, dòng) đã mất. Hãy chọn: tạo phiên trống, hoặc dựng lại và chạy lại các câu đã chạy trước đó." },
-    "generic": { "title": "Không chạy được trên MySQL", "body": "Có lỗi không rõ (mã {code}). Hãy thử lại." },
+    "full": {
+      "title": "Máy chủ MySQL đang hết chỗ",
+      "body": "Các phiên MySQL đang được người khác dùng hết. Hãy thử lại sau ít phút, hoặc dùng PostgreSQL ngay bây giờ."
+    },
+    "userLimit": {
+      "title": "Bạn đang có một phiên MySQL khác",
+      "body": "Mỗi người chỉ có một phiên cùng lúc. Có thể phiên ở tab khác hoặc lần trước chưa kết thúc; nó tự hết sau tối đa 15 phút. Đóng tab kia hoặc chờ rồi thử lại."
+    },
+    "quota": {
+      "title": "Đã hết lượt tạo phiên MySQL trong ngày",
+      "body": "PostgreSQL vẫn dùng được bình thường."
+    },
+    "timeBudget": {
+      "title": "Đã hết thời gian chạy câu lệnh MySQL trong 24 giờ",
+      "body": "Thời gian chạy câu lệnh trên máy chủ có hạn mức riêng. PostgreSQL vẫn dùng được bình thường."
+    },
+    "rate": {
+      "title": "Bạn thao tác quá nhanh",
+      "body": "Hãy chờ một chút rồi thử lại."
+    },
+    "unreachable": {
+      "title": "Không nối được tới máy chạy MySQL",
+      "body": "Đây là lỗi phía máy chủ, không phải SQL của bạn và không phải do bạn hết lượt. Hãy thử lại sau ít phút."
+    },
+    "timeout": {
+      "title": "Máy chạy MySQL trả lời quá lâu",
+      "body": "Yêu cầu đã quá thời hạn. Câu lệnh có thể vẫn đang chạy; nếu thử lại gặp lỗi, hãy tạo phiên mới."
+    },
+    "tooLarge": {
+      "title": "Kết quả quá lớn",
+      "body": "Kết quả vượt giới hạn truyền về trình duyệt. Hãy thêm LIMIT hoặc chọn ít cột hơn."
+    },
+    "notConfigured": {
+      "title": "MySQL chưa sẵn sàng",
+      "body": "Máy chủ chưa được cấu hình để chạy MySQL. Hãy dùng PostgreSQL."
+    },
+    "unavailable": {
+      "title": "MySQL tạm thời không dùng được",
+      "body": "Không kiểm tra được hạn mức hoặc máy chủ đang thiếu chỗ đĩa. Đây không phải do bạn hết lượt; hãy thử lại sau ít phút."
+    },
+    "busy": {
+      "title": "Kết nối đang bận",
+      "body": "Câu lệnh trước vẫn đang chạy. Chờ nó xong rồi thử lại."
+    },
+    "queryTimeout": {
+      "title": "Câu lệnh chạy quá 15 giây nên bị cắt",
+      "body": "Hãy đơn giản hóa câu lệnh hoặc giảm lượng dữ liệu."
+    },
+    "diskQuota": {
+      "title": "Phiên đã dùng hết dung lượng đĩa",
+      "body": "Phiên đã bị hủy. Hãy tạo phiên mới với ít dữ liệu hơn."
+    },
+    "expired": {
+      "title": "Phiên MySQL đã hết hạn",
+      "body": "Dữ liệu bạn đã tạo trong phiên (bảng, dòng) đã mất. Hãy chọn: tạo phiên trống, hoặc dựng lại và chạy lại các câu đã chạy trước đó."
+    },
+    "generic": {
+      "title": "Không chạy được trên MySQL",
+      "body": "Có lỗi không rõ (mã {code}). Hãy thử lại."
+    },
     "resetAt": "Hạn mức có lại lúc {when}.",
     "newEmpty": "Tạo phiên trống",
     "replay": "Dựng lại và chạy lại {count, plural, one {# câu} other {# câu}}"
-  }
+  },
+  "sqlLabel": "Câu SQL (MySQL)"
 }

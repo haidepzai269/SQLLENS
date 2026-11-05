@@ -12,7 +12,8 @@
     "estimated": "Ước lượng"
   },
   "evidence": {
-    "executed": "PostgreSQL vừa chạy {statements} câu, câu cuối trả {rows} dòng. Đây là kết quả của dữ liệu và câu lệnh này, chưa nói gì về chất lượng thiết kế."
+    "executed": "PostgreSQL vừa chạy {statements} câu, câu cuối trả {rows} dòng. Đây là kết quả của dữ liệu và câu lệnh này, chưa nói gì về chất lượng thiết kế.",
+    "executedMysql": "MySQL vừa chạy {statements} câu, câu cuối trả {rows} dòng. Đây là kết quả của dữ liệu và câu lệnh này, chưa nói gì về chất lượng thiết kế."
   },
   "notSimulated": {
     "explain": "Chưa mô phỏng được: EXPLAIN chưa làm."
@@ -66,5 +67,10 @@
     "transaction": "Giao dịch",
     "set": "Đặt tham số",
     "other": "Khác"
+  },
+  "stoppedMysql": {
+    "cancelled": "Đã hủy câu đang chạy. Phiên MySQL đã bị hủy nên dữ liệu tạo bởi các câu trước đã mất.",
+    "timeout": "Câu chạy quá thời gian nên đã bị dừng. Phiên MySQL đã bị hủy nên dữ liệu tạo bởi các câu trước đã mất.",
+    "worker_crashed": "Phiên MySQL đã dừng bất ngờ nên dữ liệu tạo bởi các câu trước đã mất."
   }
 }

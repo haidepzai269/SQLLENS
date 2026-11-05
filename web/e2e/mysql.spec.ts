@@ -63,6 +63,8 @@ async function run(p: Page, l: "vi" | "en", sql: string) {
   await runBtn(p, l).click();
 }
 // Điện thoại: kết quả nằm ở tab Terminal, run() đã chuyển sang đó.
+// Câu nội bộ của ứng dụng (đọc schema, EXPLAIN của cột Rủi ro) không tính vào câu của người dùng.
+const mine = (s: St) => s.queries.filter((q) => !q.startsWith("EXPLAIN") && !q.includes("information_schema"));
 const failure = (p: Page) => p.getByTestId("mysql-failure").filter({ visible: true });
 
 for (const l of ["vi", "en"] as const) {
@@ -89,8 +91,10 @@ for (const l of ["vi", "en"] as const) {
       await expect(page.getByTestId("mysql-ready")).toBeVisible();
       await expect(page.locator("tbody:visible tr")).toHaveCount(1);
       await expect(page.getByTestId("conclusion")).toContainText(t.real);
+      await expect(page.getByTestId("conclusion")).not.toContainText("PostgreSQL"); // kết luận của MySQL không được nói là của PostgreSQL
+      await expect(page.locator("body")).not.toContainText(/PostgreSQL (vừa|loaded)|Đã tải PostgreSQL/);
       expect(s.posts).toBe(1);
-      expect(s.queries).toEqual([`SELECT '${MARK}' AS n`]);
+      expect(mine(s)).toEqual([`SELECT '${MARK}' AS n`]);
       await expect(page.getByTestId("mysql-ready")).toContainText(t.ready);
       await page.screenshot({ path: `${SHOTS}/1440-${l}-sansang.png` });
       // đổi engine: phiên bị hủy
@@ -168,12 +172,13 @@ for (const l of ["vi", "en"] as const) {
       await page.goto(`/${l}?engine=mysql`);
       await run(page, l, "INSERT INTO t VALUES (1)");
       await expect(page.getByTestId("mysql-ready")).toBeVisible();
+      await expect.poll(() => s.queries.some((q) => q.includes("information_schema"))).toBe(true); // vùng stage đọc xong trước khi phiên hết hạn
       expire = true;
       await runBtn(page, l).click();
       await expect(failure(page)).toContainText(t.expired);
       await expect(failure(page).getByRole("button", { name: t.replay })).toBeVisible();
       await page.waitForTimeout(600);
-      expect(s.queries).toEqual(["INSERT INTO t VALUES (1)", "INSERT INTO t VALUES (1)"]); // chỉ hai lần bấm của người dùng, không tự chạy lại
+      expect(mine(s)).toEqual(["INSERT INTO t VALUES (1)", "INSERT INTO t VALUES (1)"]); // chỉ hai lần bấm của người dùng, không tự chạy lại
       expect(s.posts).toBe(1); // chưa tự tạo phiên mới
       await page.screenshot({ path: `${SHOTS}/1440-${l}-hethan.png` });
       expire = false;
@@ -182,7 +187,7 @@ for (const l of ["vi", "en"] as const) {
       await runBtn(page, l).click();
       await expect(page.getByTestId("mysql-ready")).toBeVisible();
       expect(s.posts).toBe(2);
-      expect(s.queries.length).toBe(3);
+      expect(mine(s).length).toBe(3);
     });
 
     test("AC3 dựng lại chỉ chạy lại khi người dùng đồng ý", async ({ page }) => {
@@ -193,14 +198,15 @@ for (const l of ["vi", "en"] as const) {
       await page.goto(`/${l}?engine=mysql`);
       await run(page, l, "INSERT INTO t VALUES (1)");
       await expect(page.getByTestId("mysql-ready")).toBeVisible();
+      await expect.poll(() => s.queries.some((q) => q.includes("information_schema"))).toBe(true); // vùng stage đọc xong trước khi phiên hết hạn
       expire = true;
       await runBtn(page, l).click();
       await expect(failure(page)).toBeVisible();
       expire = false;
-      const before = s.queries.length;
+      const before = mine(s).length;
       await failure(page).getByRole("button", { name: t.replay }).click();
-      await expect.poll(() => s.queries.length).toBe(before + 1); // đúng một câu đã chạy trước đó
-      expect(s.queries.at(-1)).toBe("INSERT INTO t VALUES (1)");
+      await expect.poll(() => mine(s).length).toBe(before + 1); // đúng một câu đã chạy trước đó
+      expect(mine(s).at(-1)).toBe("INSERT INTO t VALUES (1)");
       await expect(failure(page)).toHaveCount(0);
     });
 
@@ -211,7 +217,7 @@ for (const l of ["vi", "en"] as const) {
       await page.goto(`/${l}?engine=mysql`);
       await run(page, l, "SELECT 1; SELECT n FROM big");
       await expect(page.getByText(t.cut).filter({ visible: true })).toBeVisible();
-      await expect(page.getByRole("button", { name: /^(Câu|Statement) / })).toHaveCount(2);
+      await expect(page.locator("button[aria-expanded]").filter({ hasText: /^(Câu|Statement) / }).filter({ visible: true })).toHaveCount(2);
     });
 
     test("AC5 vùng stage: Sơ đồ từ information_schema, Plan nhãn Ước lượng, bốn tab còn lại chưa mô phỏng", async ({ page }) => {
@@ -243,9 +249,11 @@ for (const l of ["vi", "en"] as const) {
       await run(page, l, "SELECT 1");
       await expect.poll(() => s.posts).toBe(1);
       await page.getByRole("tab", { name: "PostgreSQL" }).click();
+      await expect(page).toHaveURL(/engine=postgres/);
+      await page.waitForTimeout(300); // effect dọn của React chạy sau khi URL đổi
       release();
       await expect.poll(() => s.deletes).toEqual([ID]);
-      expect(s.queries).toEqual([]);
+      expect(mine(s)).toEqual([]);
     });
 
     test("chưa đăng nhập: nút Chạy tắt, nói cần đăng nhập, không gọi Gin", async ({ page }) => {

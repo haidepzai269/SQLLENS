@@ -247,7 +247,7 @@ export function LabWorkspace() {
                 )
               : createPostgresAdapter({ onProgress: setProgress });
           db = await adapter.current;
-          note({ kind: "loaded" });
+          if (engine === "postgres") note({ kind: "loaded" });
           if (db.engine === "postgres" && !db.guardActive) note({ kind: "guardOff" }); // parser của lớp bảo vệ một không tải được sau khi thử lại
         } else db = await adapter.current;
       } catch (e) {
@@ -293,7 +293,7 @@ export function LabWorkspace() {
             kind: "conclusion",
             label: "real",
             data,
-            evidence: [{ kind: "execution", messageKey: "evidence.executed", values: data }],
+            evidence: [{ kind: "execution", messageKey: engine === "mysql" ? "evidence.executedMysql" : "evidence.executed", values: data }],
           },
         });
       } catch (e) {
@@ -431,11 +431,12 @@ export function LabWorkspace() {
       : undefined;
   const loadSample = (text: string) => (sql.trim() === "" || sql === text ? setSql(text) : setPendingSample(text));
 
+  const sqlLabel = mysql ? tm("sqlLabel") : t("sqlLabel");
   const sqlZone = (
     <Pane title={ts("tab.sql")}>
-      <span className="text-sm font-medium">{t("sqlLabel")}</span>
+      <span className="text-sm font-medium">{sqlLabel}</span>
       <div className="h-56 border border-line" id="sql-input">
-        <SqlEditor value={sql} onChange={setSql} engine={engine} error={editorError} highlight={highlight} ariaLabel={t("sqlLabel")} />
+        <SqlEditor value={sql} onChange={setSql} engine={engine} error={editorError} highlight={highlight} ariaLabel={sqlLabel} />
       </div>
       {sql.trim() === "" && (
         <div className="flex flex-col items-start gap-2">
@@ -568,7 +569,7 @@ export function LabWorkspace() {
           {state.phase === "stopped" && (
             <Alert variant="destructive" data-testid="stopped">
               <AlertDescription className="flex flex-col items-start gap-2">
-                <p>{t(`stopped.${state.code}`)}</p>
+                <p>{t(mysql ? `stoppedMysql.${state.code}` : `stopped.${state.code}`)}</p>
                 {state.count > 0 && <p>{t("rebuildHint", { count: state.count })}</p>}
                 {state.rebuildError && <p>{t("rebuildError", { message: state.rebuildError })}</p>}
                 <Button variant="outline" onClick={rebuild}>

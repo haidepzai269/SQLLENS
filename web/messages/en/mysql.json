@@ -18,23 +18,69 @@
     "unsupported": "Cannot explain: only SELECT, INSERT, UPDATE, DELETE and REPLACE can be explained, or MySQL returned a plan shape we cannot read. Not simulated."
   },
   "err": {
-    "full": { "title": "The MySQL server is full", "body": "All MySQL sessions are in use by other people. Try again in a few minutes, or use PostgreSQL right now." },
-    "userLimit": { "title": "You already have another MySQL session", "body": "Each person gets one session at a time. It may be in another tab or left over from earlier; it expires on its own within 15 minutes. Close the other tab or wait, then try again." },
-    "quota": { "title": "All MySQL sessions for today are spent", "body": "PostgreSQL still works as usual." },
-    "timeBudget": { "title": "Statement time for MySQL is spent for the last 24 hours", "body": "Statement time on the server has its own limit. PostgreSQL still works as usual." },
-    "rate": { "title": "You are going too fast", "body": "Wait a moment and try again." },
-    "unreachable": { "title": "Cannot reach the MySQL machine", "body": "This is a server-side problem, not your SQL and not because you ran out of quota. Try again in a few minutes." },
-    "timeout": { "title": "The MySQL machine took too long to answer", "body": "The request timed out. The statement may still be running; if retrying fails, create a new session." },
-    "tooLarge": { "title": "Result too large", "body": "The result exceeds what can be sent to the browser. Add a LIMIT or select fewer columns." },
-    "notConfigured": { "title": "MySQL is not ready", "body": "The server is not configured to run MySQL. Use PostgreSQL." },
-    "unavailable": { "title": "MySQL is temporarily unavailable", "body": "The quota could not be checked or the server is low on disk. This is not because you ran out; try again in a few minutes." },
-    "busy": { "title": "The connection is busy", "body": "The previous statement is still running. Wait for it to finish, then try again." },
-    "queryTimeout": { "title": "The statement ran over 15 seconds and was cut", "body": "Simplify the statement or reduce the amount of data." },
-    "diskQuota": { "title": "The session used up its disk space", "body": "The session was cancelled. Create a new one with less data." },
-    "expired": { "title": "The MySQL session has expired", "body": "The data you created in the session (tables, rows) is gone. Choose: start an empty session, or rebuild and re-run the statements you ran before." },
-    "generic": { "title": "Could not run on MySQL", "body": "Unknown error (code {code}). Try again." },
+    "full": {
+      "title": "The MySQL server is full",
+      "body": "All MySQL sessions are in use by other people. Try again in a few minutes, or use PostgreSQL right now."
+    },
+    "userLimit": {
+      "title": "You already have another MySQL session",
+      "body": "Each person gets one session at a time. It may be in another tab or left over from earlier; it expires on its own within 15 minutes. Close the other tab or wait, then try again."
+    },
+    "quota": {
+      "title": "All MySQL sessions for today are spent",
+      "body": "PostgreSQL still works as usual."
+    },
+    "timeBudget": {
+      "title": "Statement time for MySQL is spent for the last 24 hours",
+      "body": "Statement time on the server has its own limit. PostgreSQL still works as usual."
+    },
+    "rate": {
+      "title": "You are going too fast",
+      "body": "Wait a moment and try again."
+    },
+    "unreachable": {
+      "title": "Cannot reach the MySQL machine",
+      "body": "This is a server-side problem, not your SQL and not because you ran out of quota. Try again in a few minutes."
+    },
+    "timeout": {
+      "title": "The MySQL machine took too long to answer",
+      "body": "The request timed out. The statement may still be running; if retrying fails, create a new session."
+    },
+    "tooLarge": {
+      "title": "Result too large",
+      "body": "The result exceeds what can be sent to the browser. Add a LIMIT or select fewer columns."
+    },
+    "notConfigured": {
+      "title": "MySQL is not ready",
+      "body": "The server is not configured to run MySQL. Use PostgreSQL."
+    },
+    "unavailable": {
+      "title": "MySQL is temporarily unavailable",
+      "body": "The quota could not be checked or the server is low on disk. This is not because you ran out; try again in a few minutes."
+    },
+    "busy": {
+      "title": "The connection is busy",
+      "body": "The previous statement is still running. Wait for it to finish, then try again."
+    },
+    "queryTimeout": {
+      "title": "The statement ran over 15 seconds and was cut",
+      "body": "Simplify the statement or reduce the amount of data."
+    },
+    "diskQuota": {
+      "title": "The session used up its disk space",
+      "body": "The session was cancelled. Create a new one with less data."
+    },
+    "expired": {
+      "title": "The MySQL session has expired",
+      "body": "The data you created in the session (tables, rows) is gone. Choose: start an empty session, or rebuild and re-run the statements you ran before."
+    },
+    "generic": {
+      "title": "Could not run on MySQL",
+      "body": "Unknown error (code {code}). Try again."
+    },
     "resetAt": "The quota returns at {when}.",
     "newEmpty": "Start an empty session",
     "replay": "Rebuild and re-run {count, plural, one {# statement} other {# statements}}"
-  }
+  },
+  "sqlLabel": "SQL (MySQL)"
 }
