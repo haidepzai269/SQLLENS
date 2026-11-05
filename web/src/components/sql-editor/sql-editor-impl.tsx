@@ -59,7 +59,7 @@ const errorGutter = gutter({
 const theme = EditorView.theme(
   {
     "&": { backgroundColor: "var(--surface)", color: "var(--text)", height: "100%", fontFamily: "var(--mono)" },
-    "&.cm-focused": { outline: "2px solid var(--lamp)", outlineOffset: "-2px" },
+    "&.cm-focused": { outline: "none" },
     ".cm-scroller": { fontFamily: "var(--mono)", lineHeight: "20px", overflow: "auto" },
     ".cm-content": { caretColor: "var(--lamp)", padding: "8px 0" },
     ".cm-cursor": { borderLeftColor: "var(--lamp)" },
@@ -122,8 +122,9 @@ export default function SqlEditorImpl({ value, onChange, engine, error, ariaLabe
     [engine, ariaLabel, invalid, errId],
   );
 
+  // Viền focus kiểu ring của shadcn/ui vẽ bằng lớp phủ trong khung, nên đủ bốn cạnh, không bị gutter che và không bị khung cha cắt.
   return (
-    <div className="flex h-full min-h-40 flex-col">
+    <div className="relative flex h-full min-h-40 flex-col after:pointer-events-none after:absolute after:inset-0 after:z-10 after:border after:border-ring after:opacity-0 after:ring-3 after:ring-ring/50 after:transition-opacity after:duration-150 after:ring-inset focus-within:after:opacity-100">
       <div className="relative min-h-0 flex-1 [&_.cm-content]:!text-[16px] [&_.cm-gutters]:!text-[16px] min-[901px]:[&_.cm-content]:!text-[13px] min-[901px]:[&_.cm-gutters]:!text-[13px] [&_.cm-editor]:h-full">
         <CodeMirror
           value={doc}

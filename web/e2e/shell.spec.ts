@@ -5,7 +5,14 @@ test.beforeEach(({ page }) => page.route("**/api/me", (r) => r.fulfill({ status:
 
 // DOM có thể giữ bản cũ đã ẩn sau khi đổi ngôn ngữ, nên chỉ chọn phần tử đang hiển thị (xem bàn giao Task007).
 const width = async (p: Page, sel: string) => (await p.locator(`${sel}:visible`).boundingBox())!.width;
-const toggle = (p: Page, name: RegExp) => p.getByRole("button", { name }).filter({ visible: true });
+const gear = (p: Page) => p.getByRole("button", { name: /^(Layout: show or hide panels|Bố cục: bật tắt các vùng)$/ });
+const item = (p: Page, name: RegExp) => p.getByRole("menuitemcheckbox", { name });
+// Bốn vùng nay bật tắt trong menu bánh răng: mở menu, bấm mục, đóng menu.
+const flip = async (p: Page, name: RegExp) => {
+  await gear(p).click();
+  await item(p, name).click();
+  await p.keyboard.press("Escape");
+};
 // Vùng làm việc chỉ hiện sau khi hydrate xong, nên đợi nó trước khi bấm để khỏi bấm vào HTML chưa có sự kiện.
 const go = async (p: Page, url: string) => {
   await p.goto(url);
@@ -19,10 +26,14 @@ test.describe("máy tính 1440", () => {
   test("AC1 đổi ngôn ngữ giữ trang và tham số engine", async ({ page }) => {
     await go(page, "/vi?engine=mysql");
     await expect(page.getByRole("tab", { name: "MySQL" })).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByRole("button", { name: "Cột SQL" })).toBeVisible();
+    await gear(page).click();
+    await expect(item(page, /Cột SQL/)).toBeVisible();
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "English" }).click();
     await expect(page).toHaveURL(/\/en\?engine=mysql$/);
-    await expect(page.getByRole("button", { name: "SQL column" }).filter({ visible: true })).toBeVisible();
+    await gear(page).click();
+    await expect(item(page, /SQL column/)).toBeVisible();
+    await page.keyboard.press("Escape");
     await expect(page.getByRole("tab", { name: "MySQL" }).filter({ visible: true })).toHaveAttribute("aria-selected", "true");
   });
 
@@ -53,18 +64,20 @@ test.describe("máy tính 1440", () => {
   test("AC4/AC7/AC9 tắt vùng thì vùng còn lại giãn, nhớ sau khi tải lại, không tắt vùng cuối", async ({ page }) => {
     await go(page, "/en");
     const before = await width(page, "#stage");
-    await toggle(page, /SQL column/).click();
+    await flip(page, /SQL column/);
     await expect(page.locator("#sql")).toHaveCount(0);
     expect(await width(page, "#stage")).toBeGreaterThan(before + 200);
     await page.reload();
     await expect(page.locator("#sql")).toHaveCount(0);
     expect(await noHScroll(page)).toBe(true);
-    for (const n of [/Simulation area/, /Risk column/]) await toggle(page, n).click();
+    for (const n of [/Simulation area/, /Risk column/]) await flip(page, n);
     await expect(page.locator("#terminal")).toBeVisible();
-    await expect(toggle(page, /Terminal/)).toHaveAttribute("aria-disabled", "true");
-    await toggle(page, /Terminal/).click({ force: true });
+    await gear(page).click();
+    await expect(item(page, /Terminal/)).toHaveAttribute("aria-disabled", "true");
+    await item(page, /Terminal/).click({ force: true });
     await expect(page.locator("#terminal")).toBeVisible();
-    await toggle(page, /SQL column/).click();
+    await page.keyboard.press("Escape");
+    await flip(page, /SQL column/);
     await expect(page.locator("#sql")).toBeVisible();
   });
 
@@ -99,7 +112,7 @@ test.describe("máy tính 1440", () => {
     });
     await go(page, "/vi");
     await expect(page.locator("#sql")).toBeVisible();
-    await toggle(page, /Cột SQL/).click();
+    await flip(page, /Cột SQL/);
     await expect(page.locator("#sql")).toHaveCount(0);
   });
 

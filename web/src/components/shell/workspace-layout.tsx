@@ -1,11 +1,11 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { Code, Network, SquareTerminal, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { LIMITS, ZONES, type SizedZone, type Zone } from "./layout-state";
+import { DesktopLayout } from "./desktop-layout";
+import { ZONES, type Zone } from "./layout-state";
 import { useShell } from "./shell-provider";
 
 export type WorkspaceZones = Record<Zone, ReactNode>;
@@ -22,7 +22,6 @@ const useIsMobile = () =>
 
 const TAB_ICON: Record<Zone, typeof Code> = { sql: Code, stage: Network, findings: TriangleAlert, terminal: SquareTerminal };
 const BG: Record<Zone, string> = { sql: "bg-surface", stage: "bg-stage", findings: "bg-surface", terminal: "bg-stage" };
-const COLUMNS = ["sql", "stage", "findings"] as const;
 
 function Region({ zone, label, children, className = "" }: { zone: Zone; label: string; children: ReactNode; className?: string }) {
   const Tag = zone === "stage" ? "main" : "section";
@@ -40,18 +39,8 @@ function Region({ zone, label, children, className = "" }: { zone: Zone; label: 
 
 export function WorkspaceLayout(props: WorkspaceZones) {
   const t = useTranslations("shell");
-  const { state, ready, commitSizes, setHasWorkspace, mobileTab, setMobileTab } = useShell();
+  const { ready, setHasWorkspace, mobileTab, setMobileTab } = useShell();
   const mobile = useIsMobile();
-  const live = useRef<Partial<Record<SizedZone, number>>>({});
-  // Kích thước đang kéo chỉ ghi nhận ở đây, chốt vào state khi người dùng kéo xong, để không render lại theo từng pixel.
-  const record = useCallback((z: SizedZone, px: number) => void (live.current[z] = Math.round(px)), []);
-  const commit = useCallback(
-    (_l: unknown, meta: { isUserInteraction: boolean }) => {
-      if (meta.isUserInteraction) commitSizes(live.current);
-    },
-    [commitSizes],
-  );
-
   useEffect(() => {
     setHasWorkspace(true);
     return () => setHasWorkspace(false);
@@ -86,50 +75,7 @@ export function WorkspaceLayout(props: WorkspaceZones) {
     );
   }
 
-  const fixed = state.open.stage; // khi vùng giữa tắt, hai cột còn lại chia đều, không dùng kích thước px
-  const cols = COLUMNS.filter((z) => state.open[z]);
-  const sized = (z: SizedZone, onFixed = fixed) => ({
-    id: `${z}-panel`,
-    minSize: LIMITS[z].min,
-    ...(onFixed && {
-      defaultSize: state.size[z],
-      maxSize: LIMITS[z].max,
-      groupResizeBehavior: "preserve-pixel-size" as const,
-    }),
-    onResize: (s: { inPixels: number }) => onFixed && record(z, s.inPixels),
-  });
-
-  const columns = (
-    <ResizablePanelGroup key={cols.join()} orientation="horizontal" onLayoutChanged={commit}>
-      {cols.map((z, i) => (
-        <Fragment key={z}>
-          {i > 0 && <ResizableHandle aria-label={t("resize.columns")} />}
-          {z === "stage" ? (
-            <ResizablePanel id="stage-panel" minSize={160}>
-              {region(z)}
-            </ResizablePanel>
-          ) : (
-            <ResizablePanel {...sized(z)}>{region(z)}</ResizablePanel>
-          )}
-        </Fragment>
-      ))}
-    </ResizablePanelGroup>
-  );
-
-  const bottom = state.open.terminal;
-  return (
-    <div className="min-h-0 flex-1">
-      <ResizablePanelGroup key={`${cols.length > 0}-${bottom}`} orientation="vertical" onLayoutChanged={commit}>
-        {cols.length > 0 && (
-          <ResizablePanel id="columns" minSize={120}>
-            {columns}
-          </ResizablePanel>
-        )}
-        {cols.length > 0 && bottom && <ResizableHandle aria-label={t("resize.terminal")} />}
-        {bottom && <ResizablePanel {...sized("terminal", cols.length > 0)}>{region("terminal")}</ResizablePanel>}
-      </ResizablePanelGroup>
-    </div>
-  );
+  return <DesktopLayout zones={props} />;
 }
 
 function PhoneTabs({ value, onChange }: { value: Zone; onChange: (z: Zone) => void }) {

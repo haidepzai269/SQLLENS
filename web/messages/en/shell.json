@@ -9,7 +9,13 @@
     "lsm": "LSM-Tree"
   },
   "lockedReason": "{engine} is not available in this version yet, planned for later. The current engine stays selected.",
-  "toggles": { "label": "Show or hide panels", "lastOpen": "Last visible panel, it cannot be hidden" },
+  "toggles": {
+    "label": "Show or hide panels",
+    "lastOpen": "Last visible panel, it cannot be hidden",
+    "menu": "Layout: show or hide panels",
+    "on": "On",
+    "off": "Off"
+  },
   "zone": {
     "label": "Work panels",
     "sql": "SQL column",
@@ -17,7 +23,12 @@
     "findings": "Risk column",
     "terminal": "Terminal"
   },
-  "tab": { "sql": "SQL", "stage": "Simulation", "findings": "Risks", "terminal": "Terminal" },
+  "tab": {
+    "sql": "SQL",
+    "stage": "Simulation",
+    "findings": "Risks",
+    "terminal": "Terminal"
+  },
   "resize": {
     "columns": "Resize columns, use the arrow keys",
     "terminal": "Resize terminal height, use the arrow keys"
@@ -27,5 +38,30 @@
     "stage": "Nothing to show yet. Press Run after pasting SQL.",
     "findings": "No findings yet. Press Run.",
     "terminal": "The run log will appear here."
+  },
+  "tip": {
+    "layout": "Choose which panels are visible. Your choice is remembered for next time.",
+    "engine": {
+      "postgres": "Runs PostgreSQL right in your browser, no sign-in needed.",
+      "mysql": "Runs real MySQL on a server, sign-in required."
+    },
+    "language": {
+      "vi": "Switch the interface to Vietnamese.",
+      "en": "Switch the interface to English."
+    },
+    "signIn": "Sign in with Google or GitHub to use MySQL and the AI Mentor.",
+    "account": "Open the account menu, which has the sign-out button.",
+    "sample": "Fill the editor with a sample SQL so you can try it right away.",
+    "run": "Split the SQL into statements and run them one by one on PostgreSQL in your browser. Results show in the terminal and the simulation area.",
+    "generate": "Create fake rows for the tables you just made, to try with more data.",
+    "tab": {
+      "schema": "See the tables and foreign keys of the schema you just ran as a diagram.",
+      "plan": "See which steps the database takes for the SELECT and how many pages it reads.",
+      "btree": "See the real B-Tree of an index and drop a key to follow its path from root to leaf.",
+      "whatif": "Try adding or removing an index and compare pages read before and after, without changing real data.",
+      "capacity": "Drag the data size to see how the index grows taller and bigger.",
+      "mentor": "Ask the AI to explain the results. It only gets the plan and the SELECT, never table data."
+    },
+    "drop": "Drop this key into the tree to watch it go from root to leaf."
   }
 }

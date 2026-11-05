@@ -185,6 +185,34 @@
       font-size: 14px;
     }
   }
+  /* Thanh cuộn mảnh và mờ như ScrollArea của shadcn/ui: đậm lên khi con trỏ ở trong vùng cuộn. Bề rộng không đổi nên hover không làm nhảy bố cục. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--foreground) 16%, transparent) transparent;
+    transition: scrollbar-color 0.2s;
+  }
+  *:hover {
+    scrollbar-color: color-mix(in oklab, var(--foreground) 38%, transparent) transparent;
+  }
+  /* WebKit cũ chưa hiểu scrollbar-color: Chrome và Firefox mới bỏ qua khối này. */
+  @supports not (scrollbar-color: auto) {
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background-color: color-mix(in oklab, var(--foreground) 16%, transparent);
+      background-clip: content-box;
+      border: 3px solid transparent;
+      border-radius: 9999px;
+    }
+    *:hover::-webkit-scrollbar-thumb {
+      background-color: color-mix(in oklab, var(--foreground) 38%, transparent);
+    }
+  }
   :focus-visible {
     outline: 2px solid var(--lamp);
     outline-offset: 1px;

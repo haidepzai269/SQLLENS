@@ -248,7 +248,9 @@ for (const l of ["vi", "en"] as const) {
 test("terminal đang tắt thì bấm Chạy mở lại để thấy kết quả", async ({ page }) => {
   await page.goto("/en");
   await sqlBox(page).waitFor();
-  await page.getByRole("button", { name: /Terminal/ }).filter({ visible: true }).click();
+  await page.getByRole("button", { name: "Layout: show or hide panels" }).click();
+  await page.getByRole("menuitemcheckbox", { name: /Terminal/ }).click();
+  await page.keyboard.press("Escape");
   await expect(page.locator("#terminal")).toHaveCount(0);
   await runSql(page, "en", "SELECT 1");
   await expect(page.locator("tbody:visible tr")).toHaveCount(1, { timeout: 60_000 });

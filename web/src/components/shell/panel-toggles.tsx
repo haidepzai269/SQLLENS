@@ -1,41 +1,59 @@
 "use client";
 
-import { Network, PanelBottom, PanelLeft, PanelRight } from "lucide-react";
+import { Network, PanelBottom, PanelLeft, PanelRight, Settings } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { isLastOpen, ZONES, type Zone } from "./layout-state";
 import { useShell } from "./shell-provider";
+import { Tip } from "./tip";
 
 const ICON: Record<Zone, typeof Network> = { sql: PanelLeft, stage: Network, findings: PanelRight, terminal: PanelBottom };
 
-// Vùng cuối còn bật thì khóa nút (aria-disabled), nên không bao giờ có màn hình trống.
+// Một nút bánh răng thay bốn icon. Vùng cuối còn bật thì mục đó bị khóa, nên không bao giờ có màn hình trống.
 export function PanelToggles() {
   const t = useTranslations("shell");
   const { state, toggle } = useShell();
+  const lastOpen = ZONES.some((z) => isLastOpen(state, z));
   return (
-    <div role="group" aria-label={t("toggles.label")} className="flex items-center gap-0.5">
-      {ZONES.map((z) => {
-        const Icon = ICON[z];
-        const last = isLastOpen(state, z);
-        return (
-          <Button
-            key={z}
-            variant="ghost"
-            size="icon-sm"
-            aria-pressed={state.open[z]}
-            aria-disabled={last || undefined}
-            aria-label={t(`zone.${z}`)}
-            title={last ? t("toggles.lastOpen") : t(`zone.${z}`)}
-            onClick={() => toggle(z)}
-            className={
-              "relative w-8 text-dim aria-pressed:text-text aria-disabled:cursor-not-allowed aria-disabled:opacity-60 " +
-              "aria-pressed:after:absolute aria-pressed:after:inset-x-2 aria-pressed:after:-bottom-2 aria-pressed:after:h-px aria-pressed:after:bg-lamp"
-            }
-          >
-            <Icon aria-hidden />
-          </Button>
-        );
-      })}
-    </div>
+    <DropdownMenu>
+      <Tip label={t("tip.layout")}>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("toggles.menu")}
+              className="text-dim hover:text-text aria-expanded:text-text *:transition-transform *:duration-300 *:ease-out aria-expanded:*:rotate-90"
+            />
+          }
+        >
+          <Settings aria-hidden />
+        </DropdownMenuTrigger>
+      </Tip>
+      <DropdownMenuContent align="end" className="w-60">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>{t("toggles.label")}</DropdownMenuLabel>
+          {ZONES.map((z) => {
+            const Icon = ICON[z];
+            const on = state.open[z];
+            return (
+              <DropdownMenuCheckboxItem
+                key={z}
+                checked={on}
+                closeOnClick={false}
+                disabled={isLastOpen(state, z)}
+                onCheckedChange={() => toggle(z)}
+              >
+                <Icon aria-hidden />
+                <span className="flex-1">{t(`zone.${z}`)}</span>
+                <span className="pr-1 text-xs text-muted-foreground">{on ? t("toggles.on") : t("toggles.off")}</span>
+              </DropdownMenuCheckboxItem>
+            );
+          })}
+        </DropdownMenuGroup>
+        {lastOpen && <p role="note" className="px-1.5 py-1 text-xs text-muted-foreground">{t("toggles.lastOpen")}</p>}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

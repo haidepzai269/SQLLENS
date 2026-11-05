@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/modules/auth/auth-provider";
 import { defaultState, sanitize, STORAGE_KEY, toggleZone, type LayoutState, type SizedZone, type Zone } from "./layout-state";
 
@@ -60,7 +61,9 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   );
   return (
     <Ctx.Provider value={value}>
-      <AuthProvider>{children}</AuthProvider>
+      <TooltipProvider delay={400}>
+        <AuthProvider>{children}</AuthProvider>
+      </TooltipProvider>
     </Ctx.Provider>
   );
 }
