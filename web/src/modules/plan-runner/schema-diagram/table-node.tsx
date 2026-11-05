@@ -13,13 +13,13 @@ export type TableNode = Node<TableData, "table">;
 const handle = "!size-2 !border-0 !bg-dim";
 
 // Mọi chữ dùng text node của React nên tên bảng chứa HTML hiện thành chữ. Chữ không co, cắt bằng dấu ba chấm kèm title (Y1).
-export function TableCard({ data }: NodeProps<TableNode>) {
+export function TableCard({ data, selected }: NodeProps<TableNode>) {
   const t = useTranslations("schema-diagram");
   const { table, collapsed, narrow, missing } = data;
   // Một cột: cả hai đầu nối ở mép trái, đường nối đi vòng ngoài mép thẻ thay vì cắt qua chữ của thẻ khác.
   const out = narrow ? Position.Left : Position.Right;
   return (
-    <Card size="sm" className="gap-0 overflow-visible py-0" style={{ width: CARD_W }}>
+    <Card size="sm" className={`gap-0 overflow-visible py-0 ${selected ? "ring-2 ring-lamp" : ""}`} style={{ width: CARD_W }}>
       <div className="relative flex items-center gap-2 border-b border-rule px-3" style={{ height: HEAD_H }}>
         {collapsed && (
           <>

@@ -10,6 +10,8 @@ export type SqlEditorProps = {
   engine: EngineId;
   /** position đếm từ 0 trên `value`; lớn hơn độ dài thì tô ký tự cuối. */
   error?: { position: number; message: string };
+  /** Tô khoảng [from, to) đếm từ 0 trên `value` và cuộn tới đó; `nonce` đổi thì cuộn lại. */
+  highlight?: { from: number; to: number; nonce: number };
   ariaLabel: string;
 };
 

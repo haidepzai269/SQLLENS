@@ -1,0 +1,31 @@
+{
+  "checking": "Checking the rules against the statements that ran...",
+  "error": "Could not check the rules: {message}",
+  "noParse": "The parser could not read this SQL, so the rules were not checked. Fix the syntax or try again.",
+  "stale": "These results belong to the previous run. The SQL in the editor has changed since, so nothing is highlighted in it. Press Run to check again.",
+  "unmapped": "This run removed some blocks from the SQL (COPY or LOCK), so positions cannot be highlighted in the editor.",
+  "empty": "No rule matched in the statements that ran.",
+  "scope": "Rules checked: {rules}. Other problems are outside these rules and were not checked.",
+  "count": "{count, plural, one {# finding} other {# findings}}",
+  "severity": {
+    "broken": "Broke in this scenario",
+    "unverified": "Not confirmed",
+    "not_broken": "Did not break in this scenario",
+    "not_simulated": "Not simulated yet"
+  },
+  "notSimulated": "Not simulated yet: {reason}",
+  "explainError": "Not simulated yet: the plan for this statement could not be read.",
+  "showSql": "Show in SQL",
+  "openPlan": "Open node in Plan",
+  "planElsewhere": "The plan of this statement is not the one shown in the Plan tab (it shows the last SELECT).",
+  "rule": {
+    "missing-pk": "table without primary key",
+    "fk-no-index": "foreign key without index",
+    "float-money": "float type for money",
+    "varchar-too-large": "very long varchar",
+    "function-on-indexed-column": "function on an indexed column",
+    "leading-wildcard": "LIKE starting with a wildcard",
+    "composite-prefix": "composite index used without its first column",
+    "implicit-cast": "implicit type cast"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "checking": "Đang kiểm các luật trên những câu đã chạy...",
+  "error": "Không kiểm được các luật: {message}",
+  "noParse": "Parser không đọc được SQL này nên chưa kiểm luật nào. Sửa cú pháp hoặc thử lại.",
+  "stale": "Kết quả này thuộc lần chạy trước. SQL trong ô soạn đã đổi từ đó nên không tô gì trong ô. Bấm Chạy để kiểm lại.",
+  "unmapped": "Lần chạy này đã bỏ một số khối khỏi SQL (COPY hoặc LOCK) nên không tô được vị trí trong ô soạn.",
+  "empty": "Không có luật nào khớp trong các câu đã chạy.",
+  "scope": "Các luật đã kiểm: {rules}. Vấn đề ngoài các luật này chưa được kiểm.",
+  "count": "{count} rủi ro",
+  "severity": {
+    "broken": "Hỏng ở kịch bản này",
+    "unverified": "Chưa xác nhận",
+    "not_broken": "Không hỏng ở kịch bản này",
+    "not_simulated": "Chưa mô phỏng được"
+  },
+  "notSimulated": "Chưa mô phỏng được: {reason}",
+  "explainError": "Chưa mô phỏng được: không đọc được plan của câu này.",
+  "showSql": "Xem trong SQL",
+  "openPlan": "Mở nút trong Plan",
+  "planElsewhere": "Plan của câu này không phải plan đang hiện ở tab Plan (tab đó hiện câu SELECT cuối).",
+  "rule": {
+    "missing-pk": "bảng thiếu khóa chính",
+    "fk-no-index": "khóa ngoại thiếu index",
+    "float-money": "kiểu số thực cho tiền",
+    "varchar-too-large": "varchar rất dài",
+    "function-on-indexed-column": "hàm bọc cột có index",
+    "leading-wildcard": "LIKE bắt đầu bằng ký tự đại diện",
+    "composite-prefix": "index nhiều cột dùng mà thiếu cột đầu",
+    "implicit-cast": "ép kiểu ngầm"
+  }
+}
