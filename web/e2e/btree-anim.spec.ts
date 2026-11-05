@@ -22,8 +22,10 @@ const goTo = async (p: Page, n: number, next = "Bước tới") => {
     await expect(p.getByTestId("btree-drop")).toHaveAttribute("data-step", String(k + 1));
   }
 };
-// chờ key đứng yên (bước lùi chạy ngược timeline mất tới 1,4 giây)
+// Chờ tween bước tới/lùi kết thúc (tín hiệu của sản phẩm), rồi mới đọc key đứng yên.
+// Không đoán bằng hai lần đo giống nhau: CPU chậm làm key chưa nhúc nhích hoặc khung hình đứng hơn 100 ms.
 const settle = async (p: Page) => {
+  await expect.poll(() => p.evaluate(() => (window as unknown as { activeTweens: () => number }).activeTweens()), { timeout: 8000 }).toBe(0);
   let last = "";
   for (let i = 0; i < 40; i++) {
     await p.waitForTimeout(100);
@@ -33,6 +35,12 @@ const settle = async (p: Page) => {
   }
 };
 const noHorizontalScroll = (p: Page) => p.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+
+// CPU_THROTTLE=4 làm chậm CPU 4 lần để tái hiện máy CI yếu.
+test.beforeEach(async ({ page }) => {
+  const rate = Number(process.env.CPU_THROTTLE ?? 1);
+  if (rate > 1) await (await page.context().newCDPSession(page)).send("Emulation.setCPUThrottlingRate", { rate });
+});
 
 test.describe("máy tính 1440", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
@@ -105,6 +113,8 @@ test.describe("máy tính 1440", () => {
     // lùi từng bước: câu, bộ đếm, đèn, vị trí key trả về đúng bước đó
     for (let n = 3; n >= 0; n--) {
       await btn(page, "Bước lùi").click();
+      // tín hiệu settle phải thật sự có: lùi tạo tween ngay khi bấm
+      expect(await page.evaluate(() => (window as unknown as { activeTweens: () => number }).activeTweens())).toBeGreaterThan(0);
       await settle(page);
       await expect(page.getByTestId("btree-drop")).toHaveAttribute("data-step", String(n));
       await expect(page.getByTestId("drop-counter")).toHaveText(`Đã đọc ${n} / 4 trang`);

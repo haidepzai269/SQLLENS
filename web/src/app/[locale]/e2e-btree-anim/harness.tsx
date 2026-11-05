@@ -19,7 +19,9 @@ export function Harness() {
   const [pathKind, setPathKind] = useState("heap");
   const [label, setLabel] = useState<EvidenceLabel>("real");
   useEffect(() => {
-    (window as unknown as { timelineCount: () => number }).timelineCount = () => gsap.globalTimeline.getChildren(false).length;
+    const w = window as unknown as { timelineCount: () => number; activeTweens: () => number };
+    w.timelineCount = () => gsap.globalTimeline.getChildren(false).length;
+    w.activeTweens = () => gsap.globalTimeline.getChildren(false, true, false).length; // tween bước tới/lùi (tweenTo) còn chạy
   }, []);
   const model = useMemo(() => (which === "big" ? bigFixture() : which === "single" ? single() : smallFixture()), [which]);
   return (
