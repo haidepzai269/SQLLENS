@@ -215,14 +215,17 @@ export function createMysqlAdapter(o: Options = {}): MysqlAdapter {
     async dispose() {
       disposed = true;
       window.removeEventListener("pagehide", onHide);
-      if (live === dispose) live = null;
+      live = null;
       await end();
     },
   };
-  const dispose = () => a.dispose();
   // Đóng tab: trang còn đúng một nhịp để gửi yêu cầu hủy.
   const onHide = () => sid && void del(sid);
   window.addEventListener("pagehide", onHide);
-  live = dispose;
+  // Đăng xuất: hủy phiên nhưng giữ adapter; lần Chạy sau báo phiên đã mất thay vì tạo phiên ngoài tầm theo dõi.
+  live = () => {
+    lost = true;
+    return end();
+  };
   return a;
 }

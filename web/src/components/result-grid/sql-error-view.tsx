@@ -23,12 +23,12 @@ export function locateError(sql: string, position: number) {
   };
 }
 
-export function SqlErrorView({ message, position, sql }: { message: string; position?: number; sql: string }) {
+export function SqlErrorView({ message, position, sql, title }: { message: string; position?: number; sql: string; title?: string }) {
   const t = useTranslations("result");
   const loc = position === undefined ? null : locateError(sql, position);
   return (
     <Alert variant="destructive" role="alert">
-      <AlertTitle>{t("error.title")}</AlertTitle>
+      <AlertTitle>{title ?? t("error.title")}</AlertTitle>
       <AlertDescription>
         <p className="whitespace-pre-wrap break-words">{message}</p>
         {loc && (

@@ -306,7 +306,6 @@ export function LabWorkspace() {
           return;
         }
         if (e instanceof SandboxError) {
-          note({ kind: "error" });
           setState({ phase: "sandbox_error", failure: e.failure, count: db.history().length });
           return;
         }
@@ -558,7 +557,7 @@ export function LabWorkspace() {
           )}
           {state.phase === "sql_error" && (
             <div data-testid="error">
-              <SqlErrorView message={state.message} position={state.position} sql={state.sql} />
+              <SqlErrorView message={state.message} position={state.position} sql={state.sql} title={mysql ? tm("sqlErrorTitle") : undefined} />
             </div>
           )}
           {state.phase === "guard_error" && (

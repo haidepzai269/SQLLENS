@@ -13,7 +13,7 @@
   },
   "evidence": {
     "executed": "PostgreSQL just ran {statements, plural, one {# statement} other {# statements}}, the last returned {rows, plural, one {# row} other {# rows}}. This is the result for this data and these statements, and says nothing about design quality.",
-    "executedMysql": "MySQL just ran {statements} statements, the last returned {rows} rows. This is the result for this data and statement, and says nothing about design quality."
+    "executedMysql": "MySQL just ran {statements, plural, one {# statement} other {# statements}}, the last returned {rows, plural, one {# row} other {# rows}}. This is the result for this data and statement, and says nothing about design quality."
   },
   "notSimulated": {
     "explain": "Not simulated yet: EXPLAIN is not built."

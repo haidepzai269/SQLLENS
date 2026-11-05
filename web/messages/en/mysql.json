@@ -82,5 +82,6 @@
     "newEmpty": "Start an empty session",
     "replay": "Rebuild and re-run {count, plural, one {# statement} other {# statements}}"
   },
-  "sqlLabel": "SQL (MySQL)"
+  "sqlLabel": "SQL (MySQL)",
+  "sqlErrorTitle": "MySQL error"
 }

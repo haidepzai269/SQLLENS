@@ -82,5 +82,6 @@
     "newEmpty": "Tạo phiên trống",
     "replay": "Dựng lại và chạy lại {count, plural, one {# câu} other {# câu}}"
   },
-  "sqlLabel": "Câu SQL (MySQL)"
+  "sqlLabel": "Câu SQL (MySQL)",
+  "sqlErrorTitle": "MySQL báo lỗi"
 }

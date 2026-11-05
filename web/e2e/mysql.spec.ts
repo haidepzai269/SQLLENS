@@ -161,6 +161,7 @@ for (const l of ["vi", "en"] as const) {
       await page.goto(`/${l}?engine=mysql`);
       await run(page, l, "SELECT * FROM nope");
       await expect(page.getByTestId("error").filter({ visible: true })).toContainText("Table 'app.nope' doesn't exist");
+      await expect(page.getByTestId("error").filter({ visible: true })).not.toContainText("PostgreSQL");
       await expect(failure(page)).toHaveCount(0);
     });
 
