@@ -279,10 +279,10 @@ for (const l of ["vi", "en"] as const) {
       await mock(page, "anon");
       await page.setViewportSize({ width: 1440, height: 900 });
       let fail = true;
-      await page.route(/.wasm/, (r) => (fail ? r.abort() : r.continue()));
+      await page.route(/(pglite|initdb)[^/]*.wasm/, (r) => (fail ? r.abort() : r.continue()));
       await page.goto(`/${l}`);
       await run(page, l, "SELECT 1");
-      await expect(page.locator([data-testid=error]:visible)).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByTestId("error").filter({ visible: true })).toBeVisible({ timeout: 60_000 });
       fail = false;
       await setSql(page, "DROP TABLE t");
       await page.getByRole("button", { name: l === "vi" ? "Thử lại" : "Retry" }).click();
@@ -297,7 +297,7 @@ for (const l of ["vi", "en"] as const) {
       await run(page, l, "CREATE TABLE t(id int); SELECT * FROM t;");
       await expect(done(page)).toBeVisible({ timeout: 60_000 });
       await stageTab(page, l === "vi" ? "Tranh chấp" : "Conflicts").click();
-      await expect(page.getByTestId("locked-tab").filter({ visible: true })).toHaveCount(0);
+      await expect(page.locator("#stage").getByTestId("locked-tab").filter({ visible: true })).toHaveCount(0);
     });
 
     test("AC5 hết lượt rồi Thử lại cũng bị chặn", async ({ page }) => {
@@ -306,12 +306,12 @@ for (const l of ["vi", "en"] as const) {
       await page.evaluate(() => localStorage.setItem("sqllens.guestRuns", "2"));
       await page.reload();
       let fail = true;
-      await page.route(/.wasm/, (r) => (fail ? r.abort() : r.continue()));
+      await page.route(/(pglite|initdb)[^/]*.wasm/, (r) => (fail ? r.abort() : r.continue()));
       // lượt đã hết nên bị chặn ngay ở lần Chạy; dùng lượt còn 1 để vào được lỗi tải
       await page.evaluate(() => localStorage.setItem("sqllens.guestRuns", "1"));
       await page.reload();
       await run(page, l, "SELECT 1");
-      await expect(page.locator([data-testid=error]:visible)).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByTestId("error").filter({ visible: true })).toBeVisible({ timeout: 60_000 });
       await page.evaluate(() => localStorage.setItem("sqllens.guestRuns", "2")); // tab khác dùng nốt lượt
       fail = false;
       await page.getByRole("button", { name: l === "vi" ? "Thử lại" : "Retry" }).click();

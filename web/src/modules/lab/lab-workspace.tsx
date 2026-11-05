@@ -187,10 +187,13 @@ export function LabWorkspace() {
   async function run(schemaSql?: string) {
     if (busy.current) return;
     busy.current = true;
-    if (await guestBlocked()) {
-      busy.current = false;
-      return;
+    let blocked = true; // lỗi bất ngờ ở cổng thì coi như bị chặn và vẫn thả cờ busy
+    try {
+      blocked = await guestBlocked();
+    } finally {
+      if (blocked) busy.current = false;
     }
+    if (blocked) return;
     guestRun.current = authStatus === "anon" && engine === "postgres"; // tính lượt ở cuối lần chạy này, và chỉ lần này
     setStageRun(null);
     setMobileTab("terminal");
@@ -434,7 +437,7 @@ export function LabWorkspace() {
           variant="outline"
           onClick={() => (authStatus === "anon" ? setGenLock(true) : setGenOpen(true))}
           disabled={(!hasTables && authStatus !== "anon") || working || state.phase === "stopped" || mysql}
-          aria-describedby={hasTables ? undefined : "gen-hint"}
+          aria-describedby={hasTables || authStatus === "anon" ? undefined : "gen-hint"}
         >
           {tth("open")}
           {authStatus === "anon" && <Lock aria-hidden />}
