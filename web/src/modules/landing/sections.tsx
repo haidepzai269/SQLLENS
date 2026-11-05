@@ -33,7 +33,7 @@ export function Limits() {
         <h2 id="limits-h" className="text-text md:col-span-4" style={h2Style}>{t("title")}</h2>
         <ul className="flex flex-col gap-10 md:col-span-8">
           {["l1", "l2", "l3"].map((k) => (
-            <li key={k} data-reveal className="max-w-[34ch] text-text" style={{ fontSize: "clamp(22px, 2.3vw, 34px)", lineHeight: 1.25, letterSpacing: "-0.015em" }}>{t(k)}</li>
+            <li key={k} data-reveal className="max-w-[40ch] text-text" style={{ fontSize: "clamp(22px, 2.3vw, 34px)", lineHeight: 1.25, letterSpacing: "-0.015em" }}>{t(k)}</li>
           ))}
         </ul>
       </div>

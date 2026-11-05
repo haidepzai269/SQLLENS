@@ -11,6 +11,7 @@ export function Demo() {
   const video = useRef<HTMLVideoElement>(null);
   const userPaused = useRef(false);
   const [playing, setPlaying] = useState(false);
+  const [started, setStarted] = useState(false); // poster che khung đầu trắng của video cho đến khi video thật sự chạy
   const [failed, setFailed] = useState(false);
   const src = `/about/demo-${locale}`;
 
@@ -38,18 +39,18 @@ export function Demo() {
 
   return (
     <section aria-labelledby="demo-h" className="bg-stage py-20 md:py-28">
-      <div className="grid gap-8 md:grid-cols-12 md:items-end md:gap-10">
-        <div className="px-[var(--pg)] md:col-span-4">
+      <div className="flex flex-col gap-8 md:gap-10">
+        <div className="px-[var(--pg)]">
           <h2 id="demo-h" className="text-text" style={h2Style}>{t("title")}</h2>
-          <p className="mt-4 max-w-[40ch] text-base leading-relaxed text-ink2 md:text-lg">{t("lead")}</p>
+          <p className="mt-4 max-w-[52ch] text-base leading-relaxed text-ink2 md:text-lg">{t("lead")}</p>
           {!failed && (
             <button type="button" onClick={toggle} className="mt-6 min-h-11 rounded-[2px] bg-raised px-5 text-[15px] font-semibold transition-colors duration-[180ms] hover:bg-control">
               {playing ? t("pause") : t("play")}
             </button>
           )}
         </div>
-        <div className="max-md:px-[var(--pg)] md:col-span-8 md:pr-[var(--pg)]">
-          <div className="aspect-video w-full bg-ground">
+        <div className="px-[var(--pg)]">
+          <div className="relative aspect-video w-full bg-ground">
             {failed ? (
               // eslint-disable-next-line @next/next/no-img-element -- poster tĩnh trong public/, không cần trình tối ưu
               <img src={`${src}.jpg`} alt={t("alt")} width={1600} height={900} className="size-full object-cover" />
@@ -63,12 +64,17 @@ export function Demo() {
                 poster={`${src}.jpg`}
                 aria-label={t("alt")}
                 onPlay={() => setPlaying(true)}
+                onPlaying={() => setStarted(true)}
                 onPause={() => setPlaying(false)}
                 onError={() => setFailed(true)}
                 className="size-full object-cover"
               >
                 <source src={`${src}.webm`} type="video/webm" onError={() => setFailed(true)} />
               </video>
+            )}
+            {!failed && !started && (
+              // eslint-disable-next-line @next/next/no-img-element -- poster tĩnh trong public/
+              <img src={`${src}.jpg`} alt="" aria-hidden width={1600} height={900} className="pointer-events-none absolute inset-0 size-full object-cover" />
             )}
           </div>
         </div>
