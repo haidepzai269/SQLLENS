@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, type ReactNode, type RefObject } from "react";
 import { useTranslations } from "next-intl";
+import { Tip } from "@/components/shell/tip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -163,6 +164,7 @@ function PlanTab({ run, r }: { run: StageRun; r: Load<Outcome<Plan>> }) {
 
 function BTreeTab({ run, on, list }: { run: StageRun; on: boolean; list: Load<IndexInfo[]> }) {
   const t = useTranslations("labStage");
+  const ts = useTranslations("shell");
   // Lựa chọn gắn với đúng lần chạy: chạy lại thì bỏ, không đọc cây của index có thể đã đổi.
   const [pick, setPick] = useState<{ run: number; index: string; key: string } | null>(null);
   const [draft, setDraft] = useState("");
@@ -196,7 +198,7 @@ function BTreeTab({ run, on, list }: { run: StageRun; on: boolean; list: Load<In
           <label htmlFor="stage-key" className="text-sm font-medium">{t("btree.keyLabel")}</label>
           <div className="flex min-w-0 gap-2">
             <Input id="stage-key" className="min-w-0" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t("btree.keyPlaceholder")} />
-            <Button type="submit" data-testid="stage-drop">{t("btree.drop")}</Button>
+            <Tip label={ts("tip.drop")}><Button type="submit" data-testid="stage-drop">{t("btree.drop")}</Button></Tip>
           </div>
           <p className="m-0 text-xs text-dim">{t("btree.keyHint")}</p>
         </form>
@@ -322,7 +324,7 @@ export function Stage({ run, working, mysql, askRef }: { run: StageRun | null; w
           <Tabs value={tab} onValueChange={change}>
             <TabsList className="w-full" aria-label={t("tabsLabel")} activateOnFocus>
               {TABS.map((x) => (
-                <TabsTrigger key={x} value={x}>{t(`tab.${x}`)}</TabsTrigger>
+                <Tip key={x} label={ts(`tip.tab.${x}`)}><TabsTrigger value={x}>{t(`tab.${x}`)}</TabsTrigger></Tip>
               ))}
             </TabsList>
             <TabsContent value="schema" className="min-w-0" keepMounted><SchemaTab run={run} on={open("schema")} /></TabsContent>

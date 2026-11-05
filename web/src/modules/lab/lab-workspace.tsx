@@ -27,6 +27,7 @@ import { toDraft, type Draft } from "@/modules/sql-intake/ui/schema-draft";
 import { useAuth } from "@/modules/auth/auth-provider";
 import { MysqlAccess } from "@/modules/auth/mysql-access";
 import { stashSql, takeSql } from "@/modules/auth/sql-stash";
+import { Tip } from "@/components/shell/tip";
 import { Stage, type StageRun } from "./stage/stage";
 import { packStash, unpackStash } from "./stage/stash";
 import { lastSelect } from "./stage/stage-data";
@@ -378,11 +379,14 @@ export function LabWorkspace() {
         <StatementList sql={effSql} statements={statements} selected={Math.min(selected, statements.length - 1)} onSelect={setSelected} />
       )}
       <div>
-        <Button ref={runBtn} onClick={onRun} disabled={sql.trim() === "" || working || (confirmOpen && dialogOn) || state.phase === "stopped" || mysql}>
-          {t("run")}
-        </Button>
+        <Tip label={ts("tip.run")} side="right">
+          <Button ref={runBtn} onClick={onRun} disabled={sql.trim() === "" || working || (confirmOpen && dialogOn) || state.phase === "stopped" || mysql}>
+            {t("run")}
+          </Button>
+        </Tip>
       </div>
       <div className="flex flex-col items-start gap-1">
+        <Tip label={ts("tip.generate")} side="right">
         <Button
           variant="outline"
           onClick={() => setGenOpen(true)}
@@ -391,6 +395,7 @@ export function LabWorkspace() {
         >
           {tth("open")}
         </Button>
+        </Tip>
         {!hasTables && !mysql && (
           <p id="gen-hint" className="text-xs text-muted-foreground">
             {tth("openDisabled")}

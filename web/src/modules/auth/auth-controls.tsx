@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { parseEngine } from "@/components/shell/engine-tabs";
+import { Tip } from "@/components/shell/tip";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,6 +21,7 @@ const toPostgres = (router: ReturnType<typeof useRouter>, pathname: string) => {
 
 function Controls() {
   const t = useTranslations("auth");
+  const ts = useTranslations("shell");
   const { status, user, logout, markAnon, setBanner } = useAuth();
   const engine = parseEngine(useSearchParams().get("engine"));
   const router = useRouter();
@@ -43,6 +45,7 @@ function Controls() {
         <Skeleton aria-hidden className="h-7 w-20" data-testid="auth-skeleton" />
       ) : user ? (
         <DropdownMenu>
+          <Tip label={ts("tip.account")}>
           <DropdownMenuTrigger
             aria-label={t("menu", { name: user.name })}
             className={buttonVariants({ variant: "ghost", size: "sm" }) + " max-w-40 gap-2"}
@@ -57,6 +60,7 @@ function Controls() {
             )}
             <span className="truncate max-[900px]:sr-only">{user.name}</span>
           </DropdownMenuTrigger>
+          </Tip>
           <DropdownMenuContent align="end" className="min-w-44">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="truncate">{user.name}</DropdownMenuLabel>
@@ -74,9 +78,11 @@ function Controls() {
           </DropdownMenuContent>
         </DropdownMenu>
       ) : (
-        <Button variant="outline" size="sm" onClick={() => setManual(true)}>
-          {t("signIn")}
-        </Button>
+        <Tip label={ts("tip.signIn")}>
+          <Button variant="outline" size="sm" onClick={() => setManual(true)}>
+            {t("signIn")}
+          </Button>
+        </Tip>
       )}
       <LoginDialog open={manual || gate} reason={gate ? "mysql" : "manual"} onClose={close} />
     </div>

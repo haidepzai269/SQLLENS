@@ -2,10 +2,12 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
+import { Tip } from "@/components/shell/tip";
 import { routing } from "@/i18n/routing";
 
 export function LanguageSwitcher() {
   const t = useTranslations("common.language");
+  const ts = useTranslations("shell.tip.language");
   const locale = useLocale();
   const pathname = usePathname();
   const router = useRouter();
@@ -17,8 +19,8 @@ export function LanguageSwitcher() {
   return (
     <div role="group" aria-label={t("label")} className="flex h-full">
       {routing.locales.map((l) => (
+        <Tip key={l} label={ts(l)}>
         <button
-          key={l}
           type="button"
           aria-pressed={l === locale}
           aria-label={t(l)}
@@ -28,6 +30,7 @@ export function LanguageSwitcher() {
         >
           {l.toUpperCase()}
         </button>
+        </Tip>
       ))}
     </div>
   );

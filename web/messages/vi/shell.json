@@ -9,7 +9,13 @@
     "lsm": "LSM-Tree"
   },
   "lockedReason": "{engine} chưa có trong phiên bản này, sẽ làm sau. Đang giữ engine hiện tại.",
-  "toggles": { "label": "Bật tắt các vùng", "lastOpen": "Vùng cuối cùng còn bật, không thể tắt" },
+  "toggles": {
+    "label": "Bật tắt các vùng",
+    "lastOpen": "Vùng cuối cùng còn bật, không thể tắt",
+    "menu": "Bố cục: bật tắt các vùng",
+    "on": "Bật",
+    "off": "Tắt"
+  },
   "zone": {
     "label": "Các vùng làm việc",
     "sql": "Cột SQL",
@@ -17,7 +23,12 @@
     "findings": "Cột rủi ro",
     "terminal": "Terminal"
   },
-  "tab": { "sql": "SQL", "stage": "Mô phỏng", "findings": "Rủi ro", "terminal": "Terminal" },
+  "tab": {
+    "sql": "SQL",
+    "stage": "Mô phỏng",
+    "findings": "Rủi ro",
+    "terminal": "Terminal"
+  },
   "resize": {
     "columns": "Đổi kích thước cột, dùng phím mũi tên",
     "terminal": "Đổi chiều cao terminal, dùng phím mũi tên"
@@ -27,5 +38,30 @@
     "stage": "Chưa có cảnh để hiện. Bấm Chạy sau khi dán SQL.",
     "findings": "Chưa có kết luận. Bấm Chạy.",
     "terminal": "Nhật ký chạy sẽ hiện ở đây."
+  },
+  "tip": {
+    "layout": "Chọn vùng nào hiện trên màn hình. Cài đặt được nhớ cho lần sau.",
+    "engine": {
+      "postgres": "Chạy PostgreSQL ngay trong trình duyệt, không cần đăng nhập.",
+      "mysql": "Chạy MySQL thật trên máy chủ, cần đăng nhập."
+    },
+    "language": {
+      "vi": "Chuyển giao diện sang tiếng Việt.",
+      "en": "Chuyển giao diện sang tiếng Anh."
+    },
+    "signIn": "Đăng nhập bằng Google hoặc GitHub để dùng MySQL và AI Mentor.",
+    "account": "Mở menu tài khoản, có nút đăng xuất.",
+    "sample": "Điền một câu SQL mẫu vào ô để thử ngay, không cần tự viết.",
+    "run": "Tách SQL thành từng câu rồi chạy lần lượt trên PostgreSQL trong trình duyệt. Kết quả hiện ở terminal và vùng mô phỏng.",
+    "generate": "Tạo dòng dữ liệu giả cho các bảng vừa tạo, để thử với nhiều dòng hơn.",
+    "tab": {
+      "schema": "Xem các bảng và khóa ngoại của schema vừa chạy dưới dạng sơ đồ.",
+      "plan": "Xem database chạy câu SELECT qua những bước nào và đọc bao nhiêu trang.",
+      "btree": "Xem cây B-Tree thật của một index và thả một khóa để thấy đường đi từ gốc xuống lá.",
+      "whatif": "Thử thêm hoặc bỏ index rồi so sánh số trang đọc trước và sau, không đổi dữ liệu thật.",
+      "capacity": "Kéo quy mô dữ liệu để xem index cao thêm và to ra thế nào.",
+      "mentor": "Hỏi AI giải thích kết quả. AI chỉ nhận plan và câu SELECT, không nhận dữ liệu bảng."
+    },
+    "drop": "Thả khóa này vào cây để xem nó đi từ gốc xuống lá."
   }
 }

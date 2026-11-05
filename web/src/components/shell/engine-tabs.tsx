@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import type { EngineId } from "@/contracts/engine";
 import { usePathname, useRouter } from "@/i18n/navigation";
+import { Tip } from "./tip";
 
 export const SELECTABLE: readonly EngineId[] = ["postgres", "mysql"];
 // NoSQL và LSM-Tree chưa có trong V1: giữ tab khóa trên giao diện (CLAUDE.md).
@@ -47,8 +48,8 @@ function View({ engine, onSelect, onNote }: Props) {
       {all.map((id, i) => {
         const locked = isLocked(id);
         return (
+          <Tip key={id} label={locked ? t("lockedReason", { engine: t(`engines.${id}`) }) : t(`tip.engine.${id}`)}>
           <button
-            key={id}
             ref={(el) => {
               refs.current[i] = el;
             }}
@@ -58,7 +59,6 @@ function View({ engine, onSelect, onNote }: Props) {
             aria-selected={!locked && id === engine}
             aria-disabled={locked || undefined}
             tabIndex={id === engine ? 0 : -1}
-            title={locked ? t("lockedReason", { engine: t(`engines.${id}`) }) : undefined}
             className={tabCls}
             onFocus={() => onNote?.(isLocked(id) ? id : null)}
             onClick={() => {
@@ -70,6 +70,7 @@ function View({ engine, onSelect, onNote }: Props) {
             {locked && <Lock aria-hidden className="size-3.5" />}
             {t(`engines.${id}`)}
           </button>
+          </Tip>
         );
       })}
     </div>
