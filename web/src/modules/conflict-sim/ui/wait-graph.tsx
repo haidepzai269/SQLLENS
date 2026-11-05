@@ -53,7 +53,8 @@ export default function WaitGraph({ edges, cycle, label }: { edges: WaitInfo[]; 
     if (!g) return;
     g.edges().remove();
     g.add(edges.map((e) => ({ data: { id: `${e.session}>${e.holder}`, source: e.session, target: e.holder }, classes: cycle ? "cycle" : "" })));
+    g.container()!.dataset.edges = String(g.edges().length);
   }, [edges, cycle]);
 
-  return <div ref={box} role="img" aria-label={label} className="h-36 w-full border border-line bg-ground" data-testid="wait-graph" />;
+  return <div ref={box} role="img" aria-label={label} className="h-36 w-full border border-line bg-ground" data-testid="wait-graph" data-cycle={String(cycle)} />;
 }
