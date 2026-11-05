@@ -1,0 +1,17 @@
+/* Mở trang: chạy bằng CSS để không chớp nội dung trước khi JS tải xong. */
+@media (prefers-reduced-motion: no-preference) {
+  .about-load { animation: about-rise 800ms cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: var(--d, 0ms); }
+  .about-stage { animation: about-open 1100ms cubic-bezier(0.76, 0, 0.24, 1) 100ms both; }
+  .about-stage > * { animation: about-settle 1200ms cubic-bezier(0.16, 1, 0.3, 1) 100ms both; }
+}
+@keyframes about-rise { from { opacity: 0; transform: translateY(24px); } }
+@keyframes about-open { from { clip-path: inset(0 0 0 100%); } }
+@keyframes about-settle { from { transform: scale(1.08); } }
+
+/* Sân khấu có góc cắt vát: hình của chip key. */
+.about-stage-shape { clip-path: polygon(56px 0, 100% 0, 100% 100%, 0 100%, 0 56px); }
+@media (max-width: 767px) { .about-stage-shape { clip-path: polygon(40px 0, 100% 0, 100% 100%, 0 100%, 0 40px); } }
+
+/* Điện thoại: các bước của cảnh giữ chồng lên nhau, mỗi lúc chỉ hiện bước đang chạy. */
+.is-stacked { display: grid; }
+.is-stacked > li { grid-area: 1 / 1; }

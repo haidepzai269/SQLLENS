@@ -228,3 +228,14 @@
     @apply font-sans;
   }
 }
+/* Trang /about cuộn bằng cửa sổ thay vì vùng cuộn của khung ứng dụng. */
+html:has([data-bare]),
+html:has([data-bare]) body {
+  height: auto;
+  overflow: visible;
+}
+html:has([data-bare]) body {
+  display: block;
+  font-size: 16px;
+  line-height: 1.55;
+}

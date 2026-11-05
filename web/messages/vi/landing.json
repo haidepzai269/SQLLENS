@@ -1,0 +1,123 @@
+{
+  "meta": {
+    "title": "SQLLens: thấy database hỏng ở đâu trước khi viết code",
+    "description": "Dán SQL vào. SQLLens vẽ cây B-Tree thật của bảng, cho hai session tranh nhau khóa và liệt kê rủi ro kèm bằng chứng."
+  },
+  "skip": "Đến nội dung chính",
+  "nav": {
+    "label": "Điều hướng trang giới thiệu",
+    "open": "Mở SQLLens",
+    "login": "Đăng nhập"
+  },
+  "hero": {
+    "line1": "Thấy database hỏng",
+    "line2": "trước khi viết code",
+    "lead": "Dán SQL vào. SQLLens vẽ cây B-Tree thật của bảng, cho hai session tranh nhau khóa và liệt kê rủi ro kèm bằng chứng.",
+    "open": "Mở SQLLens",
+    "login": "Đăng nhập",
+    "note": "PostgreSQL chạy ngay trong trình duyệt của bạn. MySQL và AI Mentor cần đăng nhập.",
+    "treeLabel": "Cây B-Tree mẫu: một key đi từ root xuống leaf rồi sang heap",
+    "pick": "Thử một key",
+    "keyBtn": "Tìm key {key}",
+    "read": "Đã đọc {n} trên 4 trang",
+    "caption": "Cây mẫu, các số chỉ là ví dụ. Trong SQLLens đây là cây thật của bảng bạn."
+  },
+  "tree": {
+    "root": "root",
+    "internal": "internal",
+    "leaf": "leaf",
+    "heap": "heap (dòng thật của bảng)"
+  },
+  "descent": {
+    "title": "Key đi từ root xuống leaf",
+    "lead": "Mỗi lần tìm một key, PostgreSQL đọc đúng một trang ở mỗi tầng rồi nhảy sang heap lấy dòng. Xem key 7421 đi xuống.",
+    "listLabel": "Các bước của một lần tìm key",
+    "s1": "Bắt đầu ở root. Root chỉ có một mốc là 5000, và 7421 lớn hơn, nên rẽ sang phải.",
+    "s2": "Trang internal có mốc 7500. 7421 nhỏ hơn, nên đi xuống con bên trái của nó.",
+    "s3": "Leaf này giữ các key từ 5000 đến 7499, nên 7421 nằm ở đây. Index trả về vị trí của dòng.",
+    "s4": "Index nằm riêng với bảng, nên bước cuối là nhảy sang heap lấy dòng thật. Tổng cộng bốn trang.",
+    "note": "Đây là cây mẫu. Trong SQLLens cây này là cây thật của bảng bạn, đọc bằng pageinspect, mang nhãn Thật."
+  },
+  "race": {
+    "title": "Dữ liệu tăng, index vẫn đọc cỡ ấy trang",
+    "lead": "Cùng một câu hỏi: SELECT * FROM orders WHERE customer_id = 42, trả 10 dòng. Quét toàn bảng đọc thêm trang theo từng dòng thêm vào, còn đi qua index thì gần như đứng yên.",
+    "rows": "{rows} dòng",
+    "seq": "Seq Scan, quét toàn bảng",
+    "idx": "Index Scan, đi qua index",
+    "pages": "{n} trang",
+    "tableLabel": "Số trang đã đọc ở ba quy mô",
+    "colRows": "Số dòng",
+    "colIdx": "Qua index",
+    "colSeq": "Quét toàn bảng",
+    "context": "Đo trong Chromium với PGlite 0.5.14 và PostgreSQL 18.6, ngày 02/11/2026, trung vị 3 lần. Số trang là shared hit cộng read ở dòng Buffers trên cùng của EXPLAIN (ANALYZE, BUFFERS). Câu dùng index được planner chọn là Bitmap Heap Scan. SQLLens so sánh bằng số trang, không so thời gian chạy trong sandbox."
+  },
+  "lock": {
+    "title": "Hai session giữ khóa của nhau",
+    "lead": "Không câu lệnh nào sai riêng lẻ. Lỗi chỉ hiện ra khi hai session cùng chạy, mỗi bên giữ thứ bên kia cần.",
+    "listLabel": "Các bước của kịch bản deadlock",
+    "s1": "Session A cập nhật dòng id = 1 và giữ khóa của dòng đó.",
+    "s2": "Session B cập nhật dòng id = 2 và giữ khóa của dòng đó.",
+    "s3": "Session A cập nhật dòng id = 2. Dòng đang bị B khóa, nên A phải chờ.",
+    "s4": "Session B cập nhật dòng id = 1. Dòng đang bị A khóa, nên B chờ A, còn A đang chờ B. Hai bên chờ nhau thành một vòng.",
+    "s5": "PostgreSQL phát hiện vòng chờ và hủy một trong hai session. Bên nào bị hủy không cố định, nên SQLLens không đoán.",
+    "sessionA": "Session A",
+    "sessionB": "Session B",
+    "row1": "dòng id = 1",
+    "row2": "dòng id = 2",
+    "holds": "giữ",
+    "waits": "chờ",
+    "abort": "một bên bị hủy",
+    "context": "Mô hình conflict-sim của SQLLens khớp PostgreSQL 18 thật ở 13 biến thể của 5 kịch bản, đối chiếu tay. Đây là một trong năm kịch bản đó.",
+    "tag": "Mô phỏng"
+  },
+  "scale": {
+    "title": "Kéo quy mô lên, cây mọc thêm tầng",
+    "lead": "Khi dữ liệu nhiều hơn, một trang không còn chứa nổi mọi mốc, và root tách ra thành tầng mới. Số tầng phụ thuộc cả độ rộng key, đây là index trên cột của bảng đo.",
+    "listLabel": "Các quy mô",
+    "s1": "10.000 dòng: level 1, index 112 KB.",
+    "s2": "100.000 dòng: vẫn level 1, index 936 KB.",
+    "s3": "500.000 dòng: level 2, root tách ra một tầng internal, index 4.640 KB.",
+    "s4": "Trên 500.000 dòng SQLLens không chạy thật. Số tầng và dung lượng đến từ công thức.",
+    "real": "Thật",
+    "est": "Ước lượng",
+    "estNote": "Công thức đã đối chiếu với PostgreSQL 18 thật: mẫu 500.000 dòng ngoại suy 5.000.000 dòng cho index int, text và uuid ra đúng số tầng, dung lượng lệch không quá 0,14%. Chỉ đúng với index dựng bằng CREATE INDEX, chưa kiểm với index phình do UPDATE hoặc DELETE.",
+    "realNote": "Đo trong Chromium với PGlite 0.5.14, ngày 02/11/2026.",
+    "treeLabel": "Cây B-Tree mọc thêm tầng khi số dòng tăng",
+    "level": "Level {n}",
+    "unrun": "Không chạy thật",
+    "rowsN": "{n} dòng"
+  },
+  "demo": {
+    "title": "Cảnh quay từ chính SQLLens",
+    "lead": "Dán SQL, bấm Chạy, mở B-Tree. Đoạn quay này không có tiếng, quay bằng Playwright từ bản chạy thật.",
+    "pause": "Dừng video",
+    "play": "Phát video",
+    "alt": "SQLLens: dán SQL, bấm Chạy rồi mở tab B-Tree"
+  },
+  "labels": {
+    "title": "Mỗi kết luận mang đúng một nhãn",
+    "lead": "Bạn luôn biết con số này từ đâu ra.",
+    "real": "Thật",
+    "realBody": "Database vừa chạy ra kết quả này. Cây B-Tree đọc bằng pageinspect và số trang từ EXPLAIN là loại này.",
+    "sim": "Mô phỏng",
+    "simBody": "Engine của dự án tính, đã đối chiếu với database thật. Kịch bản tranh chấp trên PostgreSQL là loại này.",
+    "est": "Ước lượng",
+    "estBody": "Ngoại suy khi vượt quy mô chạy được. Trên 500.000 dòng chỉ có loại này."
+  },
+  "limits": {
+    "title": "Điều SQLLens không nói",
+    "l1": "Không bao giờ nói thiết kế của bạn ổn. Chỉ nói: với giả định này, kịch bản này hỏng hoặc không hỏng ở bước nào.",
+    "l2": "Không dự đoán production. Thời gian chạy trong sandbox không phải thời gian trên máy của bạn, nên chỉ so sánh bằng số dòng và số trang đã đọc.",
+    "l3": "Không đoán khi chưa mô phỏng được. Chỗ nào chưa làm được thì ghi rõ là chưa mô phỏng được."
+  },
+  "cta": {
+    "title": "Dán SQL của bạn vào",
+    "lead": "Xem cây, thử kịch bản hỏng, rồi sửa và chạy lại.",
+    "open": "Mở SQLLens",
+    "login": "Đăng nhập"
+  },
+  "footer": {
+    "name": "SQLLens",
+    "line": "Nhìn thấy bên trong database, trước khi nó hỏng."
+  }
+}

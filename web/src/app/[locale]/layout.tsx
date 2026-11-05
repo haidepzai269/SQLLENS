@@ -3,7 +3,7 @@ import { JetBrains_Mono, Public_Sans } from "next/font/google";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { AppHeader } from "@/components/shell/app-header";
+import { AppFrame } from "@/components/shell/app-frame";
 import { ShellProvider } from "@/components/shell/shell-provider";
 import { routing } from "@/i18n/routing";
 import "../globals.css";
@@ -37,10 +37,7 @@ export default async function RootLayout({
       <body className="relative flex h-dvh flex-col overflow-hidden">
         <NextIntlClientProvider>
           <ShellProvider>
-            <AppHeader />
-            <div id="content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col overflow-auto">
-              {children}
-            </div>
+            <AppFrame>{children}</AppFrame>
           </ShellProvider>
         </NextIntlClientProvider>
       </body>

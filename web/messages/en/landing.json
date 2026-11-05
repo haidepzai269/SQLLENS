@@ -1,0 +1,123 @@
+{
+  "meta": {
+    "title": "SQLLens: see where your database breaks before you write code",
+    "description": "Paste SQL. SQLLens draws the real B-Tree of your table, pits two sessions against each other for locks and lists the risks with evidence."
+  },
+  "skip": "Skip to main content",
+  "nav": {
+    "label": "About page navigation",
+    "open": "Open SQLLens",
+    "login": "Sign in"
+  },
+  "hero": {
+    "line1": "See where it breaks",
+    "line2": "before you write code",
+    "lead": "Paste SQL. SQLLens draws the real B-Tree of your table, pits two sessions against each other for locks and lists the risks with evidence.",
+    "open": "Open SQLLens",
+    "login": "Sign in",
+    "note": "PostgreSQL runs right in your browser. MySQL and the AI Mentor need a sign-in.",
+    "treeLabel": "Sample B-Tree: a key travels from the root down to a leaf and then to the heap",
+    "pick": "Try a key",
+    "keyBtn": "Look up key {key}",
+    "read": "Read {n} of 4 pages",
+    "caption": "A sample tree, the numbers are examples. In SQLLens this is the real tree of your table."
+  },
+  "tree": {
+    "root": "root",
+    "internal": "internal",
+    "leaf": "leaf",
+    "heap": "heap (the table's real rows)"
+  },
+  "descent": {
+    "title": "A key travels from root to leaf",
+    "lead": "For each lookup, PostgreSQL reads exactly one page per level and then jumps to the heap for the row. Watch key 7421 go down.",
+    "listLabel": "The steps of one key lookup",
+    "s1": "Start at the root. The root has one boundary, 5000, and 7421 is larger, so go right.",
+    "s2": "The internal page has the boundary 7500. 7421 is smaller, so take its left child.",
+    "s3": "This leaf holds the keys from 5000 to 7499, so 7421 is here. The index returns the location of the row.",
+    "s4": "The index is stored apart from the table, so the last step jumps to the heap for the real row. Four pages in total.",
+    "note": "This is a sample tree. In SQLLens it is the real tree of your table, read with pageinspect and labelled Real."
+  },
+  "race": {
+    "title": "Data grows, the index still reads about as many pages",
+    "lead": "One question: SELECT * FROM orders WHERE customer_id = 42, returning 10 rows. A full scan reads more pages with every row added, while going through the index barely moves.",
+    "rows": "{rows} rows",
+    "seq": "Seq Scan, read the whole table",
+    "idx": "Index Scan, go through the index",
+    "pages": "{n} pages",
+    "tableLabel": "Pages read at three sizes",
+    "colRows": "Rows",
+    "colIdx": "Via index",
+    "colSeq": "Full scan",
+    "context": "Measured in Chromium with PGlite 0.5.14 and PostgreSQL 18.6 on 2026-11-02, median of 3 runs. Page counts are shared hit plus read from the top Buffers line of EXPLAIN (ANALYZE, BUFFERS). The indexed query was planned by the planner as a Bitmap Heap Scan. SQLLens compares page counts, not sandbox run times."
+  },
+  "lock": {
+    "title": "Two sessions hold each other's locks",
+    "lead": "No single statement is wrong. The failure only shows when two sessions run together, each holding what the other needs.",
+    "listLabel": "The steps of the deadlock scenario",
+    "s1": "Session A updates the row with id = 1 and holds its lock.",
+    "s2": "Session B updates the row with id = 2 and holds its lock.",
+    "s3": "Session A updates the row with id = 2. B holds that lock, so A has to wait.",
+    "s4": "Session B updates the row with id = 1. A holds that lock, so B waits for A while A waits for B. The two wait on each other in a loop.",
+    "s5": "PostgreSQL detects the loop and aborts one of the two sessions. Which one is aborted is not fixed, so SQLLens does not guess.",
+    "sessionA": "Session A",
+    "sessionB": "Session B",
+    "row1": "row id = 1",
+    "row2": "row id = 2",
+    "holds": "holds",
+    "waits": "waits",
+    "abort": "one side is aborted",
+    "context": "The SQLLens conflict-sim model matches real PostgreSQL 18 on 13 variants of the 5 scenarios, checked by hand. This is one of those five scenarios.",
+    "tag": "Simulated"
+  },
+  "scale": {
+    "title": "Scale the data up and the tree grows a level",
+    "lead": "With more data a single page can no longer hold every boundary, and the root splits into a new level. The number of levels also depends on key width: this is an index on a column of the measured table.",
+    "listLabel": "The sizes",
+    "s1": "10,000 rows: level 1, index 112 KB.",
+    "s2": "100,000 rows: still level 1, index 936 KB.",
+    "s3": "500,000 rows: level 2, the root split into an internal level, index 4,640 KB.",
+    "s4": "Above 500,000 rows SQLLens does not run for real. Levels and size come from a formula.",
+    "real": "Real",
+    "est": "Estimated",
+    "estNote": "The formula was checked against real PostgreSQL 18: a 500,000-row sample extrapolated to 5,000,000 rows for int, text and uuid indexes gave the right number of levels and a size off by no more than 0.14%. It holds only for indexes built with CREATE INDEX, and has not been checked on indexes bloated by UPDATE or DELETE.",
+    "realNote": "Measured in Chromium with PGlite 0.5.14 on 2026-11-02.",
+    "treeLabel": "A B-Tree gaining a level as the row count grows",
+    "level": "Level {n}",
+    "unrun": "Not run for real",
+    "rowsN": "{n} rows"
+  },
+  "demo": {
+    "title": "Footage from SQLLens itself",
+    "lead": "Paste SQL, press Run, open B-Tree. This clip has no sound and was recorded with Playwright from the running app.",
+    "pause": "Pause video",
+    "play": "Play video",
+    "alt": "SQLLens: paste SQL, press Run, then open the B-Tree tab"
+  },
+  "labels": {
+    "title": "Every conclusion carries exactly one label",
+    "lead": "You always know where a number came from.",
+    "real": "Real",
+    "realBody": "The database just produced this result. B-Trees read with pageinspect and page counts from EXPLAIN are this kind.",
+    "sim": "Simulated",
+    "simBody": "Computed by the project's own engine and checked against a real database. The contention scenarios on PostgreSQL are this kind.",
+    "est": "Estimated",
+    "estBody": "Extrapolated beyond the size that can be run. Above 500,000 rows only this kind exists."
+  },
+  "limits": {
+    "title": "What SQLLens does not say",
+    "l1": "It never says your design is fine. It only says: under this assumption, this scenario breaks or does not break at this step.",
+    "l2": "It does not predict production. Run time in a sandbox is not run time on your machine, so it compares only by rows and pages read.",
+    "l3": "It does not guess what it cannot simulate. Where it cannot, it says so: not simulated yet."
+  },
+  "cta": {
+    "title": "Paste your SQL",
+    "lead": "See the tree, try the failing scenario, then fix it and run again.",
+    "open": "Open SQLLens",
+    "login": "Sign in"
+  },
+  "footer": {
+    "name": "SQLLens",
+    "line": "See inside the database before it breaks."
+  }
+}
