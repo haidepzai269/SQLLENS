@@ -33,8 +33,10 @@ export function SceneRace() {
       const render = (p: number) => {
         const seq = lerp("seq", p), idx = lerp("idx", p);
         $("[data-rows]").textContent = t("rows", { rows: fmt(RACE[Math.round(p)].rows) });
-        $("[data-seq-n]").textContent = t("pages", { n: fmt(seq) });
-        $("[data-idx-n]").textContent = t("pages", { n: fmt(idx) });
+        // Chữ chỉ hiện số đã đo, thanh mới chạy mượt giữa các mốc.
+        const m = RACE[Math.round(p)];
+        $("[data-seq-n]").textContent = t("pages", { n: fmt(m.seq) });
+        $("[data-idx-n]").textContent = t("pages", { n: fmt(m.idx) });
         gsap.set($("[data-seq-bar]"), { scaleX: seq / MAX });
         gsap.set($("[data-idx-bar]"), { scaleX: Math.max(idx / MAX, 0.008) });
       };
@@ -65,14 +67,14 @@ export function SceneRace() {
             <span className="text-ink2">{t("seq")}</span>
             <span data-seq-n className="font-semibold tabular-nums text-text">{t("pages", { n: fmt(last.seq) })}</span>
           </p>
-          <div className="mt-2 h-12 bg-raised"><div data-seq-bar className="h-full origin-left bg-text" style={{ transform: "scaleX(1)" }} /></div>
+          <div className="mt-2 h-16 bg-raised"><div data-seq-bar className="h-full origin-left bg-text" style={{ transform: "scaleX(1)" }} /></div>
         </div>
         <div>
           <p className="flex flex-wrap justify-between gap-x-4 text-base md:text-lg">
             <span className="text-ink2">{t("idx")}</span>
             <span data-idx-n className="font-semibold tabular-nums text-lamp">{t("pages", { n: fmt(last.idx) })}</span>
           </p>
-          <div className="mt-2 h-12 bg-raised"><div data-idx-bar className="h-full origin-left bg-lamp" style={{ transform: `scaleX(${last.idx / MAX})` }} /></div>
+          <div className="mt-2 h-16 bg-raised"><div data-idx-bar className="h-full origin-left bg-lamp" style={{ transform: `scaleX(${last.idx / MAX})` }} /></div>
         </div>
       </div>
     </Shell>

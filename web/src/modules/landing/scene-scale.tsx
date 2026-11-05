@@ -127,7 +127,7 @@ export function SceneScale() {
         <span data-tag="real"><Tag kind="real">{t("real")}</Tag></span>
         <span data-tag="est" style={{ display: "none" }}><Tag kind="est">{t("est")}</Tag></span>
       </div>
-      <div data-track aria-hidden className="relative mt-5 h-10">
+      <div data-track aria-hidden className="relative mt-5 h-14">
         <div className="absolute inset-x-0 top-2 h-2 bg-raised" />
         <div data-thumb className="absolute left-0 top-0 h-6 w-5 rounded-[2px] bg-lamp" style={{ left: "calc(66.67% - 13px)" }} />
         <div className="absolute inset-x-0 bottom-0 flex justify-between text-[13px] text-dim">{TICKS.map((k) => <span key={k}>{k}</span>)}</div>

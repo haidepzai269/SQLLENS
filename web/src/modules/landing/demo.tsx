@@ -52,7 +52,7 @@ export function Demo() {
           <div className="aspect-video w-full bg-ground">
             {failed ? (
               // eslint-disable-next-line @next/next/no-img-element -- poster tĩnh trong public/, không cần trình tối ưu
-              <img src={`${src}.jpg`} alt={t("alt")} width={1280} height={720} className="size-full object-cover" />
+              <img src={`${src}.jpg`} alt={t("alt")} width={1600} height={900} className="size-full object-cover" />
             ) : (
               <video
                 ref={video}
