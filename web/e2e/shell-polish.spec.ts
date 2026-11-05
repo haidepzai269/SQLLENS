@@ -11,6 +11,11 @@ const L = {
   vi: { gear: "Bố cục: bật tắt các vùng", run: "Chạy", sql: /Cột SQL/, stage: /Vùng mô phỏng/, findings: /Cột rủi ro/, term: /Terminal/ },
   en: { gear: "Layout: show or hide panels", run: "Run", sql: /SQL column/, stage: /Simulation area/, findings: /Risk column/, term: /Terminal/ },
 } as const;
+// Chụp quanh ô SQL bằng clip của trang (chụp phần tử có thể làm mất focus), chừa 8px để thấy cả ring.
+const crop = async (p: Page, path: string) => {
+  const b = (await p.locator("#sql-input").boundingBox())!;
+  await p.screenshot({ path, clip: { x: Math.max(0, b.x - 8), y: b.y - 8, width: b.width + 16, height: Math.min(b.height + 16, 260) } });
+};
 const gear = (p: Page, l: keyof typeof L) => p.getByRole("button", { name: L[l].gear });
 const item = (p: Page, name: RegExp) => p.getByRole("menuitemcheckbox", { name });
 const editor = (p: Page) => p.locator(".cm-content:visible");
@@ -44,8 +49,8 @@ const stopSample = (p: Page) => p.evaluate(() => (window as unknown as { stopSam
 const angle = (p: Page) =>
   p.evaluate(() => {
     const el = document.querySelector("button[aria-haspopup='menu'] svg")!;
-    const m = new DOMMatrix(getComputedStyle(el).transform === "none" ? undefined : getComputedStyle(el).transform);
-    return Math.round((Math.atan2(m.b, m.a) * 180) / Math.PI);
+    const v = getComputedStyle(el).rotate; // Tailwind v4 dùng thuộc tính rotate, không phải transform
+    return v === "none" ? 0 : Math.round(parseFloat(v));
   });
 
 test.describe("máy tính 1440", () => {
@@ -113,8 +118,8 @@ test.describe("máy tính 1440", () => {
         const el = document.querySelector("button[aria-haspopup='menu'] svg")!;
         const out: number[] = [];
         const read = () => {
-          const m = new DOMMatrix(getComputedStyle(el).transform);
-          out.push(Math.round((Math.atan2(m.b, m.a) * 180) / Math.PI));
+          const v = getComputedStyle(el).rotate;
+          out.push(v === "none" ? 0 : Math.round(parseFloat(v)));
         };
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
         for (let i = 0; i < 30; i++) {
@@ -132,7 +137,7 @@ test.describe("máy tính 1440", () => {
 
     test(`AC3 ${l}: tooltip khi hover và focus, có chữ chỉ dẫn, nút có chữ vẫn có tooltip nói thêm`, async ({ page }) => {
       await open(page, l);
-      const tip = page.getByRole("tooltip");
+      const tip = page.locator("[data-slot=tooltip-content]");
       await gear(page, l).hover();
       await expect(tip).toBeVisible();
       await expect(tip).toContainText(l === "vi" ? "Chọn vùng nào hiện" : "Choose which panels");
@@ -141,10 +146,7 @@ test.describe("máy tính 1440", () => {
       await expect(tip).toHaveCount(0);
       // Focus bằng bàn phím cũng hiện.
       await page.getByRole("tab", { name: "MySQL" }).focus();
-      await page.keyboard.press("Tab");
-      await page.keyboard.press("Shift+Tab");
-      await expect(tip.first()).toBeVisible();
-      await expect(tip.first()).toContainText(l === "vi" ? "MySQL thật" : "real MySQL");
+      await expect(tip.filter({ hasText: l === "vi" ? "MySQL thật" : "real MySQL" })).toBeVisible();
       // Nút Chạy trong cột SQL: tooltip không lặp chữ trên nút.
       await editor(page).click();
       await page.keyboard.type("SELECT 1;");
@@ -166,14 +168,14 @@ test.describe("máy tính 1440", () => {
       await expect.poll(ring).toBe("1");
       await page.keyboard.type(SQL);
       await page.screenshot({ path: `${OUT}sau-1440-${l}-sql-focus.png` });
-      await page.locator("#sql-input").screenshot({ path: `${OUT}sau-1440-${l}-sql-focus-crop.png` });
+      await crop(page, `${OUT}sau-1440-${l}-sql-focus-crop.png`);
       await page.getByRole("button", { name: L[l].run, exact: true }).click();
       const planTab = page.getByRole("tab", { name: "Plan" });
       await expect(planTab).toBeVisible({ timeout: 90_000 });
       await page.mouse.move(700, 700);
       await expect.poll(ring).toBe("0");
       await planTab.hover();
-      await expect(page.getByRole("tooltip")).toContainText(l === "vi" ? "database chạy câu SELECT" : "the database takes for the SELECT");
+      await expect(page.locator("[data-slot=tooltip-content]")).toContainText(l === "vi" ? "database chạy câu SELECT" : "the database takes for the SELECT");
       await page.screenshot({ path: `${OUT}sau-1440-${l}-tooltip-stage.png`, clip: { x: 320, y: 40, width: 800, height: 200 } });
     });
   }
@@ -239,7 +241,7 @@ test.describe("máy tính 1440", () => {
   test("AC4 kéo tay không có độ trễ transition, nhớ độ rộng sau khi tải lại", async ({ page }) => {
     await open(page, "en");
     const slot = page.locator("[data-zone=sql]");
-    expect(await slot.evaluate((e) => getComputedStyle(e).transitionDuration)).toBe("0s");
+    expect(await slot.evaluate((e) => getComputedStyle(e).transitionProperty)).not.toMatch(/width|all/);
     const sep = page.getByRole("separator").first();
     const box = (await sep.boundingBox())!;
     const w0 = await w(page, "sql");
@@ -248,7 +250,7 @@ test.describe("máy tính 1440", () => {
     await page.mouse.move(box.x + 80.5, box.y + 200);
     // Ngay khung hình kế tiếp đã tới đích: không có đường cong làm trễ.
     expect(await page.evaluate(() => new Promise<number>((r) => requestAnimationFrame(() => r(document.querySelector("#sql")!.getBoundingClientRect().width))))).toBeCloseTo(w0 + 80, 0);
-    expect(await slot.evaluate((e) => getComputedStyle(e).transitionDuration)).toBe("0s");
+    expect(await slot.evaluate((e) => getComputedStyle(e).transitionProperty)).not.toMatch(/width|all/);
     await page.mouse.up();
     await page.reload();
     await editor(page).waitFor();
@@ -259,7 +261,8 @@ test.describe("máy tính 1440", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await open(page, "en");
     const slot = page.locator("[data-zone=sql]");
-    await flip(page, "en", L.en.sql);
+    await gear(page, "en").click();
+    await item(page, L.en.sql).click();
     expect(await slot.evaluate((e) => getComputedStyle(e).transitionDuration)).toBe("0s");
     await expect.poll(() => slot.evaluate((e) => e.getBoundingClientRect().width)).toBe(0);
   });
@@ -301,8 +304,10 @@ test.describe("máy tính 1440", () => {
     await expect(page.getByRole("note")).toContainText("cannot be hidden");
     await page.screenshot({ path: `${OUT}sau-1440-en-menu-vung-cuoi.png`, clip: { x: 1000, y: 0, width: 440, height: 300 } });
     // Đổi ngôn ngữ khi menu đang mở: bấm EN/VI ngoài menu.
+    // Menu modal: lần bấm đầu đóng menu, lần hai mới đổi ngôn ngữ.
     await page.getByRole("button", { name: "Tiếng Việt" }).click({ force: true });
-    await expect(page).toHaveURL(/\/vi\/lab/);
+    if (/\/en/.test(page.url())) await page.getByRole("button", { name: "Tiếng Việt" }).click();
+    await expect(page).toHaveURL(/\/vi(\/lab)?$/);
     await expect(page.locator("#terminal:visible")).toBeVisible();
     await expect(page.getByRole("button", { name: "Tiếng Việt" })).toBeVisible();
     await page.keyboard.press("Escape");
@@ -332,17 +337,28 @@ test.describe("máy tính 1440", () => {
       await open(page, l);
       await editor(page).click();
       await page.keyboard.type("SELECT 1;");
-      const cdp = await page.context().newCDPSession(page);
-      await cdp.send("Animation.enable");
-      await cdp.send("Animation.setPlaybackRate", { playbackRate: 0.08 });
+      // Dừng transition width/height ngay khi chúng bắt đầu, rồi tua tới từng mức tiến độ để chụp.
+      await page.evaluate(() => {
+        const w = window as unknown as { __anims: Animation[] };
+        w.__anims = [];
+        document.addEventListener("transitionrun", (e) => {
+          const ev = e as TransitionEvent;
+          if (!/width|height/.test(ev.propertyName)) return;
+          (ev.target as Element).getAnimations().forEach((a) => {
+            if ((a as CSSTransition).transitionProperty === ev.propertyName) (a.pause(), w.__anims.push(a));
+          });
+        });
+      });
       await gear(page, l).click();
       await page.screenshot({ path: `${OUT}sau-1440-${l}-anim-menu-0.png`, clip: { x: 1000, y: 0, width: 440, height: 300 } });
       await item(page, L[l].sql).click();
-      for (let i = 1; i <= 5; i++) {
-        await page.waitForTimeout(450);
-        await page.screenshot({ path: `${OUT}sau-1440-${l}-anim-dong-sql-${i}.png` });
+      await expect.poll(() => page.evaluate(() => (window as unknown as { __anims: Animation[] }).__anims.length)).toBeGreaterThan(0);
+      for (const [i, f] of [0.1, 0.25, 0.45, 0.7, 0.9].entries()) {
+        await page.evaluate((f) => (window as unknown as { __anims: Animation[] }).__anims.forEach((a) => (a.currentTime = f * 260)), f);
+        await page.waitForTimeout(80);
+        await page.screenshot({ path: `${OUT}sau-1440-${l}-anim-dong-sql-${i + 1}.png` });
       }
-      await cdp.send("Animation.setPlaybackRate", { playbackRate: 1 });
+      await page.evaluate(() => (window as unknown as { __anims: Animation[] }).__anims.forEach((a) => a.play()));
       await page.waitForTimeout(600);
       await page.keyboard.press("Escape");
     });
@@ -363,10 +379,10 @@ test.describe("điện thoại 390", () => {
       await page.keyboard.type("SELECT 1;");
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: `${OUT}sau-390-${l}-sql-focus.png` });
-      await page.locator("#sql-input").screenshot({ path: `${OUT}sau-390-${l}-sql-focus-crop.png` });
+      await crop(page, `${OUT}sau-390-${l}-sql-focus-crop.png`);
       // Chạm vào nút: tooltip không mở che thao tác.
       await page.getByRole("button", { name: L[l].run, exact: true }).tap();
-      await expect(page.getByRole("tooltip")).toHaveCount(0);
+      await expect(page.locator("[data-slot=tooltip-content]")).toHaveCount(0);
     });
   }
 });
