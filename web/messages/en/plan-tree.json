@@ -8,6 +8,7 @@
     "table": "Table",
     "index": "Index",
     "condition": "Condition",
+    "filter": "Filter (applied after reading rows)",
     "estRows": "Estimated rows (per run)",
     "loops": "Number of runs",
     "estTotal": "Estimated rows (all runs)",
