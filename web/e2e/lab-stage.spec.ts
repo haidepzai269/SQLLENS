@@ -517,24 +517,21 @@ for (const l of ["vi", "en"] as const) {
       await expect(grid(page)).toHaveText(/^t$/, { timeout: 120_000 });
     });
 
-    test("AC2 Mentor chưa đăng nhập: có lời mời, SQL và câu hỏi còn sau khi quay lại", async ({ page }) => {
+    test("AC2 Mentor chưa đăng nhập: tab khóa có lời mời, SQL còn sau khi đăng nhập xong (Task066)", async ({ page }) => {
       test.setTimeout(240_000);
       await page.route("**/api/me", (r) => r.fulfill({ status: 401, body: "{}" }));
       await page.route("**/api/auth/google/start**", (r) => r.fulfill({ status: 302, headers: { location: `/${l}` } }));
       await page.goto(`/${l}`);
-      await run(page, l, SETUP + ASK);
+      await run(page, l, "CREATE TABLE users(id int, email text); SELECT email FROM users"); // khách chỉ chạy được câu cơ bản
       await expect(stageTab(page, l, mentorTab)).toBeVisible({ timeout: 90_000 });
       await pickTab(page, l, mentorTab);
-      await expect(stage(page).getByTestId("mentor-invite")).toBeVisible({ timeout: 30_000 });
-      const q = l === "vi" ? "Vì sao truy vấn này chậm? #AC2" : "Why is this slow? #AC2";
-      await stage(page).getByTestId("mentor-question").fill(q);
-      await stage(page).getByTestId("mentor-send").click(); // chưa đăng nhập: mở hộp thoại, không gửi
+      const locked = stage(page).getByTestId("locked-tab").filter({ visible: true });
+      await expect(locked).toBeVisible({ timeout: 30_000 });
+      await expect(stage(page).getByTestId("mentor-question")).toHaveCount(0); // khách không có ô hỏi, nên không gọi AI
+      await locked.getByRole("link").click();
+      await expect(page).toHaveURL(new RegExp(`/${l}/login`));
       await page.getByRole("link", { name: /Google/ }).click();
       await expect(sqlBox(page)).toContainText("SELECT email FROM users", { timeout: 30_000 }); // SQL còn trong ô soạn
-      await run(page, l, "SELECT 1 AS back");
-      await expect(stageTab(page, l, mentorTab)).toBeVisible({ timeout: 90_000 });
-      await pickTab(page, l, mentorTab);
-      await expect(stage(page).getByTestId("mentor-question")).toHaveValue(q);
     });
 
     test("AC3 AC6 Mentor đã đăng nhập: gói gửi đi chỉ có SQL và plan, Áp dụng không commit, chạy lại bỏ câu trả lời", async ({ page }) => {

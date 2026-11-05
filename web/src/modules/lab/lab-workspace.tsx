@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { ResultGrid } from "@/components/result-grid/result-grid";
@@ -27,6 +28,7 @@ import { ConfirmSchemaDialog } from "@/modules/sql-intake/ui/confirm-schema-dial
 import { DumpNotice } from "@/modules/sql-intake/ui/dump-notice";
 import { toDraft, type Draft } from "@/modules/sql-intake/ui/schema-draft";
 import { useAuth } from "@/modules/auth/auth-provider";
+import { GuestNote, LockedTab, guestCheck, guestRunDone, type GuestGate } from "@/modules/auth/guest";
 import type { Failure } from "@/modules/auth/api";
 import { MysqlGate, SandboxFailureView } from "@/modules/auth/mysql-access";
 import { createMysqlAdapter, SandboxError, type MysqlAdapter } from "@/engines/mysql/adapter";
@@ -79,6 +81,8 @@ export function LabWorkspace() {
   const tm = useTranslations("mysql");
   const router = useRouter();
   const pathname = usePathname();
+  const [gate, setGate] = useState<GuestGate | null>(null); // lý do khách bị chặn ở lần bấm Chạy gần nhất
+  const guestRun = useRef(false); // lần chạy này của khách, tính lượt khi chạy xong
   // Câu hỏi của Mentor đi chung bản lưu tạm: lab giữ sqlRef, Mentor ghi câu hỏi qua askRef, đọc ra là bản ghép (stash.ts).
   const sqlNow = useRef("");
   const askText = useRef("");
@@ -161,6 +165,7 @@ export function LabWorkspace() {
   const stageSeq = useRef(0);
   const [focus, setFocus] = useState<(Focus & { nonce: number }) | null>(null); // mục rủi ro vừa bấm
   const [genOpen, setGenOpen] = useState(false);
+  const [genLock, setGenLock] = useState(false); // khách bấm Sinh dữ liệu: hiện lời mời thay vì mở hộp thoại
   const generated = useRef(false); // đã sinh dữ liệu từ lần dựng gần nhất; dựng lại không giữ (câu sinh dữ liệu không vào history)
   const tth = useTranslations("data-lab");
   const tg = useTranslations() as unknown as (key: string, values: { index: number }) => string; // khóa guard.* của EngineError.guard.reasonKey
@@ -220,9 +225,25 @@ export function LabWorkspace() {
     };
   }, [sql, engine]);
 
+  // Cổng của khách: mọi đường chạy (Chạy, Thử lại, xác nhận schema) đều qua đây. true là bị chặn: không chạy gì, không tính lượt.
+  async function guestBlocked(): Promise<boolean> {
+    if (authStatus !== "anon" || engine !== "postgres") return setGate(null), false;
+    const g = await guestCheck(prepareDump(sql, engine).sql, engine);
+    setGate(g);
+    return g !== null;
+  }
+
   async function run(schemaSql?: string) {
     if (busy.current) return;
     busy.current = true;
+    let blocked = true; // lỗi bất ngờ ở cổng thì coi như bị chặn và vẫn thả cờ busy
+    try {
+      blocked = await guestBlocked();
+    } finally {
+      if (blocked) busy.current = false;
+    }
+    if (blocked) return;
+    guestRun.current = authStatus === "anon" && engine === "postgres"; // tính lượt ở cuối lần chạy này, và chỉ lần này
     setOwner(engine);
     if (!mine) setLog([]);
     setStageRun(null);
@@ -285,7 +306,13 @@ export function LabWorkspace() {
         } catch {
           /* không parse được thì không có câu SELECT để đo, các tab khác vẫn chạy */
         }
+        // Chạy xong mới tính lượt; lỗi hoặc bị hủy thì không.
+        if (guestRun.current) {
+          guestRun.current = false;
+          guestRunDone();
+        }
         setStageRun({ id: ++stageSeq.current, db, select, sql: toRun, srcSql: sql, statements, explain: memoExplain(db) });
+
         setState({
           phase: "done",
           results,
@@ -362,6 +389,7 @@ export function LabWorkspace() {
     busy.current = true; // chặn bấm đúp trong lúc parse
     let ask = false;
     try {
+      if (await guestBlocked()) return; // chặn trước khi hiện hộp xác nhận schema
       ask = await needsConfirm();
     } finally {
       busy.current = false;
@@ -473,18 +501,21 @@ export function LabWorkspace() {
           </Button>
         </Tip>
       </div>
+      <GuestNote gate={gate} />
       <div className="flex flex-col items-start gap-1">
         <Tip label={ts("tip.generate")} side="right">
         <Button
           variant="outline"
-          onClick={() => setGenOpen(true)}
-          disabled={!hasTables || working || state.phase === "stopped" || mysql}
-          aria-describedby={hasTables ? undefined : "gen-hint"}
+          onClick={() => (authStatus === "anon" ? setGenLock(true) : setGenOpen(true))}
+          disabled={(!hasTables && authStatus !== "anon") || working || state.phase === "stopped" || mysql}
+          aria-describedby={hasTables || authStatus === "anon" ? undefined : "gen-hint"}
         >
           {tth("open")}
+          {authStatus === "anon" && <Lock aria-hidden />}
         </Button>
         </Tip>
-        {!hasTables && !mysql && (
+        {genLock && authStatus === "anon" && <LockedTab name={tth("open")} feature />}
+        {!hasTables && !mysql && authStatus !== "anon" && (
           <p id="gen-hint" className="text-xs text-muted-foreground">
             {tth("openDisabled")}
           </p>
