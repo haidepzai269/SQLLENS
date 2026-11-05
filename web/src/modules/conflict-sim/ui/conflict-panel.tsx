@@ -74,7 +74,7 @@ function Player({ ticks, outcomeKey, observed }: { ticks: Tick[]; outcomeKey: st
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <div role="group" aria-label={t("controls.label")} className="flex min-w-0 flex-wrap items-center gap-2">
+      <div role="group" aria-label={t("controls.label")} className="grid min-w-0 grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center">
         <Button onClick={() => (p >= n && setP(0), setPlaying(true))} data-testid="cf-run">{t("controls.run")}</Button>
         <Button variant="outline" onClick={() => setPlaying(false)} disabled={!playing} data-testid="cf-pause">{t("controls.pause")}</Button>
         <Button variant="outline" onClick={() => manual(p - 1)} disabled={p <= 0} data-testid="cf-prev">{t("controls.prev")}</Button>

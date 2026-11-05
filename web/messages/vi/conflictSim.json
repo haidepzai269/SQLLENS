@@ -79,7 +79,7 @@
   },
   "tick": {
     "begin": "Mở transaction ở mức cô lập {isolation}.",
-    "waiting": "Dòng {resource} đang bị session {holder} khóa, nên session này phải chờ.",
+    "waiting": "Khóa {resource} đang do session {holder} giữ, nên session này phải chờ.",
     "select": "Đọc dữ liệu, được {rows} dòng.",
     "update": "Sửa {rows} dòng và giữ khóa các dòng đó đến khi commit.",
     "insert": "Chèn {rows} dòng. Nếu là 0 thì điều kiện của câu lệnh không cho chèn.",

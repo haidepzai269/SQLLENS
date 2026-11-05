@@ -79,7 +79,7 @@
   },
   "tick": {
     "begin": "Opens a transaction at isolation level {isolation}.",
-    "waiting": "Row {resource} is locked by session {holder}, so this session must wait.",
+    "waiting": "Lock {resource} is held by session {holder}, so this session must wait.",
     "select": "Reads data and gets {rows, plural, one {# row} other {# rows}}.",
     "update": "Changes {rows, plural, one {# row} other {# rows}} and keeps their locks until commit.",
     "insert": "Inserts {rows, plural, one {# row} other {# rows}}. If it is 0, the statement condition did not allow the insert.",
