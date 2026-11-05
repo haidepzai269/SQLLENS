@@ -18,7 +18,8 @@
     "estimatedScanIndex": "The statement did not run. By the optimizer estimate, table {table} will be read with an index ({scan}).",
     "counts": "This node read {rows} rows and {pages} pages.",
     "estimatedRows": "The optimizer estimates this node returns about {rows} rows.",
-    "structureOnly": "Described from the structure in your SQL. No scenario has run to show that this structure breaks."
+    "structureOnly": "Described from the structure in your SQL. No scenario has run to show that this structure breaks.",
+    "indexUnrelated": "In the scenario that ran, table {table} was read with an index ({scan}), but that step does not filter on column {column}. What was observed is a different index serving the statement, so this run neither confirms nor rules out the rule."
   },
   "notSimulated": {
     "noPlan": "Not simulated yet: this statement has no plan to check against.",
