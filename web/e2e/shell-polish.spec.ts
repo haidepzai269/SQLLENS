@@ -1,11 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
+import { gotoHydrated, throttleCpu } from "./helpers";
 
 // Task064: thanh cuộn, menu bánh răng, tooltip, chuyển động đóng mở cột, viền focus ô SQL.
 // Ảnh chụp ghi vào thư mục task để người duyệt tự mở xem.
 const OUT = "../_bmad-output/SP999/STR062/Task064/anh/";
 const SQL = "CREATE TABLE t(id int primary key, v int); SELECT * FROM t;";
 
-test.beforeEach(({ page }) => page.route("**/api/me", (r) => r.fulfill({ status: 503, body: "{}" })));
+test.beforeEach(async ({ page }) => {
+  await throttleCpu(page);
+  await page.route("**/api/me", (r) => r.fulfill({ status: 503, body: "{}" }));
+});
 
 const L = {
   vi: { gear: "Bố cục: bật tắt các vùng", run: "Chạy", sql: /Cột SQL/, stage: /Vùng mô phỏng/, findings: /Cột rủi ro/, term: /Terminal/ },
@@ -20,7 +24,7 @@ const gear = (p: Page, l: keyof typeof L) => p.getByRole("button", { name: L[l].
 const item = (p: Page, name: RegExp) => p.getByRole("menuitemcheckbox", { name });
 const editor = (p: Page) => p.locator(".cm-content:visible");
 const open = async (p: Page, l: keyof typeof L) => {
-  await p.goto(`/${l}/lab`);
+  await gotoHydrated(p, `/${l}/lab`);
   await editor(p).waitFor();
 };
 const w = (p: Page, id: string) => p.locator(`#${id}`).evaluate((e) => e.getBoundingClientRect().width);
@@ -36,6 +40,10 @@ const sample = (p: Page, sel: string, prop: "width" | "height" = "width") =>
       const out: number[] = [];
       const el = document.querySelector<HTMLElement>(s);
       let on = true;
+      // Số khung hình trong 260 ms phụ thuộc máy; chuyển động có chạy thật hay không thì đọc từ sự kiện transition.
+      const w = window as unknown as { transitions: string[] };
+      w.transitions = [];
+      for (const ev of ["transitionrun", "transitionend"]) el?.addEventListener(ev, (e) => w.transitions.push(`${ev}:${(e as TransitionEvent).propertyName}`));
       (window as unknown as { stopSample: () => number[] }).stopSample = () => ((on = false), out);
       const tick = () => {
         out.push(el ? el.getBoundingClientRect()[pr as "width"] : 0);
@@ -46,6 +54,9 @@ const sample = (p: Page, sel: string, prop: "width" | "height" = "width") =>
     [sel, prop],
   );
 const stopSample = (p: Page) => p.evaluate(() => (window as unknown as { stopSample: () => number[] }).stopSample());
+// Sự kiện transition của vùng đang được `sample` theo dõi: chuyển động chạy thật khi có cả run và end của thuộc tính.
+const expectTransition = (p: Page, prop: "width" | "height") =>
+  expect.poll(() => p.evaluate(() => (window as unknown as { transitions: string[] }).transitions), { message: `transition ${prop}` }).toEqual(expect.arrayContaining([`transitionrun:${prop}`, `transitionend:${prop}`]));
 const angle = (p: Page) =>
   p.evaluate(() => {
     const el = document.querySelector("button[aria-haspopup='menu'] svg")!;
@@ -191,9 +202,8 @@ test.describe("máy tính 1440", () => {
     console.log("sql closing widths", closing.map(Math.round).join(","));
     expect(closing[0]).toBeGreaterThan(before - 2);
     expect(closing.at(-1)).toBe(0);
-    const mid = closing.filter((x) => x > 4 && x < before - 4);
-    // CI chậm chỉ có vài khung trong 260 ms, nên chỉ đòi có giá trị trung gian. Độ đều do vòng lặp bên dưới kiểm.
-    expect(mid.length, `giá trị trung gian: ${closing}`).toBeGreaterThan(0);
+    // Easing dốc ở đầu, CI chậm chỉ lấy được vài khung (có khi 0 khung trung gian dù chuyển động đã chạy, Task077). Có chạy hay không thì kiểm bằng sự kiện transition.
+    await expectTransition(page, "width");
     for (let i = 1; i < closing.length; i++) expect(closing[i]).toBeLessThanOrEqual(closing[i - 1] + 0.5); // giảm đều, không nhảy ngược
     await expect(page.locator("#sql")).toHaveCount(0);
     expect(await w(page, "stage")).toBeGreaterThan(stageBefore + 200);
@@ -203,7 +213,7 @@ test.describe("máy tính 1440", () => {
     await page.waitForTimeout(500);
     const opening = await stopSample(page);
     console.log("sql opening widths", opening.map(Math.round).join(","));
-    expect(opening.filter((x) => x > 4 && x < before - 4).length).toBeGreaterThan(0);
+    await expectTransition(page, "width");
     for (let i = 1; i < opening.length; i++) expect(opening[i]).toBeGreaterThanOrEqual(opening[i - 1] - 0.5);
     await expect(page.locator("#sql")).toBeVisible();
     expect(Math.abs((await w(page, "sql")) - before)).toBeLessThan(1);
@@ -215,7 +225,7 @@ test.describe("máy tính 1440", () => {
     await flip(page, "en", L.en.term);
     await page.waitForTimeout(500);
     const t = await stopSample(page);
-    expect(t.filter((x) => x > 4 && x < th - 4).length).toBeGreaterThan(0);
+    await expectTransition(page, "height");
     await flip(page, "en", L.en.term);
     await page.waitForTimeout(500);
     expect(Math.abs((await page.locator("[data-zone=terminal]").evaluate((e) => e.getBoundingClientRect().height)) - th)).toBeLessThan(1);

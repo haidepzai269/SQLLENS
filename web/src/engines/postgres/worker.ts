@@ -23,7 +23,11 @@ async function get(url: URL, onBytes: (n: number) => void): Promise<ArrayBuffer>
     chunks.push(value);
     onBytes(value.length);
   }
-  return await new Blob(chunks as BlobPart[]).arrayBuffer();
+  // Ghép tay thay vì đi qua Blob: Chromium có thể trả NotReadableError ("The requested file could not be read") khi đọc lại Blob lúc máy thiếu bộ nhớ.
+  const out = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+  let at = 0;
+  for (const c of chunks) (out.set(c, at), (at += c.length));
+  return out.buffer;
 }
 
 async function init(id: number) {
