@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -13,20 +14,22 @@ import (
 )
 
 var (
-	errFull     = errors.New("sandbox_full")
-	errNotFound = errors.New("session_not_found")
-	errDiskLow  = errors.New("disk_low")
+	errFull      = errors.New("sandbox_full")
+	errNotFound  = errors.New("session_not_found")
+	errDiskLow   = errors.New("disk_low")
+	errOwnerFull = errors.New("user_session_limit")
 )
 
 var idRe = regexp.MustCompile(`^[0-9a-f]{30}$`)
 
 type config struct {
 	MaxSessions  int
+	MaxPerOwner  int // phiên đồng thời tối đa của một người dùng; 0 nghĩa là không giới hạn riêng
 	IdleTTL      time.Duration
 	Tick         time.Duration // chu kỳ janitor: hết hạn và hạn mức đĩa
 	QueryTimeout time.Duration
 	KillGrace    time.Duration // chờ sau KILL QUERY trước khi hủy phiên
-	DiskLimit    int64 // byte, tính theo block thật trên đĩa của thư mục phiên
+	DiskLimit    int64         // byte, tính theo block thật trên đĩa của thư mục phiên
 	MaxRows      int
 	MaxCellBytes int
 	SessRoot     string
@@ -44,6 +47,7 @@ type backend struct {
 
 type session struct {
 	id         string
+	owner      string // SHA-256 (hex) của user id do Gin gửi; không lưu id gốc
 	ready      bool
 	closed     bool
 	reason     string
@@ -95,13 +99,25 @@ func (m *manager) cleanupStale() {
 	}
 }
 
-func (m *manager) Create() (*session, error) {
+func (m *manager) Create(owner string) (*session, error) {
 	m.mu.Lock()
 	if len(m.s) >= m.cfg.MaxSessions { // gồm cả phiên đang khởi động và đang hủy
 		m.mu.Unlock()
 		return nil, errFull
 	}
-	s := &session{id: newID(), cn: map[string]*userConn{}}
+	if lim := m.cfg.MaxPerOwner; lim > 0 && owner != "" {
+		n := 0
+		for _, o := range m.s {
+			if o.owner == owner {
+				n++
+			}
+		}
+		if n >= lim { // kiểm cùng khóa với việc thêm phiên: hai yêu cầu đồng thời không cùng lọt
+			m.mu.Unlock()
+			return nil, errOwnerFull
+		}
+	}
+	s := &session{id: newID(), owner: owner, cn: map[string]*userConn{}}
 	m.s[s.id] = s
 	m.mu.Unlock()
 
@@ -131,15 +147,15 @@ func (m *manager) Create() (*session, error) {
 	return s, nil
 }
 
-// Get trả phiên đang dùng được và gia hạn. Id sai, phiên chưa sẵn sàng, đã đóng: cùng một lỗi.
-func (m *manager) Get(id string) (*session, error) {
+// Get trả phiên đang dùng được và gia hạn. Id sai, phiên chưa sẵn sàng, đã đóng, hoặc của người khác: cùng một lỗi.
+func (m *manager) Get(id, owner string) (*session, error) {
 	if !idRe.MatchString(id) {
 		return nil, errNotFound
 	}
 	m.mu.Lock()
 	s := m.s[id]
 	m.mu.Unlock()
-	if s == nil {
+	if s == nil || owner == "" || subtle.ConstantTimeCompare([]byte(s.owner), []byte(owner)) != 1 {
 		return nil, errNotFound
 	}
 	s.mu.Lock()

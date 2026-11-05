@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -65,7 +67,14 @@ func newTest(t *testing.T, cfg config) (*fake, *manager, http.Handler) {
 }
 
 func do(h http.Handler, method, path, tok, body string) *httptest.ResponseRecorder {
+	return doAs(h, "u1", method, path, tok, body)
+}
+
+func doAs(h http.Handler, user, method, path, tok, body string) *httptest.ResponseRecorder {
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
+	if user != "" {
+		r.Header.Set(userHeader, user)
+	}
 	if tok != "" {
 		r.Header.Set("Authorization", "Bearer "+tok)
 	}
@@ -262,7 +271,12 @@ func TestEscalateStuckQuery(t *testing.T) {
 	f, m, h := newTest(t, testCfg())
 	var c struct{ ID string }
 	json.Unmarshal(do(h, "POST", "/sessions", good, "").Body.Bytes(), &c)
-	s, err := m.Get(c.ID)
+	own, _ := ownerOf(func() *http.Request {
+		r := httptest.NewRequest("GET", "/", nil)
+		r.Header.Set(userHeader, "u1")
+		return r
+	}())
+	s, err := m.Get(c.ID, own)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,5 +289,113 @@ func TestEscalateStuckQuery(t *testing.T) {
 	m.escalate(s, make(chan struct{})) // không bao giờ xong
 	if f.destroyedCount() != 1 {
 		t.Fatal("câu kẹt mà phiên không bị hủy")
+	}
+}
+
+// Task074 AC2: người dùng khác, kể cả khi đoán đúng id, nhận cùng 404 như phiên không tồn tại.
+func TestOwnerIsolation(t *testing.T) {
+	_, m, h := newTest(t, testCfg())
+	var c struct{ ID string }
+	json.Unmarshal(do(h, "POST", "/sessions", good, "").Body.Bytes(), &c)
+	ghost := strings.Repeat("0", 30)
+	for _, tc := range []struct{ method, suffix, body string }{
+		{"POST", "/query", `{"sql":"select 1"}`}, {"GET", "/locks", ""}, {"DELETE", "", ""},
+	} {
+		a := doAs(h, "u2", tc.method, "/sessions/"+c.ID+tc.suffix, good, tc.body)
+		b := doAs(h, "u2", tc.method, "/sessions/"+ghost+tc.suffix, good, tc.body)
+		if a.Code != 404 || a.Code != b.Code || a.Body.String() != b.Body.String() {
+			t.Fatalf("%s%s: %d %s vs %d %s", tc.method, tc.suffix, a.Code, a.Body, b.Code, b.Body)
+		}
+	}
+	if len(m.s) != 1 {
+		t.Fatal("người khác hủy được phiên")
+	}
+	// thiếu header user: 400, không phải 404
+	if w := doAs(h, "", "GET", "/sessions/"+c.ID+"/locks", good, ""); w.Code != 400 {
+		t.Fatalf("thiếu header: %d", w.Code)
+	}
+	if w := doAs(h, strings.Repeat("x", 129), "POST", "/sessions", good, ""); w.Code != 400 {
+		t.Fatalf("header quá dài: %d", w.Code)
+	}
+	if o := m.s[c.ID].owner; strings.Contains(o, "u1") || len(o) != 64 {
+		t.Fatalf("owner phải là mã băm: %q", o)
+	}
+}
+
+// Task074 AC3: hai yêu cầu tạo phiên đồng thời của một người chỉ một cái lọt; người khác vẫn tạo được.
+func TestPerOwnerLimit(t *testing.T) {
+	cfg := testCfg()
+	cfg.MaxPerOwner = 1
+	_, _, h := newTest(t, cfg)
+	codes := make([]int, 2)
+	var wg sync.WaitGroup
+	for i := range codes {
+		wg.Add(1)
+		go func() { defer wg.Done(); codes[i] = do(h, "POST", "/sessions", good, "").Code }()
+	}
+	wg.Wait()
+	if !(codes[0] == 201 && codes[1] == 429 || codes[0] == 429 && codes[1] == 201) {
+		t.Fatalf("codes=%v", codes)
+	}
+	if w := doAs(h, "u2", "POST", "/sessions", good, ""); w.Code != 201 {
+		t.Fatalf("người khác: %d %s", w.Code, w.Body)
+	}
+}
+
+// Task074 AC4: log không chứa user id gốc, token hay SQL.
+func TestNoSecretsInLog(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+	_, _, h := newTest(t, testCfg())
+	var c struct{ ID string }
+	doAs(h, "USERMARK-123", "POST", "/sessions", good, "")
+	json.Unmarshal(doAs(h, "USERMARK-123", "POST", "/sessions", good, "").Body.Bytes(), &c)
+	doAs(h, "USERMARK-123", "POST", "/sessions/"+c.ID+"/query", good, `{"sql":"SELECT 'SQLMARK'","connection":"z"}`)
+	do(h, "GET", "/sessions/"+c.ID+"/locks", "TOKMARK", "")
+	for _, s := range []string{"USERMARK", "SQLMARK", "TOKMARK", good} {
+		if strings.Contains(buf.String(), s) {
+			t.Fatalf("log chứa %q:\n%s", s, buf.String())
+		}
+	}
+}
+
+// Task074 AC6: chứng chỉ tự sinh, khóa 600, vân tay khớp chứng chỉ máy chủ trình ra qua TLS.
+func TestTLSCertAndServe(t *testing.T) {
+	dir := t.TempDir()
+	if err := genCert(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	fp1, _ := fingerprint(dir)
+	genCert(dir, false) // không ghi đè
+	if fp2, _ := fingerprint(dir); fp1 != fp2 {
+		t.Fatal("genCert ghi đè khi không rotate")
+	}
+	_, keyP := certPaths(dir)
+	if runtime.GOOS == "linux" {
+		if st, _ := os.Stat(keyP); st.Mode().Perm() != 0o600 {
+			t.Fatalf("quyền khóa: %v", st.Mode().Perm())
+		}
+		os.Chmod(keyP, 0o644)
+		if _, err := loadTLS(dir); err == nil {
+			t.Fatal("khóa quyền rộng phải bị từ chối")
+		}
+		os.Chmod(keyP, 0o600)
+	}
+	tc, err := loadTLS(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, h := newTest(t, testCfg())
+	ts := httptest.NewUnstartedServer(h)
+	ts.TLS = tc
+	ts.StartTLS()
+	defer ts.Close()
+	got := sha256.Sum256(ts.TLS.Certificates[0].Certificate[0])
+	if hex.EncodeToString(got[:]) != fp1 {
+		t.Fatal("vân tay không khớp")
+	}
+	if genCert(dir, true); func() string { f, _ := fingerprint(dir); return f }() == fp1 {
+		t.Fatal("rotate phải đổi chứng chỉ")
 	}
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/haidepzai269/SQLLENS/api/internal/ai"
 	"github.com/haidepzai269/SQLLENS/api/internal/auth"
 	"github.com/haidepzai269/SQLLENS/api/internal/httpapi"
+	"github.com/haidepzai269/SQLLENS/api/internal/mysql"
 	"github.com/haidepzai269/SQLLENS/api/internal/quota"
 	"github.com/haidepzai269/SQLLENS/api/internal/store"
 )
@@ -45,8 +46,13 @@ func build(ctx context.Context) *gin.Engine {
 	if u, t := os.Getenv("UPSTASH_REDIS_REST_URL"), os.Getenv("UPSTASH_REDIS_REST_TOKEN"); u != "" && t != "" {
 		d.Limiter = quota.New(u, t, nil)
 	}
+	var budget mysql.Budget
+	if u, t := os.Getenv("UPSTASH_REDIS_REST_URL"), os.Getenv("UPSTASH_REDIS_REST_TOKEN"); u != "" && t != "" {
+		budget = mysql.NewUpstashBudget(u, t)
+	}
 	r := httpapi.NewRouter()
 	a := auth.Mount(r, d)
+	mysql.Mount(r, a, mysql.Config{URL: os.Getenv("SANDBOX_URL"), Token: os.Getenv("SANDBOX_TOKEN"), CertSHA256: os.Getenv("SANDBOX_CERT_SHA256")}, budget)
 	ai.Mount(r, a.Gate(quota.AIMessage), ai.Config{GroqKey: os.Getenv("GROQ_API_KEY"), OpenRouterKey: os.Getenv("OPENROUTER_API_KEY")})
 	return r
 }

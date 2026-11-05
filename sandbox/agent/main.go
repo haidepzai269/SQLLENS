@@ -1,4 +1,4 @@
-// Sandbox agent: tạo, chạy SQL, hủy phiên MySQL qua HTTP. Chỉ nghe loopback, cần token Bearer.
+// Sandbox agent: tạo, chạy SQL, hủy phiên MySQL qua HTTP. Cổng HTTP chỉ nghe loopback; cổng HTTPS (tùy chọn) cho Gin. Cần token Bearer.
 package main
 
 import (
@@ -159,7 +159,26 @@ type quietLogger struct{}
 
 func (quietLogger) Print(...any) { log.Print("event=driver_error") }
 
+// tlsCmd: "sqllens-agent cert [-rotate]" tạo chứng chỉ rồi in vân tay; "fingerprint" chỉ in vân tay.
+func tlsCmd(args []string) {
+	dir := env("TLS_DIR", "/etc/sqllens-agent")
+	if args[0] == "cert" {
+		if err := genCert(dir, len(args) > 1 && args[1] == "-rotate"); err != nil {
+			log.Fatalf("cert: %v", err)
+		}
+	}
+	fp, err := fingerprint(dir)
+	if err != nil {
+		log.Fatalf("fingerprint: %v", err)
+	}
+	fmt.Println(fp)
+}
+
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "cert" || os.Args[1] == "fingerprint") {
+		tlsCmd(os.Args[1:])
+		return
+	}
 	mysql.SetLogger(quietLogger{})
 	addr := env("AGENT_ADDR", "127.0.0.1:8081")
 	host, _, err := net.SplitHostPort(addr)
@@ -173,6 +192,7 @@ func main() {
 	root := env("SESS_ROOT", "/var/lib/sqllens/sessions")
 	cfg := config{
 		MaxSessions:  envInt("MAX_SESSIONS", 2),
+		MaxPerOwner:  envInt("MAX_PER_OWNER", 1), // máy chỉ chạy 2 phiên: một người không được giữ cả hai
 		IdleTTL:      time.Duration(envInt("IDLE_TTL_SEC", 900)) * time.Second,
 		Tick:         time.Second,
 		QueryTimeout: time.Duration(envInt("QUERY_TIMEOUT_SEC", 15)) * time.Second,
@@ -188,12 +208,37 @@ func main() {
 	defer stop()
 	go m.janitor(ctx)
 
-	srv := &http.Server{
-		Addr: addr, Handler: (&server{m: m, token: tok}).handler(),
-		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 240 * time.Second, IdleTimeout: 60 * time.Second,
+	h := (&server{m: m, token: tok}).handler()
+	newSrv := func(a string) *http.Server {
+		return &http.Server{
+			Addr: a, Handler: h, MaxHeaderBytes: 16 << 10,
+			ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 240 * time.Second, IdleTimeout: 60 * time.Second,
+		}
 	}
-	go func() { <-ctx.Done(); srv.Shutdown(context.Background()) }()
-	log.Printf("event=start addr=%s max=%d", addr, cfg.MaxSessions)
+	srv := newSrv(addr)
+	var tsrv *http.Server
+	if ta := os.Getenv("AGENT_TLS_ADDR"); ta != "" {
+		tc, err := loadTLS(env("TLS_DIR", "/etc/sqllens-agent"))
+		if err != nil {
+			log.Fatalf("tls: %v", err)
+		}
+		tsrv = newSrv(ta)
+		tsrv.TLSConfig = tc
+		go func() {
+			if err := tsrv.ListenAndServeTLS("", ""); !errors.Is(err, http.ErrServerClosed) {
+				log.Fatal(err)
+			}
+		}()
+		log.Printf("event=start_tls addr=%s", ta)
+	}
+	go func() {
+		<-ctx.Done()
+		srv.Shutdown(context.Background())
+		if tsrv != nil {
+			tsrv.Shutdown(context.Background())
+		}
+	}()
+	log.Printf("event=start addr=%s max=%d per_owner=%d", addr, cfg.MaxSessions, cfg.MaxPerOwner)
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}

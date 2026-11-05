@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log"
@@ -13,7 +14,10 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-const maxBody = 1 << 20
+const (
+	maxBody    = 1 << 20
+	userHeader = "X-Sandbox-User"
+)
 
 type server struct {
 	m     *manager
@@ -80,9 +84,26 @@ func (s *server) authorized(r *http.Request) bool {
 	return subtle.ConstantTimeCompare(sum[:], s.token[:]) == 1
 }
 
+// ownerOf đọc user id Gin gửi và trả mã băm của nó. Thiếu hoặc quá dài thì ok=false.
+func ownerOf(r *http.Request) (string, bool) {
+	u := r.Header.Get(userHeader)
+	if u == "" || len(u) > 128 {
+		return "", false
+	}
+	h := sha256.Sum256([]byte(u))
+	return hex.EncodeToString(h[:]), true
+}
+
 func (s *server) create(w http.ResponseWriter, r *http.Request) {
-	ses, err := s.m.Create()
+	owner, ok := ownerOf(r)
+	if !ok {
+		fail(w, 400, "bad_request", "error.badRequest", nil)
+		return
+	}
+	ses, err := s.m.Create(owner)
 	switch {
+	case errors.Is(err, errOwnerFull):
+		fail(w, 429, "user_session_limit", "sandbox.userSessionLimit", nil)
 	case errors.Is(err, errFull):
 		fail(w, 429, "sandbox_full", "sandbox.full", nil)
 	case errors.Is(err, errDiskLow):
@@ -95,7 +116,12 @@ func (s *server) create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) session(w http.ResponseWriter, r *http.Request) *session {
-	ses, err := s.m.Get(r.PathValue("id"))
+	owner, ok := ownerOf(r)
+	if !ok {
+		fail(w, 400, "bad_request", "error.badRequest", nil)
+		return nil
+	}
+	ses, err := s.m.Get(r.PathValue("id"), owner)
 	if err != nil {
 		fail(w, 404, "session_not_found", "sandbox.sessionNotFound", nil)
 		return nil
