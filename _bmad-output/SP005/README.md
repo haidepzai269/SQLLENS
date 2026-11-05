@@ -37,3 +37,5 @@ Gin đọc các biến sau, tên do Task041 đến Task043 dùng thống nhất:
 | Task044 | `web/src/modules/auth/**`, `web/src/components/shell/**`, `web/src/modules/lab/**` (chỉ chỗ gắn cổng), `web/messages/*/auth.json`, `web/e2e/auth.spec.ts` |
 
 Task041 và Task043 chạy song song. Task043 không thêm thư viện Go, gọi Upstash bằng `net/http`, nên không đụng `go.mod`.
+
+Thêm ngày 2026-11-04: Task066 trang `/login` và giới hạn dùng thử cho khách, file ở `_bmad-output/SP005/STR024/Task066/`.

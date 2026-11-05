@@ -9,7 +9,7 @@ Kết quả: Người dùng thấy hai session tranh chấp theo từng nhịp. 
 | STR048 Giả lập PostgreSQL | Task050 | Lõi giả lập 5 kịch bản | Không | 1 |
 | STR049 Đối chiếu trong CI | Task051 | Golden test so với Postgres thật | Task050 | 2 |
 | STR050 Tranh chấp MySQL | chưa chia | | SP004 STR019 | sau |
-| STR051 Timeline | chưa chia | | Task050 | 3 |
+| STR051 Timeline | Task070 | | Task050 | 3 |
 | STR052 Tiêu chí hỏng | chưa chia | | STR051 | 3 |
 
 ## Các file bị đụng
