@@ -69,6 +69,9 @@ export function FindingsPanel({
     );
 
   const { items } = result;
+  // Đỏ trước, xanh sau, giữ thứ tự gốc trong cùng mức. `i` vẫn là chỉ số gốc nên lựa chọn không lệch.
+  const rank = (it: Item) => (it.outcome.kind !== "conclusion" ? 1 : { broken: 0, unverified: 1, not_broken: 2 }[it.outcome.data.severity]);
+  const order = items.map((_, i) => i).sort((a, b) => rank(items[a]) - rank(items[b]) || a - b);
   return (
     <div className="flex min-w-0 flex-col gap-2" data-testid="findings">
       {stale && (
@@ -86,7 +89,8 @@ export function FindingsPanel({
         <>
           <p className="m-0 text-xs text-dim">{t("count", { count: items.length })}</p>
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {items.map((it, i) => {
+            {order.map((i) => {
+              const it = items[i];
               const c = it.outcome.kind === "conclusion" ? it.outcome : null;
               const sev: Severity = c ? c.data.severity : "unverified";
               const Icon = ICON[sev];
@@ -115,7 +119,7 @@ export function FindingsPanel({
                     ))
                   ) : (
                     <p className="m-0 break-words text-xs" data-testid="finding-not-simulated">
-                      {t("notSimulated", { reason: tr((it.outcome as { reasonKey: string }).reasonKey) })}
+                      {tr((it.outcome as { reasonKey: string }).reasonKey)}
                     </p>
                   )}
                   {(h.start !== undefined || planBtn) && (

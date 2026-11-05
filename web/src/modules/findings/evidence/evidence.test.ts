@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { PGlite } from "@electric-sql/pglite";
 import { pageinspect } from "@electric-sql/pglite/contrib/pageinspect";
+import { IntlMessageFormat } from "intl-messageformat";
 import { loadModule, parseSync } from "pgsql-parser";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Evidence, Outcome } from "@/contracts/conclusion";
@@ -158,7 +159,11 @@ describe("câu dịch (AC5)", () => {
     }
   });
 
+  it("mọi câu dịch là ICU hợp lệ (câu sai cú pháp làm giao diện hiện khóa thô)", () => {
+    for (const [k, v] of [...flat(vi), ...flat(en)]) expect(() => new IntlMessageFormat(v, "en"), k).not.toThrow();
+  });
+
   it("implicit-cast phân biệt ba effect", () => {
-    for (const m of [vi, en]) for (const e of ["literal-cast", "column-cast", "error"]) expect(m.query["implicit-cast"]).toContain(`${e} {`);
+    for (const m of [vi, en]) for (const e of ["literalCast", "columnCast", "error"]) expect(m.query["implicit-cast"]).toContain(`${e} {`);
   });
 });

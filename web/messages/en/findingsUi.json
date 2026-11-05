@@ -13,7 +13,6 @@
     "not_broken": "Did not break in this scenario",
     "not_simulated": "Not simulated yet"
   },
-  "notSimulated": "Not simulated yet: {reason}",
   "explainError": "Not simulated yet: the plan for this statement could not be read.",
   "showSql": "Show in SQL",
   "openPlan": "Open node in Plan",

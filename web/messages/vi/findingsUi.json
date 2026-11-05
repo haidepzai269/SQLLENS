@@ -13,7 +13,6 @@
     "not_broken": "Không hỏng ở kịch bản này",
     "not_simulated": "Chưa mô phỏng được"
   },
-  "notSimulated": "Chưa mô phỏng được: {reason}",
   "explainError": "Chưa mô phỏng được: không đọc được plan của câu này.",
   "showSql": "Xem trong SQL",
   "openPlan": "Mở nút trong Plan",

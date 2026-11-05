@@ -65,7 +65,10 @@ for (const l of ["vi", "en"] as const) {
       }
       await expect(items(page, "broken").getByTestId("finding-evidence").nth(1)).toContainText(/\d+/); // số dòng, số trang
       expect(await page.getByTestId("findings").innerText()).not.toMatch(BAD);
+      expect(await page.getByTestId("findings").innerText()).not.toMatch(/findings.|Not simulated yet: Not simulated|Chưa mô phỏng được: Chưa mô phỏng/); // không lộ khóa dịch thô, không lặp tiền tố
+      await page.setViewportSize({ width: 1440, height: 1700 }); // đủ cao để ảnh có cả sáu mục, ba màu
       await page.screenshot({ path: `${SHOTS}/1440-${l}-risks.png` });
+      await page.setViewportSize({ width: 1440, height: 900 });
 
       // bấm đỏ: tô đúng câu trong SQL, mở sơ đồ và làm nổi thẻ bảng
       await items(page, "broken").locator("button[aria-pressed]").click();
@@ -190,7 +193,9 @@ for (const l of ["vi", "en"] as const) {
       await ready(page, 6);
       expect(await noHScroll(page)).toBe(true);
       expect(await page.getByTestId("findings").innerText()).not.toMatch(BAD);
+      await page.setViewportSize({ width: 390, height: 2000 }); // đủ cao để ảnh có cả sáu mục, ba màu
       await page.screenshot({ path: `${SHOTS}/390-${l}-risks.png` });
+      await page.setViewportSize({ width: 390, height: 844 });
       await items(page, "broken").locator("button[aria-pressed]").click();
       await expect(page.getByRole("tab", { name: T[l].stage, exact: true })).toHaveAttribute("aria-selected", "true");
       await expect(stage(page)).toBeVisible();
