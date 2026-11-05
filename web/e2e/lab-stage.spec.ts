@@ -3,8 +3,8 @@ import { expect, test, type Page } from "@playwright/test";
 const SHOTS = "../_bmad-output/SP999/STR062/Task062/anh";
 type L = "vi" | "en";
 const T = {
-  vi: { run: "Chạy", stage: "Mô phỏng", tabs: ["Sơ đồ", "Plan", "B-Tree", "Thử sửa", "Capacity", "Mentor"], hint: "Chưa có cảnh để hiện", cancel: "Hủy", rebuild: "Dựng lại" },
-  en: { run: "Run", stage: "Simulation", tabs: ["Schema", "Plan", "B-Tree", "Try a fix", "Capacity", "Mentor"], hint: "Nothing to show yet", cancel: "Cancel", rebuild: "Rebuild" },
+  vi: { run: "Chạy", stage: "Mô phỏng", tabs: ["Sơ đồ", "Plan", "B-Tree", "Thử sửa", "Capacity", "Mentor", "Tranh chấp"], hint: "Chưa có cảnh để hiện", cancel: "Hủy", rebuild: "Dựng lại" },
+  en: { run: "Run", stage: "Simulation", tabs: ["Schema", "Plan", "B-Tree", "Try a fix", "Capacity", "Mentor", "Conflicts"], hint: "Nothing to show yet", cancel: "Cancel", rebuild: "Rebuild" },
 } as const;
 const SHOTS63 = "../_bmad-output/SP999/STR062/Task063/anh";
 const BAD = /thiết kế (này )?(đã )?ổn|design is (fine|ok|good)|good design/i;
@@ -601,7 +601,7 @@ for (const l of ["vi", "en"] as const) {
         await openStage(page, l);
         await expect(stageTab(page, l, 0)).toBeVisible({ timeout: 90_000 });
         const vw = page.viewportSize()!.width;
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 7; i++) {
           const b = (await stageTab(page, l, i).boundingBox())!;
           expect(b.x).toBeGreaterThanOrEqual(0);
           expect(b.x + b.width).toBeLessThanOrEqual(vw);
