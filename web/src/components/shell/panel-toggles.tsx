@@ -24,7 +24,7 @@ export function PanelToggles() {
               variant="ghost"
               size="icon-sm"
               aria-label={t("toggles.menu")}
-              className="text-dim hover:text-text data-popup-open:text-text *:transition-transform *:duration-300 *:ease-out data-popup-open:*:rotate-90"
+              className="text-dim hover:text-text aria-expanded:text-text *:transition-transform *:duration-300 *:ease-out aria-expanded:*:rotate-90"
             />
           }
         >

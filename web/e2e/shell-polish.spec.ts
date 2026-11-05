@@ -317,6 +317,49 @@ test.describe("máy tính 1440", () => {
     await page.screenshot({ path: `${OUT}sau-1440-vi-menu-sau-doi-ngon-ngu.png`, clip: { x: 1000, y: 0, width: 440, height: 300 } });
   });
 
+  test("reviewer: chỉ hover bánh răng thì không quay; Escape đóng menu quay về 0 một mạch", async ({ page }) => {
+    await open(page, "en");
+    await gear(page, "en").hover();
+    await expect(page.locator("[data-slot=tooltip-content]")).toBeVisible();
+    expect(await angle(page)).toBe(0);
+    await gear(page, "en").click();
+    await expect.poll(() => angle(page)).toBe(90);
+    await page.evaluate(() => ((window as unknown as { seq: number[] }).seq = []));
+    const done = page.evaluate(
+      () =>
+        new Promise<number[]>((res) => {
+          const el = document.querySelector("button[aria-haspopup='menu'] svg")!;
+          const out: number[] = [];
+          const tick = () => {
+            const v = getComputedStyle(el).rotate;
+            out.push(v === "none" ? 0 : Math.round(parseFloat(v)));
+            if (out.length < 60) requestAnimationFrame(tick);
+            else res(out);
+          };
+          tick();
+        }),
+    );
+    await page.keyboard.press("Escape");
+    const seq = await done;
+    for (let i = 1; i < seq.length; i++) expect(seq[i], `quay ngược lên: ${seq}`).toBeLessThanOrEqual(seq[i - 1]);
+    expect(seq.at(-1)).toBe(0);
+  });
+
+  test("reviewer: cột đã lưu to hơn cửa sổ thì được kẹp lại, không tràn, mở rộng lại về cỡ đã lưu", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("sqllens.layout", '{"open":{"sql":true,"stage":true,"findings":true,"terminal":true},"size":{"sql":560,"findings":560,"terminal":180}}'));
+    await page.setViewportSize({ width: 1000, height: 900 });
+    await open(page, "en");
+    const r = async () => page.evaluate(() => ["sql", "stage", "findings"].map((z) => document.querySelector<HTMLElement>(`[data-zone=${z}]`)!.getBoundingClientRect()));
+    let [a, b, c] = await r();
+    expect(b.width).toBeGreaterThanOrEqual(158);
+    expect(c.right).toBeLessThanOrEqual(1001);
+    expect(a.width).toBeGreaterThanOrEqual(220);
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await expect.poll(async () => Math.round((await r())[0].width)).toBe(560);
+    [a, b, c] = await r();
+    expect(Math.round(c.width)).toBe(560);
+  });
+
   test("ca biên: đổi cỡ cửa sổ qua mốc 900 px giữ trạng thái cột", async ({ page }) => {
     await open(page, "en");
     await flip(page, "en", L.en.findings);
@@ -345,7 +388,9 @@ test.describe("máy tính 1440", () => {
           const ev = e as TransitionEvent;
           if (!/width|height/.test(ev.propertyName)) return;
           (ev.target as Element).getAnimations().forEach((a) => {
-            if ((a as CSSTransition).transitionProperty === ev.propertyName) (a.pause(), w.__anims.push(a));
+            if ((a as CSSTransition).transitionProperty !== ev.propertyName) return;
+            a.pause();
+            w.__anims.push(a);
           });
         });
       });

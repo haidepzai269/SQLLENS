@@ -128,11 +128,37 @@ function Slot({ zone, open, label, size, vertical, children, style }: {
   );
 }
 
+function fitSizes(saved: Record<SizedZone, number>, open: Record<Zone, boolean>, box: { w: number; h: number }) {
+  const out = { ...saved };
+  const room = box.w - STAGE_MIN - 2;
+  const total = (open.sql ? saved.sql : 0) + (open.findings ? saved.findings : 0);
+  if (total > room) {
+    if (open.sql && open.findings) {
+      out.sql = Math.min(saved.sql, Math.max(LIMITS.sql.min, Math.round((saved.sql * room) / total)));
+      out.findings = Math.max(LIMITS.findings.min, room - out.sql);
+    } else out[open.sql ? "sql" : "findings"] = Math.max(LIMITS[open.sql ? "sql" : "findings"].min, room);
+  }
+  out.terminal = Math.max(LIMITS.terminal.min, Math.min(saved.terminal, box.h - COLUMNS_MIN - 1));
+  return out;
+}
+
 export function DesktopLayout({ zones }: { zones: Record<Zone, ReactNode> }) {
   const t = useTranslations("shell");
   const { state, commitSizes } = useShell();
   const root = useRef<HTMLDivElement>(null);
-  const { open, size } = state;
+  const { open } = state;
+  // Cỡ khung chứa: cột đã lưu có thể to hơn cửa sổ hiện tại, nên cỡ dùng để vẽ được kẹp lại (không ghi đè cỡ đã lưu, mở rộng cửa sổ thì về như cũ).
+  const [box, setBox] = useState({ w: 1e5, h: 1e5 });
+  useLayoutEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const read = () => setBox((b) => (b.w === el.clientWidth && b.h === el.clientHeight ? b : { w: el.clientWidth, h: el.clientHeight }));
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const size = fitSizes(state.size, open, box);
   const sides = (["sql", "findings"] as const).filter((z) => open[z]);
   const cols = open.stage || sides.length > 0;
 
