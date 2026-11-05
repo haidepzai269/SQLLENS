@@ -37,14 +37,18 @@ describe("planRange", () => {
     expect(r).toMatchObject({ end: "unread" });
     expect("slide" in r && r.slide.map((n) => n.page)).toEqual([3]);
   });
-  it("leaf chỉ có một phần khóa thì không khẳng định chỗ kết thúc", () => {
+  it("leaf chỉ giữ một phần khóa vẫn quyết định được theo khóa đầu của leaf kế", () => {
     const m = chain();
     m.nodes[1] = leaf(2, ["1", "2", "9"], 3, 300);
     m.nodes[2] = leaf(3, ["10", "11", "12"], 4, 300);
-    // khóa đầu của leaf 3 (10) <= 15 nên chắc chắn phải sang leaf 3; leaf 3 không biết hết khóa chưa, khóa đầu leaf 4 (20) > 15
-    const r = planRange(m, P, "15");
-    expect(r).toMatchObject({ end: "partial" });
+    const r = planRange(m, P, "15"); // leaf kế của 3 bắt đầu từ 20 > 15 nên dừng ở leaf 3
+    expect(r).toMatchObject({ end: "done" });
     expect("slide" in r && r.slide.map((n) => n.page)).toEqual([3]);
+  });
+  it("leaf kế không có khóa nào đã đọc thì dừng và nói chưa biết", () => {
+    const m = chain();
+    m.nodes[2] = leaf(3, [], 4, 300);
+    expect(planRange(m, P, "99")).toEqual({ end: "partial", slide: [] });
   });
   it("so theo số, không theo chữ: 9 đến 10", () => {
     const m = chain();

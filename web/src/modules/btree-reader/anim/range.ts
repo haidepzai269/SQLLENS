@@ -30,17 +30,20 @@ export function planRange(model: BTreeModel, path: BTreePath, to: string): Range
       end = "done";
       break;
     }
-    const nxt = cur.next ? byPage.get(cur.next) : undefined;
-    // Leaf chỉ giữ một phần khóa: chưa thấy hết khóa của nó, trừ khi khóa đầu của leaf kế đã không vượt quá `to` (khi đó mọi khóa của nó cũng không vượt).
-    const complete = cur.keys.length >= cur.totalKeys;
-    const certain = complete || (nxt !== undefined && nxt.keys[0] !== undefined && cmp(nxt.keys[0], to) <= 0);
-    if (!certain) end = "partial";
-    else if (!cur.next) end = "lastLeaf";
-    else if (!nxt) end = "unread";
+    // Như PostgreSQL: sang leaf kế khi khóa chặn trên của leaf này (≈ khóa nhỏ nhất của leaf kế) chưa vượt `to`. Không cần biết hết khóa của leaf này.
+    // shortcut: với text, khóa chặn trên có thể bị cắt ngắn nên nhỏ hơn khóa đầu leaf kế; khi đó PostgreSQL có thể đọc thêm một leaf mà ta dừng sớm hơn một leaf.
+    if (!cur.next) end = "lastLeaf";
     else {
-      slide.push(nxt);
-      cur = nxt;
-      continue;
+      const nxt = byPage.get(cur.next);
+      const f = nxt?.keys[0];
+      if (!nxt) end = "unread";
+      else if (f === undefined) end = "partial";
+      else if (cmp(f, to) > 0) end = "done";
+      else {
+        slide.push(nxt);
+        cur = nxt;
+        continue;
+      }
     }
     break;
   }
