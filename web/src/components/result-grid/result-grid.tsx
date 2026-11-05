@@ -57,6 +57,7 @@ function One({ result, index, open, onToggle }: { result: QueryResult; index: nu
                 {t("total", { count: rows.length })}
                 {affectedRows !== undefined && ` ${t("affected", { count: affectedRows })}.`}
                 {rows.length > MAX_ROWS && ` ${t("truncated", { max: MAX_ROWS })}`}
+                {result.truncated && ` ${t("cutByServer")}`}
               </p>
             )}
           </>

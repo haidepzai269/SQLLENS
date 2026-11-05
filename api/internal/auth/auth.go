@@ -95,8 +95,6 @@ func Mount(r *gin.Engine, d Deps) *Auth {
 	r.GET("/auth/:provider/callback", a.callback)
 	r.POST("/auth/logout", a.logout)
 	r.GET("/me", a.requireUser, a.me)
-	// Tạm: SP004 STR019 thay bằng route thật.
-	r.Group("/mysql", a.Gate(quota.MySQLSession)...).POST("/ping", func(c *gin.Context) { c.Status(http.StatusNoContent) })
 	return a
 }
 

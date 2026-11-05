@@ -11,7 +11,6 @@
   "working": "Đang chạy. Cảnh mô phỏng sẽ hiện khi chạy xong.",
   "loading": "Đang đọc dữ liệu từ database...",
   "error": "Không đọc được: {message}",
-  "mysql": "Cảnh mô phỏng cho MySQL chưa có trong phiên bản này. Chuyển sang PostgreSQL để xem.",
   "schema": {
     "none": "SQL vừa chạy không tạo bảng nào trong schema public, nên chưa có gì để vẽ.",
     "evidence": "Đọc từ database vừa chạy, không đọc từ chữ SQL: {count, plural, one {# bảng} other {# bảng}}."

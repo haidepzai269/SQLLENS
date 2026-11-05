@@ -11,7 +11,6 @@
   "working": "Running. The scenes appear when the run finishes.",
   "loading": "Reading data from the database...",
   "error": "Could not read: {message}",
-  "mysql": "Simulation scenes for MySQL are not in this version yet. Switch to PostgreSQL to see them.",
   "schema": {
     "none": "The SQL that just ran created no tables in the public schema, so there is nothing to draw.",
     "evidence": "Read from the database that just ran, not from the SQL text: {count, plural, one {# table} other {# tables}}."

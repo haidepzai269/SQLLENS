@@ -1,5 +1,5 @@
 import type { Outcome } from "@/contracts/conclusion";
-import type { EngineAdapter } from "@/contracts/engine";
+import type { EngineAdapter, QueryResult } from "@/contracts/engine";
 import type { Plan, PlanNode } from "@/contracts/plan";
 import type { ParsedStatement } from "@/modules/sql-intake/parser";
 import { SCHEMA_QUERY } from "@/modules/data-lab/generate/plan-data";
@@ -19,6 +19,24 @@ JOIN pg_namespace n ON n.oid = tc.relnamespace
 JOIN pg_am am ON am.oid = ic.relam
 WHERE n.nspname = 'public' AND tc.relkind IN ('r', 'p')
 ORDER BY tc.relname, ic.relname`);
+
+// MySQL: cùng các cột như SCHEMA_QUERY của PostgreSQL. Cờ là 0/1 (mysqlSchema đổi thành boolean). Chỉ đọc database của phiên.
+export const MYSQL_SCHEMA_QUERY = `
+SELECT c.TABLE_SCHEMA AS schema_name, c.TABLE_NAME AS table_name, c.COLUMN_NAME AS column_name, c.COLUMN_TYPE AS data_type,
+  c.IS_NULLABLE = 'YES' AS nullable, c.COLUMN_KEY = 'PRI' AS is_pk, c.COLUMN_KEY = 'UNI' AS is_unique,
+  (SELECT k.REFERENCED_TABLE_NAME FROM information_schema.KEY_COLUMN_USAGE k WHERE k.TABLE_SCHEMA = c.TABLE_SCHEMA AND k.TABLE_NAME = c.TABLE_NAME
+    AND k.COLUMN_NAME = c.COLUMN_NAME AND k.REFERENCED_TABLE_NAME IS NOT NULL LIMIT 1) AS ref_table,
+  (SELECT k.REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE k WHERE k.TABLE_SCHEMA = c.TABLE_SCHEMA AND k.TABLE_NAME = c.TABLE_NAME
+    AND k.COLUMN_NAME = c.COLUMN_NAME AND k.REFERENCED_TABLE_NAME IS NOT NULL LIMIT 1) AS ref_column
+FROM information_schema.COLUMNS c
+JOIN information_schema.TABLES t ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME AND t.TABLE_TYPE = 'BASE TABLE'
+WHERE c.TABLE_SCHEMA = DATABASE()
+ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION`;
+const FLAGS = ["nullable", "is_pk", "is_unique"];
+export function mysqlSchema(r: QueryResult): QueryResult {
+  const at = FLAGS.map((n) => r.columns.indexOf(n));
+  return { ...r, rows: r.rows.map((row) => row.map((v, i) => (at.includes(i) ? Number(v) === 1 : v))) };
+}
 
 export type IndexInfo = { name: string; table: string; method: string };
 

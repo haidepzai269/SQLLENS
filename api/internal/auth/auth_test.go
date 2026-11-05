@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/haidepzai269/SQLLENS/api/internal/httpapi"
 	"github.com/haidepzai269/SQLLENS/api/internal/quota"
 	"github.com/haidepzai269/SQLLENS/api/internal/store"
@@ -78,6 +79,7 @@ func newEnv(t *testing.T) *env {
 		Google: Provider{"gid", "gsecret", ep("google")}, GitHub: Provider{"hid", "hsecret", ep("github")}}
 	r := httpapi.NewRouterWithLog(e.logs)
 	e.a = Mount(r, Deps{Config: cfg, Store: st, Limiter: quota.New(up.URL, "tok", nil)})
+	gatedPing(r, e.a)
 	e.h = r
 	return e
 }
@@ -397,10 +399,15 @@ func TestUnknownProvider(t *testing.T) {
 	}
 }
 
+// Route thử cho cổng đăng nhập và hạn mức; route MySQL thật nằm ở package mysql.
+func gatedPing(r *gin.Engine, a *Auth) {
+	r.Group("/mysql", a.Gate(quota.MySQLSession)...).POST("/ping", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+}
+
 // Không cần Docker: thiếu cấu hình thì server vẫn chạy, route liên quan trả 503.
 func TestNotConfigured(t *testing.T) {
 	r := httpapi.NewRouter()
-	Mount(r, Deps{})
+	gatedPing(r, Mount(r, Deps{}))
 	do := func(m, p string, hdr map[string]string, c *http.Cookie) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(m, p, nil)
 		for k, v := range hdr {
