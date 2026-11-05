@@ -25,7 +25,6 @@ function fromPlan(hit: RuleHit, plan: Plan): Outcome<FindingData> {
   const real = plan.analyzed;
   const values = { table: hit.table!, scan: node.label };
   // Dùng index chưa đủ để xanh: nút phải lọc theo chính cột của luật. Nếu không thì chỉ quan sát được một index khác đang phục vụ (ví dụ khóa chính).
-  // shortcut: normalize chỉ giữ một condition (Index Cond, nếu không có thì Filter), nên nút index chỉ có Filter theo cột của luật vẫn bị coi là liên quan; sửa khi Plan tách Index Cond khỏi Filter.
   // Cột có tiền tố (alias.col) không khớp: nghiêng về unverified thay vì xanh sai.
   const unrelated =real && !seq && !(hit.column && mentions(node.condition, hit.column));
   const evidence: [Evidence, ...Evidence[]] = [

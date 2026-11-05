@@ -35,6 +35,7 @@ function copyNode(n: unknown, depth = 0): PlanNode | undefined {
     table: str(n.table),
     index: str(n.index),
     condition: str(n.condition),
+    filter: str(n.filter),
     estimatedRows: num(n.estimatedRows),
     actualRows: num(n.actualRows),
     loops: num(n.loops),
@@ -104,7 +105,7 @@ function cutSql(sql: string, n: number): string {
 }
 
 const clip = (s: string | undefined) => (s === undefined ? s : cutSql(s, 200));
-const clipNode = (n: PlanNode): PlanNode => compact({ ...n, label: clip(n.label)!, condition: clip(n.condition), table: clip(n.table), index: clip(n.index), children: n.children.map(clipNode) });
+const clipNode = (n: PlanNode): PlanNode => compact({ ...n, label: clip(n.label)!, condition: clip(n.condition), filter: clip(n.filter), table: clip(n.table), index: clip(n.index), children: n.children.map(clipNode) });
 const clipPlan = (p: Plan): Plan => ({ ...p, root: clipNode(p.root) });
 
 export function buildEvidencePack(input: EvidenceInput): EvidencePack {

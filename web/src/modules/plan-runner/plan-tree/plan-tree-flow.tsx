@@ -141,6 +141,7 @@ function Detail({ step, analyzed, label, onClose, returnTo }: { step: PlanNode |
         [t("fields.table"), step.table ?? t("none"), step.table === undefined],
         [t("fields.index"), step.index ?? t("none"), step.index === undefined],
         [t("fields.condition"), step.condition ?? t("none"), step.condition === undefined],
+        [t("fields.filter"), step.filter ?? t("none"), step.filter === undefined],
         [t("fields.estRows"), num(step.estimatedRows), step.estimatedRows === undefined],
         [t("fields.loops"), num(step.loops), step.loops === undefined],
         [t("fields.estTotal"), num(expectedTotal(step)), step.estimatedRows === undefined],
