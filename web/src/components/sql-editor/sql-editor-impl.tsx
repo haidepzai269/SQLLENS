@@ -37,6 +37,22 @@ const errorField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
+const setHit = StateEffect.define<{ from: number; to: number } | null>();
+const hitField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    deco = deco.map(tr.changes);
+    for (const e of tr.effects) {
+      if (!e.is(setHit)) continue;
+      const len = tr.state.doc.length;
+      const h = e.value;
+      deco = h && h.to > h.from && h.from < len ? Decoration.set([Decoration.mark({ class: "cm-sql-hit" }).range(h.from, Math.min(h.to, len))]) : Decoration.none;
+    }
+    return deco;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
 class ErrorMarker extends GutterMarker {
   toDOM() {
     const el = document.createElement("span");
@@ -70,6 +86,7 @@ const theme = EditorView.theme(
       textDecoration: "underline wavy var(--negative)",
       backgroundColor: "color-mix(in srgb, var(--negative) 25%, transparent)",
     },
+    ".cm-sql-hit": { backgroundColor: "color-mix(in srgb, var(--lamp) 28%, transparent)", outline: "1px solid var(--lamp)" },
     ".cm-sql-error-gutter": { width: "16px" },
     ".cm-sql-error-gutter .cm-gutterElement": { color: "var(--negative)", fontWeight: "700", textAlign: "center" },
   },
@@ -94,7 +111,7 @@ const toDocOffset = (value: string, position: number) => {
   return normalize(value.slice(0, position)).length;
 };
 
-export default function SqlEditorImpl({ value, onChange, engine, error, ariaLabel }: SqlEditorProps) {
+export default function SqlEditorImpl({ value, onChange, engine, error, highlight: hl, ariaLabel }: SqlEditorProps) {
   const errId = useId();
   const [view, setView] = useState<EditorView | null>(null);
   const doc = useMemo(() => normalize(value), [value]);
@@ -104,6 +121,15 @@ export default function SqlEditorImpl({ value, onChange, engine, error, ariaLabe
     view?.dispatch({ effects: setError.of(offset) });
   }, [view, offset]);
 
+  const hFrom = hl ? toDocOffset(value, hl.from) : null;
+  const hTo = hl ? toDocOffset(value, hl.to) : null;
+  const hNonce = hl?.nonce;
+  useEffect(() => {
+    if (!view) return;
+    const hit = hFrom !== null && hTo !== null ? { from: hFrom, to: hTo } : null;
+    view.dispatch({ effects: [setHit.of(hit), ...(hit && hit.from < view.state.doc.length ? [EditorView.scrollIntoView(hit.from, { y: "center" })] : [])] });
+  }, [view, hFrom, hTo, hNonce]);
+
   const invalid = Boolean(error);
   const extensions = useMemo<Extension[]>(
     () => [
@@ -112,6 +138,7 @@ export default function SqlEditorImpl({ value, onChange, engine, error, ariaLabe
       theme,
       highlight,
       errorField,
+      hitField,
       errorGutter,
       EditorView.contentAttributes.of({
         "aria-label": ariaLabel,

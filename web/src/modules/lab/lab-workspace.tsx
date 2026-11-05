@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { SampleButton } from "@/components/sql-editor/sample-button";
 import { SqlEditor } from "@/components/sql-editor/sql-editor";
 import type { Conclusion } from "@/contracts/conclusion";
+import { FindingsPanel, type Focus } from "@/modules/findings/ui/findings-panel";
+import { hitsOf, useFindings } from "@/modules/findings/ui/use-findings";
 import { EngineError, type EngineAdapter, type LoadProgress, type QueryResult } from "@/contracts/engine";
 import { createPostgresAdapter } from "@/engines/postgres/adapter";
 import { GenerateDialog, type StopCode } from "@/modules/data-lab/ui/generate-dialog";
@@ -28,9 +30,9 @@ import { useAuth } from "@/modules/auth/auth-provider";
 import { MysqlAccess } from "@/modules/auth/mysql-access";
 import { stashSql, takeSql } from "@/modules/auth/sql-stash";
 import { Tip } from "@/components/shell/tip";
-import { Stage, type StageRun } from "./stage/stage";
+import { Stage, type StageFocus, type StageRun } from "./stage/stage";
 import { packStash, unpackStash } from "./stage/stash";
-import { lastSelect } from "./stage/stage-data";
+import { lastSelect, memoExplain } from "./stage/stage-data";
 import { StatementList } from "./statement-list";
 
 type RunData = { statements: number; rows: number };
@@ -118,6 +120,7 @@ export function LabWorkspace() {
   // Dữ liệu cho vùng stage của lần chạy gần nhất đã xong; null khi đang chạy, lỗi, bị hủy hay engine dựng lại, để tab không hiện số cũ.
   const [stageRun, setStageRun] = useState<StageRun | null>(null);
   const stageSeq = useRef(0);
+  const [focus, setFocus] = useState<(Focus & { nonce: number }) | null>(null); // mục rủi ro vừa bấm
   const [genOpen, setGenOpen] = useState(false);
   const generated = useRef(false); // đã sinh dữ liệu từ lần dựng gần nhất; dựng lại không giữ (câu sinh dữ liệu không vào history)
   const tth = useTranslations("data-lab");
@@ -210,13 +213,17 @@ export function LabWorkspace() {
         note({ kind: "ran", n: results.length });
         await refreshTables(db);
         let select: StageRun["select"];
+        let statements: StageRun["statements"];
         try {
           const po = await parseSql(toRun, engine);
-          if (po.ok) select = lastSelect(toRun, po.statements);
+          if (po.ok) {
+            select = lastSelect(toRun, po.statements);
+            statements = po.statements;
+          }
         } catch {
           /* không parse được thì không có câu SELECT để đo, các tab khác vẫn chạy */
         }
-        setStageRun({ id: ++stageSeq.current, db, select });
+        setStageRun({ id: ++stageSeq.current, db, select, sql: toRun, srcSql: sql, statements, explain: memoExplain(db) });
         setState({
           phase: "done",
           results,
@@ -341,13 +348,23 @@ export function LabWorkspace() {
         : undefined;
   // Lỗi parse không vị trí là parser không chạy được (tải hỏng, worker chết), không phải SQL sai.
   const parserDown = Boolean(outcome && !outcome.ok && outcome.error.position === undefined);
+  const frun = useMemo(
+    () => stageRun && { id: stageRun.id, engine: stageRun.db.engine, sql: stageRun.sql, srcSql: stageRun.srcSql, statements: stageRun.statements, explain: stageRun.explain },
+    [stageRun],
+  );
+  const found = useFindings(frun);
+  const findingsHits = found?.kind === "ok" ? hitsOf(found.items) : undefined;
+  const highlight =
+    focus && stageRun && focus.runId === stageRun.id && stageRun.srcSql === sql && stageRun.sql === sql && focus.start !== undefined && focus.end !== undefined
+      ? { from: focus.start, to: focus.end, nonce: focus.nonce }
+      : undefined;
   const loadSample = (text: string) => (sql.trim() === "" || sql === text ? setSql(text) : setPendingSample(text));
 
   const sqlZone = (
     <Pane title={ts("tab.sql")}>
       <span className="text-sm font-medium">{t("sqlLabel")}</span>
       <div className="h-56 border border-line" id="sql-input">
-        <SqlEditor value={sql} onChange={setSql} engine={engine} error={editorError} ariaLabel={t("sqlLabel")} />
+        <SqlEditor value={sql} onChange={setSql} engine={engine} error={editorError} highlight={highlight} ariaLabel={t("sqlLabel")} />
       </div>
       {sql.trim() === "" && (
         <div className="flex flex-col items-start gap-2">
@@ -501,12 +518,22 @@ export function LabWorkspace() {
             </p>
           ))}
         </div>
+        {stageRun && (
+          <FindingsPanel
+            key={stageRun.id}
+            run={frun!}
+            result={found}
+            stale={stageRun.srcSql !== sql}
+            planStatement={stageRun.select ? stageRun.select.n - 1 : undefined}
+            onFocus={(f) => (setFocus({ ...f, nonce: Date.now() + Math.random() }), setMobileTab(f.where))}
+          />
+        )}
       </Pane>
     ) : (
       <ZonePlaceholder title={ts("tab.findings")} hint={ts("placeholder.findings")} />
     );
 
-  const stageZone = <Stage run={stageRun} working={working} mysql={mysql} askRef={askRef} />;
+  const stageZone = <Stage run={stageRun} working={working} mysql={mysql} askRef={askRef} focus={focus as StageFocus | null} findings={{ hits: findingsHits ?? [], pending: !!stageRun && found === null }} />;
   const onStopped = async (code: StopCode) => {
     const db = await adapter.current;
     note({ kind: code });
@@ -537,7 +564,7 @@ export function LabWorkspace() {
         onSummary={(text, wrote) => {
           if (wrote) {
             generated.current = true;
-            setStageRun((r) => r && { ...r, id: ++stageSeq.current }); // dữ liệu đổi: plan và cây đọc lại
+            setStageRun((r) => r && { ...r, id: ++stageSeq.current, explain: memoExplain(r.db) }); // dữ liệu đổi: plan, cây và rủi ro đọc lại
           }
           note({ kind: "note", text });
           setMobileTab("terminal");

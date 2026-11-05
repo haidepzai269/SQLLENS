@@ -4,6 +4,8 @@ import type { Plan, PlanNode } from "@/contracts/plan";
 
 const SCAN_KINDS = new Set(["seq_scan", "index_scan", "index_only_scan", "bitmap_scan"]);
 const base = (t: string) => t.toLowerCase().split(".").pop()!;
+const mentions = (text: string | undefined, col: string) =>
+  !!text && new RegExp(`(?<![\\w.])"?${col.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"?(?![\\w])`, "i").test(text);
 const notSim = (reasonKey: string): Outcome<FindingData> => ({ kind: "not_simulated", reasonKey });
 
 // Tìm theo tên bảng thật (plan không mang bí danh), nên một bảng xuất hiện hai lần cho hai nút.
@@ -22,15 +24,21 @@ function fromPlan(hit: RuleHit, plan: Plan): Outcome<FindingData> {
   const node = nodes[0];
   const real = plan.analyzed;
   const values = { table: hit.table!, scan: node.label };
+  // Dùng index chưa đủ để xanh: nút phải lọc theo chính cột của luật. Nếu không thì chỉ quan sát được một index khác đang phục vụ (ví dụ khóa chính).
+  // shortcut: normalize chỉ giữ một condition (Index Cond, nếu không có thì Filter), nên nút index chỉ có Filter theo cột của luật vẫn bị coi là liên quan; sửa khi Plan tách Index Cond khỏi Filter.
+  // Cột có tiền tố (alias.col) không khớp: nghiêng về unverified thay vì xanh sai.
+  const unrelated =real && !seq && !(hit.column && mentions(node.condition, hit.column));
   const evidence: [Evidence, ...Evidence[]] = [
-    { kind: "plan-node", messageKey: `findings.evidence.${real ? "scan" : "estimatedScan"}${seq ? "Seq" : "Index"}`, values },
+    unrelated
+      ? { kind: "plan-node", messageKey: "findings.evidence.indexUnrelated", values: { ...values, column: hit.column ?? "" } }
+      : { kind: "plan-node", messageKey: `findings.evidence.${real ? "scan" : "estimatedScan"}${seq ? "Seq" : "Index"}`, values },
   ];
   if (real && node.actualRows !== undefined && node.pagesRead !== undefined) {
     evidence.push({ kind: "plan-counts", messageKey: "findings.evidence.counts", values: { rows: node.actualRows, pages: node.pagesRead } });
   } else if (!real && node.estimatedRows !== undefined) {
     evidence.push({ kind: "plan-counts", messageKey: "findings.evidence.estimatedRows", values: { rows: node.estimatedRows } });
   }
-  const severity: Severity = !real ? "unverified" : seq ? "broken" : "not_broken";
+  const severity: Severity = !real || unrelated ? "unverified" : seq ? "broken" : "not_broken";
   const out: Conclusion<FindingData> = { kind: "conclusion", label: real ? "real" : "estimated", data: { hit, severity, planNodeId: node.id }, evidence };
   return out;
 }

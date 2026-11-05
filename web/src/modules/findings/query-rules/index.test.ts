@@ -59,10 +59,10 @@ describe.each(ENGINES)("%s", (e) => {
   it("AC4 implicit-cast", () => {
     const num = run(e, T + "SELECT * FROM users WHERE a = '5'");
     expect(num).toHaveLength(1);
-    expect(num[0]).toMatchObject({ ruleId: "implicit-cast", column: "a", values: { direction: "number-vs-string", effect: "literal-cast" } });
+    expect(num[0]).toMatchObject({ ruleId: "implicit-cast", column: "a", values: { direction: "number-vs-string", effect: "literalCast" } });
     const txt = run(e, T + "SELECT * FROM users WHERE email = 5");
     expect(txt).toHaveLength(1);
-    expect(txt[0].values).toMatchObject({ direction: "string-vs-number", effect: e === "postgres" ? "error" : "column-cast" });
+    expect(txt[0].values).toMatchObject({ direction: "string-vs-number", effect: e === "postgres" ? "error" : "columnCast" });
     expect(run(e, T + "SELECT * FROM users WHERE a = 5 AND email = 'x'")).toEqual([]);
     expect(run(e, "SELECT * FROM users WHERE a = '5'")).toEqual([]); // kiểu cột không biết
   });

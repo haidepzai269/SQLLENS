@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { PGlite } from "@electric-sql/pglite";
 import { pageinspect } from "@electric-sql/pglite/contrib/pageinspect";
+import { IntlMessageFormat } from "intl-messageformat";
 import { loadModule, parseSync } from "pgsql-parser";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Evidence, Outcome } from "@/contracts/conclusion";
@@ -41,10 +42,18 @@ describe("attachEvidence, plan tổng hợp", () => {
 
   it("AC2: plan dùng index là not_broken, nhãn real", () => {
     for (const kind of ["index_scan", "index_only_scan", "bitmap_scan"] as const) {
-      const o = data(only([hit()], [{ statementIndex: 0, plan: plan(node({ id: "n1", kind, table: "t", actualRows: 1, pagesRead: 2 })) }]));
+      const o = data(only([hit()], [{ statementIndex: 0, plan: plan(node({ id: "n1", kind, table: "t", condition: "(c = 1)", actualRows: 1, pagesRead: 2 })) }]));
       expect(o).toMatchObject({ label: "real", data: { severity: "not_broken" } });
       expect(o.evidence[0].messageKey).toBe("findings.evidence.scanIndex");
     }
+  });
+
+  it("AC2 (Task069): index không lọc theo cột của luật là unverified, nhãn real, có câu nói quan sát được gì", () => {
+    const o = data(only([hit()], [{ statementIndex: 0, plan: plan(node({ id: "n1", kind: "index_scan", table: "t", condition: "(id = 5)", actualRows: 1, pagesRead: 2 })) }]));
+    expect(o).toMatchObject({ label: "real", data: { severity: "unverified", planNodeId: "n1" } });
+    expect(o.evidence[0]).toMatchObject({ messageKey: "findings.evidence.indexUnrelated", values: { column: "c" } });
+    // tên cột chỉ là một phần của tên khác thì không tính
+    expect(data(only([hit()], [{ statementIndex: 0, plan: plan(node({ id: "n1", kind: "index_scan", table: "t", condition: "(abc = 1)" })) }])).data.severity).toBe("unverified");
   });
 
   it("AC3: không plan, plan NotSimulated: NotSimulated; MySQL ước lượng: unverified, estimated", () => {
@@ -70,7 +79,7 @@ describe("attachEvidence, plan tổng hợp", () => {
     const two = (a: PlanNode["kind"], b: PlanNode["kind"]) => [{ statementIndex: 0, plan: plan(node({ id: "j", kind: "nested_loop", children: [node({ id: "a", kind: a, table: "t" }), node({ id: "b", kind: b, table: "t" })] })) }];
     expect(only([hit()], two("seq_scan", "index_scan"))).toMatchObject({ reasonKey: "findings.notSimulated.ambiguousTable" });
     expect(data(only([hit()], two("seq_scan", "seq_scan"))).data.planNodeId).toBe("a");
-    const join = plan(node({ id: "j", kind: "hash_join", children: [node({ id: "a", kind: "seq_scan", table: "other" }), node({ id: "b", kind: "hash", children: [node({ id: "c", kind: "index_scan", table: "t" })] })] }));
+    const join = plan(node({ id: "j", kind: "hash_join", children: [node({ id: "a", kind: "seq_scan", table: "other" }), node({ id: "b", kind: "hash", children: [node({ id: "c", kind: "index_scan", table: "t", condition: "(c = 1)" })] })] }));
     expect(data(only([hit()], [{ statementIndex: 0, plan: join }])).data).toMatchObject({ severity: "not_broken", planNodeId: "c" });
     expect(attachEvidence([], { plans: [] })).toEqual([]);
     expect(only([hit({ messageKey: "findings.other.x" })], p)).toMatchObject({ reasonKey: "findings.notSimulated.unknownRule" });
@@ -150,7 +159,11 @@ describe("câu dịch (AC5)", () => {
     }
   });
 
+  it("mọi câu dịch là ICU hợp lệ (câu sai cú pháp làm giao diện hiện khóa thô)", () => {
+    for (const [k, v] of [...flat(vi), ...flat(en)]) expect(() => new IntlMessageFormat(v, "en"), k).not.toThrow();
+  });
+
   it("implicit-cast phân biệt ba effect", () => {
-    for (const m of [vi, en]) for (const e of ["literal-cast", "column-cast", "error"]) expect(m.query["implicit-cast"]).toContain(`${e} {`);
+    for (const m of [vi, en]) for (const e of ["literalCast", "columnCast", "error"]) expect(m.query["implicit-cast"]).toContain(`${e} {`);
   });
 });

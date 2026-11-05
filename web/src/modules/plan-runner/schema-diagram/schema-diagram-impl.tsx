@@ -16,7 +16,7 @@ import { TableCard, type TableNode } from "./table-node";
 const nodeTypes = { table: TableCard };
 const fitOpts = { maxZoom: 1, padding: 0.1, duration: 0 };
 
-function Inner({ tables }: { tables: TableInfo[] }) {
+function Inner({ tables, focus }: { tables: TableInfo[]; focus?: { table: string; nonce: number } }) {
   const t = useTranslations("schema-diagram");
   const rf = useReactFlow();
   const wrap = useRef<HTMLDivElement>(null);
@@ -77,6 +77,19 @@ function Inner({ tables }: { tables: TableInfo[] }) {
     const id = requestAnimationFrame(() => rf.fitView(fitOpts));
     return () => cancelAnimationFrame(id);
   }, [build, narrow, setNodes, rf]);
+
+  // Bấm một rủi ro: chọn và đưa thẻ bảng đó vào giữa khung. Chạy lại khi nodes vừa dựng xong (chưa có node thì chưa chọn được).
+  const ready = nodes.length > 0 && narrow !== null;
+  useEffect(() => {
+    if (!focus || !ready) return;
+    const hit = tables.find((x) => x.name.toLowerCase() === focus.table.toLowerCase());
+    if (!hit) return;
+    const id = tableKey(hit);
+    setNodes((cur) => cur.map((n) => (n.selected === (n.id === id) ? n : { ...n, selected: n.id === id })));
+    const f = requestAnimationFrame(() => rf.fitView({ nodes: [{ id }], maxZoom: 1, padding: 0.3, duration: 0 }));
+    return () => cancelAnimationFrame(f);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy lại khi bấm mục mới hoặc sơ đồ vừa sẵn sàng
+  }, [focus?.nonce, focus?.table, ready]);
 
   const persist = (list: TableNode[]) => savePos(!!narrow, Object.fromEntries(list.map((n) => [n.id, n.position])));
 
@@ -232,10 +245,10 @@ function Summary({ tables, rels, missing }: { tables: TableInfo[]; rels: ReturnT
   );
 }
 
-export default function SchemaDiagramImpl({ tables }: { tables: TableInfo[] }) {
+export default function SchemaDiagramImpl({ tables, focus }: { tables: TableInfo[]; focus?: { table: string; nonce: number } }) {
   return (
     <ReactFlowProvider>
-      <Inner tables={tables} />
+      <Inner tables={tables} focus={focus} />
     </ReactFlowProvider>
   );
 }

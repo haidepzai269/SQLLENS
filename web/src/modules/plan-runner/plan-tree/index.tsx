@@ -12,6 +12,6 @@ function Loading() {
 // React Flow và dagre chỉ tải khi màn hình có cây plan.
 const Flow = dynamic(() => import("./plan-tree-flow"), { ssr: false, loading: Loading });
 
-export function PlanTree({ plan, label }: { plan: Plan; label: EvidenceLabel }) {
-  return <Flow plan={plan} label={label} />;
+export function PlanTree({ plan, label, openNode }: { plan: Plan; label: EvidenceLabel; openNode?: { id: string; nonce: number } }) {
+  return <Flow plan={plan} label={label} openNode={openNode} />;
 }
