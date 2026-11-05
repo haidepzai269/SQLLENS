@@ -1,71 +1,79 @@
 "use client";
 
-import { useState } from "react";
+import type { ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { readFailure, type Failure } from "./api";
+import type { Failure } from "./api";
 import { useAuth } from "./auth-provider";
 
-// Khớp quota.MySQLSession ở api/internal/quota/quota.go; Gin chưa trả hạn mức trong phản hồi.
-const MYSQL_DAILY_LIMIT = 20;
-
-type R = { kind: "idle" | "busy" | "ok" } | { kind: "fail"; f: Failure };
-
-// Cổng thật của /mysql: gọi POST /api/mysql/ping (Gin kiểm đăng nhập, tần suất, quota). Phiên MySQL thật làm ở SP004.
-export function MysqlAccess() {
+// Cổng của /mysql: chưa đăng nhập thì chỉ nói cần đăng nhập. Phiên thật tạo ở lần Chạy đầu (engines/mysql/adapter.ts).
+export function MysqlGate({ on, children }: { on: boolean; children: ReactNode }) {
   const t = useTranslations("auth.mysql");
-  const te = useTranslations("error");
+  const { status } = useAuth();
+  return !on || status === "user" ? <>{children}</> : <p role="status">{t("needsLogin")}</p>;
+}
+
+// Mã lỗi của Gin và agent (Task074) gom theo màn hình; lạ thì "generic". Khóa dịch: mysql.err.<kind>.
+const KIND: Record<string, string> = {
+  sandbox_full: "full",
+  user_session_limit: "userLimit",
+  quota_exceeded: "quota",
+  mysql_time_exhausted: "timeBudget",
+  rate_limited: "rate",
+  session_expired: "expired",
+  session_not_found: "expired",
+  sandbox_unreachable: "unreachable",
+  sandbox_bad_response: "unreachable",
+  connection_lost: "unreachable",
+  locks_failed: "unreachable",
+  network: "unreachable",
+  sandbox_timeout: "timeout",
+  result_too_large: "tooLarge",
+  not_configured: "notConfigured",
+  quota_unavailable: "unavailable",
+  disk_low: "unavailable",
+  connection_busy: "busy",
+  query_timeout: "queryTimeout",
+  session_disk_quota: "diskQuota",
+};
+export const failureKind = (code: string) => KIND[code] ?? "generic";
+
+type Props = {
+  failure: Failure;
+  /** Số câu đã chạy thành công trong phiên đã mất; chỉ dùng ở màn hình hết hạn. */
+  historyCount: number;
+  onRetry: () => void;
+  onFresh: () => void;
+  onReplay: () => void;
+  onUsePostgres: () => void;
+};
+
+export function SandboxFailureView({ failure: f, historyCount, onRetry, onFresh, onReplay, onUsePostgres }: Props) {
+  const t = useTranslations("mysql");
   const locale = useLocale();
-  const { status, markAnon } = useAuth();
-  const [r, setR] = useState<R>({ kind: "idle" });
-
-  async function check() {
-    setR({ kind: "busy" });
-    try {
-      const res = await fetch("/api/mysql/ping", { method: "POST", credentials: "same-origin" });
-      if (res.status === 204) return setR({ kind: "ok" });
-      const f = await readFailure(res);
-      if (res.status === 401) markAnon(); // cookie hết hạn: cổng đăng nhập tự mở
-      setR({ kind: "fail", f });
-    } catch {
-      setR({ kind: "fail", f: { status: 0, code: "network", key: "internal" } });
-    }
-  }
-
-  if (status !== "user") return <p role="status">{t("needsLogin")}</p>;
-  const f = r.kind === "fail" ? r.f : null;
-  const when = f?.resetAt && new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(f.resetAt);
+  const kind = failureKind(f.code);
+  const when = f.resetAt && new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(f.resetAt);
+  const tr = useTranslations() as unknown as (key: string, values?: Record<string, string | number>) => string;
+  // Hết chỗ, hết hạn mức, chưa cấu hình: chờ không giúp ngay, nên chỉ mời dùng PostgreSQL; còn lại cho thử lại.
+  const retry = !["quota", "timeBudget", "notConfigured", "expired"].includes(kind);
   return (
-    <div className="flex flex-col items-start gap-2">
-      <p>{t("ready")}</p>
-      <Button variant="outline" onClick={check} disabled={r.kind === "busy"}>
-        {r.kind === "busy" ? t("checking") : t("check")}
-      </Button>
-      <div role="status" className="w-full">
-        {r.kind === "ok" && <p>{t("ok")}</p>}
-        {f?.code === "quota_exceeded" && (
-          <Alert variant="destructive" data-testid="quota-exceeded">
-            <AlertTitle>{t("exceededTitle", { limit: MYSQL_DAILY_LIMIT })}</AlertTitle>
-            <AlertDescription>
-              {when ? t("resetAt", { when }) : t("resetUnknown")} {t("postgresStillWorks")}
-            </AlertDescription>
-          </Alert>
-        )}
-        {f?.code === "quota_unavailable" && (
-          <Alert data-testid="quota-unavailable">
-            <AlertTitle>{t("unavailableTitle")}</AlertTitle>
-            <AlertDescription>
-              {t("unavailableBody")} {t("postgresStillWorks")}
-            </AlertDescription>
-          </Alert>
-        )}
-        {f && f.code !== "quota_exceeded" && f.code !== "quota_unavailable" && f.status !== 401 && (
-          <Alert variant="destructive">
-            <AlertDescription>{te(f.key)}</AlertDescription>
-          </Alert>
-        )}
-      </div>
-    </div>
+    <Alert variant="destructive" data-testid="mysql-failure" data-kind={kind} role="alert">
+      <AlertTitle>{tr(`mysql.err.${kind}.title`)}</AlertTitle>
+      <AlertDescription className="flex flex-col items-start gap-2">
+        <p>{tr(`mysql.err.${kind}.body`, { code: f.code })}</p>
+        {when && ["quota", "timeBudget", "rate"].includes(kind) && <p>{t("err.resetAt", { when })}</p>}
+        <div className="flex flex-wrap gap-2">
+          {kind === "expired" && (
+            <>
+              <Button size="sm" onClick={onFresh}>{t("err.newEmpty")}</Button>
+              {historyCount > 0 && <Button size="sm" variant="outline" onClick={onReplay}>{t("err.replay", { count: historyCount })}</Button>}
+            </>
+          )}
+          {retry && <Button size="sm" variant="outline" onClick={onRetry}>{t("retry")}</Button>}
+          <Button size="sm" variant="outline" onClick={onUsePostgres}>{t("usePostgres")}</Button>
+        </div>
+      </AlertDescription>
+    </Alert>
   );
 }

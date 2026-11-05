@@ -25,7 +25,7 @@ import { PlanTree } from "@/modules/plan-runner/plan-tree";
 import { SchemaDiagram } from "@/modules/plan-runner/schema-diagram/schema-diagram";
 import { retarget } from "@/modules/what-if/capacity-ui/measure-level";
 import { WhatIfCompare } from "@/modules/what-if/compare-ui/what-if-compare";
-import { joinNodes, STAGE_INDEX_QUERY, STAGE_SCHEMA_QUERY, type IndexInfo } from "./stage-data";
+import { joinNodes, MYSQL_SCHEMA_QUERY, mysqlSchema, STAGE_INDEX_QUERY, STAGE_SCHEMA_QUERY, type IndexInfo } from "./stage-data";
 
 // Capacity (GSAP, B-Tree) và Mentor (đọc stream) chỉ tải khi mở tab của chúng.
 const CapacityPanel = dynamic(() => import("@/modules/what-if/capacity-ui").then((m) => m.CapacityPanel), {
@@ -124,9 +124,11 @@ function OutcomeView<T>({ o, render }: { o: Outcome<T>; render: (c: Conclusion<T
 function SchemaTab({ run, on, focus }: { run: StageRun; on: boolean; focus?: { table: string; nonce: number } }) {
   const t = useTranslations("labStage");
   const tl = useTranslations("lab");
-  const r = useLoad(on, `${run.id}`, async () =>
-    parseSchema((await run.db.execute(STAGE_SCHEMA_QUERY, { internal: true }))[0] ?? { columns: [], rows: [] }),
-  );
+  const my = run.db.engine === "mysql";
+  const r = useLoad(on, `${run.id}`, async () => {
+    const res = (await run.db.execute(my ? MYSQL_SCHEMA_QUERY : STAGE_SCHEMA_QUERY, { internal: true }))[0] ?? { columns: [], rows: [] };
+    return parseSchema(my ? mysqlSchema(res) : res);
+  });
   // Mảng phải ổn định, nếu không sơ đồ dựng lại và fit lại liên tục (Task047).
   const tables = useMemo(() => (r?.ok ? r.v : []), [r]);
   if (!r) return <Loading />;
@@ -231,6 +233,15 @@ function BTreeTab({ run, on, list }: { run: StageRun; on: boolean; list: Load<In
   );
 }
 
+// MySQL: B-Tree, Thử sửa, Capacity, Mentor chưa mô phỏng được. Lý do lấy từ adapter (btree, whatif) hoặc khóa riêng.
+function MysqlNotSim({ run, which }: { run: StageRun; which: "btree" | "whatif" | "capacity" | "mentor" }) {
+  const r = useLoad<Outcome<never>>(true, `${run.id}:${which}`, async () =>
+    which === "btree" ? (await run.db.readBTree("")).model as Outcome<never> : which === "whatif" ? ((await run.db.tryChange("", "")) as Outcome<never>) : { kind: "not_simulated", reasonKey: `mysql.notSimulated.${which}` },
+  );
+  if (!r) return <Loading />;
+  return r.ok ? <OutcomeView o={r.v} render={() => null} /> : <Note tone="error">{errText(r.e)}</Note>;
+}
+
 function CapacityTab({ run, list }: { run: StageRun; list: Load<IndexInfo[]> }) {
   const t = useTranslations("labStage");
   // Lựa chọn gắn với đúng lần chạy: chạy lại thì bỏ, panel dựng mới nên không còn số của lần trước.
@@ -308,7 +319,7 @@ function WhatIfTab({ run }: { run: StageRun }) {
   return <WhatIfCompare key={run.id} adapter={run.db} probe={run.select.sql} />;
 }
 
-export function Stage({ run, working, mysql, askRef, focus, findings }: { run: StageRun | null; working: boolean; mysql: boolean; askRef: RefObject<string>; focus?: StageFocus | null; findings: StageFindings }) {
+export function Stage({ run, working, askRef, focus, findings }: { run: StageRun | null; working: boolean; askRef: RefObject<string>; focus?: StageFocus | null; findings: StageFindings }) {
   const t = useTranslations("labStage");
   const ts = useTranslations("shell");
   const [tab, setTab] = useState<Tab>("schema");
@@ -320,8 +331,9 @@ export function Stage({ run, working, mysql, askRef, focus, findings }: { run: S
     setTab(v as Tab);
   };
   // Plan và danh sách index dùng chung giữa các tab: tải một lần cho mỗi lần chạy, không tải lại khi đổi tab.
-  const plan = useLoad<Outcome<Plan>>(!!run?.select && (open("plan") || open("mentor")), `${run?.id}`, () => run!.explain(run!.select!.sql));
-  const indexes = useLoad<IndexInfo[]>(!!run && (open("btree") || open("capacity")), `${run?.id}`, async () =>
+  const my = run?.db.engine === "mysql";
+  const plan = useLoad<Outcome<Plan>>(!!run?.select && (open("plan") || (!my && open("mentor"))), `${run?.id}`, () => run!.explain(run!.select!.sql));
+  const indexes = useLoad<IndexInfo[]>(!!run && !my && (open("btree") || open("capacity")), `${run?.id}`, async () =>
     ((await run!.db.execute(STAGE_INDEX_QUERY, { internal: true }))[0]?.rows ?? []).map((x) => ({ name: String(x[0]), table: String(x[1]), method: String(x[2]) })),
   );
   // Bấm một rủi ro: mở tab tương ứng (chỉnh state ngay lúc render, không qua effect).
@@ -331,7 +343,7 @@ export function Stage({ run, working, mysql, askRef, focus, findings }: { run: S
     setDoneNonce(f.nonce);
     if (f.tab && f.tab !== tab) change(f.tab);
   }
-  const hint = mysql ? t("mysql") : !run ? (working ? t("working") : ts("placeholder.stage")) : null;
+  const hint = !run ? (working ? t("working") : ts("placeholder.stage")) : null;
   return (
     <div className="flex min-h-full min-w-0 flex-col">
       <div className="flex h-[var(--h-bar)] flex-none items-center border-b border-line px-[var(--edge)] font-semibold">{ts("tab.stage")}</div>
@@ -347,10 +359,10 @@ export function Stage({ run, working, mysql, askRef, focus, findings }: { run: S
             </TabsList>
             <TabsContent value="schema" className="min-w-0" keepMounted><SchemaTab run={run} on={open("schema")} focus={f?.table ? { table: f.table, nonce: f.nonce } : undefined} /></TabsContent>
             <TabsContent value="plan" className="min-w-0" keepMounted><PlanTab run={run} r={plan} openNode={f?.planNodeId ? { id: f.planNodeId, nonce: f.nonce } : undefined} /></TabsContent>
-            <TabsContent value="btree" className="min-w-0" keepMounted><BTreeTab run={run} on={open("btree")} list={indexes} /></TabsContent>
-            <TabsContent value="whatif" className="min-w-0" keepMounted><WhatIfTab run={run} /></TabsContent>
-            <TabsContent value="capacity" className="min-w-0" keepMounted>{open("capacity") && <CapacityTab run={run} list={indexes} />}</TabsContent>
-            <TabsContent value="mentor" className="min-w-0" keepMounted>{open("mentor") && <MentorTab run={run} plan={plan} askRef={askRef} findings={findings} />}</TabsContent>
+            <TabsContent value="btree" className="min-w-0" keepMounted>{my ? <MysqlNotSim run={run} which="btree" /> : <BTreeTab run={run} on={open("btree")} list={indexes} />}</TabsContent>
+            <TabsContent value="whatif" className="min-w-0" keepMounted>{my ? <MysqlNotSim run={run} which="whatif" /> : <WhatIfTab run={run} />}</TabsContent>
+            <TabsContent value="capacity" className="min-w-0" keepMounted>{open("capacity") && (my ? <MysqlNotSim run={run} which="capacity" /> : <CapacityTab run={run} list={indexes} />)}</TabsContent>
+            <TabsContent value="mentor" className="min-w-0" keepMounted>{open("mentor") && (my ? <MysqlNotSim run={run} which="mentor" /> : <MentorTab run={run} plan={plan} askRef={askRef} findings={findings} />)}</TabsContent>
             <TabsContent value="conflict" className="min-w-0" keepMounted>{open("conflict") && <ConflictPanel />}</TabsContent>
           </Tabs>
         )}

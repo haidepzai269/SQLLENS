@@ -8,5 +8,6 @@
   "error": {
     "title": "PostgreSQL báo lỗi",
     "at": "Dòng {line}, cột {column}"
-  }
+  },
+  "cutByServer": "Máy chủ đã cắt kết quả này: chỉ nhận tối đa 10.000 dòng đầu."
 }
