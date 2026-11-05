@@ -23,6 +23,23 @@
     "hidden": "Step {n}: read page {page} ({kind}). This page is in the block of nodes not drawn, and key {key} goes into that block.",
     "leafFound": "Step {n}: read page {page} ({kind}). Key {key} is in this page, which holds {total, number} keys in all.",
     "leafMissing": "Step {n}: read page {page} ({kind}). The page holds {total, number} keys, and key {key} is not among the keys read.",
-    "heap": "Step {n}: jump from the index to the heap and read page {page} to get the full row."
+    "heap": "Step {n}: jump from the index to the heap and read page {page} to get the full row.",
+    "rangeStart": "Step {n}: read page {page} ({kind}), the first leaf of the range. From here it moves sideways to the right-hand leaf, without going back to the root, until it meets a key greater than {to}. {leaves, plural, one {# leaf} other {# leaves}} read.",
+    "slide": "Step {n}: slide to the right-hand leaf, page {page}, with {total, number} keys. {leaves, plural, one {# leaf} other {# leaves}} read.",
+    "heapRange": "Step {n}: a leaf holds only keys and row locations. The first row of the range (key {key}) is on heap page {page}, so it jumps from the index to the heap to fetch the full row. The other rows need heap reads too; the animation shows the first row only."
+  },
+  "summaryRange": "Key range {key} to {to}: pages read {pages}.",
+  "idleRange": "Not run yet. Press Run or Next step to see the range from {key} to {to}: the key drops to the first leaf, then slides right.",
+  "noPathRange": "There is no path to the first leaf of the range in the data read (for example an index whose first column is DESC or NULLS FIRST, a text collation other than C, or a wrongly typed start key), so it cannot run. The tree is still shown correctly.",
+  "rangeError": {
+    "badRange": "The start key is greater than the end key, so the range is empty and there is nothing to read. Swap the two keys.",
+    "badType": "The end key does not match the key type of this index (numbers). Enter a number.",
+    "multiColumn": "The index has several columns. The range animation only supports single-column indexes for now, so it does not run."
+  },
+  "end": {
+    "done": "Stop: the leaf just read already has a key greater than {to}, so the rest of the range needs no reading. {leaves, plural, one {# leaf} other {# leaves}} read in total.",
+    "lastLeaf": "Stop: this is the last leaf of the index, there is no leaf to the right. {leaves, plural, one {# leaf} other {# leaves}} read in total.",
+    "partial": "Stop here: the data read has only some of the keys of this leaf, so it is unknown where the range ends. The rest is unread and not guessed. {leaves, plural, one {# leaf} other {# leaves}} read.",
+    "unread": "Stop here: the next leaf has not been read into the tree. The rest of the range is unread, not drawn, and its page count is not guessed. {leaves, plural, one {# leaf} other {# leaves}} read."
   }
 }

@@ -32,7 +32,9 @@
     "pick": "Chọn một index để đọc cây thật của nó.",
     "keyLabel": "Khóa muốn thả xuống cây",
     "keyPlaceholder": "Ví dụ 121",
-    "keyHint": "Để trống thì chỉ vẽ cây. Khóa phải đúng kiểu của cột đầu tiên của index.",
+    "toLabel": "Khóa đến (tùy chọn)",
+    "toPlaceholder": "Ví dụ 300",
+    "keyHint": "Để trống thì chỉ vẽ cây. Khóa phải đúng kiểu của cột đầu tiên của index. Điền thêm khóa đến để xem quét khoảng từ khóa trên tới khóa đến.",
     "drop": "Thả khóa"
   },
   "whatif": {

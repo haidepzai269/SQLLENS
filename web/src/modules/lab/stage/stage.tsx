@@ -179,13 +179,15 @@ function BTreeTab({ run, on, list }: { run: StageRun; on: boolean; list: Load<In
   const t = useTranslations("labStage");
   const ts = useTranslations("shell");
   // Lựa chọn gắn với đúng lần chạy: chạy lại thì bỏ, không đọc cây của index có thể đã đổi.
-  const [pick, setPick] = useState<{ run: number; index: string; key: string } | null>(null);
+  const [pick, setPick] = useState<{ run: number; index: string; key: string; to: string } | null>(null);
   const [draft, setDraft] = useState("");
+  const [draftTo, setDraftTo] = useState("");
   const cur = pick && pick.run === run.id && list?.ok && list.v.some((x) => x.name === pick.index) ? pick : null;
   const tree = useLoad<{ model: Outcome<BTreeModel>; path?: BTreePath }>(
     on && !!cur,
-    `${run.id}:${cur?.index}:${cur?.key}`,
-    () => run.db.readBTree(cur!.index, cur!.key ? { probeKey: cur!.key } : undefined),
+    `${run.id}:${cur?.index}:${cur?.key}:${!!cur?.to}`,
+    // khoảng khóa cần đọc nhiều leaf hơn: cây nhỏ thì đọc hết, cây lớn thì leaf nào chưa đọc animation sẽ dừng và nói rõ
+    () => run.db.readBTree(cur!.index, cur!.key ? { probeKey: cur!.key, ...(cur!.to ? { maxNodes: 300 } : {}) } : undefined),
   );
   if (!list) return <Loading />;
   if (!list.ok) return <Note tone="error">{t("error", { message: list.e })}</Note>;
@@ -198,7 +200,7 @@ function BTreeTab({ run, on, list }: { run: StageRun; on: boolean; list: Load<In
           id="stage-index"
           className="h-9 min-w-0 border border-line bg-surface px-2 text-sm"
           value={cur?.index ?? ""}
-          onChange={(e) => (setPick(e.target.value ? { run: run.id, index: e.target.value, key: "" } : null), setDraft(""))}
+          onChange={(e) => (setPick(e.target.value ? { run: run.id, index: e.target.value, key: "", to: "" } : null), setDraft(""), setDraftTo(""))}
         >
           <option value="">{t("btree.choose")}</option>
           {list.v.map((x) => (
@@ -207,10 +209,11 @@ function BTreeTab({ run, on, list }: { run: StageRun; on: boolean; list: Load<In
         </select>
       </div>
       {cur && (
-        <form className="flex min-w-0 flex-col gap-1" onSubmit={(e) => (e.preventDefault(), setPick({ ...cur, key: draft.trim() }))}>
+        <form className="flex min-w-0 flex-col gap-1" onSubmit={(e) => (e.preventDefault(), setPick({ ...cur, key: draft.trim(), to: draftTo.trim() }))}>
           <label htmlFor="stage-key" className="text-sm font-medium">{t("btree.keyLabel")}</label>
           <div className="flex min-w-0 gap-2">
             <Input id="stage-key" className="min-w-0" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t("btree.keyPlaceholder")} />
+            <Input id="stage-key-to" aria-label={t("btree.toLabel")} className="min-w-0" value={draftTo} onChange={(e) => setDraftTo(e.target.value)} placeholder={t("btree.toPlaceholder")} />
             <Tip label={ts("tip.drop")}><Button type="submit" data-testid="stage-drop">{t("btree.drop")}</Button></Tip>
           </div>
           <p className="m-0 text-xs text-dim">{t("btree.keyHint")}</p>
@@ -224,7 +227,7 @@ function BTreeTab({ run, on, list }: { run: StageRun; on: boolean; list: Load<In
           o={tree.v.model}
           render={(c) => (
             <div className="flex min-h-96 min-w-0 flex-col" data-testid="stage-btree">
-              <BTreeDrop model={c.data} path={tree.v.path} label={c.label} />
+              <BTreeDrop model={c.data} path={tree.v.path} label={c.label} to={cur?.key && cur.to ? cur.to : undefined} />
             </div>
           )}
         />

@@ -10,7 +10,7 @@ import type { EvidenceLabel } from "@/contracts/conclusion";
 import { Button } from "@/components/ui/button";
 import { CAP, NH, NW } from "../view/layout";
 import { BTreeView, nodePosition, readStoredMode } from "../view/btree-view";
-import { buildSteps } from "./steps";
+import { buildSteps, rangeError } from "./steps";
 
 gsap.registerPlugin(useGSAP);
 
@@ -34,11 +34,11 @@ type Actions = { to: (time: number, jump?: boolean) => void; run: () => void; pa
 const noop = () => {};
 type Box = { x: number; y: number; w: number; cap: number };
 
-function Scene({ model, path, label }: { model: BTreeModel; path?: BTreePath; label: EvidenceLabel }) {
+function Scene({ model, path, label, to }: { model: BTreeModel; path?: BTreePath; label: EvidenceLabel; to?: string }) {
   const t = useTranslations("btree-anim");
-  const steps = useMemo(() => (path && path.pages.length ? buildSteps(model, path) : []), [model, path]);
+  const steps = useMemo(() => (path && path.pages.length ? buildSteps(model, path, to) : []), [model, path, to]);
+  const err = path && path.pages.length ? rangeError(model, path, to) : undefined;
   const S = steps.length;
-  const pageCount = path?.pages.length ?? 0;
   const hasHeap = path?.heapPage !== undefined;
   const reduced = useSyncExternalStore(subscribeReduced, () => window.matchMedia(QUERY).matches, () => false);
   const move = reduced ? 0.001 : MOVE; // giảm chuyển động: nhảy ngay, vẫn là cùng một timeline
@@ -81,16 +81,18 @@ function Scene({ model, path, label }: { model: BTreeModel; path?: BTreePath; la
       host.style.position = "relative"; // lớp key nằm tuyệt đối trong vùng cuộn, cuộn cùng cây
 
       const rect = (j: number): Box | null => {
-        if (j < pageCount) {
-          const c = nodePosition(path.pages[j]);
+        const st = steps[j];
+        if (!st.heap) {
+          const c = nodePosition(st.page);
           if (c) return { x: c.x - NW / 2, y: c.y - NH / 2, w: NW, cap: CAP };
+          if (st.slide) return null; // leaf trượt sang luôn nằm trong model; không thấy thì không vẽ
           // trang chưa đọc: key đi vào khối hidden của đúng tầng
           const g = svg.querySelector(`g[data-hidden-level="${Math.max(0, model.height - 1 - j)}"]`);
           const m = /translate\(\s*(-?[\d.]+)[ ,]+(-?[\d.]+)/.exec(g?.getAttribute("transform") ?? "");
           const w = Number(g?.querySelector("rect")?.getAttribute("width"));
           return m && w ? { x: +m[1], y: +m[2], w, cap: 0 } : null;
         }
-        const leaf = rect(pageCount - 1);
+        const leaf = rect(st.src);
         if (!leaf) return null;
         const cx = leaf.cap ? leaf.x + leaf.w - 30 : leaf.x + leaf.w / 2; // lệch phải để dây nối không cắt chú thích của leaf
         return { x: cx - HEAP_W / 2, y: leaf.y + NH + leaf.cap + HEAP_GAP, w: HEAP_W, cap: 0 };
@@ -111,13 +113,14 @@ function Scene({ model, path, label }: { model: BTreeModel; path?: BTreePath; la
           const b = boxes[j];
           const f = clamp(eases[j](clamp(p - j)));
           const lit = p >= j + 1 - 1e-6 ? "true" : null;
-          const a = boxes[j - 1];
-          if (b && a && j > 0) {
+          const a = boxes[s.src];
+          if (b && a && s.src >= 0) {
             const bx = b.x + b.w / 2;
             const ax = s.heap ? bx : a.x + a.w / 2;
+            const slide = s.slide ? `M${a.x + a.w} ${a.y + NH / 2}L${b.x} ${b.y + NH / 2}` : null;
             const ay = a.y + NH + a.cap;
             const my = (ay + b.y) / 2;
-            set(q(`[data-edge="${j}"]`), { d: s.heap ? `M${ax} ${ay}L${bx} ${b.y}` : `M${ax} ${ay}C${ax} ${my} ${bx} ${my} ${bx} ${b.y}`, "stroke-dashoffset": 1 - f, "data-lit": lit });
+            set(q(`[data-edge="${j}"]`), { d: slide ?? (s.heap ? `M${ax} ${ay}L${bx} ${b.y}` : `M${ax} ${ay}C${ax} ${my} ${bx} ${my} ${bx} ${b.y}`), "stroke-dashoffset": 1 - f, "data-lit": lit });
           }
           if (s.heap) {
             if (b) q("[data-heap]")?.setAttribute("transform", `translate(${b.x} ${b.y})`);
@@ -134,7 +137,7 @@ function Scene({ model, path, label }: { model: BTreeModel; path?: BTreePath; la
         // key: đoạn đang đi nằm giữa đích j-1 và j; ease áp ở đây nên p luôn tuyến tính theo timeline
         const j = clamp(Math.ceil(p) - 1, 0, S - 1);
         const end = boxes[j];
-        const prev = boxes[j - 1];
+        const prev = boxes[steps[j].src];
         const keyEl = q<SVGElement>("[data-key]");
         if (p <= 0 || !end) keyEl?.style.setProperty("opacity", "0");
         else {
@@ -202,6 +205,8 @@ function Scene({ model, path, label }: { model: BTreeModel; path?: BTreePath; la
 
   const cur = step > 0 ? steps[step - 1] : null;
   const say = (s: (typeof steps)[number]) => t(`step.${s.msg}`, { ...s.vals, n: s.n, page: s.page, kind: t(`kind.${s.kind}`) });
+  const endStep = steps.find((s) => s.end);
+  const leaves = steps.filter((s) => !s.heap && s.kind !== "root" && s.kind !== "internal").length;
   const key = path?.key ?? "";
   const shortKey = key.length > 14 ? `${key.slice(0, 13)}…` : key;
   const markerW = Math.max(32, shortKey.length * 7.6 + 16);
@@ -215,7 +220,7 @@ function Scene({ model, path, label }: { model: BTreeModel; path?: BTreePath; la
         createPortal(
           <svg ref={ov} aria-hidden="true" data-testid="btree-drop-layer" style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none", overflow: "visible" }}>
             {steps.map((s, j) =>
-              j > 0 ? <path key={`e${j}`} data-edge={j} fill="none" pathLength={1} strokeDasharray={1} strokeDashoffset={1} className="stroke-lamp" strokeWidth={1.5} /> : null,
+              s.src >= 0 ? <path key={`e${j}`} data-edge={j} fill="none" pathLength={1} strokeDasharray={1} strokeDashoffset={1} className="stroke-lamp" strokeWidth={1.5} /> : null,
             )}
             {hasHeap && (
               <g data-heap="">
@@ -240,12 +245,14 @@ function Scene({ model, path, label }: { model: BTreeModel; path?: BTreePath; la
       <div className="sticky bottom-0 z-10 shrink-0 border-t border-control bg-stage px-[var(--edge)] py-2" data-testid="btree-drop-panel">
         {S === 0 ? (
           <p role="status" className="m-0 text-[13px] leading-[18px] text-ink2" data-testid="drop-no-path">
-            {t("noPath")}
+            {err ? t(`rangeError.${err}`) : to !== undefined ? t("noPathRange") : t("noPath")}
           </p>
         ) : (
           <>
             <p className="sr-only" data-testid="drop-summary">
-              {t(hasHeap ? "summaryHeap" : "summary", { key, pages: path!.pages.join(" → "), heap: path!.heapPage ?? 0 })}
+              {to !== undefined
+                ? t("summaryRange", { key, to, pages: steps.filter((s) => !s.heap).map((s) => s.page).join(" → ") })
+                : t(hasHeap ? "summaryHeap" : "summary", { key, pages: path!.pages.join(" → "), heap: path!.heapPage ?? 0 })}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Button type="button" onClick={() => act.current.run()} disabled={playing}>
@@ -281,8 +288,13 @@ function Scene({ model, path, label }: { model: BTreeModel; path?: BTreePath; la
               className="my-2 block h-6 w-full accent-[var(--lamp)]"
             />
             <p aria-live="polite" className="m-0 text-[13px] leading-[18px] text-ink2" data-testid="drop-explain">
-              {cur ? say(cur) : t("idle", { key })}
+              {cur ? say(cur) : t(to !== undefined ? "idleRange" : "idle", { key, to: to ?? "" })}
             </p>
+            {endStep?.end && step >= endStep.n && (
+              <p className="m-0 mt-1 text-[13px] leading-[18px] text-ink2" data-testid="drop-range-end" data-end={endStep.end}>
+                {t(`end.${endStep.end}`, { leaves, to: to ?? "" })}
+              </p>
+            )}
             {reduced && (
               <p className="m-0 mt-1 text-[13px] leading-[18px] text-dim" data-testid="drop-reduced">
                 {t("reducedNote")}
@@ -304,9 +316,9 @@ function Scene({ model, path, label }: { model: BTreeModel; path?: BTreePath; la
 }
 
 // path chỉ là gợi ý của engine: không có thì cây vẫn vẽ, animation không chạy và không vẽ đường đi đoán.
-export function BTreeDrop({ model, path, label }: { model: BTreeModel; path?: BTreePath; label: EvidenceLabel }) {
-  const sig = `${model.engine}:${model.index}:${path?.key}:${path?.pages.join(",")}:${path?.heapPage}`;
+export function BTreeDrop({ model, path, label, to }: { model: BTreeModel; path?: BTreePath; label: EvidenceLabel; to?: string }) {
+  const sig = `${model.engine}:${model.index}:${path?.key}:${path?.pages.join(",")}:${path?.heapPage}:${to}`;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- giữ path ổn định theo nội dung, tránh dựng lại timeline khi cha tạo object mới
   const stable = useMemo(() => path, [sig]);
-  return <Scene key={sig} model={model} path={stable} label={label} />;
+  return <Scene key={sig} model={model} path={stable} label={label} to={to} />;
 }

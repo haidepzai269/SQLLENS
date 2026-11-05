@@ -32,7 +32,9 @@
     "pick": "Choose an index to read its real tree.",
     "keyLabel": "Key to drop down the tree",
     "keyPlaceholder": "For example 121",
-    "keyHint": "Leave it empty to only draw the tree. The key must match the type of the index's first column.",
+    "toLabel": "End key (optional)",
+    "toPlaceholder": "For example 300",
+    "keyHint": "Leave empty to only draw the tree. The key must match the type of the first column of the index. Fill in the end key to see a range scan from the key above to the end key.",
     "drop": "Drop key"
   },
   "whatif": {

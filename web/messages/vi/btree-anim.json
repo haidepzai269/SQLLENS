@@ -23,6 +23,23 @@
     "hidden": "Bước {n}: đọc trang {page} ({kind}). Trang này nằm trong khối node chưa vẽ, khóa {key} đi vào khối đó.",
     "leafFound": "Bước {n}: đọc trang {page} ({kind}). Khóa {key} có trong trang này, trang có tất cả {total, number} khóa.",
     "leafMissing": "Bước {n}: đọc trang {page} ({kind}). Trang có {total, number} khóa, khóa {key} không nằm trong phần khóa đã đọc.",
-    "heap": "Bước {n}: nhảy từ index sang heap, đọc trang {page} để lấy dòng đầy đủ."
+    "heap": "Bước {n}: nhảy từ index sang heap, đọc trang {page} để lấy dòng đầy đủ.",
+    "rangeStart": "Bước {n}: đọc trang {page} ({kind}), leaf đầu của khoảng. Từ đây đi ngang sang leaf bên phải, không quay lại root, cho đến khi gặp khóa lớn hơn {to}. Đã đọc {leaves, number} leaf.",
+    "slide": "Bước {n}: trượt sang leaf bên phải, trang {page}, có {total, number} khóa. Đã đọc {leaves, number} leaf.",
+    "heapRange": "Bước {n}: leaf chỉ chứa khóa và vị trí dòng. Dòng đầu tiên của khoảng (khóa {key}) nằm ở trang heap {page}, nên nhảy từ index sang heap để lấy dòng đầy đủ. Các dòng còn lại cũng cần đọc heap, animation chỉ minh họa dòng đầu."
+  },
+  "summaryRange": "Khoảng khóa từ {key} đến {to}: đọc các trang {pages}.",
+  "idleRange": "Chưa chạy. Bấm Chạy hoặc Bước tới để xem khoảng khóa từ {key} đến {to}: khóa rơi tới leaf đầu rồi trượt ngang sang phải.",
+  "noPathRange": "Chưa có đường đi tới leaf đầu của khoảng trong dữ liệu đã đọc (ví dụ index có cột đầu DESC hoặc NULLS FIRST, text collation khác C, hoặc khóa từ sai kiểu), nên chưa chạy được. Cây vẫn hiển thị đúng.",
+  "rangeError": {
+    "badRange": "Khóa từ lớn hơn khóa đến, nên khoảng rỗng và không có gì để đọc. Đổi lại thứ tự hai khóa.",
+    "badType": "Khóa đến không cùng kiểu với khóa của index này (khóa số). Nhập một số.",
+    "multiColumn": "Index có nhiều cột. Animation khoảng khóa mới hỗ trợ index một cột, nên chưa chạy."
+  },
+  "end": {
+    "done": "Dừng: leaf vừa đọc đã có khóa lớn hơn {to}, nên phần còn lại của khoảng không cần đọc. Tổng cộng đã đọc {leaves, number} leaf.",
+    "lastLeaf": "Dừng: đây là leaf cuối cùng của index, không còn leaf bên phải. Tổng cộng đã đọc {leaves, number} leaf.",
+    "partial": "Dừng ở đây: dữ liệu đã đọc chỉ có một phần khóa của leaf này, nên chưa biết khóa cuối của khoảng nằm ở đâu. Phần còn lại chưa đọc, không đoán thêm. Đã đọc {leaves, number} leaf.",
+    "unread": "Dừng ở đây: leaf kế tiếp chưa được đọc vào cây. Phần còn lại của khoảng chưa đọc, không vẽ và không đoán số trang. Đã đọc {leaves, number} leaf."
   }
 }
