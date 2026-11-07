@@ -39,6 +39,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       /* không đọc được thì dùng mặc định */
     }
     setReady(true);
+    document.documentElement.dataset.hydrated = ""; // tín hiệu cho e2e: sự kiện đã được gắn
   }, []);
 
   useEffect(() => {

@@ -1,4 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
+import { gotoHydrated, throttleCpu } from "./helpers";
+
+test.beforeEach(({ page }) => throttleCpu(page));
 
 const T = {
   vi: {
@@ -65,7 +68,7 @@ const dialog = (p: Page) => p.getByTestId("confirm-schema");
 const isWasm = (url: string) => /pglite[^/]*\.wasm/.test(url); // wasm của parser (libpg-query) tải khi soạn là bình thường
 
 async function open(p: Page, l: "vi" | "en", sql: string) {
-  await p.goto(`/${l}`);
+  await gotoHydrated(p, `/${l}`);
   const tab = p.getByRole("tab", { name: "SQL", exact: true });
   await tab.or(sqlBox(p)).first().waitFor();
   if (await tab.isVisible()) await tab.click();

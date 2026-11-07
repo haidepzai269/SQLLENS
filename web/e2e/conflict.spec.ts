@@ -1,6 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 import { cfgFor, lastOf, simulateCfg, waitEdges } from "../src/modules/conflict-sim/ui/model";
 import type { Tick } from "../src/modules/conflict-sim/engine/types";
+import { gotoHydrated, throttleCpu } from "./helpers";
+
+test.beforeEach(({ page }) => throttleCpu(page));
 
 const SHOTS = "../_bmad-output/SP011/STR051/Task070/anh";
 type L = "vi" | "en";
@@ -15,7 +18,7 @@ const NAMES = {
 const ID = { lost: "lost_update", dead: "deadlock_reverse_order" } as const;
 
 const open = async (p: Page, l: L) => {
-  await p.goto(`/${l}/e2e-conflict`);
+  await gotoHydrated(p, `/${l}/e2e-conflict`);
   await expect(p.getByTestId("conflict-panel")).toBeVisible();
 };
 const ticksOf = (id: keyof typeof ID): Tick[] => {

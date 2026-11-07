@@ -64,7 +64,17 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
     });
   }
 
-  async function start() {
+  // Lỗi đọc Blob của Chromium (máy tải nặng) là tạm thời: thử lại đúng một lần. Lỗi khác (404, hết hạn) không thử lại.
+  async function start(retry = true): Promise<void> {
+    try {
+      return await startOnce();
+    } catch (e) {
+      if (retry && !disposed && /could not be read/i.test((e as Error).message)) return start(false);
+      throw e;
+    }
+  }
+
+  async function startOnce() {
     spawn();
     try {
       guardActive = !!(await call({ type: "init" }, "load_failed", onProgress)).guardActive;
