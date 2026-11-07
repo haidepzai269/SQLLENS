@@ -224,7 +224,7 @@ test.describe("máy tính 1440", () => {
     await sample(page, "[data-zone=terminal]", "height");
     await flip(page, "en", L.en.term);
     await page.waitForTimeout(500);
-    const t = await stopSample(page);
+    await stopSample(page);
     await expectTransition(page, "height");
     await flip(page, "en", L.en.term);
     await page.waitForTimeout(500);
