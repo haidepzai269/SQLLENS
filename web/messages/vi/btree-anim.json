@@ -37,7 +37,7 @@
     "multiColumn": "Index có nhiều cột. Animation khoảng khóa mới hỗ trợ index một cột, nên chưa chạy."
   },
   "end": {
-    "done": "Dừng: khóa lớn hơn {to} đã nằm sau leaf này (leaf kế bắt đầu từ khóa lớn hơn {to} hoặc leaf này đã có khóa lớn hơn), nên range scan không đọc thêm leaf nào. Tổng cộng đã đọc {leaves, number} leaf.",
+    "done": "Dừng: leaf kế tiếp bắt đầu từ khóa lớn hơn {to} (hoặc leaf này đã có khóa lớn hơn), nên range scan không đọc thêm leaf nào. Tổng cộng đã đọc {leaves, number} leaf.",
     "lastLeaf": "Dừng: đây là leaf cuối cùng của index, không còn leaf bên phải. Tổng cộng đã đọc {leaves, number} leaf.",
     "partial": "Dừng ở đây: leaf kế tiếp không có khóa nào trong dữ liệu đã đọc, nên chưa biết nó có nằm trong khoảng không. Phần còn lại chưa đọc, không đoán thêm. Đã đọc {leaves, number} leaf.",
     "unread": "Dừng ở đây: leaf kế tiếp chưa được đọc vào cây. Phần còn lại của khoảng chưa đọc, không vẽ và không đoán số trang. Đã đọc {leaves, number} leaf."

@@ -37,7 +37,7 @@
     "multiColumn": "The index has several columns. The range animation only supports single-column indexes for now, so it does not run."
   },
   "end": {
-    "done": "Stop: keys greater than {to} start after this leaf (the next leaf starts above {to}, or this leaf already has a larger key), so the range scan reads no more leaves. {leaves, plural, one {# leaf} other {# leaves}} read in total.",
+    "done": "Stop: the next leaf starts above {to} (or this leaf already has a larger key), so the range scan reads no more leaves. {leaves, plural, one {# leaf} other {# leaves}} read in total.",
     "lastLeaf": "Stop: this is the last leaf of the index, there is no leaf to the right. {leaves, plural, one {# leaf} other {# leaves}} read in total.",
     "partial": "Stop here: the next leaf has no key in the data read, so it is unknown whether it falls in the range. The rest is unread and not guessed. {leaves, plural, one {# leaf} other {# leaves}} read.",
     "unread": "Stop here: the next leaf has not been read into the tree. The rest of the range is unread, not drawn, and its page count is not guessed. {leaves, plural, one {# leaf} other {# leaves}} read."
