@@ -200,9 +200,13 @@ for (const [w, h, l] of [[1440, 900, "vi"], [390, 844, "en"]] as const) {
       const lp = pages.slice(-leaves);
       // Đối chiếu với các leaf thật trong cây: khóa đầu của mọi leaf, rồi tính leaf nào thuộc [100, 1500].
       const leafKeys = await stage.locator("[data-page]").evaluateAll((els) => {
-        const rows = els.map((e) => ({ page: Number(e.getAttribute("data-page")), y: e.getBoundingClientRect().y, nums: (e.textContent ?? "").split(/s+/).filter((x) => /^d+$/.test(x)).map(Number) }));
+        const rows = els.map((e) => ({
+          page: Number(e.getAttribute("data-page")),
+          y: e.getBoundingClientRect().y,
+          first: Number(e.querySelector("text.fill-ink2")?.textContent?.trim().replace(/[^\d-]/g, "") ?? "NaN"),
+        }));
         const low = Math.max(...rows.map((r) => r.y));
-        return rows.filter((r) => Math.abs(r.y - low) < 2).map((r) => ({ page: r.page, first: r.nums[0] }));
+        return rows.filter((r) => Math.abs(r.y - low) < 2);
       });
       console.log("LK", JSON.stringify(leafKeys), JSON.stringify(pages));
       const startFirst = Math.max(...leafKeys.map((k) => k.first).filter((f) => f <= 100));
