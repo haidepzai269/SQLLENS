@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { gotoHydrated, reloadHydrated } from "./helpers";
 
 // Cổng đăng nhập hỏi /api/me; ở các test này chưa biết là ai (503) để hộp thoại không che giao diện, kể cả khi máy đang chạy Gin.
 test.beforeEach(({ page }) => page.route("**/api/me", (r) => r.fulfill({ status: 503, body: "{}" })));
@@ -20,7 +21,7 @@ const flip = async (p: Page, name: RegExp) => {
 };
 // Vùng làm việc chỉ hiện sau khi hydrate xong, nên đợi nó trước khi bấm để khỏi bấm vào HTML chưa có sự kiện.
 const go = async (p: Page, url: string) => {
-  await p.goto(url);
+  await gotoHydrated(p, url);
   await p.locator("main:visible, #stage:visible").first().waitFor();
 };
 const noHScroll = (p: Page) => p.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
@@ -72,7 +73,7 @@ test.describe("máy tính 1440", () => {
     await flip(page, /SQL column/);
     await expect(page.locator("#sql")).toHaveCount(0);
     expect(await width(page, "#stage")).toBeGreaterThan(before + 200);
-    await page.reload();
+    await reloadHydrated(page);
     await expect(page.locator("#sql")).toHaveCount(0);
     expect(await noHScroll(page)).toBe(true);
     for (const n of [/Simulation area/, /Risk column/]) await flip(page, n);
@@ -101,7 +102,7 @@ test.describe("máy tính 1440", () => {
     await page.mouse.up();
     const w2 = await width(page, "#sql");
     expect(w2).toBeGreaterThan(w1 + 50);
-    await page.reload();
+    await reloadHydrated(page);
     await expect(page.locator("#sql")).toBeVisible();
     expect(Math.abs((await width(page, "#sql")) - w2)).toBeLessThan(3);
   });
