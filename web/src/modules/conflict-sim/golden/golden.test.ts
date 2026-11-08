@@ -93,11 +93,12 @@ async function runReal(sc: Scenario): Promise<Real> {
     const tables: Record<string, unknown[]> = {};
     const names = await admin.query("SELECT tablename FROM pg_tables WHERE schemaname = $1 ORDER BY 1", [SCHEMA]);
     for (const { tablename } of names.rows) tables[tablename] = (await admin.query(`SELECT * FROM ${tablename}`)).rows;
-    const check = (await admin.query({ text: sc.brokenCheck.sql, rowMode: "array" })).rows[0][0];
+    const check = sc.brokenCheck ? (await admin.query({ text: sc.brokenCheck.sql, rowMode: "array" })).rows[0][0] : null;
 
     let outcome: TimelineOutcome;
     if (errors.includes("40P01")) outcome = "deadlock";
     else if (errors.includes("40001")) outcome = "serialization_failure";
+    else if (!sc.brokenCheck) outcome = "no_criteria";
     else if (sc.brokenCheck.brokenWhen === "differs_within_tx") outcome = new Set(reads.A).size > 1 ? "broken" : "not_broken";
     else outcome = isBroken(sc.brokenCheck.brokenWhen, check) ? "broken" : "not_broken";
     return { waiting, errors, outcome, tables, reads };

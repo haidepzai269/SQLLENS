@@ -11,6 +11,11 @@ export type ScenarioId =
 
 export type Step = { session: SessionId; sql: string };
 
+export type BrokenCheck = {
+  sql: string;
+  brokenWhen: string;
+};
+
 // brokenWhen: "<op> <int>" (op: = <> > < >= <=) tested against the first value of
 // brokenCheck.sql on the final committed state, or "differs_within_tx": the same
 // SELECT, run twice inside one transaction, returned different results.
@@ -19,7 +24,7 @@ export type Scenario = {
   isolation: Isolation;
   setup: string[];
   steps: Step[];
-  brokenCheck: { sql: string; brokenWhen: string };
+  brokenCheck?: BrokenCheck | null;
 };
 
 export type Val = number | string | boolean | null;
@@ -48,6 +53,11 @@ export type Tick = {
   values?: Record<string, string | number>;
 };
 
-export type TimelineOutcome = "broken" | "not_broken" | "deadlock" | "serialization_failure";
+export type TimelineOutcome =
+  | "broken"
+  | "not_broken"
+  | "deadlock"
+  | "serialization_failure"
+  | "no_criteria";
 export type Timeline = { ticks: Tick[]; outcome: TimelineOutcome };
 export type SimResult = Outcome<Timeline>;

@@ -30,6 +30,14 @@
     "unique": "Ràng buộc UNIQUE",
     "for_update": "SELECT ... FOR UPDATE"
   },
+  "criteria": {
+    "label": "Tiêu chí kiểm tra hỏng",
+    "sqlLabel": "Câu lệnh kiểm tra (SELECT)",
+    "conditionLabel": "Coi là hỏng khi kết quả",
+    "targetLabel": "Giá trị ngưỡng",
+    "reset": "Khôi phục mặc định",
+    "disabledNote": "Đã tắt tiêu chí kiểm tra dữ liệu. Mô hình chỉ theo dõi hàng đợi chờ khóa và deadlock."
+  },
   "controls": {
     "label": "Điều khiển",
     "run": "Chạy",
@@ -98,7 +106,8 @@
     "broken": "Hỏng trong kịch bản này ở mức cô lập này: kết quả cuối không giống kết quả của việc chạy hai session lần lượt từng bên một.",
     "not_broken": "Không hỏng trong kịch bản này ở mức cô lập này. Đây chỉ là kết quả của một kịch bản hai session, không phải kết luận về cả thiết kế.",
     "deadlock": "Deadlock trong kịch bản này: hai session chờ nhau thành vòng và một bên bị hủy. Bên bị hủy theo mô hình, PostgreSQL thật có thể chọn bên còn lại.",
-    "serialization_failure": "Một transaction bị PostgreSQL từ chối (mã 40001) trong kịch bản này ở mức cô lập này. Ứng dụng phải chạy lại transaction đó."
+    "serialization_failure": "Một transaction bị PostgreSQL từ chối (mã 40001) trong kịch bản này ở mức cô lập này. Ứng dụng phải chạy lại transaction đó.",
+    "no_criteria": "Không đặt tiêu chí kiểm tra dữ liệu trong kịch bản này ở mức cô lập này: không phát hiện deadlock hay lỗi tuần tự (serialization failure)."
   },
   "notSimulated": {
     "title": "Chưa mô phỏng được",

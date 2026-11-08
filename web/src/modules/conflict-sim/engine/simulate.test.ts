@@ -77,7 +77,7 @@ describe("conflict-sim engine", () => {
     ns({ ...base, steps: [{ session: "A", sql: "DELETE FROM accounts WHERE id = 1" }] });
     ns({ ...withIsolation("lost_update", "serializable"), steps: [{ session: "A", sql: "BEGIN" }] }); // plain BEGIN is read committed
     ns({ ...base, steps: [{ session: "A", sql: "SELECT balance FROM accounts WHERE id = 1" }] }); // no transaction
-    ns({ ...base, brokenCheck: { sql: base.brokenCheck.sql, brokenWhen: "maybe" } });
+    ns({ ...base, brokenCheck: { sql: base.brokenCheck!.sql, brokenWhen: "maybe" } });
     ns({ ...base, steps: base.steps.slice(0, 6) }); // B left waiting: stuck
   });
 });
@@ -99,4 +99,53 @@ it("table-level PRIMARY KEY implies NOT NULL", () => {
   const sc = { ...SCENARIOS.lost_update, setup: ["CREATE TABLE accounts (id int, balance int, PRIMARY KEY (id))", "INSERT INTO accounts (id, balance) VALUES (1, 100)"] };
   expect(simulate(sc).kind).toBe("conclusion");
   expect(simulate({ ...sc, steps: [sc.steps[0], { session: "A", sql: "INSERT INTO accounts (balance) VALUES (5)" }] }).kind).toBe("not_simulated");
+});
+
+describe("custom and omitted brokenCheck", () => {
+  it("omitted brokenCheck returns no_criteria when no deadlock/serialization error", () => {
+    const scNoCheck = { ...SCENARIOS.lost_update, brokenCheck: null };
+    const r = run(scNoCheck);
+    expect(r.data.outcome).toBe("no_criteria");
+    expect(r.evidence[0].messageKey).toBe("conflictSim.outcome.no_criteria");
+    expect(r.evidence[0].values?.observed).toBe("");
+  });
+
+  it("omitted brokenCheck still detects deadlock and serialization failure", () => {
+    const deadlockNoCheck = { ...SCENARIOS.deadlock_reverse_order, brokenCheck: null };
+    expect(outcome(deadlockNoCheck)).toBe("deadlock");
+
+    const serNoCheck = { ...withIsolation("lost_update", "repeatable_read"), brokenCheck: undefined };
+    expect(outcome(serNoCheck)).toBe("serialization_failure");
+  });
+
+  it("evaluates custom brokenCheck with various comparison operators", () => {
+    const base = SCENARIOS.lost_update; // final balance is 120
+    const checkWith = (op: string, target: number) =>
+      outcome({ ...base, brokenCheck: { sql: "SELECT balance FROM accounts WHERE id = 1", brokenWhen: `${op} ${target}` } });
+
+    expect(checkWith(">=", 120)).toBe("broken");
+    expect(checkWith(">=", 121)).toBe("not_broken");
+    expect(checkWith("<=", 110)).toBe("not_broken");
+    expect(checkWith("<=", 120)).toBe("broken");
+    expect(checkWith("=", 120)).toBe("broken");
+    expect(checkWith("=", 130)).toBe("not_broken");
+    expect(checkWith(">", 100)).toBe("broken");
+    expect(checkWith(">", 120)).toBe("not_broken");
+    expect(checkWith("<", 100)).toBe("not_broken");
+    expect(checkWith("<", 150)).toBe("broken");
+    expect(checkWith("<>", 120)).toBe("not_broken");
+    expect(checkWith("<>", 130)).toBe("broken");
+  });
+
+  it("rejects non-SELECT or invalid custom brokenCheck with NotSimulated", () => {
+    const base = SCENARIOS.lost_update;
+    const ns = (sc: Scenario) => expect(simulate(sc)).toMatchObject({ kind: "not_simulated" });
+
+    // DML is rejected
+    ns({ ...base, brokenCheck: { sql: "UPDATE accounts SET balance = 0 WHERE id = 1", brokenWhen: "= 0" } });
+    ns({ ...base, brokenCheck: { sql: "DELETE FROM accounts WHERE id = 1", brokenWhen: "= 0" } });
+    // Invalid syntax or invalid operator
+    ns({ ...base, brokenCheck: { sql: "NOT EVEN SQL", brokenWhen: "= 0" } });
+    ns({ ...base, brokenCheck: { sql: "SELECT balance FROM accounts WHERE id = 1", brokenWhen: "INVALID_OP 100" } });
+  });
 });

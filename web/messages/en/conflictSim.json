@@ -30,6 +30,14 @@
     "unique": "UNIQUE constraint",
     "for_update": "SELECT ... FOR UPDATE"
   },
+  "criteria": {
+    "label": "Broken criteria",
+    "sqlLabel": "Check query (SELECT)",
+    "conditionLabel": "Consider broken when result is",
+    "targetLabel": "Target value",
+    "reset": "Reset to default",
+    "disabledNote": "Data check criteria disabled. The model only tracks lock wait queues and deadlocks."
+  },
   "controls": {
     "label": "Controls",
     "run": "Run",
@@ -98,7 +106,8 @@
     "broken": "Broken in this scenario at this isolation level: the final result differs from running the two sessions one after the other.",
     "not_broken": "Not broken in this scenario at this isolation level. This is the result of one two-session scenario only, not a conclusion about the whole design.",
     "deadlock": "Deadlock in this scenario: the two sessions wait for each other in a cycle and one is aborted. The model picks the aborted side, real PostgreSQL may pick the other.",
-    "serialization_failure": "PostgreSQL rejects one transaction (code 40001) in this scenario at this isolation level. The application must retry that transaction."
+    "serialization_failure": "PostgreSQL rejects one transaction (code 40001) in this scenario at this isolation level. The application must retry that transaction.",
+    "no_criteria": "No data criteria set in this scenario at this isolation level: no deadlock or serialization failure detected."
   },
   "notSimulated": {
     "title": "Cannot be simulated yet",

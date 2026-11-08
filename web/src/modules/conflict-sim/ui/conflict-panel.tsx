@@ -7,7 +7,22 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { ScenarioId, SessionId, Tables, Tick } from "../engine/types";
-import { cfgFor, current, GUARDS, ISOLATIONS, lastOf, SCENARIO_IDS, SESSIONS, sessionState, simulateCfg, waitEdges, type Cfg } from "./model";
+import {
+  BROKEN_OPS,
+  cfgFor,
+  current,
+  defaultCheckFor,
+  GUARDS,
+  ISOLATIONS,
+  lastOf,
+  SCENARIO_IDS,
+  SESSIONS,
+  sessionState,
+  simulateCfg,
+  waitEdges,
+  type BrokenOp,
+  type Cfg,
+} from "./model";
 
 // Cytoscape chỉ tải khi màn hình này mở.
 const WaitGraph = dynamic(() => import("./wait-graph"), { ssr: false, loading: () => <Skeleton className="h-36 w-full" aria-hidden /> });
@@ -143,7 +158,11 @@ function Player({ ticks, outcomeKey, observed }: { ticks: Tick[]; outcomeKey: st
         <h3 className="m-0 text-sm font-semibold">{t("result.title")}</h3>
         {p >= n ? (
           <>
-            <p className={`m-0 border p-2 text-sm ${outcomeKey.endsWith("not_broken") ? "border-severity-passed" : outcomeKey.endsWith("serialization_failure") ? "border-line" : "border-severity-broken"}`} data-testid="cf-outcome" data-outcome={outcomeKey.split(".").pop()}>
+            <p
+              className={`m-0 border p-2 text-sm ${outcomeKey.endsWith("not_broken") ? "border-severity-passed" : outcomeKey.endsWith("no_criteria") || outcomeKey.endsWith("serialization_failure") ? "border-line" : "border-severity-broken"}`}
+              data-testid="cf-outcome"
+              data-outcome={outcomeKey.split(".").pop()}
+            >
               {tr(outcomeKey)}
             </p>
             {observed !== "" && <p className="m-0 text-xs text-dim">{t("result.observed", { observed })}</p>}
@@ -160,6 +179,8 @@ export function ConflictPanel() {
   const [cfg, setCfg] = useState<Cfg>(() => cfgFor("lost_update"));
   const result = useMemo(() => simulateCfg(cfg), [cfg]);
   const sel = "h-9 min-w-0 border border-line bg-surface px-2 text-sm";
+  const check = cfg.customCheck ?? defaultCheckFor(cfg.id);
+
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="conflict-panel">
       <p className="m-0 text-sm">{t("intro")}</p>
@@ -186,6 +207,132 @@ export function ConflictPanel() {
         )}
       </div>
       <p className="m-0 text-xs text-dim">{t(`scenario.about.${cfg.id}`)}</p>
+
+      <div className="flex min-w-0 flex-col gap-2 border border-line p-3" data-testid="cf-criteria-card">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
+            <input
+              type="checkbox"
+              id="cf-check-enable"
+              data-testid="cf-check-enable"
+              checked={check.enabled}
+              onChange={(e) => {
+                const enabled = e.target.checked;
+                setCfg((prev) => ({
+                  ...prev,
+                  customCheck: {
+                    ...(prev.customCheck ?? defaultCheckFor(prev.id)),
+                    enabled,
+                  },
+                }));
+              }}
+              className="h-4 w-4"
+            />
+            <span>{t("criteria.label")}</span>
+          </label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-testid="cf-check-reset"
+            onClick={() => {
+              setCfg((prev) => ({
+                ...prev,
+                customCheck: defaultCheckFor(prev.id),
+              }));
+            }}
+          >
+            {t("criteria.reset")}
+          </Button>
+        </div>
+
+        {check.enabled ? (
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <label htmlFor="cf-check-sql" className="text-xs font-medium text-dim">
+                {t("criteria.sqlLabel")}
+              </label>
+              <input
+                id="cf-check-sql"
+                data-testid="cf-check-sql"
+                type="text"
+                className="h-9 min-w-0 border border-line bg-surface px-2 font-mono text-xs"
+                value={check.sql}
+                onChange={(e) => {
+                  const sql = e.target.value;
+                  setCfg((prev) => ({
+                    ...prev,
+                    customCheck: {
+                      ...(prev.customCheck ?? defaultCheckFor(prev.id)),
+                      sql,
+                      differsWithinTx: false,
+                    },
+                  }));
+                }}
+              />
+            </div>
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 flex-col gap-1">
+                <label htmlFor="cf-check-op" className="text-xs font-medium text-dim">
+                  {t("criteria.conditionLabel")}
+                </label>
+                <select
+                  id="cf-check-op"
+                  data-testid="cf-check-op"
+                  className={sel}
+                  value={check.op}
+                  onChange={(e) => {
+                    const op = e.target.value as BrokenOp;
+                    setCfg((prev) => ({
+                      ...prev,
+                      customCheck: {
+                        ...(prev.customCheck ?? defaultCheckFor(prev.id)),
+                        op,
+                        differsWithinTx: false,
+                      },
+                    }));
+                  }}
+                >
+                  {BROKEN_OPS.map((op) => (
+                    <option key={op} value={op}>
+                      {op}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex min-w-0 flex-col gap-1">
+                <label htmlFor="cf-check-target" className="text-xs font-medium text-dim">
+                  {t("criteria.targetLabel")}
+                </label>
+                <input
+                  id="cf-check-target"
+                  data-testid="cf-check-target"
+                  type="number"
+                  className="h-9 w-24 min-w-0 border border-line bg-surface px-2 text-sm"
+                  value={check.target}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const val = raw === "" ? 0 : Number(raw);
+                    setCfg((prev) => ({
+                      ...prev,
+                      customCheck: {
+                        ...(prev.customCheck ?? defaultCheckFor(prev.id)),
+                        target: Number.isNaN(val) ? 0 : val,
+                        differsWithinTx: false,
+                      },
+                    }));
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="m-0 text-xs text-dim" data-testid="cf-criteria-disabled-note">
+            {t("criteria.disabledNote")}
+          </p>
+        )}
+      </div>
+
       {result.kind === "not_simulated" ? (
         <div role="status" className="border border-severity-uncertain p-2 text-sm" data-testid="cf-not-simulated">
           <b>{t("notSimulated.title")}</b>: {tr(result.reasonKey)}
@@ -196,8 +343,13 @@ export function ConflictPanel() {
             <span className="inline-flex h-5 items-center rounded-[2px] border border-label-simulated px-[7px] text-white" data-testid="cf-label" data-label="simulated">{t("label")}</span>
             <span className="min-w-0 text-dim">{t("labelNote")}</span>
           </p>
-          {/* key: đổi kịch bản hay mức cô lập thì dựng Player mới, nhịp về 0 và dừng, không giữ trạng thái cũ. */}
-          <Player key={`${cfg.id}:${cfg.isolation}:${cfg.guard}`} ticks={result.data.ticks} outcomeKey={result.evidence[0].messageKey} observed={String(result.evidence[0].values?.observed ?? "")} />
+          {/* key: đổi kịch bản, mức cô lập hay tiêu chí thì dựng Player mới, nhịp về 0 và dừng, không giữ trạng thái cũ. */}
+          <Player
+            key={`${cfg.id}:${cfg.isolation}:${cfg.guard}:${check.enabled}:${check.sql}:${check.op}:${check.target}`}
+            ticks={result.data.ticks}
+            outcomeKey={result.evidence[0].messageKey}
+            observed={String(result.evidence[0].values?.observed ?? "")}
+          />
         </>
       )}
     </div>

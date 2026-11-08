@@ -52,10 +52,10 @@ function run(sc: Scenario): SimResult {
     return { session: s.session, sql: s.sql, stmt };
   });
   const setup = sc.setup.map((q) => parseSql(q) ?? (() => { throw notSim("unsupportedSql"); })());
-  const check = parseSql(sc.brokenCheck.sql);
-  const differs = sc.brokenCheck.brokenWhen === "differs_within_tx";
-  const when = /^(=|<>|>=|<=|>|<) ?(-?\d+)$/.exec(sc.brokenCheck.brokenWhen.trim());
-  if (check?.k !== "select" || (!differs && !when)) throw notSim("unsupportedSql");
+  const check = sc.brokenCheck ? parseSql(sc.brokenCheck.sql) : null;
+  const differs = sc.brokenCheck?.brokenWhen === "differs_within_tx";
+  const when = sc.brokenCheck ? /^(=|<>|>=|<=|>|<)\s*(-?\d+(?:\.\d+)?)$/.exec(sc.brokenCheck.brokenWhen.trim()) : null;
+  if (sc.brokenCheck && (check?.k !== "select" || (!differs && !when))) throw notSim("unsupportedSql");
 
   const meta = new Map<string, { cols: string[]; unique: string[][]; notNull: string[] }>();
   const committed = new Map<string, VRow[]>();
@@ -286,7 +286,7 @@ function run(sc: Scenario): SimResult {
     } else throw notSim("unsupportedSql");
   }
 
-  knownCols(check.table, check.where);
+  if (check?.k === "select") knownCols(check.table, check.where);
   for (const st of steps) {
     if (pend[st.session] || queue[st.session].length) queue[st.session].push(st);
     else step(st.session, st.sql, st.stmt, false);
@@ -298,18 +298,22 @@ function run(sc: Scenario): SimResult {
   let observed: string | number = "";
   if (ticks.some((t) => t.sqlstate === "40P01")) outcome = "deadlock";
   else if (ticks.some((t) => t.sqlstate === "40001")) outcome = "serialization_failure";
-  else if (differs) {
+  else if (!sc.brokenCheck) {
+    outcome = "no_criteria";
+  } else if (differs) {
     const key = normalize(sc.brokenCheck.sql);
     const byTx = new Map<number, Set<string>>();
     for (const l of selLog) if (l.sql === key) byTx.set(l.tx, (byTx.get(l.tx) ?? new Set()).add(l.result));
     outcome = [...byTx.values()].some((r) => r.size > 1) ? "broken" : "not_broken";
-  } else {
+  } else if (check?.k === "select") {
     const rows = view(null, check.table).filter((r) => matches(r.vals, check.where));
     const v = check.proj === "count" ? rows.length : rows[0]?.vals[Array.isArray(check.proj) ? check.proj[0] : ""] ?? null;
     if (typeof v !== "number") throw notSim("checkNotNumeric");
     observed = v;
     const n = Number(when![2]);
     outcome = cmpNum(v, when![1], n) ? "broken" : "not_broken";
+  } else {
+    throw notSim("unsupportedSql");
   }
 
   const conclusion: Conclusion<{ ticks: Tick[]; outcome: TimelineOutcome }> = {
