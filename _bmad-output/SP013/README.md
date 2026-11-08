@@ -7,7 +7,7 @@ Kết quả: Sản phẩm có trang giới thiệu, luồng không đứt đoạ
 | Story | Task | Việc | Phụ thuộc | Đợt |
 |---|---|---|---|---|
 | STR058 Landing | Task067 | Trang `/about` | Không | 1, xong |
-| STR059 Đánh bóng luồng | Task080 | Đánh bóng luồng, skeletons, empty states, error boundaries, phím tắt `Ctrl+Enter`, `prefers-reduced-motion` | Xong các tính năng lõi | 4A, chuẩn bị chạy |
+| STR059 Đánh bóng luồng | Task080 | Đánh bóng luồng, skeletons, empty states, error boundaries, phím tắt `Ctrl+Enter`, `cursor: pointer`, `prefers-reduced-motion` | Xong các tính năng lõi | 4A, xong |
 | STR060 E2E | Task081 | Playwright E2E Suite toàn diện (Golden Path 10 bước xuyên suốt vi/en) | Task080 | 4B, chuẩn bị chạy |
 | STR061 Kiểm tra cuối | Task082 | Security audit đầy đủ, rà soát 100% nhãn kết luận, checklist phát hành V1 | Task081 | 4C, chuẩn bị chạy |
 

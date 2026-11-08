@@ -1,8 +1,8 @@
 # Mục tiêu trước mắt (Cập nhật ngày 2026-11-08)
 
 > **Cập nhật ngày 2026-11-08 (Ngày 4 của dự án):**
-> Toàn bộ **Đợt 1, Đợt 2, Đợt 3** đã hoàn thành 100%! Luồng lõi PostgreSQL trọn vẹn (Dán SQL → Schema/Plan visualizer → B-Tree Reader có range scan & cuộc đua & cây tối → Findings rủi ro gắn bằng chứng → What-if thử sửa rollback → Conflict-sim 5 kịch bản có timeline & tiêu chí hỏng tùy biến → AI Mentor proxy) đã hoạt động trên production.
-> Đã bàn giao **74 Tasks**, hoàn tất **53/61 Stories (87%)**. Chỉ còn **8 Stories (13%)** để hoàn tất toàn bộ dự án V1!
+> Toàn bộ **Đợt 1, Đợt 2, Đợt 3** và **Đợt 4A** đã hoàn thành 100%! Luồng lõi PostgreSQL trọn vẹn (Dán SQL → Schema/Plan visualizer → B-Tree Reader có range scan & cuộc đua & cây tối → Findings rủi ro gắn bằng chứng → What-if thử sửa rollback → Conflict-sim 5 kịch bản có timeline & tiêu chí hỏng tùy biến → AI Mentor proxy) kèm đánh bóng luồng toàn diện (Empty states, Error Boundary, phím tắt `Ctrl+Enter`, `Space` pan, `cursor: pointer`, `prefers-reduced-motion`) đã hoạt động.
+> Đã bàn giao **75 Tasks**, hoàn tất **54/61 Stories (88.5%)**. Chỉ còn **7 Stories (11.5%)**!
 
 ---
 
@@ -12,6 +12,7 @@
 - **Đợt 1 (Nền tảng & Giao diện):** Đạt chuẩn shadcn/ui (Task064), trang `/about` GSAP (Task067), HTTPS & sandbox agent cho MySQL (Task074), ổn định CI E2E (Task077), chặn các route `e2e-*` trên production.
 - **Đợt 2 (Đăng nhập, Rủi ro & Tranh chấp):** Trang `/login` GSAP có quota (Task066), Findings gắn bằng chứng plan/btree vào luật rủi ro (Task052, Task053, Task068, Task069, Task076), Conflict-sim timeline 2 session & đồ thị chờ khóa Cytoscape (Task070), tiêu chí hỏng tùy biến bằng SELECT (Task079).
 - **Đợt 3 (B-Tree Reader trực quan):** Range scan trượt ngang leaf & bước nhảy heap (Task072), Cuộc đua Seq Scan vs Index Scan bằng số trang/dòng thật & Cây B-Tree tối khi query không dùng được index (Task078).
+- **Đợt 4A (Đánh bóng luồng & Trợ năng):** Empty states trên 7 tabs, Conflict Sim chạy độc lập, phím tắt `Ctrl+Enter`, `Space` pan canvas, Error Boundary bảo vệ từng tab, `prefers-reduced-motion` trong GSAP, CSS `cursor: pointer` toàn cục (Task080).
 
 ---
 
@@ -24,7 +25,7 @@ Mục tiêu: Đưa SQLLens PostgreSQL hoàn chỉnh, bóng bẩy, bảo mật tu
 
 | Mốc | Story | Việc cần làm | Kết quả người dùng thấy |
 |---|---|---|---|
-| **Đợt 4A** | **SP013 / STR059** (Đánh bóng luồng) | **Task080:** Rà soát và đánh bóng toàn diện các trạng thái: loading skeleton, empty states, error boundaries cho cả 6 tab stage; hỗ trợ phím tắt (`Ctrl+Enter` chạy SQL, `Space` kéo canvas sơ đồ); kiểm tra `prefers-reduced-motion` toàn trang. | Trải nghiệm mượt mà không góc chết, bàn phím và trợ năng hoàn hảo. |
+| **Đợt 4A** | **SP013 / STR059** (Đánh bóng luồng) | **Task080:** Rà soát và đánh bóng toàn diện các trạng thái: loading skeleton, empty states, error boundaries cho cả 7 tab stage; hỗ trợ phím tắt (`Ctrl+Enter` chạy SQL, `Space` kéo canvas sơ đồ); `cursor: pointer` toàn cục; kiểm tra `prefers-reduced-motion` toàn trang. | **Đã hoàn thành 100% (bàn giao Task080)** |
 | **Đợt 4B** | **SP013 / STR060** (E2E Suite trọn vẹn) | **Task081:** Xây dựng bộ test Playwright E2E chạy xuyên suốt luồng người dùng chính từ Landing → Editor → Sơ đồ/Plan/BTree → Findings → What-if → Conflict-sim trên cả tiếng Việt (`/vi`) và tiếng Anh (`/en`). | Đảm bảo không bao giờ bị đứt gãy luồng chính trên production. |
 | **Đợt 4C** | **SP013 / STR061** (Kiểm tra cuối & Security Audit) | **Task082:** Chạy `security-audit` toàn diện, quét secret, kiểm tra sandbox injection, rà soát 100% nhãn kết luận trên UI (đảm bảo không còn câu nào hàm ý "thiết kế này ổn" theo Nguyên tắc 2). | Tự tin bấm nút phát hành chính thức V1. |
 
@@ -58,4 +59,4 @@ Mục tiêu: Kích hoạt engine MySQL thật chạy trên Docker VM Azure.
 
 ## 4. Việc tiếp theo ngay của Agent
 
-Bắt tay ngay vào **Đợt 4A — SP013 / STR059 (Task080: Đánh bóng luồng trải nghiệm, phím tắt, loading/empty/error states và giảm chuyển động)** để tiến sát vạch đích phát hành V1!
+Bắt tay ngay vào **Đợt 4B — SP013 / STR060 (Task081: Playwright E2E Suite toàn diện — Golden Path 10 bước)** để củng cố độ ổn định tuyệt đối trước khi release V1!
