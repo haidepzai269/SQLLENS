@@ -1,8 +1,8 @@
 # Mục tiêu trước mắt (Cập nhật ngày 2026-11-08)
 
 > **Cập nhật ngày 2026-11-08 (Ngày 4 của dự án):**
-> Toàn bộ **Đợt 1, Đợt 2, Đợt 3** và **Đợt 4A** đã hoàn thành 100%! Luồng lõi PostgreSQL trọn vẹn (Dán SQL → Schema/Plan visualizer → B-Tree Reader có range scan & cuộc đua & cây tối → Findings rủi ro gắn bằng chứng → What-if thử sửa rollback → Conflict-sim 5 kịch bản có timeline & tiêu chí hỏng tùy biến → AI Mentor proxy) kèm đánh bóng luồng toàn diện (Empty states, Error Boundary, phím tắt `Ctrl+Enter`, `Space` pan, `cursor: pointer`, `prefers-reduced-motion`) đã hoạt động.
-> Đã bàn giao **75 Tasks**, hoàn tất **54/61 Stories (88.5%)**. Chỉ còn **7 Stories (11.5%)**!
+> Toàn bộ **Đợt 1, Đợt 2, Đợt 3**, **Đợt 4A** và **Đợt 4B** đã hoàn thành 100%! Luồng lõi PostgreSQL trọn vẹn (Dán SQL → Schema/Plan visualizer → B-Tree Reader có range scan & cuộc đua & cây tối → Findings rủi ro gắn bằng chứng → What-if thử sửa rollback → Conflict-sim 5 kịch bản có timeline & tiêu chí hỏng tùy biến → AI Mentor proxy) kèm đánh bóng luồng toàn diện và bộ test Playwright E2E Golden Path 10 bước (Desktop 1440px & Mobile 390px, song ngữ vi/en) đã hoạt động xuất sắc.
+> Đã bàn giao **76 Tasks**, hoàn tất **55/61 Stories (90.2%)**. Chỉ còn **6 Stories (9.8%)**!
 
 ---
 
@@ -26,7 +26,7 @@ Mục tiêu: Đưa SQLLens PostgreSQL hoàn chỉnh, bóng bẩy, bảo mật tu
 | Mốc | Story | Việc cần làm | Kết quả người dùng thấy |
 |---|---|---|---|
 | **Đợt 4A** | **SP013 / STR059** (Đánh bóng luồng) | **Task080:** Rà soát và đánh bóng toàn diện các trạng thái: loading skeleton, empty states, error boundaries cho cả 7 tab stage; hỗ trợ phím tắt (`Ctrl+Enter` chạy SQL, `Space` kéo canvas sơ đồ); `cursor: pointer` toàn cục; kiểm tra `prefers-reduced-motion` toàn trang. | **Đã hoàn thành 100% (bàn giao Task080)** |
-| **Đợt 4B** | **SP013 / STR060** (E2E Suite trọn vẹn) | **Task081:** Xây dựng bộ test Playwright E2E chạy xuyên suốt luồng người dùng chính từ Landing → Editor → Sơ đồ/Plan/BTree → Findings → What-if → Conflict-sim trên cả tiếng Việt (`/vi`) và tiếng Anh (`/en`). | Đảm bảo không bao giờ bị đứt gãy luồng chính trên production. |
+| **Đợt 4B** | **SP013 / STR060** (E2E Suite trọn vẹn) | **Task081:** Xây dựng bộ test Playwright E2E chạy xuyên suốt luồng người dùng chính từ Landing → Editor → Sơ đồ/Plan/BTree → Findings → What-if → Conflict-sim trên cả tiếng Việt (`/vi`) và tiếng Anh (`/en`). | **Đã hoàn thành 100% (bàn giao Task081)** |
 | **Đợt 4C** | **SP013 / STR061** (Kiểm tra cuối & Security Audit) | **Task082:** Chạy `security-audit` toàn diện, quét secret, kiểm tra sandbox injection, rà soát 100% nhãn kết luận trên UI (đảm bảo không còn câu nào hàm ý "thiết kế này ổn" theo Nguyên tắc 2). | Tự tin bấm nút phát hành chính thức V1. |
 
 ---
@@ -59,4 +59,4 @@ Mục tiêu: Kích hoạt engine MySQL thật chạy trên Docker VM Azure.
 
 ## 4. Việc tiếp theo ngay của Agent
 
-Bắt tay ngay vào **Đợt 4B — SP013 / STR060 (Task081: Playwright E2E Suite toàn diện — Golden Path 10 bước)** để củng cố độ ổn định tuyệt đối trước khi release V1!
+Bắt tay ngay vào **Đợt 4C — SP013 / STR061 (Task082: Kiểm tra cuối, Security Audit & Rà soát 100% nhãn kết luận)** để sẵn sàng phát hành chính thức SQLLens V1!

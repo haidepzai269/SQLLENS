@@ -34,3 +34,4 @@
 ## 4. Kiểm tra chất lượng (Verification)
 - `npm run check` (typecheck + lint + unit tests) đạt 100%.
 - `npx playwright test web/e2e/golden-path.spec.ts` đạt 100% (cả Desktop và Mobile, cả `/vi` và `/en`).
+
