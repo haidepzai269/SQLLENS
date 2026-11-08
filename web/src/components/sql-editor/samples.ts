@@ -10,9 +10,18 @@ export const SAMPLE_SQL: Record<EngineId, string> = {
 
 CREATE INDEX idx_users_email ON users (email);
 
-INSERT INTO users (email) VALUES ('an@example.com'), ('binh@example.com');
+CREATE TABLE orders (
+  id serial PRIMARY KEY,
+  user_id int REFERENCES users (id),
+  total int NOT NULL
+);
 
-SELECT id, email FROM users WHERE email = 'an@example.com';
+CREATE INDEX idx_orders_user ON orders (user_id);
+
+INSERT INTO users (email) SELECT 'user_' || g || '@example.com' FROM generate_series(1, 100) g;
+INSERT INTO orders (user_id, total) SELECT (g % 100) + 1, g * 10 FROM generate_series(1, 300) g;
+
+SELECT u.email, o.total FROM users u JOIN orders o ON o.user_id = u.id WHERE lower(u.email) = 'user_1@example.com';
 `,
   mysql: `CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -22,8 +31,18 @@ SELECT id, email FROM users WHERE email = 'an@example.com';
 
 CREATE INDEX idx_users_email ON users (email);
 
-INSERT INTO users (email) VALUES ('an@example.com'), ('binh@example.com');
+CREATE TABLE orders (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT,
+  total INT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users (id)
+);
 
-SELECT id, email FROM users WHERE email = 'an@example.com';
+CREATE INDEX idx_orders_user ON orders (user_id);
+
+INSERT INTO users (email) VALUES ('user_1@example.com'), ('user_2@example.com');
+INSERT INTO orders (user_id, total) VALUES (1, 100), (2, 200);
+
+SELECT u.email, o.total FROM users u JOIN orders o ON o.user_id = u.id WHERE lower(u.email) = 'user_1@example.com';
 `,
 };

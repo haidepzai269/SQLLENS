@@ -10,7 +10,7 @@ import { SceneLock } from "./scene-lock";
 import { RaceReceipt, SceneRace } from "./scene-race";
 import { SceneScale } from "./scene-scale";
 import { Cta, Footer, Labels, Limits } from "./sections";
-import { gsap, MOTION, ScrollTrigger, useGSAP } from "./gsap-setup";
+import { gsap, ScrollTrigger, useGSAP } from "./gsap-setup";
 
 export function AboutPage() {
   const t = useTranslations("landing");
@@ -19,15 +19,14 @@ export function AboutPage() {
   // Vào dần từng phần khi cuộn tới (một lần). Giảm chuyển động thì nội dung đứng yên.
   useGSAP(
     () => {
-      const mm = gsap.matchMedia();
-      mm.add(MOTION, () => {
-        gsap.set("[data-reveal]", { opacity: 0, y: 28 });
-        ScrollTrigger.batch("[data-reveal]", {
-          start: "top 90%",
-          once: true,
-          onEnter: (els) => gsap.to(els, { opacity: 1, y: 0, duration: 0.9, ease: "expo.out", stagger: 0.09, overwrite: true }),
-        });
+      if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      gsap.set("[data-reveal]", { opacity: 0, y: 28 });
+      const batch = ScrollTrigger.batch("[data-reveal]", {
+        start: "top 90%",
+        once: true,
+        onEnter: (els) => gsap.to(els, { opacity: 1, y: 0, duration: 0.9, ease: "expo.out", stagger: 0.09, overwrite: true }),
       });
+      return () => batch.forEach((st) => st.kill());
     },
     { scope: root },
   );

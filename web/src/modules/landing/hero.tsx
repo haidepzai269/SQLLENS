@@ -17,7 +17,7 @@ export function Hero() {
   const [sel, setSel] = useState(KEYS[2]);
 
   useGSAP(
-    (_, contextSafe) => {
+    () => {
       const svg = root.current!.querySelector("svg[data-ui]")!;
       const readout = root.current!.querySelector<HTMLElement>("[data-read]")!;
       const setRead = (n: number) => (readout.textContent = t("hero.read", { n }));
@@ -28,7 +28,7 @@ export function Hero() {
 
       mm.add({ motion: MOTION, reduce: "(prefers-reduced-motion: reduce)" }, (c) => {
         const animate = !!c.conditions?.motion;
-        const run = contextSafe!((key: string, loop: boolean) => {
+        const run = (key: string, loop: boolean) => {
           tl?.kill();
           timer?.kill();
           resetTree(svg);
@@ -49,7 +49,7 @@ export function Hero() {
           });
           descent(tl, svg, route, key, HOP);
           route.forEach((_, i) => tl!.call(() => setRead(i + 1), [], `s${i}`));
-        });
+        };
         play.current = (key) => run(key, false);
         run("7421", true);
         const st = ScrollTrigger.create({
@@ -61,9 +61,17 @@ export function Hero() {
             if (visible) { tl?.resume(); timer?.resume(); } else { tl?.pause(); timer?.pause(); }
           },
         });
-        return () => st.kill();
+        return () => {
+          tl?.kill();
+          timer?.kill();
+          st.kill();
+        };
       });
-      return () => mm.revert();
+      return () => {
+        tl?.kill();
+        timer?.kill();
+        mm.revert();
+      };
     },
     { scope: root },
   );
