@@ -1,59 +1,61 @@
-# Mục tiêu trước mắt
+# Mục tiêu trước mắt (Cập nhật ngày 2026-11-08)
 
-Viết ngày 2026-11-04, tức ngày 3 của 7 ngày nếu tính từ 2026-11-02, nên hạn là 2026-11-08. Tiến độ chi tiết nằm ở `_bmad-output/SP0xx/README.md`.
+> **Cập nhật ngày 2026-11-08 (Ngày 4 của dự án):**
+> Toàn bộ **Đợt 1, Đợt 2, Đợt 3** đã hoàn thành 100%! Luồng lõi PostgreSQL trọn vẹn (Dán SQL → Schema/Plan visualizer → B-Tree Reader có range scan & cuộc đua & cây tối → Findings rủi ro gắn bằng chứng → What-if thử sửa rollback → Conflict-sim 5 kịch bản có timeline & tiêu chí hỏng tùy biến → AI Mentor proxy) đã hoạt động trên production.
+> Đã bàn giao **74 Tasks**, hoàn tất **53/61 Stories (87%)**. Chỉ còn **8 Stories (13%)** để hoàn tất toàn bộ dự án V1!
 
-## Chốt mục tiêu
+---
 
-**Trước hết làm xong một luồng PostgreSQL trọn vẹn trên production, có đăng nhập và AI thật. MySQL làm ngay sau đó.**
+## 1. Trạng thái hiện tại & Thành quả đã chốt
 
-Luồng đó gồm: dán SQL, chạy, thấy bên trong, thử tranh chấp, xem danh sách rủi ro, sửa rồi chạy lại, hỏi AI.
+### A. Các đợt đã hoàn thành (100% CI xanh & đã bàn giao):
+- **Đợt 1 (Nền tảng & Giao diện):** Đạt chuẩn shadcn/ui (Task064), trang `/about` GSAP (Task067), HTTPS & sandbox agent cho MySQL (Task074), ổn định CI E2E (Task077), chặn các route `e2e-*` trên production.
+- **Đợt 2 (Đăng nhập, Rủi ro & Tranh chấp):** Trang `/login` GSAP có quota (Task066), Findings gắn bằng chứng plan/btree vào luật rủi ro (Task052, Task053, Task068, Task069, Task076), Conflict-sim timeline 2 session & đồ thị chờ khóa Cytoscape (Task070), tiêu chí hỏng tùy biến bằng SELECT (Task079).
+- **Đợt 3 (B-Tree Reader trực quan):** Range scan trượt ngang leaf & bước nhảy heap (Task072), Cuộc đua Seq Scan vs Index Scan bằng số trang/dòng thật & Cây B-Tree tối khi query không dùng được index (Task078).
 
-Lý do chọn thứ tự này:
+---
 
-- Hiện đã có phần "thấy bên trong" và "sửa rồi chạy lại". Còn thiếu hai trong ba trụ của V1: "kiểm tra thiết kế" và màn hình "thử kịch bản hỏng". Lõi của hai phần này đã có, nên làm thêm tương đối nhanh.
-- Đăng nhập và AI đã có code nhưng chưa chạy thật. Chỉ cần chủ dự án đặt biến là kiểm được, và làm sớm thì lỗi lộ ra sớm.
-- MySQL cần thêm HTTPS, giới hạn theo người dùng và mở cổng Azure, nên rủi ro cao nhất. Làm sau để nếu trễ thì vẫn có một sản phẩm PostgreSQL hoàn chỉnh.
+## 2. Lộ trình nước rút về đích (13% còn lại)
 
-**Xong khi:** trên `https://sqllens-bice.vercel.app`, một người dùng mới đi được hết luồng trên bằng trình duyệt thật, đăng nhập Google hoặc GitHub được, AI trả lời được, và CI xanh.
+Chia làm 2 lộ trình rõ ràng để không bị phụ thuộc chéo:
 
-## Việc của chủ dự án
+### Lộ trình 1: Đánh bóng & Phát hành V1 PostgreSQL (Ưu tiên số 1 — Không phụ thuộc hạ tầng ngoài)
+Mục tiêu: Đưa SQLLens PostgreSQL hoàn chỉnh, bóng bẩy, bảo mật tuyệt đối lên production cho người dùng cuối.
 
-Cập nhật ngày 2026-11-04: bước đặt biến Render, callback, đăng nhập đã xong. Ba câu hỏi đã trả lời: làm MySQL, Áp dụng giữ nguyên, chấp nhận rủi ro hàm trùng tên.
+| Mốc | Story | Việc cần làm | Kết quả người dùng thấy |
+|---|---|---|---|
+| **Đợt 4A** | **SP013 / STR059** (Đánh bóng luồng) | **Task080:** Rà soát và đánh bóng toàn diện các trạng thái: loading skeleton, empty states, error boundaries cho cả 6 tab stage; hỗ trợ phím tắt (`Ctrl+Enter` chạy SQL, `Space` kéo canvas sơ đồ); kiểm tra `prefers-reduced-motion` toàn trang. | Trải nghiệm mượt mà không góc chết, bàn phím và trợ năng hoàn hảo. |
+| **Đợt 4B** | **SP013 / STR060** (E2E Suite trọn vẹn) | **Task081:** Xây dựng bộ test Playwright E2E chạy xuyên suốt luồng người dùng chính từ Landing → Editor → Sơ đồ/Plan/BTree → Findings → What-if → Conflict-sim trên cả tiếng Việt (`/vi`) và tiếng Anh (`/en`). | Đảm bảo không bao giờ bị đứt gãy luồng chính trên production. |
+| **Đợt 4C** | **SP013 / STR061** (Kiểm tra cuối & Security Audit) | **Task082:** Chạy `security-audit` toàn diện, quét secret, kiểm tra sandbox injection, rà soát 100% nhãn kết luận trên UI (đảm bảo không còn câu nào hàm ý "thiết kế này ổn" theo Nguyên tắc 2). | Tự tin bấm nút phát hành chính thức V1. |
 
-Còn lại:
+---
 
-1. Đổi 4 secret đã lộ trong lịch sử phiên: mật khẩu Neon, token Upstash, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_SECRET`. Cập nhật ở cả Render và `api/.env`.
-2. Điền `GROQ_API_KEY` trên Render nếu chưa điền, và bật Zero Data Retention của Groq.
-3. Sau Task074: làm theo `_bmad-output/SP004/STR019/Task074/huong_dan_mo_cong.md` để mở cổng Azure cho Render.
+### Lộ trình 2: Mở rộng Sandbox MySQL (Sau khi Chủ dự án mở cổng Azure)
+Mục tiêu: Kích hoạt engine MySQL thật chạy trên Docker VM Azure.
 
-## Việc của agent
+| Mốc | Story | Việc cần làm | Điều kiện kích hoạt |
+|---|---|---|---|
+| **Đợt 5A** | **SP004 / STR019** | Nối Gin backend với sandbox agent trên Azure VM; bật tab MySQL trên frontend; hiển thị trạng thái đang khởi tạo container / hết hạn / hàng đợi. | Sau khi Chủ dự án mở cổng NSG theo hướng dẫn Task074. |
+| **Đợt 5B** | **SP008 / STR034** | Dựng lại cây B-Tree InnoDB từ dữ liệu thật, đối chiếu `mysql.innodb_index_stats`. | Sau Đợt 5A. |
+| **Đợt 5C** | **SP010 / STR044** | Thử sửa What-if trên bảng clone tạm của MySQL (vì `CREATE INDEX` tự commit). | Sau Đợt 5A. |
+| **Đợt 5D** | **SP011 / STR050** | Tranh chấp 2 connection MySQL thật, đọc `performance_schema.data_lock_waits`, dirty read ở `READ UNCOMMITTED`. | Sau Đợt 5A. |
 
-Làm theo thứ tự, không cần chờ chủ dự án trừ khi có ghi rõ. Các đợt có thể chạy song song khi không sửa cùng file.
+---
 
-| Đợt | Việc | Kết quả người dùng thấy |
-|---|---|---|
-| 1 | Task064: thanh cuộn, nút bánh răng, tooltip, đóng mở cột mượt, viền ô SQL | Giao diện đạt chuẩn shadcn/ui |
-| 1 | Task067: trang `/about` với GSAP và video quay từ sản phẩm thật | Có trang giới thiệu |
-| 1 | Task074: HTTPS và giới hạn theo người dùng cho MySQL | Sẵn sàng mở cổng |
-| 1 | Tìm nguyên nhân `btree-anim.spec.ts:117` lệch 56 đến 61 px khi lùi bước, sửa lỗi thật nếu có, để CI xanh | Tua lại B-Tree đúng vị trí |
-| 1 | Chặn các route `e2e-*` trên production, vì chúng đang mở công khai. Thêm hai biến key AI vào `render.yaml` | Không lộ trang thử |
-| 2 | Task066: trang `/login` với GSAP, khách chỉ được 2 lần chạy câu cơ bản. Chờ Task064, Task067 | Luồng đăng nhập mới |
-| 2 | SP009 STR041, STR042: gắn bằng chứng, hiện danh sách rủi ro, đưa findings vào gói bằng chứng của AI | Cột Rủi ro có nội dung thật |
-| 2 | SP011 STR051, STR052: timeline hai session, đồ thị chờ khóa, tiêu chí hỏng | Xem được 5 kịch bản tranh chấp, tùy biến tiêu chí SELECT (Đã xong cả Task070 và Task079) |
-| 3 | SP008 STR037, STR038: range scan, khác biệt engine, cuộc đua Seq Scan với Index Scan, cây tối | Đủ giao diện B-Tree đã chốt (Đã xong cả Task072 và Task078) |
-| 4 | Sau bước 3 và bước 4 của chủ dự án: kiểm luồng thật trên production, cả câu hỏi nhét lệnh vào AI | Biết chắc đăng nhập và AI chạy thật |
-| 5 | SP004 STR019, rồi SP008 STR034, SP010 STR044, SP011 STR050, nếu câu 1 chốt có làm MySQL | Dùng được MySQL |
-| 6 | SP013: landing, đánh bóng luồng, E2E hai engine, `security-audit` cuối | Phát hành |
+### Tính năng linh hoạt (Không chặn phát hành):
+- **SP012 / STR057 (AI Chaos Generator):** Dùng AI tự sinh kịch bản tranh chấp 2 session từ schema người dùng. Chỉ làm nếu còn dư dả thời gian sau khi hoàn tất Đợt 4.
+- **SP002 / STR011 (Điều khoản & chính sách):** Hoàn thiện văn bản chính sách dữ liệu và giới hạn tài nguyên.
 
-STR057 AI Chaos Generator chỉ làm nếu còn thời gian, không chặn phát hành.
+---
 
-## Nếu thiếu thời gian
+## 3. Việc của Chủ dự án (Cần làm khi thuận tiện)
 
-Bỏ theo thứ tự: AI Chaos Generator, rồi SP008 STR038 phần cuộc đua, rồi rút 5 kịch bản PostgreSQL còn 3, rồi MySQL. Chủ dự án quyết định lần cuối tại thời điểm đó.
+1. **Bảo mật Secret:** Đổi 4 secret đã lộ trong lịch sử phiên cũ: mật khẩu Neon, token Upstash, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_SECRET`. Cập nhật trên Render Dashboard và `api/.env`.
+2. **AI Production:** Điền `GROQ_API_KEY` trên Render (nếu chưa điền) và bật Zero Data Retention của Groq.
+3. **Mở cổng MySQL (Nếu muốn kích hoạt Lộ trình 2):** Làm theo hướng dẫn tại [`_bmad-output/SP004/STR019/Task074/huong_dan_mo_cong.md`](file:///c:/SQLLens/_bmad-output/SP004/STR019/Task074/huong_dan_mo_cong.md) để mở cổng Azure NSG cho IP của Render.
 
-## Rủi ro cần nhớ
+---
 
-- **Vercel deploy cả khi CI đỏ.** Bản lỗi có thể lên production. Khi sắp phát hành nên đổi cách này.
-- **Hạn mức API từng hết.** Agent chạy song song dễ chạm giới hạn 5 giờ và phải chờ, nên không nên mở quá nhiều task một lúc.
-- **Máy hết RAM.** Không chạy cả bộ Playwright ở máy, để CI chạy.
-- **Chưa kiểm:** Firefox, Safari, điện thoại thật, trình đọc màn hình, máy RAM thấp.
+## 4. Việc tiếp theo ngay của Agent
+
+Bắt tay ngay vào **Đợt 4A — SP013 / STR059 (Task080: Đánh bóng luồng trải nghiệm, phím tắt, loading/empty/error states và giảm chuyển động)** để tiến sát vạch đích phát hành V1!
