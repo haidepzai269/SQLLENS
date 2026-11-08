@@ -40,7 +40,7 @@ Làm theo thứ tự, không cần chờ chủ dự án trừ khi có ghi rõ. C
 | 2 | Task066: trang `/login` với GSAP, khách chỉ được 2 lần chạy câu cơ bản. Chờ Task064, Task067 | Luồng đăng nhập mới |
 | 2 | SP009 STR041, STR042: gắn bằng chứng, hiện danh sách rủi ro, đưa findings vào gói bằng chứng của AI | Cột Rủi ro có nội dung thật |
 | 2 | SP011 STR051, STR052: timeline hai session, đồ thị chờ khóa, tiêu chí hỏng | Xem được 5 kịch bản tranh chấp |
-| 3 | SP008 STR037, STR038: range scan, khác biệt engine, cuộc đua Seq Scan với Index Scan, cây tối | Đủ giao diện B-Tree đã chốt |
+| 3 | SP008 STR037, STR038: range scan, khác biệt engine, cuộc đua Seq Scan với Index Scan, cây tối | Đủ giao diện B-Tree đã chốt (Đã xong cả Task072 và Task078) |
 | 4 | Sau bước 3 và bước 4 của chủ dự án: kiểm luồng thật trên production, cả câu hỏi nhét lệnh vào AI | Biết chắc đăng nhập và AI chạy thật |
 | 5 | SP004 STR019, rồi SP008 STR034, SP010 STR044, SP011 STR050, nếu câu 1 chốt có làm MySQL | Dùng được MySQL |
 | 6 | SP013: landing, đánh bóng luồng, E2E hai engine, `security-audit` cuối | Phát hành |
