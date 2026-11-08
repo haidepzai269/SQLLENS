@@ -13,6 +13,7 @@ import { ZonePlaceholder } from "@/components/shell/zone-placeholder";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SAMPLE_SQL } from "@/components/sql-editor/samples";
 import { SampleButton } from "@/components/sql-editor/sample-button";
 import { SqlEditor } from "@/components/sql-editor/sql-editor";
 import type { Conclusion } from "@/contracts/conclusion";
@@ -457,13 +458,17 @@ export function LabWorkspace() {
       ? { from: focus.start, to: focus.end, nonce: focus.nonce }
       : undefined;
   const loadSample = (text: string) => (sql.trim() === "" || sql === text ? setSql(text) : setPendingSample(text));
+  const canRun = sql.trim() !== "" && !working && !(confirmOpen && dialogOn) && state.phase !== "stopped" && !(mysql && authStatus !== "user");
+  const handleEditorRun = () => {
+    if (canRun) void onRun();
+  };
 
   const sqlLabel = mysql ? tm("sqlLabel") : t("sqlLabel");
   const sqlZone = (
     <Pane title={ts("tab.sql")}>
       <span className="text-sm font-medium">{sqlLabel}</span>
       <div className="h-56 border border-line" id="sql-input">
-        <SqlEditor value={sql} onChange={setSql} engine={engine} error={editorError} highlight={highlight} ariaLabel={sqlLabel} />
+        <SqlEditor value={sql} onChange={setSql} engine={engine} error={editorError} highlight={highlight} ariaLabel={sqlLabel} onRun={handleEditorRun} />
       </div>
       {sql.trim() === "" && (
         <div className="flex flex-col items-start gap-2">
@@ -652,7 +657,16 @@ export function LabWorkspace() {
       <ZonePlaceholder title={ts("tab.findings")} hint={ts("placeholder.findings")} />
     );
 
-  const stageZone = <Stage run={stageRun} working={working} askRef={askRef} focus={focus as StageFocus | null} findings={{ hits: findingsHits ?? [], pending: !!stageRun && found === null }} />;
+  const stageZone = (
+    <Stage
+      run={stageRun}
+      working={working}
+      askRef={askRef}
+      focus={focus as StageFocus | null}
+      findings={{ hits: findingsHits ?? [], pending: !!stageRun && found === null }}
+      onLoadSample={() => loadSample(SAMPLE_SQL[engine])}
+    />
+  );
   const onStopped = async (code: StopCode) => {
     const db = await adapter.current;
     note({ kind: code });

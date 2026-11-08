@@ -12,6 +12,38 @@
   "working": "Đang chạy. Cảnh mô phỏng sẽ hiện khi chạy xong.",
   "loading": "Đang đọc dữ liệu từ database...",
   "error": "Không đọc được: {message}",
+  "emptyAction": "Nạp mẫu SQL",
+  "empty": {
+    "schema": {
+      "title": "Sơ đồ quan hệ bảng",
+      "desc": "Trực quan hóa cấu trúc các bảng, khóa chính (PK) và khóa ngoại (FK) từ schema thực tế của database."
+    },
+    "plan": {
+      "title": "Cây thực thi truy vấn (Plan)",
+      "desc": "Xem luồng thực thi EXPLAIN trực quan, so sánh số dòng ước tính và thực tế, kèm hoạt ảnh từng bước join."
+    },
+    "btree": {
+      "title": "Mô phỏng cây chỉ mục B-Tree",
+      "desc": "Đọc cấu trúc cây B-Tree phân tầng thật từ database, mô phỏng hoạt ảnh rơi khóa từ gốc xuống lá."
+    },
+    "whatif": {
+      "title": "Thử sửa kịch bản giả lập (What-If)",
+      "desc": "Thử nghiệm thêm hoặc đổi chỉ mục trong môi trường giả lập an toàn để đo lường mức độ tối ưu trước khi áp dụng."
+    },
+    "capacity": {
+      "title": "Dự báo quy mô & dung lượng (Capacity)",
+      "desc": "Dự báo số tầng cây, dung lượng đĩa và số trang I/O cần đọc khi quy mô dữ liệu tăng từ hàng ngàn lên hàng triệu dòng."
+    },
+    "mentor": {
+      "title": "Trợ lý AI phân tích hiệu năng (Mentor)",
+      "desc": "Nhận phân tích chuyên sâu và khuyến nghị tối ưu hóa truy vấn dựa trên bằng chứng plan thực nghiệm."
+    }
+  },
+  "errorBoundary": {
+    "title": "Lỗi hiển thị tại cảnh này",
+    "retry": "Thử lại",
+    "description": "Đã xảy ra ngoại lệ khi vẽ giao diện của tab này."
+  },
   "schema": {
     "none": "SQL vừa chạy không tạo bảng nào trong schema public, nên chưa có gì để vẽ.",
     "evidence": "Đọc từ database vừa chạy, không đọc từ chữ SQL: {count, plural, one {# bảng} other {# bảng}}."

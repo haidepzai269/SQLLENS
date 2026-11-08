@@ -3,8 +3,9 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { useTranslations } from "next-intl";
-import { useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { usePrefersReducedMotion } from "@/lib/reduced-motion";
 import type { EngineId } from "@/contracts/engine";
 import type { PlanNode } from "@/contracts/plan";
 import { BUCKETS, buildJoinSteps, INNER, isIndexed, joinSupport, OUTER, planRows, START, type JoinKind } from "./steps";
@@ -13,7 +14,6 @@ gsap.registerPlugin(useGSAP);
 
 const MOVE = 0.9; // giây mỗi bước
 const HOLD = 0.6; // giây dừng giữa hai bước
-const QUERY = "(prefers-reduced-motion: reduce)";
 const PITCH = 34;
 const TOP = 28;
 const CH = 28; // chiều cao chip
@@ -26,11 +26,6 @@ const MONO = { font: "13px var(--mono)" };
 const clamp = (v: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
 const reached = (p: number) => Math.floor(p + 1e-6);
 const lerp = (a: number, b: number, f: number) => a + (b - a) * f;
-const subscribeReduced = (cb: () => void) => {
-  const m = window.matchMedia(QUERY);
-  m.addEventListener("change", cb);
-  return () => m.removeEventListener("change", cb);
-};
 const rowY = (i: number) => TOP + i * PITCH + CH / 2;
 const bucketY = (k: number) => TOP + k * 68 + 26;
 const short = (s?: string) => (s && s.length > 10 ? `${s.slice(0, 9)}…` : s);
@@ -44,9 +39,9 @@ function Scene({ node, kind }: { node: PlanNode; kind: JoinKind }) {
   const indexed = kind === "nested_loop" && isIndexed(node);
   const steps = useMemo(() => buildJoinSteps(kind, indexed), [kind, indexed]);
   const S = steps.length;
-  const reduced = useSyncExternalStore(subscribeReduced, () => window.matchMedia(QUERY).matches, () => false);
-  const move = reduced ? 0.001 : MOVE;
-  const seg = move + (reduced ? 1.2 : HOLD);
+  const reduced = usePrefersReducedMotion();
+  const move = reduced ? 0 : MOVE;
+  const seg = move + (reduced ? 0 : HOLD);
   const at = (k: number) => (k <= 0 ? 0 : (k - 1) * seg + move);
   const ease = useMemo(() => gsap.parseEase("power2.inOut"), []);
 
@@ -80,6 +75,11 @@ function Scene({ node, kind }: { node: PlanNode; kind: JoinKind }) {
         }),
         run: contextSafe!(() => {
           gsap.killTweensOf(tl);
+          if (reduced) {
+            tl.progress(1);
+            setPlaying(false);
+            return;
+          }
           if (tl.progress() >= 1) tl.restart();
           else tl.play();
           setPlaying(true);

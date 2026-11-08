@@ -13,7 +13,7 @@ import CodeMirror, {
   type DecorationSet,
   type Extension,
 } from "@uiw/react-codemirror";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { DIALECT } from "./dialect";
 import type { SqlEditorProps } from "./sql-editor";
 
@@ -111,11 +111,15 @@ const toDocOffset = (value: string, position: number) => {
   return normalize(value.slice(0, position)).length;
 };
 
-export default function SqlEditorImpl({ value, onChange, engine, error, highlight: hl, ariaLabel }: SqlEditorProps) {
+export default function SqlEditorImpl({ value, onChange, engine, error, highlight: hl, ariaLabel, onRun }: SqlEditorProps) {
   const errId = useId();
   const [view, setView] = useState<EditorView | null>(null);
   const doc = useMemo(() => normalize(value), [value]);
   const offset = error && Number.isFinite(error.position) && error.position >= 0 ? toDocOffset(value, error.position) : null;
+  const onRunRef = useRef(onRun);
+  useEffect(() => {
+    onRunRef.current = onRun;
+  });
 
   useEffect(() => {
     view?.dispatch({ effects: setError.of(offset) });
@@ -129,6 +133,25 @@ export default function SqlEditorImpl({ value, onChange, engine, error, highligh
     const hit = hFrom !== null && hTo !== null ? { from: hFrom, to: hTo } : null;
     view.dispatch({ effects: [setHit.of(hit), ...(hit && hit.from < view.state.doc.length ? [EditorView.scrollIntoView(hit.from, { y: "center" })] : [])] });
   }, [view, hFrom, hTo, hNonce]);
+
+  useEffect(() => {
+    if (!view) return;
+    const dom = view.dom;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        if (e.isComposing) return;
+        if (onRunRef.current) {
+          e.preventDefault();
+          e.stopPropagation();
+          onRunRef.current();
+        }
+      }
+    };
+    dom.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      dom.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, [view]);
 
   const invalid = Boolean(error);
   const extensions = useMemo<Extension[]>(

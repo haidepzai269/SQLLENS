@@ -224,10 +224,35 @@
       animation: none !important;
     }
   }
+  button,
+  [role="button"],
+  [role="tab"],
+  select,
+  summary {
+    cursor: pointer;
+  }
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  [disabled] {
+    cursor: not-allowed;
+  }
   html {
     @apply font-sans;
   }
 }
+
+/* Kéo pan canvas bằng phím Space */
+.space-panning,
+.space-panning .react-flow__pane {
+  cursor: grab !important;
+}
+.space-panning:active,
+.space-panning .react-flow__pane:active,
+.space-panning.is-dragging,
+.space-panning.is-dragging .react-flow__pane {
+  cursor: grabbing !important;
+}
+
 /* Trang /about cuộn bằng cửa sổ thay vì vùng cuộn của khung ứng dụng. */
 html:has([data-bare]),
 html:has([data-bare]) body {

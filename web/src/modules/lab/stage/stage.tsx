@@ -2,8 +2,9 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, type ReactNode, type RefObject } from "react";
-import { Lock } from "lucide-react";
+import { BarChart3, FileCode, FolderTree, Lock, Network, SlidersHorizontal, Sparkles, Workflow } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { StageErrorBoundary } from "@/components/error-boundary";
 import { Tip } from "@/components/shell/tip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -33,21 +34,21 @@ import { BTreeRace, type BTreeRaceProps } from "@/modules/btree-reader/race/btre
 // Capacity (GSAP, B-Tree) và Mentor (đọc stream) chỉ tải khi mở tab của chúng.
 const CapacityPanel = dynamic(() => import("@/modules/what-if/capacity-ui").then((m) => m.CapacityPanel), {
   ssr: false,
-  loading: () => <Skeleton className="h-64 w-full" aria-hidden />,
+  loading: () => <Skeleton className="h-[400px] w-full" aria-hidden />,
 });
 const MentorPanel = dynamic(() => import("@/modules/mentor/ui/mentor-panel").then((m) => m.MentorPanel), {
   ssr: false,
-  loading: () => <Skeleton className="h-64 w-full" aria-hidden />,
+  loading: () => <Skeleton className="h-[360px] w-full" aria-hidden />,
 });
 // Tranh chấp kéo Cytoscape: chỉ tải khi mở tab của nó.
 const ConflictPanel = dynamic(() => import("@/modules/conflict-sim/ui/conflict-panel").then((m) => m.ConflictPanel), {
   ssr: false,
-  loading: () => <Skeleton className="h-64 w-full" aria-hidden />,
+  loading: () => <Skeleton className="h-[420px] w-full" aria-hidden />,
 });
 // BTreeDrop kéo GSAP: chỉ tải khi mở tab B-Tree.
 const BTreeDrop = dynamic(() => import("@/modules/btree-reader/anim/btree-drop").then((m) => m.BTreeDrop), {
   ssr: false,
-  loading: () => <Skeleton className="h-64 w-full" aria-hidden />,
+  loading: () => <Skeleton className="h-96 w-full" aria-hidden />,
 });
 
 /** Một lần chạy xong. `id` đổi theo mỗi lần chạy (và khi dữ liệu sinh thêm); dữ liệu của tab gắn với id này. */
@@ -98,7 +99,7 @@ function Loading() {
   return (
     <div role="status" aria-label={t("loading")} className="flex flex-col gap-2" data-testid="stage-loading">
       <span className="text-sm text-muted-foreground">{t("loading")}</span>
-      <Skeleton className="h-40 w-full" aria-hidden />
+      <Skeleton className="h-72 w-full" aria-hidden />
     </div>
   );
 }
@@ -405,7 +406,66 @@ function WhatIfTab({ run }: { run: StageRun }) {
   return <WhatIfCompare key={run.id} adapter={run.db} probe={run.select.sql} />;
 }
 
-export function Stage({ run, working, askRef, focus, findings }: { run: StageRun | null; working: boolean; askRef: RefObject<string>; focus?: StageFocus | null; findings: StageFindings }) {
+function EmptyTab({
+  tabKey,
+  onLoadSample,
+}: {
+  tabKey: "schema" | "plan" | "btree" | "whatif" | "capacity" | "mentor";
+  onLoadSample?: () => void;
+}) {
+  const t = useTranslations("labStage");
+  const icons = {
+    schema: Network,
+    plan: Workflow,
+    btree: FolderTree,
+    whatif: SlidersHorizontal,
+    capacity: BarChart3,
+    mentor: Sparkles,
+  };
+  const Icon = icons[tabKey];
+
+  return (
+    <div
+      data-testid={`stage-empty-${tabKey}`}
+      className="flex min-h-[320px] w-full flex-col items-center justify-center rounded-lg border border-line bg-surface/40 p-6 text-center"
+    >
+      <div className="mb-3 flex size-12 items-center justify-center rounded-full border border-line bg-raised text-lamp">
+        <Icon className="size-6" aria-hidden="true" />
+      </div>
+      <h3 className="m-0 text-base font-semibold text-text">{t(`empty.${tabKey}.title`)}</h3>
+      <p className="mt-1 max-w-md text-xs text-dim leading-relaxed">{t(`empty.${tabKey}.desc`)}</p>
+      {onLoadSample && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-4 gap-1.5"
+          onClick={onLoadSample}
+          data-testid="stage-empty-load-sample"
+        >
+          <FileCode className="size-3.5" aria-hidden="true" />
+          {t("emptyAction")}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+export function Stage({
+  run,
+  working,
+  askRef,
+  focus,
+  findings,
+  onLoadSample,
+}: {
+  run: StageRun | null;
+  working: boolean;
+  askRef: RefObject<string>;
+  focus?: StageFocus | null;
+  findings: StageFindings;
+  onLoadSample?: () => void;
+}) {
   const t = useTranslations("labStage");
   const ts = useTranslations("shell");
   const [tab, setTab] = useState<Tab>("schema");
@@ -414,7 +474,7 @@ export function Stage({ run, working, askRef, focus, findings }: { run: StageRun
   const gated = (x: Tab, node: ReactNode) => (locked(x) ? <LockedTab name={t(`tab.${x}`)} /> : node);
   // Panel giữ mounted (keepMounted) nên chuyển tab không đọc lại: explain chạy thật câu SELECT, đọc lại sẽ làm nextval() nhảy thêm.
   const [seen, setSeen] = useState<{ id: number; tabs: Tab[] }>({ id: -1, tabs: [] });
-  const open = (x: Tab) => !locked(x) && run !== null && (tab === x || (seen.id === run.id && seen.tabs.includes(x)));
+  const open = (x: Tab) => !locked(x) && (x === "conflict" ? tab === "conflict" : run !== null && (tab === x || (seen.id === run.id && seen.tabs.includes(x))));
   const change = (v: unknown) => {
     if (run) setSeen((s) => ({ id: run.id, tabs: [...new Set([...(s.id === run.id ? s.tabs : []), tab])] }));
     setTab(v as Tab);
@@ -432,29 +492,106 @@ export function Stage({ run, working, askRef, focus, findings }: { run: StageRun
     setDoneNonce(f.nonce);
     if (f.tab && f.tab !== tab) change(f.tab);
   }
-  const hint = !run ? (working ? t("working") : ts("placeholder.stage")) : null;
+
   return (
     <div className="flex min-h-full min-w-0 flex-col">
       <div className="flex h-[var(--h-bar)] flex-none items-center border-b border-line px-[var(--edge)] font-semibold">{ts("tab.stage")}</div>
       <div className="flex min-w-0 flex-col gap-3 p-[var(--edge)]">
-        {hint !== null || !run ? (
-          <Note>{hint}</Note>
-        ) : (
-          <Tabs value={tab} onValueChange={change}>
-            <TabsList className="h-auto w-full flex-wrap" aria-label={t("tabsLabel")} activateOnFocus>
-              {TABS.map((x) => (
-                <Tip key={x} label={ts(`tip.tab.${x}`)}><TabsTrigger value={x}>{t(`tab.${x}`)}{locked(x) && <Lock aria-hidden className="size-3" />}</TabsTrigger></Tip>
-              ))}
-            </TabsList>
-            <TabsContent value="schema" className="min-w-0" keepMounted><SchemaTab run={run} on={open("schema")} focus={f?.table ? { table: f.table, nonce: f.nonce } : undefined} /></TabsContent>
-            <TabsContent value="plan" className="min-w-0" keepMounted><PlanTab run={run} r={plan} openNode={f?.planNodeId ? { id: f.planNodeId, nonce: f.nonce } : undefined} /></TabsContent>
-            <TabsContent value="btree" className="min-w-0" keepMounted>{gated("btree", my ? <MysqlNotSim run={run} which="btree" /> : <BTreeTab run={run} on={open("btree")} list={indexes} plan={plan} />)}</TabsContent>
-            <TabsContent value="whatif" className="min-w-0" keepMounted>{gated("whatif", my ? <MysqlNotSim run={run} which="whatif" /> : <WhatIfTab run={run} />)}</TabsContent>
-            <TabsContent value="capacity" className="min-w-0" keepMounted>{gated("capacity", open("capacity") && (my ? <MysqlNotSim run={run} which="capacity" /> : <CapacityTab run={run} list={indexes} />))}</TabsContent>
-            <TabsContent value="mentor" className="min-w-0" keepMounted>{gated("mentor", open("mentor") && (my ? <MysqlNotSim run={run} which="mentor" /> : <MentorTab run={run} plan={plan} askRef={askRef} findings={findings} />))}</TabsContent>
-            <TabsContent value="conflict" className="min-w-0" keepMounted>{open("conflict") && <ConflictPanel />}</TabsContent>
-          </Tabs>
-        )}
+        <Tabs value={tab} onValueChange={change}>
+          <TabsList className="h-auto w-full flex-wrap" aria-label={t("tabsLabel")} activateOnFocus>
+            {TABS.map((x) => (
+              <Tip key={x} label={ts(`tip.tab.${x}`)}>
+                <TabsTrigger value={x}>
+                  {t(`tab.${x}`)}
+                  {locked(x) && <Lock aria-hidden className="size-3" />}
+                </TabsTrigger>
+              </Tip>
+            ))}
+          </TabsList>
+          <TabsContent value="schema" className="min-w-0" keepMounted>
+            <StageErrorBoundary>
+              {run ? (
+                <SchemaTab run={run} on={open("schema")} focus={f?.table ? { table: f.table, nonce: f.nonce } : undefined} />
+              ) : working ? (
+                <Note>{t("working")}</Note>
+              ) : (
+                <EmptyTab tabKey="schema" onLoadSample={onLoadSample} />
+              )}
+            </StageErrorBoundary>
+          </TabsContent>
+          <TabsContent value="plan" className="min-w-0" keepMounted>
+            <StageErrorBoundary>
+              {run ? (
+                <PlanTab run={run} r={plan} openNode={f?.planNodeId ? { id: f.planNodeId, nonce: f.nonce } : undefined} />
+              ) : working ? (
+                <Note>{t("working")}</Note>
+              ) : (
+                <EmptyTab tabKey="plan" onLoadSample={onLoadSample} />
+              )}
+            </StageErrorBoundary>
+          </TabsContent>
+          <TabsContent value="btree" className="min-w-0" keepMounted>
+            <StageErrorBoundary>
+              {gated(
+                "btree",
+                run ? (
+                  my ? <MysqlNotSim run={run} which="btree" /> : <BTreeTab run={run} on={open("btree")} list={indexes} plan={plan} />
+                ) : working ? (
+                  <Note>{t("working")}</Note>
+                ) : (
+                  <EmptyTab tabKey="btree" onLoadSample={onLoadSample} />
+                ),
+              )}
+            </StageErrorBoundary>
+          </TabsContent>
+          <TabsContent value="whatif" className="min-w-0" keepMounted>
+            <StageErrorBoundary>
+              {gated(
+                "whatif",
+                run ? (
+                  my ? <MysqlNotSim run={run} which="whatif" /> : <WhatIfTab run={run} />
+                ) : working ? (
+                  <Note>{t("working")}</Note>
+                ) : (
+                  <EmptyTab tabKey="whatif" onLoadSample={onLoadSample} />
+                ),
+              )}
+            </StageErrorBoundary>
+          </TabsContent>
+          <TabsContent value="capacity" className="min-w-0" keepMounted>
+            <StageErrorBoundary>
+              {gated(
+                "capacity",
+                run ? (
+                  open("capacity") && (my ? <MysqlNotSim run={run} which="capacity" /> : <CapacityTab run={run} list={indexes} />)
+                ) : working ? (
+                  <Note>{t("working")}</Note>
+                ) : (
+                  <EmptyTab tabKey="capacity" onLoadSample={onLoadSample} />
+                ),
+              )}
+            </StageErrorBoundary>
+          </TabsContent>
+          <TabsContent value="mentor" className="min-w-0" keepMounted>
+            <StageErrorBoundary>
+              {gated(
+                "mentor",
+                run ? (
+                  open("mentor") && (my ? <MysqlNotSim run={run} which="mentor" /> : <MentorTab run={run} plan={plan} askRef={askRef} findings={findings} />)
+                ) : working ? (
+                  <Note>{t("working")}</Note>
+                ) : (
+                  <EmptyTab tabKey="mentor" onLoadSample={onLoadSample} />
+                ),
+              )}
+            </StageErrorBoundary>
+          </TabsContent>
+          <TabsContent value="conflict" className="min-w-0" keepMounted>
+            <StageErrorBoundary>
+              {open("conflict") && <ConflictPanel />}
+            </StageErrorBoundary>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

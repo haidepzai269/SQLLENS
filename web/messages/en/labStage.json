@@ -12,6 +12,38 @@
   "working": "Running. The scenes appear when the run finishes.",
   "loading": "Reading data from the database...",
   "error": "Could not read: {message}",
+  "emptyAction": "Try sample SQL",
+  "empty": {
+    "schema": {
+      "title": "Table Relationship Diagram",
+      "desc": "Visualize table structures, primary keys (PK), and foreign keys (FK) from the actual database schema."
+    },
+    "plan": {
+      "title": "Query Execution Plan Tree",
+      "desc": "Inspect the EXPLAIN execution flow, compare estimated vs. actual row counts, and view step-by-step join simulations."
+    },
+    "btree": {
+      "title": "B-Tree Index Visualization",
+      "desc": "Read the real multi-level B-Tree index from the database and simulate key search navigation from root to leaf."
+    },
+    "whatif": {
+      "title": "What-If Index Experiment",
+      "desc": "Experiment with creating or modifying indexes in a safe sandbox to measure optimization gains before applying."
+    },
+    "capacity": {
+      "title": "Capacity & Scaling Advisor",
+      "desc": "Forecast tree levels, disk size, and buffer I/O pages as row scale grows from thousands to millions."
+    },
+    "mentor": {
+      "title": "AI Performance Mentor",
+      "desc": "Receive in-depth analysis and query optimization recommendations grounded in verifiable plan evidence."
+    }
+  },
+  "errorBoundary": {
+    "title": "Error rendering this scene",
+    "retry": "Try again",
+    "description": "An exception occurred while rendering the view for this tab."
+  },
   "schema": {
     "none": "The SQL that just ran created no tables in the public schema, so there is nothing to draw.",
     "evidence": "Read from the database that just ran, not from the SQL text: {count, plural, one {# table} other {# tables}}."

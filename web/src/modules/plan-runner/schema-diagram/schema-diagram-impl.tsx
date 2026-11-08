@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useSpacePan } from "@/lib/space-pan";
 import type { TableInfo } from "@/modules/data-lab/generate/plan-data";
 import {
   autoLayout, cardHeight, CARD_W, COLLAPSE_OVER, loadPos, NARROW_MAX, relations, savePos, separate, tableKey, type Pos, type Rect,
@@ -19,6 +20,7 @@ const fitOpts = { maxZoom: 1, padding: 0.1, duration: 0 };
 function Inner({ tables, focus }: { tables: TableInfo[]; focus?: { table: string; nonce: number } }) {
   const t = useTranslations("schema-diagram");
   const rf = useReactFlow();
+  const { panClassName, setIsDragging } = useSpacePan();
   const wrap = useRef<HTMLDivElement>(null);
   const [narrow, setNarrow] = useState<boolean | null>(null);
   const [override, setOverride] = useState<boolean | null>(null);
@@ -178,7 +180,7 @@ function Inner({ tables, focus }: { tables: TableInfo[]; focus?: { table: string
         aria-label={t("canvas")}
         data-testid="schema-canvas"
         onKeyDown={onKeyDown}
-        className="h-[60vh] min-h-72 w-full overflow-hidden rounded-xl border border-rule bg-stage"
+        className={`h-[60vh] min-h-72 w-full overflow-hidden rounded-xl border border-rule bg-stage ${panClassName}`}
       >
         {narrow !== null && (
           <ReactFlow
@@ -191,6 +193,8 @@ function Inner({ tables, focus }: { tables: TableInfo[]; focus?: { table: string
               setDragging(null);
               settle(n.id, n.position);
             }}
+            onMoveStart={() => setIsDragging(true)}
+            onMoveEnd={() => setIsDragging(false)}
             minZoom={many ? 0.02 : 0.3}
             maxZoom={1.6}
             nodesConnectable={false}

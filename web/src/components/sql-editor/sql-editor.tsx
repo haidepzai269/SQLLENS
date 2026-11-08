@@ -13,6 +13,8 @@ export type SqlEditorProps = {
   /** Tô khoảng [from, to) đếm từ 0 trên `value` và cuộn tới đó; `nonce` đổi thì cuộn lại. */
   highlight?: { from: number; to: number; nonce: number };
   ariaLabel: string;
+  /** Kích hoạt khi người dùng nhấn Ctrl+Enter hoặc Cmd+Enter. */
+  onRun?: () => void;
 };
 
 // Skeleton cùng chiều cao tối thiểu với ô thật để trang không nhảy khi tải xong.

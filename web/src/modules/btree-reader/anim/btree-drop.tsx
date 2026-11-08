@@ -3,11 +3,12 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { useTranslations } from "next-intl";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { BTreeModel, BTreePath } from "@/contracts/btree";
 import type { EvidenceLabel } from "@/contracts/conclusion";
 import { Button } from "@/components/ui/button";
+import { usePrefersReducedMotion } from "@/lib/reduced-motion";
 import { CAP, NH, NW } from "../view/layout";
 import { BTreeView, nodePosition, readStoredMode } from "../view/btree-view";
 import { buildSteps, rangeError } from "./steps";
@@ -16,18 +17,11 @@ gsap.registerPlugin(useGSAP);
 
 const MOVE = 0.9; // giây mỗi bước di chuyển
 const HOLD = 0.5; // giây dừng giữa hai bước
-const QUERY = "(prefers-reduced-motion: reduce)";
 const HEAP_W = 120;
 const HEAP_GAP = 24;
 const HEAP_BAND = HEAP_GAP + NH + 16;
 const MARKER_H = 20;
 const LIFT = 4; // key nằm hơi cao hơn mép trên node để không che chữ trong ô khóa
-
-const subscribeReduced = (cb: () => void) => {
-  const m = window.matchMedia(QUERY);
-  m.addEventListener("change", cb);
-  return () => m.removeEventListener("change", cb);
-};
 const clamp = (v: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
 const reached = (p: number) => Math.floor(p + 1e-6);
 type Actions = { to: (time: number, jump?: boolean) => void; run: () => void; pause: () => void };
@@ -54,9 +48,9 @@ function Scene({
   const err = !dimmed && path && path.pages.length ? rangeError(model, path, to) : undefined;
   const S = steps.length;
   const hasHeap = path?.heapPage !== undefined;
-  const reduced = useSyncExternalStore(subscribeReduced, () => window.matchMedia(QUERY).matches, () => false);
-  const move = reduced ? 0.001 : MOVE; // giảm chuyển động: nhảy ngay, vẫn là cùng một timeline
-  const seg = move + (reduced ? 1.2 : HOLD);
+  const reduced = usePrefersReducedMotion();
+  const move = reduced ? 0 : MOVE; // giảm chuyển động: nhảy ngay với duration = 0
+  const seg = move + (reduced ? 0 : HOLD);
   const at = (k: number) => (k <= 0 ? 0 : (k - 1) * seg + move); // thời điểm timeline khi key tới bước k
 
   const [mode, setMode] = useState<"fixed" | "free">("fixed");
@@ -189,6 +183,11 @@ function Scene({
         }),
         run: contextSafe!(() => {
           gsap.killTweensOf(tl);
+          if (reduced) {
+            tl.progress(1);
+            setPlaying(false);
+            return;
+          }
           if (tl.progress() >= 1) tl.restart();
           else tl.play();
           setPlaying(true);

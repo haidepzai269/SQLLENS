@@ -6,6 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { useSpacePan } from "@/lib/space-pan";
 import type { EvidenceLabel } from "@/contracts/conclusion";
 import type { Plan, PlanNode } from "@/contracts/plan";
 import { expectedTotal, flatten, layoutPlan, NARROW, NH, NW, signature, skew, type Flat, type Pos } from "./layout";
@@ -190,6 +191,7 @@ function Canvas({ plan, label, narrow, flat, sig, onReset, openNode }: { plan: P
   const t = useTranslations("plan-tree");
   const num = useNum();
   const rf = useReactFlow();
+  const { panClassName, setIsDragging } = useSpacePan();
   const [openId, setOpenId] = useState<string>();
   const [dragId, setDragId] = useState<string>();
   const returnTo = useRef<HTMLElement | null>(null);
@@ -270,7 +272,7 @@ function Canvas({ plan, label, narrow, flat, sig, onReset, openNode }: { plan: P
       {!plan.analyzed && (
         <p role="note" data-testid="plan-notanalyzed" className="rounded-[2px] border border-dashed border-label-estimated px-2 py-1 text-xs text-ink2">{t("notAnalyzed")}</p>
       )}
-      <div role="group" aria-label={t("canvasLabel", { count: flat.length })} className="h-[min(75dvh,640px)] min-h-[320px] min-w-0 overflow-hidden rounded-[4px] border border-line bg-stage" data-testid="plan-canvas">
+      <div role="group" aria-label={t("canvasLabel", { count: flat.length })} className={`h-[min(75dvh,640px)] min-h-[320px] min-w-0 overflow-hidden rounded-[4px] border border-line bg-stage ${panClassName}`} data-testid="plan-canvas">
         <ReactFlow
           nodes={shown}
           edges={edges}
@@ -281,6 +283,8 @@ function Canvas({ plan, label, narrow, flat, sig, onReset, openNode }: { plan: P
             setDragId(undefined);
             save(nodesRef.current);
           }}
+          onMoveStart={() => setIsDragging(true)}
+          onMoveEnd={() => setIsDragging(false)}
           fitView
           fitViewOptions={initialFit}
           minZoom={0.3}
