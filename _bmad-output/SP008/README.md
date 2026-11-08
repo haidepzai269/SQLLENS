@@ -12,7 +12,7 @@ Hợp đồng chung: `web/src/contracts/btree.ts` (`BTreeModel`, `BTreeNode`, `B
 | STR035 Vẽ cây | Task040 | Component SVG, gom node, hai kiểu di chuyển | Không | 1 |
 | STR036 Key rơi | Task045 | Key rơi từng bước, tua lại, câu giải thích. Gắn vào vùng `stage` ở task sau | Task039, Task040 | 2, xong |
 | STR037 Range scan và khác biệt engine | Task072 | | STR036 | 3 |
-| STR038 Cuộc đua và cây tối | chưa chia | | STR036, SP007 STR029 | 3 |
+| STR038 Cuộc đua và cây tối | Task078 | Seq Scan đua với Index Scan bằng số dòng/trang; cây tối khi không dùng index | STR036, SP007 STR029 | 3 |
 | STR034 Dựng cây MySQL | chưa chia | | SP004 STR019 | sau |
 
 ## Các file bị đụng
