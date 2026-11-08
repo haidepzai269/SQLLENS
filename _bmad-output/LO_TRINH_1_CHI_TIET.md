@@ -35,8 +35,10 @@ flowchart LR
 - **Phím tắt trong ô soạn thảo:** Hiện tại người dùng gõ SQL xong phải rê chuột bấm nút "Chạy". Cần phím tắt chuẩn nghề nghiệp: `Ctrl+Enter` (hoặc `Cmd+Enter` trên Mac) kích hoạt chạy SQL ngay lập tức.
 - **Kéo Canvas bằng phím Space:** Kiểm tra và đảm bảo phím `Space` cho phép kéo (pan) canvas mượt mà trên cả Sơ đồ bảng (`SchemaDiagram`) và Cây thực thi (`PlanTree`).
 - **Giảm chuyển động (`prefers-reduced-motion`):** CSS đã có `@media (prefers-reduced-motion: reduce)`, nhưng các hoạt ảnh GSAP chạy bằng Javascript requestAnimationFrame (như rơi key B-Tree, biểu đồ Capacity, Join animation, trang About) chưa nhận biết để nhảy thẳng tới trạng thái cuối cùng (duration = 0).
+- **Rà soát `cursor: pointer` trên toàn bộ nút bấm:** Mặc định của Tailwind CSS reset thường gán `cursor: default` cho thẻ `<button>`. Cần thiết lập quy tắc toàn cục và rà soát tất cả các nút bấm, tab triggers, sample buttons, dropdown, nút reset/hủy/chạy để luôn có `cursor: pointer` khi tương tác được, và `cursor: not-allowed` khi bị vô hiệu hóa (`disabled`).
 
 #### 2. Phạm vi file tác động
+- `web/src/app/globals.css` (Thiết lập quy tắc `cursor: pointer` cho button, `[role="button"]`, `[role="tab"]`, select, summary và `cursor: not-allowed` cho trạng thái disabled).
 - `web/src/components/error-boundary.tsx` (Tạo mới: Error Boundary hiển thị thân thiện, có nút thử lại).
 - `web/src/components/sql-editor/sql-editor-impl.tsx` & `sql-editor.tsx` (Bổ sung keymap `Mod-Enter` gọi `onRun`).
 - `web/src/modules/lab/stage/stage.tsx` (Luôn hiển thị thanh Tabs; hiển thị Empty State giàu thông tin cho từng tab khi `!run`; bọc ErrorBoundary).
@@ -53,7 +55,8 @@ flowchart LR
 - **AC5 (Error Boundary bảo vệ từng tab):** Mỗi nội dung tab được bọc trong một `StageErrorBoundary`. Nếu xảy ra lỗi Javascript runtime bên trong tab, trang web không bị crash trắng; thay vào đó hiển thị thẻ Alert thông báo lỗi tinh gọn kèm nút "Tải lại tab" (Reset).
 - **AC6 (Tuân thủ `prefers-reduced-motion`):** Khi hệ thống bật chế độ giảm chuyển động (`prefers-reduced-motion: reduce`), các hoạt ảnh GSAP (rơi key B-Tree, bước nhảy Range Scan, Join Animation) lập tức hoàn tất ngay ở frame cuối cùng (duration = 0), không gây chóng mặt cho người dùng nhạy cảm chuyển động.
 - **AC7 (Độ trễ & Skeleton):** Khi dữ liệu đang tải, hiển thị Skeleton phù hợp với kích thước từng tab, không gây nhảy layout (Cumulative Layout Shift = 0).
-- **AC8 (Song ngữ & a11y):** Toàn bộ empty states, tooltip phím tắt và thông báo lỗi có đầy đủ tiếng Việt và tiếng Anh, hỗ trợ đọc màn hình bằng ARIA attributes chuẩn mực.
+- **AC8 (Chuẩn hóa `cursor: pointer` & `cursor: not-allowed`):** Tất cả các nút bấm (`button`, `[role="button"]`, `[role="tab"]`, trigger dropdown, sample buttons, nút chạy, nút đóng modal) đều có `cursor: pointer` rõ ràng khi hover; khi phần tử bị vô hiệu hóa (`disabled` hoặc `aria-disabled="true"`), con trỏ chuyển sang `cursor: not-allowed`.
+- **AC9 (Song ngữ & a11y):** Toàn bộ empty states, tooltip phím tắt và thông báo lỗi có đầy đủ tiếng Việt và tiếng Anh, hỗ trợ đọc màn hình bằng ARIA attributes chuẩn mực.
 
 ---
 
@@ -125,7 +128,7 @@ flowchart LR
 
 | Đợt | Task | Nội dung chính | Subagent Dev | Subagent Reviewer | Ước lượng |
 |---|---|---|---|---|---|
-| **Đợt 4A** | **Task080** | Đánh bóng luồng: empty states, skeletons, error boundaries, phím tắt `Ctrl+Enter`, `prefers-reduced-motion` | `amelia-dev` (Worktree `.worktrees/Task080`) | `task-reviewer` (độc lập, fresh context) | 1 phiên |
+| **Đợt 4A** | **Task080** | Đánh bóng luồng: empty states, skeletons, error boundaries, phím tắt `Ctrl+Enter`, `cursor: pointer`, `prefers-reduced-motion` | `amelia-dev` (Worktree `.worktrees/Task080`) | `task-reviewer` (độc lập, fresh context) | 1 phiên |
 | **Đợt 4B** | **Task081** | Bộ test Playwright E2E Golden Path 10 bước xuyên suốt toàn bộ luồng người dùng (vi/en, 1440px/390px) | `amelia-dev` (Worktree `.worktrees/Task081`) | `task-reviewer` (độc lập, fresh context) | 1 phiên |
 | **Đợt 4C** | **Task082** | Security Audit toàn diện, rà soát 100% nhãn kết luận, audit secret, lập checklist phát hành V1 | `amelia-dev` / Security Audit (Worktree `.worktrees/Task082`) | `task-reviewer` (độc lập, fresh context) | 1 phiên |
 
@@ -151,3 +154,4 @@ Chủ dự án xem xét và duyệt bản kế hoạch này. Khi được duyệ
 1. Tạo task spec chi tiết `_bmad-output/SP013/STR059/Task080/task080.md`.
 2. Tạo git worktree `.worktrees/Task080` trên nhánh `task/Task080` từ `main`.
 3. Cử subagent `amelia-dev` triển khai Đợt 4A (Task080) và subagent `task-reviewer` thẩm định độc lập theo đúng quy trình chuẩn.
+
