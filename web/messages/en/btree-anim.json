@@ -36,6 +36,18 @@
     "badType": "The end key does not match the key type of this index (numbers). Enter a number.",
     "multiColumn": "The index has several columns. The range animation only supports single-column indexes for now, so it does not run."
   },
+  "raceHead": "The Race: pages read",
+  "raceNote": "Compared by pages read, not time. Bars are true to scale.",
+  "rIdx": "Index Scan",
+  "rSeq": "Seq Scan (Full table scan)",
+  "rNone": "Not usable",
+  "sDark": "B-Tree dimmed",
+  "pagesV": "{count, plural, one {# page} other {# pages}}",
+  "rowsV": "{count, plural, one {# row} other {# rows}}",
+  "dimReason": "Planner could not use this index (e.g. wrapped expression or unmatched condition); engine scanned the entire table with Seq Scan.",
+  "dimSeqNotice": "Query performed a Seq Scan; index {index} on table {table} was not used.",
+  "raceIdxAria": "Index Scan bar: {pages} pages, {rows} rows",
+  "raceSeqAria": "Seq Scan bar: {pages} pages, {rows} rows",
   "end": {
     "done": "Stop: the next leaf starts above {to} (or this leaf already has a larger key), so the range scan reads no more leaves. {leaves, plural, one {# leaf} other {# leaves}} read in total.",
     "lastLeaf": "Stop: this is the last leaf of the index, there is no leaf to the right. {leaves, plural, one {# leaf} other {# leaves}} read in total.",

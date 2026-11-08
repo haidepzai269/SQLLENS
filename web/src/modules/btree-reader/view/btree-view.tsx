@@ -89,6 +89,7 @@ type NodeProps = {
   node?: BTreeNode;
   lit: boolean;
   free: boolean;
+  dimmed?: boolean;
   title: string;
   caption: string;
   aria: string;
@@ -97,7 +98,7 @@ type NodeProps = {
   dragging: boolean;
 };
 
-const NodeG = memo(function NodeG({ item, x, y, node, lit, free, title, caption, aria, onDown, onKey, dragging }: NodeProps) {
+const NodeG = memo(function NodeG({ item, x, y, node, lit, free, dimmed, title, caption, aria, onDown, onKey, dragging }: NodeProps) {
   const stroke = lit || dragging ? "stroke-lamp" : "stroke-control";
   return (
     <g
@@ -105,11 +106,12 @@ const NodeG = memo(function NodeG({ item, x, y, node, lit, free, title, caption,
       data-page={item.page}
       data-hidden-level={item.page === undefined ? item.level : undefined}
       data-lit={lit || undefined}
+      data-dimmed={dimmed ? "true" : undefined}
       tabIndex={free ? 0 : undefined}
       role={free ? "button" : undefined}
       aria-label={free ? aria : undefined}
       className={`outline-none ${free ? "cursor-grab focus-visible:[&>rect:first-of-type]:stroke-lamp active:cursor-grabbing" : ""}`}
-      style={free ? { touchAction: "none" } : undefined}
+      style={dimmed ? { opacity: 0.22 } : (free ? { touchAction: "none" } : undefined)}
       onPointerDown={free ? (e) => onDown(e, item.id) : undefined}
       onKeyDown={free ? (e) => onKey(e, item.id) : undefined}
     >
@@ -148,6 +150,8 @@ export function BTreeView({
   mode,
   onModeChange,
   align,
+  dimmed,
+  dimReason,
 }: {
   model: BTreeModel;
   path?: BTreePath;
@@ -155,6 +159,8 @@ export function BTreeView({
   label: EvidenceLabel;
   mode: Mode;
   onModeChange: (m: Mode) => void;
+  dimmed?: boolean;
+  dimReason?: string;
 }) {
   const t = useTranslations("btree");
   const free = mode === "free";
@@ -327,7 +333,13 @@ export function BTreeView({
   };
 
   return (
-    <section aria-label={t("region")} className="flex min-h-0 min-w-0 flex-1 flex-col bg-stage" data-testid="btree-view" data-mode={mode}>
+    <section
+      aria-label={t("region")}
+      className="flex min-h-0 min-w-0 flex-1 flex-col bg-stage"
+      data-testid="btree-view"
+      data-mode={mode}
+      data-dimmed={dimmed ? "true" : undefined}
+    >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-[var(--edge)] py-2">
         <h3 className="m-0 w-full min-w-0 truncate sm:w-auto sm:flex-1 font-mono text-[12.5px] font-normal text-ink2" title={t("title", { index: model.index, table: model.table, columns: model.columns.join(", ") })}>
           {t("title", { index: model.index, table: model.table, columns: model.columns.join(", ") })}
@@ -352,6 +364,14 @@ export function BTreeView({
           </button>
         )}
       </div>
+      {dimmed && dimReason && (
+        <div
+          data-testid="btree-dimmed-notice"
+          className="mx-[var(--edge)] my-1 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200"
+        >
+          {dimReason}
+        </div>
+      )}
       <p className="sr-only" id="btree-summary" data-testid="btree-summary">
         {summary}
       </p>
@@ -384,6 +404,7 @@ export function BTreeView({
           aria-label={t("title", { index: model.index, table: model.table, columns: model.columns.join(", ") })}
           aria-describedby="btree-summary"
           data-testid="btree-svg"
+          data-dimmed={dimmed ? "true" : undefined}
           onPointerMove={onMove}
           onPointerUp={onUp}
           onPointerCancel={onUp}
@@ -394,7 +415,7 @@ export function BTreeView({
               {t(laneName(levels - 1 - r))}
             </text>
           ))}
-          <g fill="none">
+          <g fill="none" data-dimmed={dimmed ? "true" : undefined} style={dimmed ? { opacity: 0.22 } : undefined}>
             {layout.edges.map((e, i) => {
               const a = center(e.from);
               const b = center(e.to);
@@ -405,32 +426,35 @@ export function BTreeView({
                 d = `M${a.x} ${a.bottom}C${a.x} ${my} ${b.x} ${my} ${b.x} ${b.top}`;
               }
               const on = e.lit;
-              return <path key={i} d={d} className={on ? "stroke-lamp" : "stroke-control"} strokeWidth={on ? 1.5 : 1} data-edge={e.kind} data-from={e.from} data-to={e.to} data-lit={on || undefined} />;
+              return <path key={i} d={d} className={on ? "stroke-lamp" : "stroke-control"} strokeWidth={on ? 1.5 : 1} data-edge={e.kind} data-from={e.from} data-to={e.to} data-lit={on || undefined} data-dimmed={dimmed ? "true" : undefined} />;
             })}
           </g>
-          {layout.items.map((it) => {
-            const p = pos.get(it.id)!;
-            const n = it.page === undefined ? undefined : byPage.get(it.page);
-            const hidden = it.page === undefined;
-            const text = hidden ? t("hidden", { count: it.count ?? 0 }) : "";
-            return (
-              <NodeG
-                key={it.id}
-                item={it}
-                x={p.x}
-                y={p.y}
-                node={n}
-                lit={lit.has(it.id)}
-                free={free}
-                dragging={drag === it.id}
-                title={n ? t("nodeTitle", { page: n.page, total: n.totalKeys, keys: keyList(n) }) : text}
-                caption={n ? t("pageCaption", { page: n.page, total: n.totalKeys }) : text}
-                aria={n ? t("moveAria", { name: t("pageName", { page: n.page }) }) : t("moveAria", { name: text })}
-                onDown={onDown}
-                onKey={onKey}
-              />
-            );
-          })}
+          <g data-dimmed={dimmed ? "true" : undefined} style={dimmed ? { opacity: 0.22 } : undefined}>
+            {layout.items.map((it) => {
+              const p = pos.get(it.id)!;
+              const n = it.page === undefined ? undefined : byPage.get(it.page);
+              const hidden = it.page === undefined;
+              const text = hidden ? t("hidden", { count: it.count ?? 0 }) : "";
+              return (
+                <NodeG
+                  key={it.id}
+                  item={it}
+                  x={p.x}
+                  y={p.y}
+                  node={n}
+                  lit={lit.has(it.id)}
+                  free={free}
+                  dimmed={dimmed}
+                  dragging={drag === it.id}
+                  title={n ? t("nodeTitle", { page: n.page, total: n.totalKeys, keys: keyList(n) }) : text}
+                  caption={n ? t("pageCaption", { page: n.page, total: n.totalKeys }) : text}
+                  aria={n ? t("moveAria", { name: t("pageName", { page: n.page }) }) : t("moveAria", { name: text })}
+                  onDown={onDown}
+                  onKey={onKey}
+                />
+              );
+            })}
+          </g>
         </svg>
       </div>
       {free && <p className="m-0 px-[var(--edge)] py-2 text-[13px] leading-[18px] text-ink2">{t("freeHint")}</p>}

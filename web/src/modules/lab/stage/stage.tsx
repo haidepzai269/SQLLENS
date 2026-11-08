@@ -15,7 +15,7 @@ import type { Conclusion, Outcome } from "@/contracts/conclusion";
 import type { EngineAdapter } from "@/contracts/engine";
 import type { EvidencePack } from "@/contracts/mentor";
 import type { RuleHit } from "@/contracts/finding";
-import type { Plan } from "@/contracts/plan";
+import type { Plan, PlanNode } from "@/contracts/plan";
 import type { FindingsRun } from "@/modules/findings/ui/use-findings";
 import { AuthContext, useAuth } from "@/modules/auth/auth-provider";
 import { GUEST_LOCKED_TABS, LockedTab, useGuest } from "@/modules/auth/guest";
@@ -28,6 +28,7 @@ import { SchemaDiagram } from "@/modules/plan-runner/schema-diagram/schema-diagr
 import { retarget } from "@/modules/what-if/capacity-ui/measure-level";
 import { WhatIfCompare } from "@/modules/what-if/compare-ui/what-if-compare";
 import { joinNodes, MYSQL_SCHEMA_QUERY, mysqlSchema, STAGE_INDEX_QUERY, STAGE_SCHEMA_QUERY, type IndexInfo } from "./stage-data";
+import { BTreeRace, type BTreeRaceProps } from "@/modules/btree-reader/race/btree-race";
 
 // Capacity (GSAP, B-Tree) và Mentor (đọc stream) chỉ tải khi mở tab của chúng.
 const CapacityPanel = dynamic(() => import("@/modules/what-if/capacity-ui").then((m) => m.CapacityPanel), {
@@ -177,8 +178,36 @@ function PlanTab({ run, r, openNode }: { run: StageRun; r: Load<Outcome<Plan>>; 
   );
 }
 
-function BTreeTab({ run, on, list }: { run: StageRun; on: boolean; list: Load<IndexInfo[]> }) {
+function findIndexScan(root: PlanNode, indexName: string, tableName?: string) {
+  let idxNode: PlanNode | undefined;
+  let seqNode: PlanNode | undefined;
+
+  const walk = (n: PlanNode) => {
+    const matchTable = !tableName || n.table === tableName;
+    if (matchTable) {
+      if (n.kind === "seq_scan") seqNode = n;
+      if (n.index === indexName || (n.kind.includes("index") && n.index === indexName)) idxNode = n;
+    }
+    n.children.forEach(walk);
+  };
+  walk(root);
+
+  return { idxNode, seqNode };
+}
+
+function BTreeTab({
+  run,
+  on,
+  list,
+  plan,
+}: {
+  run: StageRun;
+  on: boolean;
+  list: Load<IndexInfo[]>;
+  plan: Load<Outcome<Plan>>;
+}) {
   const t = useTranslations("labStage");
+  const ta = useTranslations("btree-anim");
   const ts = useTranslations("shell");
   // Lựa chọn gắn với đúng lần chạy: chạy lại thì bỏ, không đọc cây của index có thể đã đổi.
   const [pick, setPick] = useState<{ run: number; index: string; key: string; to: string } | null>(null);
@@ -191,6 +220,41 @@ function BTreeTab({ run, on, list }: { run: StageRun; on: boolean; list: Load<In
     // khoảng khóa cần đọc nhiều leaf hơn: cây nhỏ thì đọc hết, cây lớn thì leaf nào chưa đọc animation sẽ dừng và nói rõ
     () => run.db.readBTree(cur!.index, cur!.key ? { probeKey: cur!.key, ...(cur!.to ? { maxNodes: 300 } : {}) } : undefined),
   );
+
+  const info = cur && list?.ok ? list.v.find((x) => x.name === cur.index) : undefined;
+  const scanAnalysis = useMemo(() => {
+    if (!cur || !info || !plan || !plan.ok || plan.v.kind !== "conclusion") return null;
+    const { idxNode, seqNode } = findIndexScan(plan.v.data.root, cur.index, info.table);
+    if (idxNode) {
+      return {
+        dimmed: false,
+        race: {
+          idxPages: idxNode.pagesRead ?? 0,
+          seqPages: seqNode?.pagesRead,
+          idxRows: idxNode.actualRows,
+          seqRows: seqNode?.actualRows,
+          noIndex: false,
+          label: plan.v.label,
+        } as BTreeRaceProps,
+      };
+    }
+    if (seqNode) {
+      return {
+        dimmed: true,
+        dimReason: ta("dimSeqNotice", { index: cur.index, table: info.table }),
+        race: {
+          idxPages: 0,
+          seqPages: seqNode.pagesRead ?? 0,
+          idxRows: 0,
+          seqRows: seqNode.actualRows,
+          noIndex: true,
+          label: plan.v.label,
+        } as BTreeRaceProps,
+      };
+    }
+    return null;
+  }, [cur, info, plan, ta]);
+
   if (!list) return <Loading />;
   if (!list.ok) return <Note tone="error">{t("error", { message: list.e })}</Note>;
   if (!list.v.length) return <Note>{t("btree.none")}</Note>;
@@ -222,6 +286,16 @@ function BTreeTab({ run, on, list }: { run: StageRun; on: boolean; list: Load<In
         </form>
       )}
       {!cur && <Note>{t("btree.pick")}</Note>}
+      {scanAnalysis?.race && (
+        <BTreeRace
+          idxPages={scanAnalysis.race.idxPages}
+          seqPages={scanAnalysis.race.seqPages}
+          idxRows={scanAnalysis.race.idxRows}
+          seqRows={scanAnalysis.race.seqRows}
+          noIndex={scanAnalysis.race.noIndex}
+          label={scanAnalysis.race.label}
+        />
+      )}
       {cur && !tree && <Loading />}
       {tree && !tree.ok && <Note tone="error">{t("error", { message: tree.e })}</Note>}
       {tree?.ok && (
@@ -229,7 +303,14 @@ function BTreeTab({ run, on, list }: { run: StageRun; on: boolean; list: Load<In
           o={tree.v.model}
           render={(c) => (
             <div className="flex min-h-96 min-w-0 flex-col" data-testid="stage-btree">
-              <BTreeDrop model={c.data} path={tree.v.path} label={c.label} to={cur?.key && cur.to ? cur.to : undefined} />
+              <BTreeDrop
+                model={c.data}
+                path={tree.v.path}
+                label={c.label}
+                to={cur?.key && cur.to ? cur.to : undefined}
+                dimmed={scanAnalysis?.dimmed}
+                dimReason={scanAnalysis?.dimReason}
+              />
             </div>
           )}
         />
@@ -340,7 +421,7 @@ export function Stage({ run, working, askRef, focus, findings }: { run: StageRun
   };
   // Plan và danh sách index dùng chung giữa các tab: tải một lần cho mỗi lần chạy, không tải lại khi đổi tab.
   const my = run?.db.engine === "mysql";
-  const plan = useLoad<Outcome<Plan>>(!!run?.select && (open("plan") || (!my && open("mentor"))), `${run?.id}`, () => run!.explain(run!.select!.sql));
+  const plan = useLoad<Outcome<Plan>>(!!run?.select && (open("plan") || (!my && (open("mentor") || open("btree")))), `${run?.id}`, () => run!.explain(run!.select!.sql));
   const indexes = useLoad<IndexInfo[]>(!!run && !my && (open("btree") || open("capacity")), `${run?.id}`, async () =>
     ((await run!.db.execute(STAGE_INDEX_QUERY, { internal: true }))[0]?.rows ?? []).map((x) => ({ name: String(x[0]), table: String(x[1]), method: String(x[2]) })),
   );
@@ -367,7 +448,7 @@ export function Stage({ run, working, askRef, focus, findings }: { run: StageRun
             </TabsList>
             <TabsContent value="schema" className="min-w-0" keepMounted><SchemaTab run={run} on={open("schema")} focus={f?.table ? { table: f.table, nonce: f.nonce } : undefined} /></TabsContent>
             <TabsContent value="plan" className="min-w-0" keepMounted><PlanTab run={run} r={plan} openNode={f?.planNodeId ? { id: f.planNodeId, nonce: f.nonce } : undefined} /></TabsContent>
-            <TabsContent value="btree" className="min-w-0" keepMounted>{gated("btree", my ? <MysqlNotSim run={run} which="btree" /> : <BTreeTab run={run} on={open("btree")} list={indexes} />)}</TabsContent>
+            <TabsContent value="btree" className="min-w-0" keepMounted>{gated("btree", my ? <MysqlNotSim run={run} which="btree" /> : <BTreeTab run={run} on={open("btree")} list={indexes} plan={plan} />)}</TabsContent>
             <TabsContent value="whatif" className="min-w-0" keepMounted>{gated("whatif", my ? <MysqlNotSim run={run} which="whatif" /> : <WhatIfTab run={run} />)}</TabsContent>
             <TabsContent value="capacity" className="min-w-0" keepMounted>{gated("capacity", open("capacity") && (my ? <MysqlNotSim run={run} which="capacity" /> : <CapacityTab run={run} list={indexes} />))}</TabsContent>
             <TabsContent value="mentor" className="min-w-0" keepMounted>{gated("mentor", open("mentor") && (my ? <MysqlNotSim run={run} which="mentor" /> : <MentorTab run={run} plan={plan} askRef={askRef} findings={findings} />))}</TabsContent>

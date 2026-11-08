@@ -34,10 +34,24 @@ type Actions = { to: (time: number, jump?: boolean) => void; run: () => void; pa
 const noop = () => {};
 type Box = { x: number; y: number; w: number; cap: number };
 
-function Scene({ model, path, label, to }: { model: BTreeModel; path?: BTreePath; label: EvidenceLabel; to?: string }) {
+function Scene({
+  model,
+  path,
+  label,
+  to,
+  dimmed,
+  dimReason,
+}: {
+  model: BTreeModel;
+  path?: BTreePath;
+  label: EvidenceLabel;
+  to?: string;
+  dimmed?: boolean;
+  dimReason?: string;
+}) {
   const t = useTranslations("btree-anim");
-  const steps = useMemo(() => (path && path.pages.length ? buildSteps(model, path, to) : []), [model, path, to]);
-  const err = path && path.pages.length ? rangeError(model, path, to) : undefined;
+  const steps = useMemo(() => (!dimmed && path && path.pages.length ? buildSteps(model, path, to) : []), [dimmed, model, path, to]);
+  const err = !dimmed && path && path.pages.length ? rangeError(model, path, to) : undefined;
   const S = steps.length;
   const hasHeap = path?.heapPage !== undefined;
   const reduced = useSyncExternalStore(subscribeReduced, () => window.matchMedia(QUERY).matches, () => false);
@@ -56,7 +70,10 @@ function Scene({ model, path, label, to }: { model: BTreeModel; path?: BTreePath
     hostRef.current = wrap.current?.querySelector<HTMLElement>('[data-testid="btree-scroll"]') ?? null;
     setHost(hostRef.current);
   }, []);
-  const view = useMemo(() => <BTreeView model={model} label={label} mode={mode} onModeChange={setMode} align={path?.pages} />, [model, label, mode, path]);
+  const view = useMemo(
+    () => <BTreeView model={model} label={label} mode={mode} onModeChange={setMode} align={path?.pages} dimmed={dimmed} dimReason={dimReason} />,
+    [model, label, mode, path, dimmed, dimReason],
+  );
 
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -69,7 +86,7 @@ function Scene({ model, path, label, to }: { model: BTreeModel; path?: BTreePath
   useGSAP(
     (_, contextSafe) => {
       const host = hostRef.current;
-      if (!host || !S || !path || !ov.current) return;
+      if (!host || !S || !path || !ov.current || dimmed) return;
       const o = ov.current;
       const svg = host.querySelector<SVGSVGElement>('[data-testid="btree-svg"]');
       if (!svg) return;
@@ -194,7 +211,7 @@ function Scene({ model, path, label, to }: { model: BTreeModel; path?: BTreePath
         host.style.position = prevPosition;
       };
     },
-    { dependencies: [hostReady, steps, reduced], scope: wrap, revertOnUpdate: true },
+    { dependencies: [hostReady, steps, reduced, dimmed], scope: wrap, revertOnUpdate: true },
   );
 
   const next = () => act.current.to(at(Math.min(S, reached(proxy.current.p) + 1)));
@@ -213,10 +230,11 @@ function Scene({ model, path, label, to }: { model: BTreeModel; path?: BTreePath
   const counter = t("counter", { read: step, total: S });
 
   return (
-    <div ref={wrap} className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="btree-drop" data-step={step} data-playing={playing || undefined}>
+    <div ref={wrap} className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="btree-drop" data-step={step} data-dimmed={dimmed ? "true" : undefined} data-playing={playing || undefined}>
       {view}
       {hostReady &&
         S > 0 &&
+        !dimmed &&
         createPortal(
           <svg ref={ov} aria-hidden="true" data-testid="btree-drop-layer" style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none", overflow: "visible" }}>
             {steps.map((s, j) =>
@@ -243,7 +261,44 @@ function Scene({ model, path, label, to }: { model: BTreeModel; path?: BTreePath
           hostReady,
         )}
       <div className="sticky bottom-0 z-10 shrink-0 border-t border-control bg-stage px-[var(--edge)] py-2" data-testid="btree-drop-panel">
-        {S === 0 ? (
+        {dimmed ? (
+          <div className="flex flex-col gap-2">
+            <p role="status" aria-live="polite" className="m-0 text-[13px] leading-[18px] text-amber-400 font-medium" data-testid="drop-dimmed-explain" data-dimmed="true">
+              {dimReason ?? t("dimReason")}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" disabled>
+                {t("run")}
+              </Button>
+              <Button type="button" variant="outline" disabled>
+                {t("pause")}
+              </Button>
+              <Button type="button" variant="outline" disabled>
+                {t("back")}
+              </Button>
+              <Button type="button" variant="outline" disabled>
+                {t("next")}
+              </Button>
+              <Button type="button" variant="outline" disabled>
+                {t("reset")}
+              </Button>
+            </div>
+            <input
+              ref={range}
+              type="range"
+              disabled
+              min={0}
+              max={1}
+              defaultValue={0}
+              aria-label={t("scrub")}
+              data-testid="drop-scrub"
+              className="my-2 block h-6 w-full accent-[var(--lamp)] opacity-40 cursor-not-allowed"
+            />
+            <p aria-live="polite" className="m-0 text-[13px] leading-[18px] text-ink2" data-testid="drop-explain">
+              {dimReason ?? t("dimReason")}
+            </p>
+          </div>
+        ) : S === 0 ? (
           <p role="status" className="m-0 text-[13px] leading-[18px] text-ink2" data-testid="drop-no-path">
             {err ? t(`rangeError.${err}`) : to !== undefined ? t("noPathRange") : t("noPath")}
           </p>
@@ -316,9 +371,23 @@ function Scene({ model, path, label, to }: { model: BTreeModel; path?: BTreePath
 }
 
 // path chỉ là gợi ý của engine: không có thì cây vẫn vẽ, animation không chạy và không vẽ đường đi đoán.
-export function BTreeDrop({ model, path, label, to }: { model: BTreeModel; path?: BTreePath; label: EvidenceLabel; to?: string }) {
-  const sig = `${model.engine}:${model.index}:${path?.key}:${path?.pages.join(",")}:${path?.heapPage}:${to}`;
+export function BTreeDrop({
+  model,
+  path,
+  label,
+  to,
+  dimmed,
+  dimReason,
+}: {
+  model: BTreeModel;
+  path?: BTreePath;
+  label: EvidenceLabel;
+  to?: string;
+  dimmed?: boolean;
+  dimReason?: string;
+}) {
+  const sig = `${model.engine}:${model.index}:${path?.key}:${path?.pages.join(",")}:${path?.heapPage}:${to}:${dimmed ? "1" : "0"}`;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- giữ path ổn định theo nội dung, tránh dựng lại timeline khi cha tạo object mới
   const stable = useMemo(() => path, [sig]);
-  return <Scene key={sig} model={model} path={stable} label={label} to={to} />;
+  return <Scene key={sig} model={model} path={stable} label={label} to={to} dimmed={dimmed} dimReason={dimReason} />;
 }

@@ -36,6 +36,18 @@
     "badType": "Khóa đến không cùng kiểu với khóa của index này (khóa số). Nhập một số.",
     "multiColumn": "Index có nhiều cột. Animation khoảng khóa mới hỗ trợ index một cột, nên chưa chạy."
   },
+  "raceHead": "Cuộc đua số trang đọc",
+  "raceNote": "So bằng số trang đọc, không phải thời gian. Thanh theo đúng tỷ lệ.",
+  "rIdx": "Index Scan",
+  "rSeq": "Seq Scan (Quét toàn bảng)",
+  "rNone": "Không dùng được",
+  "sDark": "Cây B-Tree tối",
+  "pagesV": "{count, plural, other {# trang}}",
+  "rowsV": "{count, plural, other {# dòng}}",
+  "dimReason": "Planner không dùng được index này (ví dụ: bọc hàm/biểu thức hoặc không có điều kiện phù hợp), engine đã quét toàn bảng bằng Seq Scan.",
+  "dimSeqNotice": "Query quét toàn bảng bằng Seq Scan, index {index} trên bảng {table} không được dùng.",
+  "raceIdxAria": "Thanh Index Scan: {pages} trang, {rows} dòng",
+  "raceSeqAria": "Thanh Seq Scan: {pages} trang, {rows} dòng",
   "end": {
     "done": "Dừng: leaf kế tiếp bắt đầu từ khóa lớn hơn {to} (hoặc leaf này đã có khóa lớn hơn), nên range scan không đọc thêm leaf nào. Tổng cộng đã đọc {leaves, number} leaf.",
     "lastLeaf": "Dừng: đây là leaf cuối cùng của index, không còn leaf bên phải. Tổng cộng đã đọc {leaves, number} leaf.",
