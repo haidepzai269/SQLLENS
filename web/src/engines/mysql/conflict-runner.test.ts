@@ -126,4 +126,85 @@ describe("MysqlConflictRunner (AC1 & AC2)", () => {
 
     runner.dispose();
   });
+
+  it("prevents runner freeze by handling blocked commands asynchronously", async () => {
+    let resolveBlockedInsert: (val: unknown) => void;
+    const blockedPromise = new Promise((res) => {
+      resolveBlockedInsert = res;
+    });
+
+    const mockExecute = vi.fn(async (sql: string) => {
+      if (sql.includes("15")) {
+        await blockedPromise;
+      }
+      return [{ columns: [], rows: [] }];
+    });
+
+    const runner = new MysqlConflictRunner(
+      MYSQL_SCENARIOS.gap_lock_paralysis,
+      {
+        execute: mockExecute,
+        sessionId: async () => "session-12345",
+        lockWaitThresholdMs: 40, // 40ms threshold for fast unit test
+      }
+    );
+
+    await runner.start();
+    // Step 1: connection a
+    await runner.next();
+    // Step 2: connection b
+    await runner.next();
+    // Step 3: connection a UPDATE
+    await runner.next();
+
+    // Step 4: connection b INSERT (bị block trên database)
+    const t0 = Date.now();
+    const nextResult = await runner.next();
+    const duration = Date.now() - t0;
+
+    // Không bị treo quá 200ms
+    expect(duration).toBeLessThan(300);
+    expect(nextResult).toBe(true);
+
+    const state = runner.getState();
+    expect(state.stepIndex).toBe(4);
+    expect(state.sessionStates.B).toBe("waiting");
+    expect(state.logs[3].status).toBe("waiting");
+
+    // Bây giờ giải phóng lệnh INSERT (unblock)
+    resolveBlockedInsert!([{ columns: ["ok"], rows: [[1]] }]);
+    // Đợi microtask
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(runner.getState().logs[3].status).toBe("resumed");
+    expect(runner.getState().sessionStates.B).toBe("running");
+
+    runner.dispose();
+  });
+
+  it("executes ROLLBACK on both connections during start and reset to clear MDL locks", async () => {
+    const executed: { sql: string; connection?: "a" | "b" }[] = [];
+    const mockExecute = vi.fn(async (sql: string, opts?: { connection?: "a" | "b" }) => {
+      executed.push({ sql, connection: opts?.connection });
+      return [{ columns: [], rows: [] }];
+    });
+
+    const runner = new MysqlConflictRunner(MYSQL_SCENARIOS.gap_lock_paralysis, {
+      execute: mockExecute,
+      sessionId: async () => "session-12345",
+    });
+
+    await runner.start();
+    const startRollbacks = executed.filter((e) => e.sql === "ROLLBACK");
+    expect(startRollbacks).toHaveLength(2);
+    expect(startRollbacks.some((e) => e.connection === "a")).toBe(true);
+    expect(startRollbacks.some((e) => e.connection === "b")).toBe(true);
+
+    executed.length = 0;
+    await runner.reset();
+    const resetRollbacks = executed.filter((e) => e.sql === "ROLLBACK");
+    expect(resetRollbacks.length).toBeGreaterThanOrEqual(2);
+
+    runner.dispose();
+  });
 });

@@ -42,6 +42,8 @@ export interface MysqlConflictRunnerOptions {
   sessionId: () => Promise<string>;
   onStateChange?: (state: MysqlRunnerState) => void;
   stepIntervalMs?: number;
+  /** Thời gian chờ trước khi coi câu lệnh là đang bị lock wait (mặc định 250ms) */
+  lockWaitThresholdMs?: number;
 }
 
 export class MysqlConflictRunner {
@@ -104,7 +106,8 @@ export class MysqlConflictRunner {
   }
 
   /**
-   * Khởi động kịch bản: chạy DDL setup, mở SSE stream theo dõi locks
+   * Khởi động kịch bản: chạy ROLLBACK để tránh kẹt Metadata Lock (MDL),
+   * chạy DDL setup, mở SSE stream theo dõi locks
    */
   async start(scenario?: MysqlScenario, variantId?: string): Promise<void> {
     if (scenario) {
@@ -120,6 +123,12 @@ export class MysqlConflictRunner {
     this.abortedSession = null;
     this.sessionStates = { A: "idle", B: "idle" };
     this.logs = [];
+
+    // Luôn ROLLBACK trên cả 2 connection trước khi chạy DDL setup để giải phóng mọi Metadata Lock
+    await Promise.allSettled([
+      this.opts.execute("ROLLBACK", { connection: "a", internal: true }),
+      this.opts.execute("ROLLBACK", { connection: "b", internal: true }),
+    ]);
 
     // Chạy các lệnh setup trên connection a
     for (const sql of this.scenario.setupSql) {
@@ -246,7 +255,10 @@ export class MysqlConflictRunner {
   }
 
   /**
-   * Chạy bước tiếp theo
+   * Chạy bước tiếp theo với cơ chế Non-blocking Async Step:
+   * Nếu câu lệnh bị lock wait trên database thật (> threshold ms),
+   * không treo runner mà đánh dấu 'waiting' và cho phép bước tiếp
+   * (để người dùng bấm COMMIT ở connection kia gỡ khóa).
    */
   async next(): Promise<boolean> {
     if (this.stepIndex >= this.steps.length) {
@@ -255,52 +267,82 @@ export class MysqlConflictRunner {
       return false;
     }
 
-    const step = this.steps[this.stepIndex];
+    const currentStepIndex = this.stepIndex;
+    const step = this.steps[currentStepIndex];
     const sKey: SessionKey = step.connection === "a" ? "A" : "B";
     this.sessionStates[sKey] = "running";
 
-    let status: StepLog["status"] = "ran";
-    let errorMsg: string | undefined;
-    let resultRows: unknown[][] | undefined;
+    const threshold = this.opts.lockWaitThresholdMs ?? 250;
+    let didTimeout = false;
 
-    try {
-      const res = await this.opts.execute(step.sql, {
-        connection: step.connection,
-        internal: true,
-      });
-      if (res && res.length > 0) {
-        resultRows = res[res.length - 1]?.rows;
-      }
-
-      const upper = step.sql.toUpperCase();
-      if (upper.includes("COMMIT")) {
-        this.sessionStates[sKey] = "committed";
-      } else if (upper.includes("ROLLBACK")) {
-        this.sessionStates[sKey] = "rolledBack";
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      errorMsg = msg;
-      if (msg.includes("1213") || msg.toLowerCase().includes("deadlock")) {
-        status = "deadlock";
-        this.cycle = true;
-        this.sessionStates[sKey] = "aborted";
-        this.abortedSession = sKey;
-      } else {
-        status = "error";
-      }
-    }
-
-    this.logs.push({
-      stepIndex: this.stepIndex,
+    // Log entry gắn với bước này
+    const logEntry: StepLog = {
+      stepIndex: currentStepIndex,
       connection: step.connection,
       sql: step.sql,
       descKey: step.descKey,
-      status,
-      errorMsg,
-      result: resultRows,
+      status: "ran",
+    };
+
+    const execPromise = this.opts.execute(step.sql, {
+      connection: step.connection,
+      internal: true,
     });
 
+    // Handler xử lý khi câu lệnh hoàn thành (ngay lập tức hoặc sau khi unblock)
+    execPromise
+      .then((res) => {
+        if (res && res.length > 0) {
+          logEntry.result = res[res.length - 1]?.rows;
+        }
+        const upper = step.sql.toUpperCase();
+        if (upper.includes("COMMIT")) {
+          this.sessionStates[sKey] = "committed";
+        } else if (upper.includes("ROLLBACK")) {
+          this.sessionStates[sKey] = "rolledBack";
+        } else if (this.sessionStates[sKey] === "waiting") {
+          this.sessionStates[sKey] = "running";
+        }
+        logEntry.status = didTimeout ? "resumed" : "ran";
+        this.notify();
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        logEntry.errorMsg = msg;
+        if (msg.includes("1213") || msg.toLowerCase().includes("deadlock")) {
+          logEntry.status = "deadlock";
+          this.cycle = true;
+          this.sessionStates[sKey] = "aborted";
+          this.abortedSession = sKey;
+        } else {
+          logEntry.status = "error";
+        }
+        this.notify();
+      });
+
+    // Race giữa lệnh SQL và ngưỡng chờ khóa
+    let timerId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<{ isTimeout: true }>((resolve) => {
+      timerId = setTimeout(() => {
+        didTimeout = true;
+        resolve({ isTimeout: true });
+      }, threshold);
+    });
+
+    const settledPromise = execPromise
+      .then(() => ({ isTimeout: false as const }))
+      .catch(() => ({ isTimeout: false as const }));
+
+    const raceResult = await Promise.race([settledPromise, timeoutPromise]);
+    if (timerId) clearTimeout(timerId);
+
+    if (raceResult.isTimeout) {
+      // Câu lệnh bị block trên database thật: đánh dấu waiting và tiếp tục
+      logEntry.status = "waiting";
+      this.sessionStates[sKey] = "waiting";
+    }
+
+    this.logs.push(logEntry);
     this.stepIndex++;
     this.notify();
     return true;
@@ -355,12 +397,21 @@ export class MysqlConflictRunner {
     this.sessionStates = { A: "idle", B: "idle" };
 
     try {
+      // Giải phóng mọi transaction đang mở dở trên cả 2 connection trước khi cleanup
+      await Promise.allSettled([
+        this.opts.execute("ROLLBACK", { connection: "a", internal: true }),
+        this.opts.execute("ROLLBACK", { connection: "b", internal: true }),
+      ]);
       for (const sql of this.scenario.cleanupSql) {
         await this.opts.execute(sql, { internal: true, connection: "a" });
       }
       for (const sql of this.scenario.setupSql) {
         await this.opts.execute(sql, { internal: true, connection: "a" });
       }
+      await Promise.allSettled([
+        this.opts.execute("ROLLBACK", { connection: "a", internal: true }),
+        this.opts.execute("ROLLBACK", { connection: "b", internal: true }),
+      ]);
     } catch {
       /* Bỏ qua lỗi reset cleanup */
     }

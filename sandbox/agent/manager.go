@@ -55,6 +55,7 @@ type session struct {
 	lastActive time.Time
 	cn         map[string]*userConn
 	root       *sql.DB
+	deadlockCh chan struct{}
 	mu         sync.Mutex // bảo vệ các trường trên
 }
 
@@ -117,7 +118,7 @@ func (m *manager) Create(owner string) (*session, error) {
 			return nil, errOwnerFull
 		}
 	}
-	s := &session{id: newID(), owner: owner, cn: map[string]*userConn{}}
+	s := &session{id: newID(), owner: owner, cn: map[string]*userConn{}, deadlockCh: make(chan struct{}, 16)}
 	m.s[s.id] = s
 	m.mu.Unlock()
 
@@ -270,6 +271,17 @@ func (m *manager) sweep() {
 			if m.be.dirSize(s.id) > m.cfg.DiskLimit { // ngoài khóa: duyệt đĩa có thể chậm
 				go m.Remove(s.id, "disk_quota")
 			}
+		}
+	}
+}
+
+func (s *session) notifyDeadlock() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.deadlockCh != nil {
+		select {
+		case s.deadlockCh <- struct{}{}:
+		default:
 		}
 	}
 }

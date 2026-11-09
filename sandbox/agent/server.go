@@ -172,6 +172,9 @@ func (s *server) query(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, errLost):
 		fail(w, 502, "connection_lost", "sandbox.connectionLost", nil)
 	case errors.As(err, &me):
+		if me.Number == 1213 {
+			ses.notifyDeadlock()
+		}
 		// Thông báo của MySQL có thể trích lại SQL của chính người dùng; trả cho họ nhưng không ghi log.
 		fail(w, 422, "sql_error", "sandbox.sqlError", map[string]any{"errno": me.Number, "sqlState": string(me.SQLState[:]), "message": me.Message})
 	default:
@@ -233,6 +236,9 @@ func (s *server) events(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			return
+		case <-ses.deadlockCh:
+			fmt.Fprintf(w, "event: deadlock\ndata: {\"errno\":1213,\"message\":\"Deadlock found\"}\n\n")
+			flusher.Flush()
 		case <-keepalive.C:
 			fmt.Fprintf(w, ":keepalive\n\n")
 			flusher.Flush()
