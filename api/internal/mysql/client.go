@@ -121,3 +121,15 @@ func (c *client) do(ctx context.Context, method, path, user string, body []byte,
 	}
 	return resp.StatusCode, raw, nil
 }
+
+// stream opens a streaming GET request to the sandbox agent (e.g. for SSE events).
+func (c *client) stream(ctx context.Context, path, user string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base.String()+path, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("X-Sandbox-User", user)
+	req.Header.Set("Accept", "text/event-stream")
+	return c.hc.Do(req)
+}

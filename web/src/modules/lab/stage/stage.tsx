@@ -601,7 +601,7 @@ export function Stage({
           </TabsContent>
           <TabsContent value="conflict" className="min-w-0" keepMounted>
             <StageErrorBoundary>
-              {open("conflict") && <ConflictPanel />}
+              {open("conflict") && <ConflictPanel adapter={run?.db} initialEngine={run?.db.engine} />}
             </StageErrorBoundary>
           </TabsContent>
         </Tabs>

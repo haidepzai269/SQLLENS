@@ -25,6 +25,12 @@ export type SessionStatus = "starting" | "ready" | "ended";
 export interface MysqlAdapter extends EngineAdapter {
   /** Bỏ phiên cũ, bắt đầu phiên trống. Không chạy lại câu nào: dùng khi người dùng không muốn chạy lại. */
   fresh(): Promise<void>;
+  /** Lấy ID của phiên sandbox hiện tại để kết nối SSE events */
+  sessionId(): Promise<string>;
+  execute(
+    sql: string,
+    options?: { signal?: AbortSignal; internal?: boolean; connection?: "a" | "b" }
+  ): Promise<QueryResult[]>;
 }
 type Options = { onStatus?: (s: SessionStatus) => void; onAuthLost?: () => void };
 
@@ -122,7 +128,7 @@ export function createMysqlAdapter(o: Options = {}): MysqlAdapter {
     })]);
   }
 
-  async function exec(sql: string, signal?: AbortSignal): Promise<QueryResult[]> {
+  async function exec(sql: string, signal?: AbortSignal, connection?: "a" | "b"): Promise<QueryResult[]> {
     try {
       const id = await session(signal);
       let res: Response;
@@ -131,7 +137,7 @@ export function createMysqlAdapter(o: Options = {}): MysqlAdapter {
           method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sql }),
+          body: JSON.stringify({ sql, connection: connection ?? "a" }),
           signal,
         });
       } catch (e) {
@@ -174,10 +180,11 @@ export function createMysqlAdapter(o: Options = {}): MysqlAdapter {
   const a: MysqlAdapter = {
     engine: "mysql",
     async execute(sql, options) {
-      const results = await exec(sql, options?.signal);
+      const results = await exec(sql, options?.signal, options?.connection);
       if (!options?.internal) hist.push(sql);
       return results;
     },
+    sessionId: () => session(),
     async explain(sql, options) {
       const parts = splitMysql(sql);
       if (parts.length === 0) return no("empty");

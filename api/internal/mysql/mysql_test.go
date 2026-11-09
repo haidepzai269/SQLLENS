@@ -141,6 +141,34 @@ func TestForwardAndHeaders(t *testing.T) {
 	}
 }
 
+func TestEventsSSE(t *testing.T) {
+	g := newRig(t, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Agent trả locks mẫu khi fallback
+	g.reply = func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"waits":{"columns":[],"rows":[]},"locks":{"columns":[],"rows":[]}}`))
+	}
+
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		cancel()
+	}()
+
+	w := g.doCtx(ctx, "GET", "/mysql/sessions/"+sid+"/events", "")
+	if w.Code != 200 {
+		t.Fatalf("events status: %d %s", w.Code, w.Body.String())
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.Contains(ct, "text/event-stream") {
+		t.Fatalf("events content-type: %s", ct)
+	}
+	if !strings.Contains(w.Body.String(), ":keepalive") {
+		t.Fatalf("events body thiếu keepalive: %s", w.Body.String())
+	}
+}
+
 // AC1: sai vân tay, chứng chỉ hết hạn, máy chủ giả: bị từ chối và không có byte HTTP nào (nên không có token) tới máy chủ.
 func TestPinRejects(t *testing.T) {
 	g := newRig(t, func(c *Config) { c.CertSHA256 = strings.Repeat("ab", 32) })

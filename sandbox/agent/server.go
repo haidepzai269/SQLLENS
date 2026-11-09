@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -46,6 +47,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /sessions", s.create)
 	mux.HandleFunc("POST /sessions/{id}/query", s.query)
 	mux.HandleFunc("GET /sessions/{id}/locks", s.locks)
+	mux.HandleFunc("GET /sessions/{id}/events", s.events)
 	mux.HandleFunc("DELETE /sessions/{id}", s.del)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fail(w, 404, "not_found", "error.notFound", nil)
@@ -197,4 +199,68 @@ func (s *server) del(w http.ResponseWriter, r *http.Request) {
 	}
 	s.m.Remove(ses.id, "deleted")
 	w.WriteHeader(204)
+}
+
+func (s *server) events(w http.ResponseWriter, r *http.Request) {
+	ses := s.session(w, r)
+	if ses == nil {
+		return
+	}
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		fail(w, 500, "streaming_unsupported", "sandbox.streamingUnsupported", nil)
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(200)
+
+	// Keepalive ban đầu
+	fmt.Fprintf(w, ":keepalive\n\n")
+	flusher.Flush()
+
+	ticker := time.NewTicker(300 * time.Millisecond)
+	defer ticker.Stop()
+	keepalive := time.NewTicker(15 * time.Second)
+	defer keepalive.Stop()
+
+	var lastJSON string
+	var hadWaits bool
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-keepalive.C:
+			fmt.Fprintf(w, ":keepalive\n\n")
+			flusher.Flush()
+		case <-ticker.C:
+			data, err := s.m.Locks(ses)
+			if err != nil {
+				continue
+			}
+			b, err := json.Marshal(data)
+			if err != nil {
+				continue
+			}
+			curJSON := string(b)
+			if curJSON != lastJSON {
+				lastJSON = curJSON
+				fmt.Fprintf(w, "event: lock_change\ndata: %s\n\n", curJSON)
+				flusher.Flush()
+
+				var curWaits int
+				if wm, ok := data["waits"].(QueryResult); ok {
+					curWaits = len(wm.Rows)
+				}
+				if hadWaits && curWaits == 0 {
+					fmt.Fprintf(w, "event: released\ndata: {}\n\n")
+					flusher.Flush()
+				}
+				hadWaits = curWaits > 0
+			}
+		}
+	}
 }

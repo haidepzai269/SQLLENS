@@ -1,4 +1,22 @@
 {
   "appName": "SQLLens",
-  "language": { "label": "Ngôn ngữ", "vi": "Tiếng Việt", "en": "English" }
+  "language": { "label": "Ngôn ngữ", "vi": "Tiếng Việt", "en": "English" },
+  "conclusionLabels": {
+    "real": {
+      "name": "Thật",
+      "tooltip": "Kết quả được thực thi và đo đạc trực tiếp trên engine database thật (MySQL 8.4 trên Azure VM hoặc PGlite trong Web Worker). Đây là phản ứng vật lý của database, không mang hàm ý đánh giá thiết kế này tốt hay xấu."
+    },
+    "simulated": {
+      "name": "Mô phỏng",
+      "tooltip": "Kết quả do mô hình của dự án tính toán, đã đối chiếu kiểm chứng với database thật trong CI. Không đo đạc thời gian thực tế."
+    },
+    "estimated": {
+      "name": "Ước lượng",
+      "tooltip": "Kết quả ngoại suy khi vượt quy mô đo được hoặc do optimizer tự ước tính số dòng. Chưa chạy qua kịch bản hỏng thực tế."
+    },
+    "not_simulated": {
+      "name": "Chưa mô phỏng được",
+      "tooltip": "Hệ thống chưa đủ dữ kiện hoặc kịch bản vượt ngoài khả năng tính toán an toàn hiện tại."
+    }
+  }
 }

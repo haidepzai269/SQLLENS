@@ -127,5 +127,76 @@
     "noProgress": "The model cannot find a way to continue the two sessions.",
     "stuckSession": "A session is still stuck waiting after the scenario ran out of steps.",
     "checkNotNumeric": "The final check value of the scenario is not a number."
+  },
+  "engineSelect": {
+    "label": "Database Engine",
+    "postgres": "PostgreSQL (PGlite Simulation)",
+    "mysql": "MySQL 8.4 (2 Real Connections via SSE)"
+  },
+  "realLabelNote": "Result executed and measured directly on a real database engine (MySQL 8.4 on Azure VM or PGlite in Web Worker). This is the physical reaction of the database, with no implication that the design is good or bad.",
+  "variantLabel": "Solution Variant",
+  "variantDefault": "Default (Race Condition)",
+  "mysqlScenarios": {
+    "gapLock": {
+      "name": "The Mystery of Gap Lock Paralysis (Next-Key Lock)",
+      "about": "Session A updates a row via a non-unique index. InnoDB locks both the record and the surrounding gap (Gap Lock), causing Session B's completely independent insert to be blocked.",
+      "learn": "Lesson: In REPEATABLE READ, Next-Key Lock prevents Phantom Reads by locking gap intervals. On non-unique indexes, an UPDATE can inadvertently paralyze a large ID range, creating bottlenecks for parallel INSERTs.",
+      "step1": "Session A: Open transaction at REPEATABLE READ isolation level.",
+      "step2": "Session B: Open transaction at REPEATABLE READ isolation level.",
+      "step3": "Session A: UPDATE user_id = 10. InnoDB places Next-Key Lock on user_id=10 and Gap Lock on (10, 20).",
+      "step4": "Session B: INSERT user_id = 15. Although a fresh row, user_id=15 falls into the (10, 20) gap, immediately BLOCKING Session B!",
+      "step5": "Session A: COMMIT releases lock. Session B wakes up and completes insertion.",
+      "step6": "Session B: COMMIT transaction."
+    },
+    "deadlock": {
+      "name": "Bank Transfer Deadlock (Error 1213)",
+      "about": "Two cross-transfer flows between Wallet 1 and Wallet 2. Each holds one wallet and waits for the other, forming an infinite wait cycle that forces MySQL engine to abort one.",
+      "learn": "Lesson: To eliminate deadlocks in banking and payments, always acquire resource locks in a globally consistent order (e.g., always lock the smaller ID first).",
+      "step1": "Session A: Begin transfer from Wallet 1 to Wallet 2.",
+      "step2": "Session B: Begin transfer from Wallet 2 to Wallet 1.",
+      "step3": "Session A: Deduct Wallet 1 (holds Exclusive Lock on Wallet 1).",
+      "step4": "Session B: Deduct Wallet 2 (holds Exclusive Lock on Wallet 2).",
+      "step5": "Session A: Credit Wallet 2 (needs Wallet 2 lock held by B -> Session A waits).",
+      "step6": "Session B: Credit Wallet 1 (attempts to lock Wallet 1 held by A -> Deadlock Cycle!). MySQL detects cycle, raises Error 1213 and aborts B.",
+      "step7": "Session A: Resumed, completes and COMMITs safely.",
+      "step8": "Session B: Rollback aborted transaction."
+    },
+    "flashSale": {
+      "name": "Flash Sale Inventory Race Condition",
+      "about": "Two users simultaneously click to buy the last voucher. Both read stock = 1, resulting in negative inventory or Lost Update.",
+      "learn": "Lesson: Read-Modify-Write in default transactions is not race-free. Use Pessimistic Locking (SELECT ... FOR UPDATE) or atomic decrements (UPDATE stock = stock - 1 WHERE stock >= 1) to protect inventory.",
+      "variantForUpdate": "Fix with Pessimistic Locking (FOR UPDATE)",
+      "race": {
+        "step1": "Session A: Start voucher purchase.",
+        "step2": "Session B: Start voucher purchase.",
+        "step3": "Session A: Read stock (stock = 1).",
+        "step4": "Session B: Read stock (also sees stock = 1 in snapshot).",
+        "step5": "Session A: Deduct stock 1 - 1 = 0.",
+        "step6": "Session A: COMMIT successfully. Actual stock is now 0.",
+        "step7": "Session B: Believing stock is still available, deducts 1 - 1 = 0 or -1! NEGATIVE INVENTORY.",
+        "step8": "Session B: COMMIT, severe inventory loss occurred."
+      },
+      "forUpdate": {
+        "step1": "Session A: Start voucher purchase with pessimistic lock.",
+        "step2": "Session B: Start voucher purchase with pessimistic lock.",
+        "step3": "Session A: SELECT stock ... FOR UPDATE (reads 1 and locks record exclusively).",
+        "step4": "Session B: SELECT stock ... FOR UPDATE -> BLOCKED and queues orderly behind A!",
+        "step5": "Session A: Deduct stock and complete payment.",
+        "step6": "Session A: COMMIT releases lock. Session B wakes up and reads latest stock = 0!",
+        "step7": "Session B: Sees stock = 0, notices out-of-stock and performs safe ROLLBACK."
+      }
+    },
+    "dirtyRead": {
+      "name": "Dirty Read at READ UNCOMMITTED",
+      "about": "Session B lowers isolation to READ UNCOMMITTED and reads Session A's uncommitted interim balance. When Session A rolls back, Session B holds dirty/phantom data.",
+      "learn": "Lesson: PostgreSQL doesn't suffer Dirty Reads because its engine treats READ UNCOMMITTED as READ COMMITTED. MySQL allows it, and in financial apps, Dirty Reads can cause massive losses if decisions rely on uncommitted data.",
+      "step1": "Session A: Open transaction at READ COMMITTED.",
+      "step2": "Session B: Open transaction at READ UNCOMMITTED.",
+      "step3": "Session A: Update balance to 500 without COMMIT.",
+      "step4": "Session B: Reads balance as 500 even though A never committed! DIRTY READ.",
+      "step5": "Session A: Encounters error and ROLLBACKs all changes.",
+      "step6": "Session B: Reads again and sees balance restored to original 100. The 500 was a ghost!",
+      "step7": "Session B: COMMIT transaction."
+    }
   }
 }

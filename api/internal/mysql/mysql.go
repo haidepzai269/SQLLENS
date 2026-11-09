@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"regexp"
@@ -60,6 +61,7 @@ func routes(r *gin.Engine, gate func(quota.Rule) []gin.HandlerFunc, h *handler) 
 	g.POST("", chain(gate(quota.MySQLSession), h.configured, h.create)...)
 	g.POST("/:id/query", chain(gate(QueryRule), h.configured, h.query)...)
 	g.GET("/:id/locks", chain(gate(QueryRule), h.configured, h.locks)...)
+	g.GET("/:id/events", chain(gate(QueryRule), h.configured, h.events)...)
 	g.DELETE("/:id", chain(gate(QueryRule), h.configured, h.del)...)
 }
 
@@ -115,6 +117,92 @@ func (h *handler) locks(c *gin.Context) {
 	}
 	st, body, err := h.c.do(c.Request.Context(), http.MethodGet, "/sessions/"+id+"/locks", h.uid(c), nil, 15*time.Second)
 	relay(c, st, body, err)
+}
+
+func (h *handler) events(c *gin.Context) {
+	id, uid := c.Param("id"), h.uid(c)
+	if !idRe.MatchString(id) {
+		notFound(c)
+		return
+	}
+	flusher, ok := c.Writer.(http.Flusher)
+	if !ok {
+		httpapi.Abort(c, http.StatusInternalServerError, "streaming_unsupported", "error.internal")
+		return
+	}
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no")
+	c.Status(http.StatusOK)
+	fmt.Fprintf(c.Writer, ":keepalive\n\n")
+	flusher.Flush()
+
+	// Thử stream trực tiếp từ agent
+	resp, err := h.c.stream(c.Request.Context(), "/sessions/"+id+"/events", uid)
+	if err == nil && resp.StatusCode == http.StatusOK && strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream") {
+		defer resp.Body.Close()
+		buf := make([]byte, 4096)
+		for {
+			n, rErr := resp.Body.Read(buf)
+			if n > 0 {
+				if _, wErr := c.Writer.Write(buf[:n]); wErr != nil {
+					return
+				}
+				flusher.Flush()
+			}
+			if rErr != nil {
+				return
+			}
+		}
+	}
+	if resp != nil {
+		resp.Body.Close()
+	}
+
+	// Fallback: nếu agent chưa hỗ trợ /events trực tiếp hoặc trong test mock, tự polling locks
+	ticker := time.NewTicker(400 * time.Millisecond)
+	defer ticker.Stop()
+	keepalive := time.NewTicker(15 * time.Second)
+	defer keepalive.Stop()
+
+	var lastJSON string
+	var hadWaits bool
+
+	for {
+		select {
+		case <-c.Request.Context().Done():
+			return
+		case <-keepalive.C:
+			fmt.Fprintf(c.Writer, ":keepalive\n\n")
+			flusher.Flush()
+		case <-ticker.C:
+			st, body, lErr := h.c.do(c.Request.Context(), http.MethodGet, "/sessions/"+id+"/locks", uid, nil, 10*time.Second)
+			if lErr != nil || st != http.StatusOK {
+				continue
+			}
+			curJSON := string(body)
+			if curJSON != lastJSON {
+				lastJSON = curJSON
+				fmt.Fprintf(c.Writer, "event: lock_change\ndata: %s\n\n", curJSON)
+				flusher.Flush()
+
+				var data struct {
+					Waits struct {
+						Rows [][]any `json:"rows"`
+					} `json:"waits"`
+				}
+				if json.Unmarshal(body, &data) == nil {
+					curWaits := len(data.Waits.Rows)
+					if hadWaits && curWaits == 0 {
+						fmt.Fprintf(c.Writer, "event: released\ndata: {}\n\n")
+						flusher.Flush()
+					}
+					hadWaits = curWaits > 0
+				}
+			}
+		}
+	}
 }
 
 func (h *handler) del(c *gin.Context) {

@@ -1,4 +1,22 @@
 {
   "appName": "SQLLens",
-  "language": { "label": "Language", "vi": "Tiếng Việt", "en": "English" }
+  "language": { "label": "Language", "vi": "Tiếng Việt", "en": "English" },
+  "conclusionLabels": {
+    "real": {
+      "name": "Real",
+      "tooltip": "Result executed and measured directly on a real database engine (MySQL 8.4 on Azure VM or PGlite in Web Worker). This is the physical reaction of the database, with no implication that the design is good or bad."
+    },
+    "simulated": {
+      "name": "Simulated",
+      "tooltip": "Result calculated by the project simulation model, verified against real database in CI. Does not reflect real execution time."
+    },
+    "estimated": {
+      "name": "Estimated",
+      "tooltip": "Result extrapolated when exceeding measurable scale or estimated by the query optimizer. Has not been executed in an actual failure scenario."
+    },
+    "not_simulated": {
+      "name": "Not simulated",
+      "tooltip": "System lacks sufficient data or the scenario exceeds current safe computation capabilities."
+    }
+  }
 }

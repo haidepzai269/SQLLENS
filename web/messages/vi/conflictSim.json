@@ -127,5 +127,76 @@
     "noProgress": "Mô hình không tìm được cách chạy tiếp hai session.",
     "stuckSession": "Một session còn bị kẹt chờ khi kịch bản đã hết bước.",
     "checkNotNumeric": "Giá trị kiểm tra cuối kịch bản không phải số."
+  },
+  "engineSelect": {
+    "label": "Engine cơ sở dữ liệu",
+    "postgres": "PostgreSQL (Mô phỏng PGlite)",
+    "mysql": "MySQL 8.4 (2 Connection thật qua SSE)"
+  },
+  "realLabelNote": "Kết quả được thực thi và đo đạc trực tiếp trên engine database thật (MySQL 8.4 trên Azure VM hoặc PGlite trong Web Worker). Đây là phản ứng vật lý của database, không mang hàm ý đánh giá thiết kế này tốt hay xấu.",
+  "variantLabel": "Biến thể giải pháp",
+  "variantDefault": "Mặc định (Race Condition)",
+  "mysqlScenarios": {
+    "gapLock": {
+      "name": "Bí ẩn Gap Lock làm tê liệt bảng (Next-Key Lock)",
+      "about": "Session A cập nhật dòng theo non-unique index. InnoDB khóa cả record lẫn khoảng trống (Gap Lock) xung quanh, khiến Session B insert dòng hoàn toàn khác cũng bị vạ lây.",
+      "learn": "Bài học: Ở REPEATABLE READ, Next-Key Lock ngăn chặn Phantom Read bằng cách khóa khoảng hở. Khi đánh index không unique, một UPDATE có thể vô tình phong tỏa cả một khoảng ID rộng lớn khiến các luồng INSERT song song bị nghẽn cổ chai.",
+      "step1": "Session A: Mở transaction ở mức cô lập REPEATABLE READ.",
+      "step2": "Session B: Mở transaction ở mức cô lập REPEATABLE READ.",
+      "step3": "Session A: UPDATE user_id = 10. InnoDB đặt Next-Key Lock trên user_id=10 và khóa khoảng trống (10, 20).",
+      "step4": "Session B: INSERT user_id = 15. Dù là dòng mới toanh, user_id=15 rơi vào Gap Lock (10, 20) nên B bị BLOCK ngay lập tức!",
+      "step5": "Session A: COMMIT giải phóng khóa. Session B được đánh thức và hoàn tất lệnh chèn.",
+      "step6": "Session B: COMMIT hoàn thành giao dịch."
+    },
+    "deadlock": {
+      "name": "Deadlock Chuyển tiền Ngân hàng (Error 1213)",
+      "about": "Hai luồng chuyển tiền chéo nhau giữa Ví 1 và Ví 2. Mỗi bên giữ khóa một ví và chờ ví kia, tạo thành chu trình chờ vô tận buộc MySQL engine phải hy sinh một bên.",
+      "learn": "Bài học: Để tránh deadlock trong ứng dụng ngân hàng và thanh toán, luôn sắp xếp thứ tự cập nhật tài nguyên theo một chiều nhất quán (ví dụ: luôn khóa tài khoản có ID nhỏ hơn trước).",
+      "step1": "Session A: Bắt đầu giao dịch chuyển tiền Ví 1 sang Ví 2.",
+      "step2": "Session B: Bắt đầu giao dịch chuyển tiền Ví 2 sang Ví 1.",
+      "step3": "Session A: Trừ tiền Ví 1 (giữ Exclusive Lock trên Ví 1).",
+      "step4": "Session B: Trừ tiền Ví 2 (giữ Exclusive Lock trên Ví 2).",
+      "step5": "Session A: Cộng tiền Ví 2 (cần khóa Ví 2 nhưng B đang giữ -> Session A phải chờ).",
+      "step6": "Session B: Cộng tiền Ví 1 (cố khóa Ví 1 nhưng A đang giữ -> Chu trình Deadlock!). Engine MySQL phát hiện chu trình, báo lỗi 1213 và hủy giao dịch của B.",
+      "step7": "Session A: Được giải phóng, tiếp tục và COMMIT an toàn.",
+      "step8": "Session B: Rollback giao dịch bị engine ngắt."
+    },
+    "flashSale": {
+      "name": "Cuộc chiến Flash Sale / Bán âm tồn kho",
+      "about": "Hai người dùng cùng bấm mua suất voucher cuối cùng. Cả hai cùng đọc thấy tồn kho = 1, dẫn đến bán âm kho hoặc mất mát cập nhật (Lost Update).",
+      "learn": "Bài học: Đọc trước rồi sửa sau (Read-Modify-Write) trong transaction mặc định không an toàn. Hãy dùng kỹ thuật Khóa bi quan (SELECT ... FOR UPDATE) hoặc cập nhật nguyên tử (UPDATE stock = stock - 1 WHERE stock >= 1) để bảo vệ tồn kho.",
+      "variantForUpdate": "Chữa bằng Khóa bi quan (FOR UPDATE)",
+      "race": {
+        "step1": "Session A: Bắt đầu mua voucher.",
+        "step2": "Session B: Bắt đầu mua voucher.",
+        "step3": "Session A: Đọc tồn kho (stock = 1).",
+        "step4": "Session B: Đọc tồn kho (cũng thấy stock = 1 trong snapshot).",
+        "step5": "Session A: Trừ tồn kho 1 - 1 = 0.",
+        "step6": "Session A: COMMIT thành công. Tồn kho thực tế còn 0.",
+        "step7": "Session B: Cứ ngỡ còn hàng, tiếp tục trừ tồn kho 1 - 1 = 0 hoặc -1! BÁN ÂM TỒN KHO.",
+        "step8": "Session B: COMMIT, mất mát dữ liệu tồn kho nghiêm trọng."
+      },
+      "forUpdate": {
+        "step1": "Session A: Bắt đầu mua voucher với khóa bi quan.",
+        "step2": "Session B: Bắt đầu mua voucher với khóa bi quan.",
+        "step3": "Session A: SELECT stock ... FOR UPDATE (đọc 1 và khóa độc quyền record).",
+        "step4": "Session B: SELECT stock ... FOR UPDATE -> Bị BLOCK và xếp hàng văn minh sau A!",
+        "step5": "Session A: Trừ tồn kho và hoàn tất thanh toán.",
+        "step6": "Session A: COMMIT nhả khóa. Session B được đánh thức và đọc thấy stock = 0!",
+        "step7": "Session B: Thấy stock = 0, thông báo hết hàng và ROLLBACK an toàn."
+      }
+    },
+    "dirtyRead": {
+      "name": "Đọc bẩn (Dirty Read) ở READ UNCOMMITTED",
+      "about": "Session B hạ mức cô lập xuống READ UNCOMMITTED và trót đọc dữ liệu số dư tạm thời chưa commit của Session A. Khi Session A rollback, Session B giữ thông tin rác.",
+      "learn": "Bài học: PostgreSQL không có Dirty Read vì engine không hỗ trợ READ UNCOMMITTED (tự nâng lên READ COMMITTED). Nhưng MySQL cho phép, và trong hệ thống tài chính, Dirty Read có thể làm thất thoát tiền tỷ nếu ứng dụng ra quyết định dựa trên dữ liệu chưa chắc chắn.",
+      "step1": "Session A: Mở transaction ở READ COMMITTED.",
+      "step2": "Session B: Mở transaction ở READ UNCOMMITTED.",
+      "step3": "Session A: Cập nhật số dư thành 500 nhưng chưa COMMIT.",
+      "step4": "Session B: Đọc số dư thấy 500 dù A chưa hề commit! Đây chính là ĐỌC BẨN (Dirty Read).",
+      "step5": "Session A: Gặp sự cố nên ROLLBACK toàn bộ thay đổi.",
+      "step6": "Session B: Đọc lại thấy số dư quay về 100 ban đầu. Con số 500 trước đó là ma!",
+      "step7": "Session B: COMMIT giao dịch."
+    }
   }
 }
