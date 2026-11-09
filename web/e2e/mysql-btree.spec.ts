@@ -13,6 +13,7 @@ const T = {
     simTooltip: "Dựng từ cấu trúc dữ liệu và thống kê thật của InnoDB, không đọc trực tiếp file .ibd thô",
     drop: "Thả khóa",
     runAnim: "Chạy",
+    nextAnim: "Bước tới",
     coveringBadge: "Covering Index - Không cần tra cứu lại bảng chính",
     bookmarkBadge: "Bookmark Lookup - Tra cứu 2 lần qua Clustered Index",
     secIndexName: "idx_users_email",
@@ -26,6 +27,7 @@ const T = {
     simTooltip: "Built from real InnoDB data and statistics, not raw .ibd files",
     drop: "Drop key",
     runAnim: "Run",
+    nextAnim: "Step forward",
     coveringBadge: "Covering Index - No primary table lookup needed",
     bookmarkBadge: "Bookmark Lookup - Two-level lookup via Clustered Index",
     secIndexName: "idx_users_email",
@@ -230,6 +232,32 @@ for (const lang of ["vi", "en"] as const) {
       // Kiểm tra nút điều khiển hoạt ảnh
       const runBtn = page.getByTestId("btree-drop-panel").getByRole("button", { name: t.runAnim, exact: true });
       await expect(runBtn).toBeVisible();
+
+      // AC3: Kiểm tra viên bi giai đoạn 1 rơi trên Secondary Index có tọa độ và hiển thị hợp lệ
+      const nextBtn = page.getByTestId("btree-drop-panel").getByRole("button", { name: t.nextAnim, exact: true });
+      await expect(nextBtn).toBeVisible();
+
+      // Khi chưa bước tới: viên bi ở secondary có opacity = 0
+      const secKey = page.getByTestId("btree-drop-key-secondary");
+      await expect(secKey).toHaveCSS("opacity", "0");
+
+      // Bấm "Bước tới" (Next) để chuyển sang bước 1
+      await nextBtn.click();
+
+      // Viên bi ở Secondary Index xuất hiện (opacity = 1) và có tọa độ transform hợp lệ (không null/undefined)
+      await expect(secKey).toHaveCSS("opacity", "1");
+      const transform = await secKey.getAttribute("transform");
+      expect(transform).not.toBeNull();
+      const match = /translate\(\s*(-?[\d.]+)[ ,]+(-?[\d.]+)\)/.exec(transform ?? "");
+      expect(match).not.toBeNull();
+      const posX = Number(match![1]);
+      const posY = Number(match![2]);
+      expect(Number.isFinite(posX) && posX > 0).toBe(true);
+      expect(Number.isFinite(posY) && posY > 0).toBe(true);
+
+      // Viên bi ở Clustered Index (cây 2) lúc này vẫn ẩn (opacity = 0)
+      const clusKey = page.getByTestId("btree-drop-key-clustered");
+      await expect(clusKey).toHaveCSS("opacity", "0");
 
       // Nguyên tắc 2: Tuyệt đối không nói "thiết kế này ổn"
       await expect(page.locator("body")).not.toContainText(/thiết kế này ổn|this design is fine|this design is good/i);

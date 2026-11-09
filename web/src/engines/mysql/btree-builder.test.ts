@@ -151,6 +151,69 @@ describe("mysql btree-builder", () => {
 
       expect(model.isCovering).toBe(true);
     });
+
+    it("cây >= 3 tầng tính đúng separator key bằng getMinKey đệ quy và tìm đúng đường đi", () => {
+      // 20 dòng từ 1 đến 20
+      const twentyRows = Array.from({ length: 20 }, (_, i) => ({
+        id: i + 1,
+        code: String(i + 1),
+      }));
+
+      const model = buildBTreeFromData(
+        "items",
+        {
+          name: "PRIMARY",
+          tableName: "items",
+          columns: ["id"],
+          isUnique: true,
+          isPk: true,
+        },
+        ["id"],
+        twentyRows,
+        undefined,
+        {
+          maxLeafKeys: 4,
+          maxChildren: 3,
+        },
+      );
+
+      // 20 items / 4 maxLeafKeys = 5 leaves
+      // 5 leaves / 3 maxChildren = 2 internal nodes (level 1)
+      // 2 internal nodes / 3 maxChildren = 1 root node (level 2)
+      // Tổng height = 3 tầng
+      expect(model.height).toBe(3);
+
+      // Kiểm tra separator key ở Root node (level 2)
+      const rootNode = model.nodes.find((n) => n.page === model.rootPage)!;
+      expect(rootNode).toBeDefined();
+      expect(rootNode.level).toBe(2);
+      expect(rootNode.children?.length).toBe(2);
+      // Con thứ 2 (internal node B) bao phủ leaf 3 (khóa "13"-"16") và leaf 4 (khóa "17"-"20")
+      // Khóa nhỏ nhất của con thứ 2 phải là "13" (được đệ quy lấy từ leaf 3)
+      expect(rootNode.keys).toEqual(["", "13"]);
+
+      // Kiểm tra findBTreePath tìm đúng khóa "13"
+      const path13 = findBTreePath(model, "13");
+      expect(path13.found).toBe(true);
+      expect(path13.pages.length).toBe(3); // Root -> Internal -> Leaf
+      // Kiểm tra leaf chứa khóa "13"
+      const leafNode = model.nodes.find((n) => n.page === path13.leafPage)!;
+      expect(leafNode.level).toBe(0);
+      expect(leafNode.keys).toContain("13");
+
+      // Kiểm tra thêm các khóa khác ở các nhánh khác
+      const path1 = findBTreePath(model, "1");
+      expect(path1.found).toBe(true);
+      expect(path1.pages.length).toBe(3);
+
+      const path20 = findBTreePath(model, "20");
+      expect(path20.found).toBe(true);
+      expect(path20.pages.length).toBe(3);
+
+      // Khóa không tồn tại
+      const path99 = findBTreePath(model, "99");
+      expect(path99.found).toBe(false);
+    });
   });
 
   describe("Ca biên", () => {

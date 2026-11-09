@@ -48,13 +48,13 @@ export function compareKeys(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
-/** Lấy khóa đại diện nhỏ nhất của một node */
-function getMinKey(node: BTreeNode): string {
-  if (node.level === 0) {
-    return node.keys[0] ?? "";
+/** Lấy khóa đại diện nhỏ nhất của một node (đệ quy xuống con đầu tiên cho đến leaf) */
+function getMinKey(node: BTreeNode, byPage: Map<number, BTreeNode>): string {
+  let cur: BTreeNode | undefined = node;
+  while (cur && cur.level > 0 && cur.children && cur.children.length > 0) {
+    cur = byPage.get(cur.children[0]);
   }
-  // Với internal node, keys[0] là "" (-∞), min key thực tế nằm ở keys[1] hoặc đệ quy
-  return node.keys[1] ?? "";
+  return cur?.keys[0] ?? "";
 }
 
 /**
@@ -196,6 +196,7 @@ export function buildBTreeFromData(
 
   // 2. Dựng các tầng Internal (level 1, 2...)
   const allNodes: BTreeNode[] = [...leafNodes];
+  const byPage = new Map<number, BTreeNode>(leafNodes.map((n) => [n.page, n]));
   let currentLevelNodes = leafNodes;
   let currentLevel = 0;
 
@@ -209,7 +210,7 @@ export function buildBTreeFromData(
       const children = group.map((c) => c.page);
 
       // Quy ước B+Tree: keys[0] = "" (-inf), keys[i] = minKey của con thứ i
-      const keys = group.map((c, idx) => (idx === 0 ? "" : getMinKey(c)));
+      const keys = group.map((c, idx) => (idx === 0 ? "" : getMinKey(c, byPage)));
 
       const parentNode: BTreeNode = {
         page,
@@ -221,6 +222,7 @@ export function buildBTreeFromData(
 
       parentNodes.push(parentNode);
       allNodes.push(parentNode);
+      byPage.set(page, parentNode);
     }
 
     currentLevelNodes = parentNodes;

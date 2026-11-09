@@ -46,10 +46,20 @@ function readOffsets(key: string): Off {
   }
 }
 
-// Vị trí tâm node theo tọa độ SVG, để Task041 đặt key rơi. undefined nếu trang chưa vẽ (bị ẩn).
-const registry = new Map<number, { x: number; y: number }>();
-export function nodePosition(page: number): { x: number; y: number } | undefined {
-  return registry.get(page);
+// Vị trí tâm node theo tọa độ SVG theo từng cây (treeKey -> page -> {x, y}).
+// Phân vùng theo treeKey giúp hiển thị nhiều BTreeView đồng thời (như Bookmark Lookup của MySQL) không bị đè tọa độ.
+const registryByTree = new Map<string, Map<number, { x: number; y: number }>>();
+
+export function nodePosition(page: number, treeKey?: string): { x: number; y: number } | undefined {
+  if (treeKey) {
+    return registryByTree.get(treeKey)?.get(page);
+  }
+  // Nếu không truyền treeKey, tìm trong các cây đã đăng ký (tương thích ngược)
+  for (const treeMap of registryByTree.values()) {
+    const p = treeMap.get(page);
+    if (p) return p;
+  }
+  return undefined;
 }
 
 function Badge({ label, text, tooltip }: { label: EvidenceLabel; text: string; tooltip?: string }) {
@@ -157,6 +167,7 @@ export function BTreeView({
   align,
   dimmed,
   dimReason,
+  treeKey: explicitTreeKey,
 }: {
   model: BTreeModel;
   path?: BTreePath;
@@ -166,7 +177,9 @@ export function BTreeView({
   onModeChange: (m: Mode) => void;
   dimmed?: boolean;
   dimReason?: string;
+  treeKey?: string;
 }) {
+  const treeKey = explicitTreeKey ?? `${model.engine}:${model.table}.${model.index}`;
   const t = useTranslations("btree");
   const free = mode === "free";
   const offKey = `sqllens.btree.${model.engine === "mysql" ? "my" : "pg"}`;
@@ -203,13 +216,20 @@ export function BTreeView({
   });
 
   useLayoutEffect(() => {
-    registry.clear();
+    let treeMap = registryByTree.get(treeKey);
+    if (!treeMap) {
+      treeMap = new Map();
+      registryByTree.set(treeKey, treeMap);
+    }
+    treeMap.clear();
     for (const it of layout.items) {
       const p = pos.get(it.id);
-      if (it.page !== undefined && p) registry.set(it.page, { x: p.x + NW / 2, y: p.y + NH / 2 });
+      if (it.page !== undefined && p) treeMap.set(it.page, { x: p.x + NW / 2, y: p.y + NH / 2 });
     }
-    return () => registry.clear();
-  }, [layout, pos]);
+    return () => {
+      registryByTree.delete(treeKey);
+    };
+  }, [layout, pos, treeKey]);
 
   const commit = useCallback(
     (id: string, x: number, y: number) => {

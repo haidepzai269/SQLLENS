@@ -80,15 +80,32 @@ function Scene({
     }
   }, [isDual]);
 
+  const treeKey1 = `${model.engine}:${model.table}.${model.index}`;
+  const treeKey2 = model.clusteredIndex
+    ? `${model.clusteredIndex.engine}:${model.clusteredIndex.table}.${model.clusteredIndex.index}`
+    : undefined;
+
   const view1 = useMemo(
-    () => <BTreeView model={model} label={label} mode={mode} onModeChange={setMode} align={path?.pages} dimmed={dimmed} dimReason={dimReason} />,
-    [model, label, mode, path, dimmed, dimReason],
+    () => (
+      <BTreeView
+        treeKey={treeKey1}
+        model={model}
+        label={label}
+        mode={mode}
+        onModeChange={setMode}
+        align={path?.pages}
+        dimmed={dimmed}
+        dimReason={dimReason}
+      />
+    ),
+    [treeKey1, model, label, mode, path, dimmed, dimReason],
   );
 
   const view2 = useMemo(
     () =>
-      model.clusteredIndex ? (
+      model.clusteredIndex && treeKey2 ? (
         <BTreeView
+          treeKey={treeKey2}
           model={model.clusteredIndex}
           label={label}
           mode={mode}
@@ -98,7 +115,7 @@ function Scene({
           dimReason={dimReason}
         />
       ) : null,
-    [model.clusteredIndex, label, mode, path, dimmed, dimReason],
+    [treeKey2, model.clusteredIndex, label, mode, path, dimmed, dimReason],
   );
 
   const [step, setStep] = useState(0);
@@ -132,7 +149,8 @@ function Scene({
       const rect = (j: number): Box | null => {
         const st = steps[j];
         if (!st.heap) {
-          const c = nodePosition(st.page);
+          const tKey = st.isClustered ? treeKey2 : treeKey1;
+          const c = nodePosition(st.page, tKey);
           if (c) return { x: c.x - NW / 2, y: c.y - NH / 2, w: NW, cap: CAP };
           if (st.slide) return null; // leaf trượt sang luôn nằm trong model; không thấy thì không vẽ
 
@@ -431,7 +449,7 @@ function Scene({
               </g>
             )}
             {steps.slice(0, isDual ? secCount : S).map((s, j) => (s.heap || s.isClustered ? null : <rect key={`n${j}`} data-node={j} rx={2} fill="none" className="stroke-lamp" strokeWidth={1.5} style={{ opacity: 0 }} />))}
-            <g data-key="" style={{ opacity: 0 }}>
+            <g data-key="" data-testid="btree-drop-key-secondary" style={{ opacity: 0 }}>
               <title>{t("keyTitle", { key })}</title>
               <rect x={-markerW / 2} y={-MARKER_H / 2} width={markerW} height={MARKER_H} rx={3} className="fill-lamp" />
               <text y={4.5} textAnchor="middle" className="fill-lamp-ink" style={{ font: "12.5px var(--mono)" }}>
@@ -472,7 +490,7 @@ function Scene({
               const j = secCount + idx;
               return <rect key={`n${j}`} data-node={j} rx={2} fill="none" className="stroke-lamp" strokeWidth={1.5} style={{ opacity: 0 }} />;
             })}
-            <g data-key="" style={{ opacity: 0 }}>
+            <g data-key="" data-testid="btree-drop-key-clustered" style={{ opacity: 0 }}>
               <title>{t("keyTitle", { key: lookupKey })}</title>
               <rect x={-markerW2 / 2} y={-MARKER_H / 2} width={markerW2} height={MARKER_H} rx={3} className="fill-lamp" />
               <text y={4.5} textAnchor="middle" className="fill-lamp-ink" style={{ font: "12.5px var(--mono)" }}>
