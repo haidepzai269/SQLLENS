@@ -1,0 +1,12 @@
+# Bàn giao Task085
+
+Đã làm: Cơ chế Thử sửa What-if trên MySQL bằng Bảng Shadow (`__whatif_*`) để giải quyết triệt để đặc tính Implicit Commit của DDL MySQL. Trình tự: đo `probe` trước bằng `EXPLAIN FORMAT=JSON`; clone bảng tạm `CREATE TABLE __whatif_<table> LIKE <table>`; sao chép tối đa 10.000 dòng để bảo vệ quota 50MB disk; biến đổi DDL và thực thi trên bảng shadow; biến đổi `probe` và đo lại; luôn dọn dẹp bằng `DROP TABLE IF EXISTS __whatif_<table>` trong khối `finally`. Kết quả mang nhãn Thật (`real`), không có từ nào hàm ý "thiết kế ổn". Tích hợp hoàn chỉnh vào `createMysqlAdapter.tryChange`, `compareFix` (hỗ trợ `normalizeMysql`), giao diện `Stage` kích hoạt `<WhatIfTab run={run} />`, và loại trừ bảng shadow khỏi catalog schema/index.
+File chính: `web/src/engines/mysql/whatif-shadow.ts`, `whatif-shadow.test.ts`, `web/src/engines/mysql/adapter.ts`, `web/src/modules/what-if/compare/compare-fix.ts`, `web/src/modules/what-if/compare/compare-fix.test.ts`, `web/src/modules/what-if/compare-ui/what-if-compare.tsx`, `web/src/modules/lab/stage/stage.tsx`, `web/src/modules/lab/stage/stage-data.ts`, `web/messages/{vi,en}/tryChange.json`, `web/e2e/mysql-whatif.spec.ts`, `web/e2e/mysql.spec.ts`.
+Kết quả kiểm tra:
+- `npm run check`: thoát 0, 555 unit tests vitest đạt 100% (bao gồm 19 tests của `whatif-shadow` và 5 tests của `compare-fix`), i18n sạch, lint 0 lỗi, typecheck sạch.
+- `API_ORIGIN=http://localhost:8080 npm run build`: thoát 0.
+- `npx playwright test e2e/mysql-whatif.spec.ts e2e/mysql.spec.ts`: 28/28 tests đạt 100% trên cả Desktop 1440px và Mobile 390px, song ngữ `/vi` và `/en`.
+Kết quả review: Reviewer độc lập thẩm định kết luận PASS 100%, 0 lỗi, 0 needs_validation. Tuân thủ nghiêm ngặt 4 nguyên tắc cốt lõi: nhãn `real` ("Thật"), không nói "thiết kế ổn", không ghi log SQL người dùng, SQL người dùng không đáng tin.
+Chưa làm được: Chưa kiểm trực tiếp trên container MySQL thật của Azure VM (kiểm chứng qua mock proxy agent chuẩn theo hạ tầng E2E của dự án).
+Phát sinh: Khi mở rộng thêm các tính năng đọc catalog MySQL ở các story sau, cần tiếp tục duy trì lọc bỏ các bảng có tiền tố `__whatif_*`.
+Việc tiếp theo cần biết: `tryChange` của MySQL trả `ProbeStats` với `rows` là số dòng duyệt ước tính (`rows_examined_per_scan`) và `sharedReadBlocks` là `query_cost` làm tròn. `compareFix` tự động phát hiện engine MySQL để không kích hoạt cảnh báo sai lệch dòng kết quả `rowsChanged`.
