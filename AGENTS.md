@@ -4,7 +4,7 @@
 Chi tiết số đo kiểm chứng thực nghiệm đầy đủ xem tại [CLAUDE.md](file:///c:/SQLLens/CLAUDE.md).
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
-- **Giai đoạn hiện tại:** Đã chốt 13 Epic và 61 Story (`_bmad-output/BAN_DO_STORY.md`). SP001, SP002, SP003, SP004, SP005, SP006, SP007, SP008, SP009, SP010 (hoàn thành 100%), SP012 (PostgreSQL xong), SP013 (Task080, Task081 xong). Đã bàn giao 79 task. Đang tập trung Đợt 5D (Task086: Tranh chấp 2 connection MySQL) và Đợt 4C (Task082: Security Audit & chốt release V1).
+- **Giai đoạn hiện tại:** Đã chốt 13 Epic và 61 Story (`_bmad-output/BAN_DO_STORY.md`). SP001, SP002, SP003, SP004, SP005, SP006, SP007, SP008, SP009, SP010, SP011 (hoàn thành 100%), SP012 (PostgreSQL xong), SP013 (Task080, Task081 xong). Đã bàn giao 80 task, hoàn tất 59/61 Story (96.7%). Mục tiêu số 1 tiếp theo là Đợt 4C (Task082: Security Audit & chốt release V1).
 - **Mục tiêu trước mắt:** Xem `_bmad-output/MUC_TIEU_TRUOC_MAT.md` (hoàn tất luồng PostgreSQL trọn vẹn trên production có Auth + AI, sau đó đến MySQL).
 - **Key bên thứ 3:** Danh sách ở `KEY_CAN_LAY.md` (gitignored). Không bao giờ commit secret lên git.
 

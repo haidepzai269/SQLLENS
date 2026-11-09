@@ -1,12 +1,14 @@
 # Mục tiêu trước mắt (Cập nhật ngày 2026-11-09)
 
 > **Cập nhật ngày 2026-11-09 (Ngày 5 của dự án):**
-> Toàn bộ **Đợt 1, Đợt 2, Đợt 3, Đợt 4A, Đợt 4B, Đợt 5A** và **Đợt 5B** đã hoàn thành 100%! 
+> Toàn bộ **Đợt 1, Đợt 2, Đợt 3, Đợt 4A, Đợt 4B, Đợt 5A, Đợt 5B, Đợt 5C** và **Đợt 5D** đã hoàn thành 100%! 
 > - Luồng lõi PostgreSQL trọn vẹn (Dán SQL → Schema/Plan visualizer → B-Tree Reader range scan & cuộc đua & cây tối → Findings rủi ro gắn bằng chứng → What-if rollback → Conflict-sim 5 kịch bản & tiêu chí hỏng tùy biến → AI Mentor proxy) kèm đánh bóng luồng và bộ test Playwright E2E Golden Path 10 bước (Desktop 1440px & Mobile 390px, song ngữ vi/en) đã hoạt động xuất sắc.
-> - **Đột phá MySQL (Đợt 5A & Đợt 5B):** 
->   + Thông mạng thật Render ↔ Azure VM, chạy thử nghiệm thực tế câu lệnh MySQL trên production thật với nhãn `Thật` (Task083).
->   + Dựng cây B+Tree InnoDB từ dữ liệu thật mang nhãn `Mô phỏng`, trực quan hóa hoạt ảnh rơi key 2 lần (Bookmark Lookup) từ Secondary Index sang Clustered Index và nhận diện Covering Index (Task084).
-> Đã bàn giao **78 Tasks**, hoàn tất **57/61 Stories (93.4%)**. Chỉ còn **4 Stories (6.6%)**!
+> - **Đột phá MySQL (Đợt 5 toàn diện):** 
+>   + Thông mạng thật Render ↔ Azure VM, chạy thử nghiệm thực tế câu lệnh MySQL trên production thật với nhãn `Thật` (Task083 - SP004 xong 100%).
+>   + Dựng cây B+Tree InnoDB từ dữ liệu thật mang nhãn `Mô phỏng`, trực quan hóa hoạt ảnh rơi key 2 lần (Bookmark Lookup) từ Secondary Index sang Clustered Index và nhận diện Covering Index (Task084 - SP008 xong 100%).
+>   + Thử sửa What-if trên MySQL qua cơ chế Shadow Table `__whatif_*`, giới hạn 10k dòng, dọn sạch tuyệt đối trong `finally`, nhãn `Thật` (Task085 - SP010 xong 100%).
+>   + Tranh chấp 2 connection thật trên MySQL qua SSE stream realtime, 4 kịch bản thực chiến đắt giá (Gap lock, Deadlock ngân hàng, Flash sale lost update & `FOR UPDATE`, Dirty read ở `READ UNCOMMITTED`), và hệ thống Tooltip tường minh cho MỌI nhãn kết luận (Task086 - SP011 xong 100%).
+> Đã bàn giao **80 Tasks**, hoàn tất **59/61 Stories (96.7%)**. 11/13 Epic đã hoàn thành 100%! Chỉ còn **2 Stories**!
 
 ---
 
@@ -43,7 +45,7 @@ Mục tiêu: Kích hoạt engine MySQL thật chạy trên Docker VM Azure.
 | **Đợt 5A** | **SP004 / STR019** | **Task083:** Nối Gin backend với sandbox agent trên Azure VM; bật tab MySQL trên frontend; hiển thị trạng thái đang khởi tạo container / hết hạn / hàng đợi. | **Đã hoàn thành 100% (bàn giao Task083, nghiệm thu thực tế trên production)** |
 | **Đợt 5B** | **SP008 / STR034** | **Task084:** Dựng lại cây B-Tree InnoDB từ dữ liệu thật, đối chiếu `mysql.innodb_index_stats`, trực quan hóa rơi key 2 lần (Bookmark Lookup) và Covering Index. | **Đã hoàn thành 100% (bàn giao Task084)** |
 | **Đợt 5C** | **SP010 / STR044** | **Task085:** Thử sửa What-if trên bảng clone tạm của MySQL qua cơ chế Shadow Table `__whatif_*`, giải quyết DDL auto-commit, dọn sạch trong `finally`, nhãn `Thật`. | **Đã hoàn thành 100% (bàn giao Task085)** |
-| **Đợt 5D** | **SP011 / STR050** | **Task086:** Tranh chấp 2 connection MySQL thật, đọc `performance_schema.data_lock_waits`, trực quan hóa deadlock và dirty read ở `READ UNCOMMITTED`. | Sau Đợt 5C. |
+| **Đợt 5D** | **SP011 / STR050** | **Task086:** Tranh chấp 2 connection MySQL thật qua SSE stream, đọc `performance_schema.data_lock_waits`, trực quan hóa deadlock và dirty read ở `READ UNCOMMITTED`, tooltip chuẩn hóa cho mọi nhãn. | **Đã hoàn thành 100% (bàn giao Task086, 12/12 Playwright test pass)** |
 
 ---
 
@@ -63,4 +65,4 @@ Mục tiêu: Kích hoạt engine MySQL thật chạy trên Docker VM Azure.
 
 ## 4. Việc tiếp theo ngay của Agent
 
-Bắt tay vào **Đợt 5D — SP011 / STR050 (Task086: Tranh chấp 2 connection thật trên MySQL, đọc `performance_schema.data_lock_waits`, trực quan hóa Deadlock & Dirty Read)**!
+Bắt tay vào **Đợt 4C — SP013 / STR061 (Task082: Security Audit toàn diện, rà soát 100% nhãn kết luận, quét secret & Chốt Release Checklist V1)** để sẵn sàng phát hành chính thức SQLLens!

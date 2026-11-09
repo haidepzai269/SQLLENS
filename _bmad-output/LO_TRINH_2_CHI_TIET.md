@@ -179,7 +179,8 @@ flowchart LR
 
 ---
 
-### ĐỢT 5D: SP011 / STR050 — Tranh chấp 2 Connection thật trên MySQL (Task086)
+### ĐỢT 5D: SP011 / STR050 — Tranh chấp 2 Connection thật trên MySQL (Task086) — [ĐÃ HOÀN THÀNH 100%]
+*(Đã nghiệm thu và bàn giao qua ban_giao_task086.md, test máy 100% xanh, nhãn Thật, 12/12 Playwright E2E tests pass)*
 
 #### 1. Bối cảnh & Giá trị khác biệt vượt trội
 
