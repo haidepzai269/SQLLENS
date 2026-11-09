@@ -15,7 +15,17 @@
   "heapName": "Heap · page {page}",
   "summary": "Path of key {key}: pages {pages}.",
   "summaryHeap": "Path of key {key}: pages {pages}, then a jump to heap page {heap}.",
-  "kind": { "root": "root", "internal": "internal", "leaf": "leaf", "rootLeaf": "root, also a leaf" },
+  "summaryBookmark": "Path of key {key}: pages {pages} on Secondary Index, then pages {lookupPages} on Clustered Index (PK = {lookupKey}).",
+  "kind": {
+    "root": "root",
+    "internal": "internal",
+    "leaf": "leaf",
+    "rootLeaf": "root, also a leaf",
+    "clusteredRoot": "root (primary table)",
+    "clusteredInternal": "internal (primary table)",
+    "clusteredLeaf": "leaf (primary table)",
+    "clusteredRootLeaf": "root, also a leaf (primary table)"
+  },
   "step": {
     "internal": "Step {n}: read page {page} ({kind}). Key {key} belongs to the branch from {lo} up to before {hi}, so go down to page {child}.",
     "internalOpen": "Step {n}: read page {page} ({kind}). Key {key} belongs to the branch starting at {lo} and above, so go down to page {child}.",
@@ -26,7 +36,11 @@
     "heap": "Step {n}: jump from the index to the heap and read page {page} to get the full row.",
     "rangeStart": "Step {n}: read page {page} ({kind}), the first leaf of the range. From here it moves sideways to the right-hand leaf, without going back to the root, until it meets a key greater than {to}. {leaves, plural, one {# leaf} other {# leaves}} read.",
     "slide": "Step {n}: slide to the right-hand leaf, page {page}, with {total, number} keys. {leaves, plural, one {# leaf} other {# leaves}} read.",
-    "heapRange": "Step {n}: a leaf holds only keys and row locations. The first row of the range (key {key}) is on heap page {page}, so it jumps from the index to the heap to fetch the full row. The other rows need heap reads too; the animation shows the first row only."
+    "heapRange": "Step {n}: a leaf holds only keys and row locations. The first row of the range (key {key}) is on heap page {page}, so it jumps from the index to the heap to fetch the full row. The other rows need heap reads too; the animation shows the first row only.",
+    "secLeafFound": "Step {n}: read page {page} ({kind}). Key {key} found, pointing to Primary Key {lookupKey}.",
+    "lookupJump": "Step {n}: jump to Clustered Index (PRIMARY) using Primary Key = {lookupKey} to fetch full row data (Bookmark Lookup).",
+    "clusteredLeafFound": "Step {n}: read page {page} ({kind}). Fetched full row data for Primary Key {lookupKey}.",
+    "coveringLeafFound": "Step {n}: read page {page} ({kind}). Key {key} has all requested data from the Covering Index, no primary table lookup needed."
   },
   "summaryRange": "Key range {key} to {to}: pages read {pages}.",
   "idleRange": "Not run yet. Press Run or Next step to see the range from {key} to {to}: the key drops to the first leaf, then slides right.",

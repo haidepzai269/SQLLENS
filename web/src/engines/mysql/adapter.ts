@@ -4,6 +4,7 @@ import type { Plan } from "@/contracts/plan";
 import { readFailure, type Failure } from "@/modules/auth/api";
 import { normalizeMysql } from "@/modules/plan-runner/normalize";
 import { splitMysql } from "@/modules/sql-intake/parser/core";
+import { readMysqlBTree } from "./btree-builder";
 
 // Gin chuyển tiếp tới sandbox agent (Task074). Phiên nằm ở agent; adapter chỉ giữ id.
 const BASE = "/api/mysql/sessions";
@@ -194,8 +195,9 @@ export function createMysqlAdapter(o: Options = {}): MysqlAdapter {
     async tryChange() {
       return no("tryChange");
     },
-    async readBTree() {
-      return { model: no("btree") };
+    async readBTree(index, options) {
+      if (!index) return { model: no("empty") };
+      return readMysqlBTree((sql) => a.execute(sql, { internal: true }), index, options);
     },
     async cancel() {
       lost = true;

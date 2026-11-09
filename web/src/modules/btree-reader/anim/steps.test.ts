@@ -29,4 +29,68 @@ describe("buildSteps", () => {
     const s = buildSteps(m, { key: "1", pages: [1] });
     expect(s[0]).toMatchObject({ kind: "rootLeaf", msg: "leafFound" });
   });
+
+  it("MySQL Bookmark Lookup: rơi qua Secondary Index và nhảy sang Clustered Index", () => {
+    const clusteredModel = {
+      ...smallFixture(),
+      engine: "mysql" as const,
+      index: "PRIMARY",
+      nodes: [
+        { page: 3, level: 1, keys: ["", "50"], children: [4, 5], totalKeys: 2 },
+        { page: 4, level: 0, keys: ["10", "42"], totalKeys: 2 },
+        { page: 5, level: 0, keys: ["50", "90"], totalKeys: 2 },
+      ],
+      rootPage: 3,
+      height: 2,
+    };
+
+    const secondaryModel = {
+      ...smallFixture(),
+      engine: "mysql" as const,
+      index: "idx_email",
+      columns: ["email"],
+      clusteredIndex: clusteredModel,
+      nodes: [
+        { page: 10, level: 0, keys: ["alice@example.com", "bob@example.com"], totalKeys: 2 },
+      ],
+      rootPage: 10,
+      height: 1,
+    };
+
+    const s = buildSteps(secondaryModel, {
+      key: "bob@example.com",
+      pages: [10],
+      lookupKey: "42",
+      lookupPages: [3, 4],
+    });
+
+    expect(s.map((x) => x.msg)).toEqual(["secLeafFound", "lookupJump", "clusteredLeafFound"]);
+    expect(s[0]).toMatchObject({ kind: "rootLeaf", msg: "secLeafFound", vals: { key: "bob@example.com", lookupKey: "42" } });
+    expect(s[1]).toMatchObject({ kind: "clusteredRoot", msg: "lookupJump", page: 3, isClustered: true });
+    expect(s[2]).toMatchObject({ kind: "clusteredLeaf", msg: "clusteredLeafFound", page: 4, isClustered: true });
+  });
+
+  it("MySQL Covering Index: chỉ rơi trên Secondary Index với coveringLeafFound, không nhảy", () => {
+    const secondaryModel = {
+      ...smallFixture(),
+      engine: "mysql" as const,
+      index: "idx_email",
+      columns: ["email"],
+      isCovering: true,
+      nodes: [
+        { page: 10, level: 0, keys: ["alice@example.com", "bob@example.com"], totalKeys: 2 },
+      ],
+      rootPage: 10,
+      height: 1,
+    };
+
+    const s = buildSteps(secondaryModel, {
+      key: "alice@example.com",
+      pages: [10],
+      isCovering: true,
+    });
+
+    expect(s.map((x) => x.msg)).toEqual(["coveringLeafFound"]);
+    expect(s[0]).toMatchObject({ kind: "rootLeaf", msg: "coveringLeafFound" });
+  });
 });

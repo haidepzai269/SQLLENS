@@ -15,7 +15,17 @@
   "heapName": "Heap · trang {page}",
   "summary": "Đường đi của khóa {key}: trang {pages}.",
   "summaryHeap": "Đường đi của khóa {key}: trang {pages}, rồi nhảy sang trang heap {heap}.",
-  "kind": { "root": "root", "internal": "internal", "leaf": "leaf", "rootLeaf": "root, cũng là leaf" },
+  "summaryBookmark": "Đường đi của khóa {key}: trang {pages} trên Secondary Index, sau đó trang {lookupPages} trên Clustered Index (PK = {lookupKey}).",
+  "kind": {
+    "root": "root",
+    "internal": "internal",
+    "leaf": "leaf",
+    "rootLeaf": "root, cũng là leaf",
+    "clusteredRoot": "root (bảng chính)",
+    "clusteredInternal": "internal (bảng chính)",
+    "clusteredLeaf": "leaf (bảng chính)",
+    "clusteredRootLeaf": "root, cũng là leaf (bảng chính)"
+  },
   "step": {
     "internal": "Bước {n}: đọc trang {page} ({kind}). Khóa {key} thuộc nhánh từ {lo} đến trước {hi}, nên đi xuống trang {child}.",
     "internalOpen": "Bước {n}: đọc trang {page} ({kind}). Khóa {key} thuộc nhánh bắt đầu từ {lo} trở đi, nên đi xuống trang {child}.",
@@ -26,7 +36,11 @@
     "heap": "Bước {n}: nhảy từ index sang heap, đọc trang {page} để lấy dòng đầy đủ.",
     "rangeStart": "Bước {n}: đọc trang {page} ({kind}), leaf đầu của khoảng. Từ đây đi ngang sang leaf bên phải, không quay lại root, cho đến khi gặp khóa lớn hơn {to}. Đã đọc {leaves, number} leaf.",
     "slide": "Bước {n}: trượt sang leaf bên phải, trang {page}, có {total, number} khóa. Đã đọc {leaves, number} leaf.",
-    "heapRange": "Bước {n}: leaf chỉ chứa khóa và vị trí dòng. Dòng đầu tiên của khoảng (khóa {key}) nằm ở trang heap {page}, nên nhảy từ index sang heap để lấy dòng đầy đủ. Các dòng còn lại cũng cần đọc heap, animation chỉ minh họa dòng đầu."
+    "heapRange": "Bước {n}: leaf chỉ chứa khóa và vị trí dòng. Dòng đầu tiên của khoảng (khóa {key}) nằm ở trang heap {page}, nên nhảy từ index sang heap để lấy dòng đầy đủ. Các dòng còn lại cũng cần đọc heap, animation chỉ minh họa dòng đầu.",
+    "secLeafFound": "Bước {n}: đọc trang {page} ({kind}). Tìm thấy khóa {key}, trỏ tới Primary Key {lookupKey}.",
+    "lookupJump": "Bước {n}: nhảy sang Clustered Index (PRIMARY) với Primary Key = {lookupKey} để tra cứu toàn bộ dòng dữ liệu (Bookmark Lookup).",
+    "clusteredLeafFound": "Bước {n}: đọc trang {page} ({kind}). Lấy toàn bộ dữ liệu dòng cho Primary Key {lookupKey}.",
+    "coveringLeafFound": "Bước {n}: đọc trang {page} ({kind}). Khóa {key} đã có đủ dữ liệu từ Covering Index, không cần tra cứu lại bảng chính."
   },
   "summaryRange": "Khoảng khóa từ {key} đến {to}: đọc các trang {pages}.",
   "idleRange": "Chưa chạy. Bấm Chạy hoặc Bước tới để xem khoảng khóa từ {key} đến {to}: khóa rơi tới leaf đầu rồi trượt ngang sang phải.",

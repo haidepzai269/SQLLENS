@@ -32,6 +32,14 @@ FROM information_schema.COLUMNS c
 JOIN information_schema.TABLES t ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME AND t.TABLE_TYPE = 'BASE TABLE'
 WHERE c.TABLE_SCHEMA = DATABASE()
 ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION`;
+
+export const MYSQL_INDEX_QUERY = `
+SELECT s.INDEX_NAME AS index_name, s.TABLE_NAME AS table_name, s.INDEX_TYPE AS method
+FROM information_schema.STATISTICS s
+JOIN information_schema.TABLES t ON t.TABLE_SCHEMA = s.TABLE_SCHEMA AND t.TABLE_NAME = s.TABLE_NAME AND t.TABLE_TYPE = 'BASE TABLE'
+WHERE s.TABLE_SCHEMA = DATABASE()
+GROUP BY s.TABLE_NAME, s.INDEX_NAME, s.INDEX_TYPE
+ORDER BY s.TABLE_NAME, s.INDEX_NAME`;
 const FLAGS = ["nullable", "is_pk", "is_unique"];
 export function mysqlSchema(r: QueryResult): QueryResult {
   const at = FLAGS.map((n) => r.columns.indexOf(n));

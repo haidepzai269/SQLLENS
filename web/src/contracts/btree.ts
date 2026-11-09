@@ -11,6 +11,8 @@ export type BTreeNode = {
   // Leaf bên phải, để vẽ range scan trượt ngang.
   next?: number;
   totalKeys: number;
+  // Dữ liệu dòng tại leaf (cho Clustered Index hoặc Secondary Index hiển thị row / PK).
+  leafRows?: Record<string, unknown>[];
 };
 
 export type BTreeModel = {
@@ -25,7 +27,21 @@ export type BTreeModel = {
   // Trang chưa đọc theo từng tầng, để vẽ dạng "+206 node".
   hidden: { level: number; count: number }[];
   totalPages: number;
+  // Mở rộng cho MySQL InnoDB:
+  isClustered?: boolean;
+  clusteredIndex?: BTreeModel;
+  isCovering?: boolean;
+  pkColumns?: string[];
+  lookupKey?: string;
 };
 
 // Đường đi của một khóa từ root xuống leaf. heapPage chỉ có ở PostgreSQL (nhảy từ index sang heap).
-export type BTreePath = { key: string; pages: number[]; heapPage?: number };
+// lookupPages và lookupKey cho MySQL InnoDB (nhảy từ secondary index sang clustered index).
+export type BTreePath = {
+  key: string;
+  pages: number[];
+  heapPage?: number;
+  lookupKey?: string;
+  lookupPages?: number[];
+  isCovering?: boolean;
+};

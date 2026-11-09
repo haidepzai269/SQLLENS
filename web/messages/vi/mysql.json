@@ -8,6 +8,9 @@
   "explain": {
     "estimated": "Plan này lấy từ EXPLAIN của MySQL, câu chưa chạy: số dòng là ước lượng của optimizer, không phải số dòng thật."
   },
+  "btree": {
+    "evidence": "Dựng cây mô phỏng từ cấu trúc bảng và thống kê InnoDB: {pages, number} trang, {height, number} tầng."
+  },
   "notSimulated": {
     "btree": "Chưa mô phỏng được cây B-Tree của MySQL trong phiên bản này. Chuyển sang PostgreSQL để xem cây thật.",
     "tryChange": "Chưa mô phỏng được Thử sửa trên MySQL: CREATE INDEX tự commit nên cần làm trên bảng sao, chưa có trong phiên bản này.",

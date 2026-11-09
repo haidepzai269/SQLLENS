@@ -16,5 +16,14 @@
   "nodeTitle": "Trang {page}, {total, number} khóa. Khóa đang hiện: {keys}",
   "moveAria": "Dời node {name}",
   "summary": "Cây B-Tree có {levels, plural, other {# tầng}}, {pages, number} trang, đã đọc {shown, number} trang.",
-  "summaryPath": "Đường đi của khóa {key}: trang {pages}."
+  "summaryPath": "Đường đi của khóa {key}: trang {pages}.",
+  "clusteredIndex": "Clustered Index (Bảng chính)",
+  "secondaryIndex": "Secondary Index (Chỉ mục phụ)",
+  "coveringBadge": "Covering Index - Không cần tra cứu lại bảng chính",
+  "bookmarkBadge": "Bookmark Lookup - Tra cứu 2 lần qua Clustered Index",
+  "labelTooltip": {
+    "real": "Đọc trực tiếp từ file dữ liệu thật",
+    "simulated": "Dựng từ cấu trúc dữ liệu và thống kê thật của InnoDB, không đọc trực tiếp file .ibd thô",
+    "estimated": "Ước lượng của optimizer"
+  }
 }

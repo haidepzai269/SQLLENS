@@ -28,7 +28,7 @@ import { PlanTree } from "@/modules/plan-runner/plan-tree";
 import { SchemaDiagram } from "@/modules/plan-runner/schema-diagram/schema-diagram";
 import { retarget } from "@/modules/what-if/capacity-ui/measure-level";
 import { WhatIfCompare } from "@/modules/what-if/compare-ui/what-if-compare";
-import { joinNodes, MYSQL_SCHEMA_QUERY, mysqlSchema, STAGE_INDEX_QUERY, STAGE_SCHEMA_QUERY, type IndexInfo } from "./stage-data";
+import { joinNodes, MYSQL_INDEX_QUERY, MYSQL_SCHEMA_QUERY, mysqlSchema, STAGE_INDEX_QUERY, STAGE_SCHEMA_QUERY, type IndexInfo } from "./stage-data";
 import { BTreeRace, type BTreeRaceProps } from "@/modules/btree-reader/race/btree-race";
 
 // Capacity (GSAP, B-Tree) và Mentor (đọc stream) chỉ tải khi mở tab của chúng.
@@ -215,20 +215,16 @@ function BTreeTab({
   const [draft, setDraft] = useState("");
   const [draftTo, setDraftTo] = useState("");
   const cur = pick && pick.run === run.id && list?.ok && list.v.some((x) => x.name === pick.index) ? pick : null;
-  const tree = useLoad<{ model: Outcome<BTreeModel>; path?: BTreePath }>(
-    on && !!cur,
-    `${run.id}:${cur?.index}:${cur?.key}:${!!cur?.to}`,
-    // khoảng khóa cần đọc nhiều leaf hơn: cây nhỏ thì đọc hết, cây lớn thì leaf nào chưa đọc animation sẽ dừng và nói rõ
-    () => run.db.readBTree(cur!.index, cur!.key ? { probeKey: cur!.key, ...(cur!.to ? { maxNodes: 300 } : {}) } : undefined),
-  );
 
   const info = cur && list?.ok ? list.v.find((x) => x.name === cur.index) : undefined;
   const scanAnalysis = useMemo(() => {
     if (!cur || !info || !plan || !plan.ok || plan.v.kind !== "conclusion") return null;
     const { idxNode, seqNode } = findIndexScan(plan.v.data.root, cur.index, info.table);
     if (idxNode) {
+      const isCovering = idxNode.kind === "index_only_scan";
       return {
         dimmed: false,
+        isCovering,
         race: {
           idxPages: idxNode.pagesRead ?? 0,
           seqPages: seqNode?.pagesRead,
@@ -242,6 +238,7 @@ function BTreeTab({
     if (seqNode) {
       return {
         dimmed: true,
+        isCovering: false,
         dimReason: ta("dimSeqNotice", { index: cur.index, table: info.table }),
         race: {
           idxPages: 0,
@@ -256,9 +253,23 @@ function BTreeTab({
     return null;
   }, [cur, info, plan, ta]);
 
+  const isCovering = scanAnalysis?.isCovering;
+  const tree = useLoad<{ model: Outcome<BTreeModel>; path?: BTreePath }>(
+    on && !!cur,
+    `${run.id}:${cur?.index}:${cur?.key}:${!!cur?.to}:${!!isCovering}`,
+    // khoảng khóa cần đọc nhiều leaf hơn: cây nhỏ thì đọc hết, cây lớn thì leaf nào chưa đọc animation sẽ dừng và nói rõ
+    () =>
+      run.db.readBTree(cur!.index, {
+        ...(cur!.key ? { probeKey: cur!.key } : {}),
+        ...(cur!.to ? { maxNodes: 300 } : {}),
+        ...(isCovering ? { isCovering: true } : {}),
+      }),
+  );
+
   if (!list) return <Loading />;
   if (!list.ok) return <Note tone="error">{t("error", { message: list.e })}</Note>;
   if (!list.v.length) return <Note>{t("btree.none")}</Note>;
+
   return (
     <div className="flex min-w-0 flex-col gap-3">
       <div className="flex min-w-0 flex-col gap-1">
@@ -481,10 +492,12 @@ export function Stage({
   };
   // Plan và danh sách index dùng chung giữa các tab: tải một lần cho mỗi lần chạy, không tải lại khi đổi tab.
   const my = run?.db.engine === "mysql";
-  const plan = useLoad<Outcome<Plan>>(!!run?.select && (open("plan") || (!my && (open("mentor") || open("btree")))), `${run?.id}`, () => run!.explain(run!.select!.sql));
-  const indexes = useLoad<IndexInfo[]>(!!run && !my && (open("btree") || open("capacity")), `${run?.id}`, async () =>
-    ((await run!.db.execute(STAGE_INDEX_QUERY, { internal: true }))[0]?.rows ?? []).map((x) => ({ name: String(x[0]), table: String(x[1]), method: String(x[2]) })),
-  );
+  const plan = useLoad<Outcome<Plan>>(!!run?.select && (open("plan") || open("btree") || (!my && open("mentor"))), `${run?.id}`, () => run!.explain(run!.select!.sql));
+  const indexes = useLoad<IndexInfo[]>(!!run && (open("btree") || (!my && open("capacity"))), `${run?.id}`, async () => {
+    const q = my ? MYSQL_INDEX_QUERY : STAGE_INDEX_QUERY;
+    const res = (await run!.db.execute(q, { internal: true }))[0]?.rows ?? [];
+    return res.map((x) => ({ name: String(x[0]), table: String(x[1]), method: String(x[2]) }));
+  });
   // Bấm một rủi ro: mở tab tương ứng (chỉnh state ngay lúc render, không qua effect).
   const [doneNonce, setDoneNonce] = useState(0);
   const f = run && focus && focus.runId === run.id ? focus : null;
@@ -535,7 +548,7 @@ export function Stage({
               {gated(
                 "btree",
                 run ? (
-                  my ? <MysqlNotSim run={run} which="btree" /> : <BTreeTab run={run} on={open("btree")} list={indexes} plan={plan} />
+                  <BTreeTab run={run} on={open("btree")} list={indexes} plan={plan} />
                 ) : working ? (
                   <Note>{t("working")}</Note>
                 ) : (

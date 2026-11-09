@@ -8,6 +8,9 @@
   "explain": {
     "estimated": "This plan comes from the MySQL EXPLAIN and the statement has not run: row counts are the optimizer's estimates, not real counts."
   },
+  "btree": {
+    "evidence": "Simulated tree built from table structure and InnoDB statistics: {pages, number} pages, {height, number} levels."
+  },
   "notSimulated": {
     "btree": "The MySQL B-Tree cannot be simulated in this version. Switch to PostgreSQL to see a real tree.",
     "tryChange": "Try a fix cannot be simulated on MySQL: CREATE INDEX commits at once, so it needs a table copy, which this version does not have.",

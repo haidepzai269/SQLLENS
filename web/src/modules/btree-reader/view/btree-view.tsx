@@ -52,7 +52,7 @@ export function nodePosition(page: number): { x: number; y: number } | undefined
   return registry.get(page);
 }
 
-function Badge({ label, text }: { label: EvidenceLabel; text: string }) {
+function Badge({ label, text, tooltip }: { label: EvidenceLabel; text: string; tooltip?: string }) {
   const cls =
     label === "real"
       ? "bg-label-real text-label-real-foreground"
@@ -60,7 +60,12 @@ function Badge({ label, text }: { label: EvidenceLabel; text: string }) {
         ? "border border-label-simulated text-white"
         : "border border-dashed border-label-estimated italic text-white";
   return (
-    <span data-testid="btree-label" data-label={label} className={`inline-flex h-5 items-center gap-1 rounded-[2px] px-[7px] text-xs ${cls}`}>
+    <span
+      data-testid="btree-label"
+      data-label={label}
+      title={tooltip}
+      className={`inline-flex h-5 items-center gap-1 rounded-[2px] px-[7px] text-xs ${cls}`}
+    >
       <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" fill="currentColor" stroke="currentColor">
         {label === "real" && <circle cx="5" cy="5" r="4" />}
         {label === "simulated" && (
@@ -344,7 +349,7 @@ export function BTreeView({
         <h3 className="m-0 w-full min-w-0 truncate sm:w-auto sm:flex-1 font-mono text-[12.5px] font-normal text-ink2" title={t("title", { index: model.index, table: model.table, columns: model.columns.join(", ") })}>
           {t("title", { index: model.index, table: model.table, columns: model.columns.join(", ") })}
         </h3>
-        <Badge label={label} text={t(`label.${label}`)} />
+        <Badge label={label} text={t(`label.${label}`)} tooltip={t(`labelTooltip.${label}`)} />
         <div role="group" aria-label={t("mode.label")} className="flex">
           {(["fixed", "free"] as const).map((m) => (
             <button

@@ -16,5 +16,14 @@
   "nodeTitle": "Page {page}, {total, number} keys. Keys shown: {keys}",
   "moveAria": "Move node {name}",
   "summary": "The B-Tree has {levels, plural, one {# level} other {# levels}}, {pages, number} pages, {shown, number} pages read.",
-  "summaryPath": "Path of key {key}: pages {pages}."
+  "summaryPath": "Path of key {key}: pages {pages}.",
+  "clusteredIndex": "Clustered Index (Primary Table)",
+  "secondaryIndex": "Secondary Index",
+  "coveringBadge": "Covering Index - No primary table lookup needed",
+  "bookmarkBadge": "Bookmark Lookup - Two-level lookup via Clustered Index",
+  "labelTooltip": {
+    "real": "Read directly from real data files",
+    "simulated": "Built from real InnoDB data and statistics, not raw .ibd files",
+    "estimated": "Estimated by the optimizer"
+  }
 }
