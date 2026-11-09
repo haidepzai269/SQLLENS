@@ -144,7 +144,8 @@ flowchart LR
 
 ---
 
-### ĐỢT 5C: SP010 / STR044 — Thử sửa What-if trên MySQL bằng Bảng Shadow (Task085)
+### ĐỢT 5C: SP010 / STR044 — Thử sửa What-if trên MySQL bằng Bảng Shadow (Task085) — [ĐÃ HOÀN THÀNH 100%]
+*(Đã nghiệm thu và bàn giao qua ban_giao_task085.md, test máy 100% xanh, nhãn Thật)*
 
 #### 1. Bối cảnh & Thách thức DDL tự commit
 

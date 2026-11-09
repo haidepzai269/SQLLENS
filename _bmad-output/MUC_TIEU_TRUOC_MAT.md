@@ -42,8 +42,8 @@ Mục tiêu: Kích hoạt engine MySQL thật chạy trên Docker VM Azure.
 |---|---|---|---|
 | **Đợt 5A** | **SP004 / STR019** | **Task083:** Nối Gin backend với sandbox agent trên Azure VM; bật tab MySQL trên frontend; hiển thị trạng thái đang khởi tạo container / hết hạn / hàng đợi. | **Đã hoàn thành 100% (bàn giao Task083, nghiệm thu thực tế trên production)** |
 | **Đợt 5B** | **SP008 / STR034** | **Task084:** Dựng lại cây B-Tree InnoDB từ dữ liệu thật, đối chiếu `mysql.innodb_index_stats`, trực quan hóa rơi key 2 lần (Bookmark Lookup) và Covering Index. | **Đã hoàn thành 100% (bàn giao Task084)** |
-| **Đợt 5C** | **SP010 / STR044** | Thử sửa What-if trên bảng clone tạm của MySQL (vì `CREATE INDEX` tự commit). | Sau Đợt 5A. |
-| **Đợt 5D** | **SP011 / STR050** | Tranh chấp 2 connection MySQL thật, đọc `performance_schema.data_lock_waits`, dirty read ở `READ UNCOMMITTED`. | Sau Đợt 5A. |
+| **Đợt 5C** | **SP010 / STR044** | **Task085:** Thử sửa What-if trên bảng clone tạm của MySQL qua cơ chế Shadow Table `__whatif_*`, giải quyết DDL auto-commit, dọn sạch trong `finally`, nhãn `Thật`. | **Đã hoàn thành 100% (bàn giao Task085)** |
+| **Đợt 5D** | **SP011 / STR050** | **Task086:** Tranh chấp 2 connection MySQL thật, đọc `performance_schema.data_lock_waits`, trực quan hóa deadlock và dirty read ở `READ UNCOMMITTED`. | Sau Đợt 5C. |
 
 ---
 
@@ -57,10 +57,10 @@ Mục tiêu: Kích hoạt engine MySQL thật chạy trên Docker VM Azure.
 
 1. **Bảo mật Secret:** Đổi 4 secret đã lộ trong lịch sử phiên cũ: mật khẩu Neon, token Upstash, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_SECRET`. Cập nhật trên Render Dashboard và `api/.env`.
 2. **AI Production:** Điền `GROQ_API_KEY` trên Render (nếu chưa điền) và bật Zero Data Retention của Groq.
-3. **Mở cổng MySQL (Nếu muốn kích hoạt Lộ trình 2):** Làm theo hướng dẫn tại [`_bmad-output/SP004/STR019/Task074/huong_dan_mo_cong.md`](file:///c:/SQLLens/_bmad-output/SP004/STR019/Task074/huong_dan_mo_cong.md) để mở cổng Azure NSG cho IP của Render.
+3. **Mở cổng MySQL (Đã xong):** Chủ dự án đã cấu hình mở cổng Azure NSG, ufw và thiết lập biến môi trường trên Render thành công.
 
 ---
 
 ## 4. Việc tiếp theo ngay của Agent
 
-Bắt tay ngay vào **Đợt 5C — SP010 / STR044 (Task085: Thử sửa What-if trên MySQL qua cơ chế bảng Shadow `__whatif_*`, giải quyết DDL auto-commit)**!
+Bắt tay vào **Đợt 5D — SP011 / STR050 (Task086: Tranh chấp 2 connection thật trên MySQL, đọc `performance_schema.data_lock_waits`, trực quan hóa Deadlock & Dirty Read)**!

@@ -12,7 +12,7 @@ Hợp đồng chung: `web/src/contracts/whatif.ts` (`WhatIfData`, `CapacitySampl
 | STR046 Số liệu Capacity | Task055 | Đo từ cây thật và công thức ngoại suy, đối chiếu Postgres thật | Task039 | 1 |
 | STR045 Màn hình so sánh | Task056 | Chia đôi trước và sau, sửa rồi chạy lại | Task054 | 2 |
 | STR047 Màn hình Capacity | Task057 | Thanh quy mô, cây mọc tầng, nhãn đổi khi vượt 500k | Task055 | 2 |
-| STR044 Thử sửa MySQL | chưa chia | Bảng clone, cần adapter MySQL | SP004 STR019 | sau |
+| STR044 Thử sửa MySQL | Task085 | Bảng shadow clone tạm, dọn dẹp trong finally, nhãn Thật | SP004 STR019 | sau |
 
 ## Các file bị đụng
 
@@ -22,5 +22,6 @@ Hợp đồng chung: `web/src/contracts/whatif.ts` (`WhatIfData`, `CapacitySampl
 | Task055 | `web/src/modules/what-if/capacity/**`, `web/messages/*/capacity.json` |
 | Task056 | `web/src/modules/what-if/compare-ui/**`, `web/src/app/[locale]/e2e-whatif/**`, `web/messages/*/whatIfUi.json`, `web/e2e/whatif.spec.ts` |
 | Task057 | `web/src/modules/what-if/capacity-ui/**`, `web/src/app/[locale]/e2e-capacity/**`, `web/messages/*/capacityUi.json`, `web/e2e/capacity.spec.ts` |
+| Task085 | `web/src/engines/mysql/whatif-shadow.*`, `web/src/engines/mysql/adapter.ts`, `web/src/modules/what-if/compare/**`, `web/src/modules/lab/stage/**`, `web/e2e/mysql-whatif.spec.ts` |
 
-Trạng thái: Task054 đến Task057 đã merge ngày 2026-11-04. Còn STR044 chờ adapter MySQL. Gắn Capacity vào vùng `stage` là việc riêng.
+Trạng thái: ĐÃ HOÀN THÀNH 100% (5/5 Stories, Task054-Task057 và Task085 đã merge).
