@@ -1,8 +1,10 @@
-# Mục tiêu trước mắt (Cập nhật ngày 2026-11-08)
+# Mục tiêu trước mắt (Cập nhật ngày 2026-11-09)
 
-> **Cập nhật ngày 2026-11-08 (Ngày 4 của dự án):**
-> Toàn bộ **Đợt 1, Đợt 2, Đợt 3**, **Đợt 4A** và **Đợt 4B** đã hoàn thành 100%! Luồng lõi PostgreSQL trọn vẹn (Dán SQL → Schema/Plan visualizer → B-Tree Reader có range scan & cuộc đua & cây tối → Findings rủi ro gắn bằng chứng → What-if thử sửa rollback → Conflict-sim 5 kịch bản có timeline & tiêu chí hỏng tùy biến → AI Mentor proxy) kèm đánh bóng luồng toàn diện và bộ test Playwright E2E Golden Path 10 bước (Desktop 1440px & Mobile 390px, song ngữ vi/en) đã hoạt động xuất sắc.
-> Đã bàn giao **76 Tasks**, hoàn tất **55/61 Stories (90.2%)**. Chỉ còn **6 Stories (9.8%)**!
+> **Cập nhật ngày 2026-11-09 (Ngày 5 của dự án):**
+> Toàn bộ **Đợt 1, Đợt 2, Đợt 3, Đợt 4A, Đợt 4B** và **Đợt 5A** đã hoàn thành 100%! 
+> - Luồng lõi PostgreSQL trọn vẹn (Dán SQL → Schema/Plan visualizer → B-Tree Reader range scan & cuộc đua & cây tối → Findings rủi ro gắn bằng chứng → What-if rollback → Conflict-sim 5 kịch bản & tiêu chí hỏng tùy biến → AI Mentor proxy) kèm đánh bóng luồng và bộ test Playwright E2E Golden Path 10 bước (Desktop 1440px & Mobile 390px, song ngữ vi/en) đã hoạt động xuất sắc.
+> - **Đột phá MySQL (Đợt 5A):** Chủ dự án đã mở cổng NSG Azure thành công, Render Backend đã thông mạng thật với Sandbox Agent trên Azure VM qua HTTPS ghim cert. Đã chạy thử nghiệm thực tế câu lệnh MySQL trên production thật với nhãn `Thật`!
+> Đã bàn giao **77 Tasks**, hoàn tất **56/61 Stories (91.8%)**. Chỉ còn **5 Stories (8.2%)**!
 
 ---
 
@@ -36,7 +38,7 @@ Mục tiêu: Kích hoạt engine MySQL thật chạy trên Docker VM Azure.
 
 | Mốc | Story | Việc cần làm | Điều kiện kích hoạt |
 |---|---|---|---|
-| **Đợt 5A** | **SP004 / STR019** | Nối Gin backend với sandbox agent trên Azure VM; bật tab MySQL trên frontend; hiển thị trạng thái đang khởi tạo container / hết hạn / hàng đợi. | Sau khi Chủ dự án mở cổng NSG theo hướng dẫn Task074. |
+| **Đợt 5A** | **SP004 / STR019** | **Task083:** Nối Gin backend với sandbox agent trên Azure VM; bật tab MySQL trên frontend; hiển thị trạng thái đang khởi tạo container / hết hạn / hàng đợi. | **Đã hoàn thành 100% (bàn giao Task083, nghiệm thu thực tế trên production)** |
 | **Đợt 5B** | **SP008 / STR034** | Dựng lại cây B-Tree InnoDB từ dữ liệu thật, đối chiếu `mysql.innodb_index_stats`. | Sau Đợt 5A. |
 | **Đợt 5C** | **SP010 / STR044** | Thử sửa What-if trên bảng clone tạm của MySQL (vì `CREATE INDEX` tự commit). | Sau Đợt 5A. |
 | **Đợt 5D** | **SP011 / STR050** | Tranh chấp 2 connection MySQL thật, đọc `performance_schema.data_lock_waits`, dirty read ở `READ UNCOMMITTED`. | Sau Đợt 5A. |
@@ -59,4 +61,4 @@ Mục tiêu: Kích hoạt engine MySQL thật chạy trên Docker VM Azure.
 
 ## 4. Việc tiếp theo ngay của Agent
 
-Bắt tay ngay vào **Đợt 4C — SP013 / STR061 (Task082: Kiểm tra cuối, Security Audit & Rà soát 100% nhãn kết luận)** để sẵn sàng phát hành chính thức SQLLens V1!
+Bắt tay ngay vào **Đợt 5B — SP008 / STR034 (Task084: Cây B-Tree InnoDB dựng từ thống kê thật, trực quan hóa rơi key 2 lần - Bookmark Lookup)** trong Lộ trình 2!

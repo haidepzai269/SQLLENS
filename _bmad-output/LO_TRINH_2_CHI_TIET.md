@@ -245,7 +245,7 @@ flowchart LR
 
 | Đợt           | Task        | Nội dung chính                                                                                | Subagent Dev                                 | Subagent Reviewer         | Ước lượng            |
 | ------------- | ----------- | --------------------------------------------------------------------------------------------- | -------------------------------------------- | ------------------------- | -------------------- |
-| **Đợt 5A**    | **Task083** | Nghiệm thu kết nối thật Render → Azure VM, kiểm tra vòng đời container và quota               | `amelia-dev` (Worktree `.worktrees/Task083`) | `task-reviewer` (độc lập) | 1 phiên (Sau mở NSG) |
+| **Đợt 5A**    | **Task083** | Nghiệm thu kết nối thật Render → Azure VM, kiểm tra vòng đời container và quota               | `amelia-dev` (Worktree `.worktrees/Task083`) | `task-reviewer` (độc lập) | **Đã hoàn thành 100% (bàn giao Task083)** |
 | **Đợt 5B**    | **Task084** | Cây B-Tree InnoDB từ stats thật, trực quan hóa rơi key 2 lần (Bookmark Lookup)                | `amelia-dev` (Worktree `.worktrees/Task084`) | `task-reviewer` (độc lập) | 1-2 phiên            |
 | **Đợt 5C**    | **Task085** | Thử sửa What-if trên MySQL qua bảng shadow `__whatif_*`, giải quyết DDL auto-commit           | `amelia-dev` (Worktree `.worktrees/Task085`) | `task-reviewer` (độc lập) | 1 phiên              |
 | **Đợt 5D**    | **Task086** | Tranh chấp 2 connection thật, đọc `performance_schema.data_lock_waits`, Deadlock & Dirty Read | `amelia-dev` (Worktree `.worktrees/Task086`) | `task-reviewer` (độc lập) | 1-2 phiên            |

@@ -12,6 +12,9 @@ STR019 (nối vào sản phẩm) chờ SP005 vì MySQL cần đăng nhập, Đư
 | STR018 Quyền thấp | Task036 | Tài khoản `sqllens_user` cho mỗi phiên | Task034 | 2, xong |
 | STR016 Sandbox agent | Task035 | API tạo, chạy, hủy phiên, trần phiên, hết hạn | Task036 | 3, xong |
 | STR020 Kiểm tra bảo mật | Task037 | `security-audit` trước khi mở cổng cho Render | Task035 | 4, xong |
+| STR019 Nối vào sản phẩm | Task074 | Gin HTTPS ghim cert, xác thực token, hướng dẫn mở cổng | Task037 | 5, xong |
+| STR019 Nối vào sản phẩm | Task075 | Giao diện adapter MySQL, xử lý các trạng thái phiên | Task074 | 5, xong |
+| STR019 Nối vào sản phẩm | Task083 | Nghiệm thu kết nối mạng thật Render → Azure VM trên production | Task075 | 5A, xong |
 
 ## Các file bị đụng
 
