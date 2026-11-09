@@ -233,13 +233,13 @@ for (const l of ["vi", "en"] as const) {
       await expect(stage.getByTestId("plan-label")).toHaveAttribute("data-label", "estimated");
       expect(s.queries.some((q) => q.startsWith("EXPLAIN FORMAT=JSON SELECT * FROM users"))).toBe(true);
       await page.screenshot({ path: `${SHOTS}/1440-${l}-plan.png` });
-      for (const i of [2, 3, 4, 5]) {
+      for (const i of [4, 5]) {
         await stage.getByRole("tab", { name: t.tabs[i], exact: true }).click();
         await expect(stage.locator('[role="tabpanel"]:not([hidden])').getByTestId("stage-not-simulated")).toBeVisible();
       }
-      await stage.getByRole("tab", { name: t.tabs[2], exact: true }).click();
-      await expect(stage.getByTestId("stage-not-simulated").filter({ visible: true })).toContainText(t.noBtree);
-      await page.screenshot({ path: `${SHOTS}/1440-${l}-btree-chuamophong.png` });
+      // Tab 3 ("Thử sửa") của MySQL giờ đã hoạt động qua bảng shadow (Task085)
+      await stage.getByRole("tab", { name: t.tabs[3], exact: true }).click();
+      await expect(stage.getByTestId("whatif")).toBeVisible();
       await expect(page.locator("body")).not.toContainText(/thiết kế (này )?(đã )?ổn|design is (fine|ok|good)/i);
     });
 

@@ -331,10 +331,10 @@ function BTreeTab({
   );
 }
 
-// MySQL: B-Tree, Thử sửa, Capacity, Mentor chưa mô phỏng được. Lý do lấy từ adapter (btree, whatif) hoặc khóa riêng.
-function MysqlNotSim({ run, which }: { run: StageRun; which: "btree" | "whatif" | "capacity" | "mentor" }) {
+// MySQL: B-Tree, Capacity, Mentor chưa mô phỏng được. Lý do lấy từ adapter (btree) hoặc khóa riêng.
+function MysqlNotSim({ run, which }: { run: StageRun; which: "btree" | "capacity" | "mentor" }) {
   const r = useLoad<Outcome<never>>(true, `${run.id}:${which}`, async () =>
-    which === "btree" ? (await run.db.readBTree("")).model as Outcome<never> : which === "whatif" ? ((await run.db.tryChange("", "")) as Outcome<never>) : { kind: "not_simulated", reasonKey: `mysql.notSimulated.${which}` },
+    which === "btree" ? (await run.db.readBTree("")).model as Outcome<never> : { kind: "not_simulated", reasonKey: `mysql.notSimulated.${which}` },
   );
   if (!r) return <Loading />;
   return r.ok ? <OutcomeView o={r.v} render={() => null} /> : <Note tone="error">{errText(r.e)}</Note>;
@@ -562,7 +562,7 @@ export function Stage({
               {gated(
                 "whatif",
                 run ? (
-                  my ? <MysqlNotSim run={run} which="whatif" /> : <WhatIfTab run={run} />
+                  <WhatIfTab run={run} />
                 ) : working ? (
                   <Note>{t("working")}</Note>
                 ) : (

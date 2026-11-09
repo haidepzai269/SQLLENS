@@ -70,4 +70,35 @@ describe("compareFix", { timeout: 30_000 }, () => {
     expect(w.kind).toBe("conclusion");
     expect(await val(CHECKSUM)).toBe(sum);
   });
+
+  it("MySQL: chuẩn hóa đúng plan MySQL, rowsChanged là false khi rows_examined giảm", async () => {
+    const beforeStats = { rows: 2000, sharedHitBlocks: 0, sharedReadBlocks: 202, nodeTypes: ["ALL"] };
+    const afterStats = { rows: 1, sharedHitBlocks: 0, sharedReadBlocks: 1, nodeTypes: ["ref"] };
+    const mysqlBefore = { query_block: { select_id: 1, cost_info: { query_cost: "201.50" }, table: { table_name: "users", access_type: "ALL", rows_examined_per_scan: 2000 } } };
+    const mysqlAfter = { query_block: { select_id: 1, cost_info: { query_cost: "1.00" }, table: { table_name: "users", access_type: "ref", key: "idx_email", rows_examined_per_scan: 1 } } };
+
+    const mysqlAdapter = {
+      engine: "mysql" as const,
+      tryChange: async () => ({
+        kind: "conclusion" as const,
+        label: "real" as const,
+        evidence: [{ kind: "pages", messageKey: "tryChange.pagesBefore" }] as never,
+        data: {
+          before: beforeStats,
+          after: afterStats,
+          plans: { before: mysqlBefore, after: mysqlAfter },
+        },
+      }),
+    };
+
+    const res = await compareFix(mysqlAdapter, { change: "CREATE INDEX idx_email ON users(email)", probe: "SELECT * FROM users WHERE email = 'u5'" });
+    expect(res.kind).toBe("conclusion");
+    if (res.kind === "conclusion") {
+      expect(res.label).toBe("real");
+      expect(res.data.pagesChange).toBe("fewer");
+      expect(res.data.rowsChanged).toBe(false);
+      expect(res.data.before.plan.root.kind).toBe("seq_scan");
+      expect(res.data.after.plan.root.kind).toBe("index_scan");
+    }
+  });
 });

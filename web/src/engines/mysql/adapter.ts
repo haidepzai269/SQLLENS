@@ -5,6 +5,7 @@ import { readFailure, type Failure } from "@/modules/auth/api";
 import { normalizeMysql } from "@/modules/plan-runner/normalize";
 import { splitMysql } from "@/modules/sql-intake/parser/core";
 import { readMysqlBTree } from "./btree-builder";
+import { runMysqlWhatif } from "./whatif-shadow";
 
 // Gin chuyển tiếp tới sandbox agent (Task074). Phiên nằm ở agent; adapter chỉ giữ id.
 const BASE = "/api/mysql/sessions";
@@ -192,8 +193,8 @@ export function createMysqlAdapter(o: Options = {}): MysqlAdapter {
       // Số dòng là ước lượng của optimizer, câu chưa chạy: nhãn Ước lượng, không phải Thật.
       return { kind: "conclusion", label: "estimated", data: plan, evidence: [{ kind: "explain", messageKey: "mysql.explain.estimated" }] };
     },
-    async tryChange() {
-      return no("tryChange");
+    async tryChange(change, probe) {
+      return runMysqlWhatif((sql) => a.execute(sql, { internal: true }), change, probe);
     },
     async readBTree(index, options) {
       if (!index) return { model: no("empty") };

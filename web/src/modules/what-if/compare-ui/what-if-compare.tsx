@@ -7,7 +7,7 @@ import { SqlEditor } from "@/components/sql-editor/sql-editor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import type { EvidenceLabel, Outcome } from "@/contracts/conclusion";
-import { EngineError, type EngineAdapter } from "@/contracts/engine";
+import { EngineError, type EngineAdapter, type EngineId } from "@/contracts/engine";
 import type { WhatIfData, WhatIfSide } from "@/contracts/whatif";
 import { PlanTree } from "@/modules/plan-runner/plan-tree";
 import { compareFix } from "../compare/compare-fix";
@@ -48,7 +48,7 @@ function Column({ title, side, label, showRows }: { title: string; side: WhatIfS
   );
 }
 
-export function WhatIfCompare({ adapter, probe, initialChange = "" }: { adapter: Pick<EngineAdapter, "tryChange">; probe: string; initialChange?: string }) {
+export function WhatIfCompare({ adapter, probe, initialChange = "" }: { adapter: Pick<EngineAdapter, "tryChange"> & { engine?: EngineId }; probe: string; initialChange?: string }) {
   const t = useTranslations("whatIfUi");
   const tr = useTranslations() as unknown as (key: string, values?: Record<string, string | number>) => string; // khóa tryChange.*, whatIfCompare.*, guard.* do engine trả về
   const [change, setChange] = useState(initialChange);
@@ -107,7 +107,7 @@ export function WhatIfCompare({ adapter, probe, initialChange = "" }: { adapter:
               setChange(v);
               setEmpty(false);
             }}
-            engine="postgres"
+            engine={adapter.engine ?? "postgres"}
             error={errPos !== undefined ? { position: toEditorPos(change, errPos), message: state.phase === "failed" ? state.message : "" } : undefined}
             ariaLabel={t("editorLabel")}
           />
