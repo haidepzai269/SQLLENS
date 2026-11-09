@@ -13,7 +13,7 @@ Hợp đồng chung: `web/src/contracts/btree.ts` (`BTreeModel`, `BTreeNode`, `B
 | STR036 Key rơi | Task045 | Key rơi từng bước, tua lại, câu giải thích. Gắn vào vùng `stage` ở task sau | Task039, Task040 | 2, xong |
 | STR037 Range scan và khác biệt engine | Task072 | | STR036 | 3 |
 | STR038 Cuộc đua và cây tối | Task078 | Seq Scan đua với Index Scan bằng số dòng/trang; cây tối khi không dùng index | STR036, SP007 STR029 | 3 |
-| STR034 Dựng cây MySQL | chưa chia | | SP004 STR019 | sau |
+| STR034 Dựng cây MySQL | Task084 | Dựng cây B-Tree InnoDB từ dữ liệu thật và stats, rơi key 2 lần Bookmark Lookup | SP004 STR019 | 5B, xong |
 
 ## Các file bị đụng
 
