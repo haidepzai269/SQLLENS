@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { ConclusionBadge } from "@/components/ui/conclusion-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { EvidenceLabel, Outcome } from "@/contracts/conclusion";
 import { EngineError, type EngineAdapter } from "@/contracts/engine";
@@ -32,14 +33,10 @@ type Status =
 type Check = { key: string; result: Outcome<unknown> | { kind: "failed"; message: string } };
 
 function Tag({ label, text }: { label: EvidenceLabel; text: string }) {
-  const cls =
-    label === "real"
-      ? "bg-label-real text-label-real-foreground"
-      : "border border-dashed border-label-estimated italic text-foreground";
   return (
-    <span data-testid="capacity-label" data-label={label} className={`inline-flex h-6 items-center rounded-[2px] px-2 text-xs ${cls}`}>
+    <ConclusionBadge label={label} testId="capacity-label" className="h-6">
       {text}
-    </span>
+    </ConclusionBadge>
   );
 }
 

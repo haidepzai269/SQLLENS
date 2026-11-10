@@ -5,6 +5,7 @@ import { Background, BackgroundVariant, Handle, Position, ReactFlow, ReactFlowPr
 import { useFormatter, useTranslations } from "next-intl";
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ConclusionBadge } from "@/components/ui/conclusion-badge";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useSpacePan } from "@/lib/space-pan";
 import type { EvidenceLabel } from "@/contracts/conclusion";
@@ -46,14 +47,8 @@ function readStored(narrow: boolean, sig: string): Record<string, Pos> {
 }
 
 function Badge({ label, text }: { label: EvidenceLabel; text: string }) {
-  const cls =
-    label === "real"
-      ? "bg-label-real text-label-real-foreground"
-      : label === "simulated"
-        ? "border border-label-simulated text-white"
-        : "border border-dashed border-label-estimated italic text-white";
   return (
-    <span data-testid="plan-label" data-label={label} className={`inline-flex h-5 items-center gap-1 rounded-[2px] px-[7px] text-xs ${cls}`}>
+    <ConclusionBadge label={label} testId="plan-label" className="inline-flex gap-1">
       <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" fill="currentColor" stroke="currentColor">
         {label === "real" && <circle cx="5" cy="5" r="4" />}
         {label === "simulated" && (
@@ -65,7 +60,7 @@ function Badge({ label, text }: { label: EvidenceLabel; text: string }) {
         {label === "estimated" && <path d="M0 3.5q1.25-2 2.5 0t2.5 0 2.5 0 2.5 0M0 7q1.25-2 2.5 0t2.5 0 2.5 0 2.5 0" fill="none" />}
       </svg>
       {text}
-    </span>
+    </ConclusionBadge>
   );
 }
 

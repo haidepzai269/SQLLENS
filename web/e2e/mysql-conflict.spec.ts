@@ -179,10 +179,13 @@ for (const l of ["vi", "en"] as const) {
         await scenarioSelect.selectOption("bank_transfer_deadlock");
 
         const nextBtn = page.getByTestId("cf-next");
+        await expect(nextBtn).toBeEnabled();
 
         // Chạy 6 bước để gây Deadlock
         for (let i = 0; i < 6; i++) {
+          await expect(nextBtn).toBeEnabled();
           await nextBtn.click();
+          await expect(page.getByTestId("cf-position")).toContainText(`${i + 1}`);
         }
 
         // Đồ thị Cytoscape đánh dấu cycle = true (đổi màu đỏ rực)
@@ -223,9 +226,15 @@ for (const l of ["vi", "en"] as const) {
 
         // Bấm Next kiểm tra câu lệnh mang FOR UPDATE
         const nextBtn = page.getByTestId("cf-next");
+        await expect(nextBtn).toBeEnabled();
         await nextBtn.click(); // Step 1: BEGIN
+        await expect(page.getByTestId("cf-position")).toContainText("1");
+        await expect(nextBtn).toBeEnabled();
         await nextBtn.click(); // Step 2: BEGIN
+        await expect(page.getByTestId("cf-position")).toContainText("2");
+        await expect(nextBtn).toBeEnabled();
         await nextBtn.click(); // Step 3: SELECT ... FOR UPDATE
+        await expect(page.getByTestId("cf-position")).toContainText("3");
         await expect(page.getByTestId("tick-sql-2")).toContainText("FOR UPDATE");
 
         // Nút Reset hoạt động

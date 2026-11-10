@@ -4,9 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { ConclusionBadge } from "@/components/ui/conclusion-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { isApiError } from "@/contracts/api-error";
-import type { EvidenceLabel } from "@/contracts/conclusion";
 import type { EngineAdapter, TryChangeResult } from "@/contracts/engine";
 import type { EvidencePack, MentorRequest } from "@/contracts/mentor";
 import type { Plan, PlanNode } from "@/contracts/plan";
@@ -322,12 +322,6 @@ function FailView({ fail, onLogin }: { fail: Fail; onLogin: () => void }) {
   );
 }
 
-const LABEL_CLS: Record<EvidenceLabel, string> = {
-  real: "bg-label-real text-label-real-foreground",
-  simulated: "border border-label-simulated text-white",
-  estimated: "border border-dashed border-label-estimated italic text-white",
-};
-
 // Nội dung AI luôn là text node: không dangerouslySetInnerHTML, không Markdown, không thẻ a.
 function Parts({ turn, tr, probe, onApply }: { turn: Turn; tr: Tr; probe?: string; onApply: (a: Applied) => void }) {
   const t = useTranslations("mentor");
@@ -366,9 +360,7 @@ function Parts({ turn, tr, probe, onApply }: { turn: Turn; tr: Tr; probe?: strin
         return (
           <div key={i} className="flex min-w-0 flex-col gap-1 border border-line p-2" data-testid="mentor-sql-ok">
             <div className="flex flex-wrap items-center gap-2">
-              <span data-testid="mentor-label" data-label={outcome.label} className={`inline-flex h-5 items-center rounded-[2px] px-[7px] text-xs ${LABEL_CLS[outcome.label]}`}>
-                {t(`label.${outcome.label}`)}
-              </span>
+              <ConclusionBadge label={outcome.label} testId="mentor-label" />
               <span className="text-xs text-ink2">{t("ranHere")}</span>
             </div>
             <pre className="m-0 max-w-full overflow-x-auto text-sm"><code className="font-mono">{p.sql}</code></pre>

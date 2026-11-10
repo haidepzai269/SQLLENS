@@ -29,32 +29,31 @@ const BADGE_STYLES: Record<ConclusionLabelType, string> = {
 export function ConclusionBadge({
   label,
   note,
+  children,
   className,
   testId = "conclusion-badge",
   ...props
 }: ConclusionBadgeProps) {
-  const t = useTranslations("common.conclusionLabels");
-
-  const labelTexts: Record<ConclusionLabelType, { name: string; tooltip: string }> = {
-    real: {
-      name: t("real.name"),
-      tooltip: note ?? t("real.tooltip"),
-    },
-    simulated: {
-      name: t("simulated.name"),
-      tooltip: note ?? t("simulated.tooltip"),
-    },
-    estimated: {
-      name: t("estimated.name"),
-      tooltip: note ?? t("estimated.tooltip"),
-    },
-    not_simulated: {
-      name: t("not_simulated.name"),
-      tooltip: note ?? t("not_simulated.tooltip"),
-    },
-  };
-
-  const current = labelTexts[label];
+  let current: { name: string; tooltip: string };
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const t = useTranslations("common.conclusionLabels");
+    current = {
+      name: t(`${label}.name`),
+      tooltip: note ?? t(`${label}.tooltip`),
+    };
+  } catch {
+    const DEFAULTS: Record<ConclusionLabelType, { name: string; tooltip: string }> = {
+      real: { name: "Thật", tooltip: "Phản ứng vật lý của database" },
+      simulated: { name: "Mô phỏng", tooltip: "Tính toán từ mô hình" },
+      estimated: { name: "Ước lượng", tooltip: "Ngoại suy" },
+      not_simulated: { name: "Chưa mô phỏng được", tooltip: "Chưa đủ dữ kiện" },
+    };
+    current = {
+      name: DEFAULTS[label]?.name ?? label,
+      tooltip: note ?? DEFAULTS[label]?.tooltip ?? "",
+    };
+  }
 
   return (
     <TooltipProvider delay={100}>

@@ -28,7 +28,7 @@
     },
     "whatif": {
       "title": "Thử sửa kịch bản giả lập (What-If)",
-      "desc": "Thử nghiệm thêm hoặc đổi chỉ mục trong môi trường giả lập an toàn để đo lường mức độ tối ưu trước khi áp dụng."
+      "desc": "Thử nghiệm thêm hoặc đổi chỉ mục trong môi trường giả lập an toàn để so sánh số trang đọc và chi phí thực thi trước khi áp dụng."
     },
     "capacity": {
       "title": "Dự báo quy mô & dung lượng (Capacity)",
@@ -36,7 +36,7 @@
     },
     "mentor": {
       "title": "Trợ lý AI phân tích hiệu năng (Mentor)",
-      "desc": "Nhận phân tích chuyên sâu và khuyến nghị tối ưu hóa truy vấn dựa trên bằng chứng plan thực nghiệm."
+      "desc": "Nhận phân tích chuyên sâu và khuyến nghị điều chỉnh truy vấn dựa trên bằng chứng plan thực nghiệm."
     }
   },
   "errorBoundary": {

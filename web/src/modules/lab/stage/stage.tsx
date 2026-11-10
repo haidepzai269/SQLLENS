@@ -8,6 +8,7 @@ import { StageErrorBoundary } from "@/components/error-boundary";
 import { Tip } from "@/components/shell/tip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { ConclusionBadge } from "@/components/ui/conclusion-badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -109,9 +110,12 @@ function OutcomeView<T>({ o, render }: { o: Outcome<T>; render: (c: Conclusion<T
   const tr = useTranslations() as unknown as (key: string, values?: Record<string, string | number>) => string;
   if (o.kind === "not_simulated")
     return (
-      <Note>
-        <span data-testid="stage-not-simulated">{tr(o.reasonKey)}</span>
-      </Note>
+      <div className="flex flex-col gap-2">
+        <ConclusionBadge label="not_simulated" testId="stage-label" className="self-start" />
+        <Note>
+          <span data-testid="stage-not-simulated">{tr(o.reasonKey)}</span>
+        </Note>
+      </div>
     );
   return (
     <>
@@ -127,7 +131,6 @@ function OutcomeView<T>({ o, render }: { o: Outcome<T>; render: (c: Conclusion<T
 
 function SchemaTab({ run, on, focus }: { run: StageRun; on: boolean; focus?: { table: string; nonce: number } }) {
   const t = useTranslations("labStage");
-  const tl = useTranslations("lab");
   const my = run.db.engine === "mysql";
   const r = useLoad(on, `${run.id}`, async () => {
     const res = (await run.db.execute(my ? MYSQL_SCHEMA_QUERY : STAGE_SCHEMA_QUERY, { internal: true }))[0] ?? { columns: [], rows: [] };
@@ -140,9 +143,7 @@ function SchemaTab({ run, on, focus }: { run: StageRun; on: boolean; focus?: { t
   if (!tables.length) return <Note>{t("schema.none")}</Note>;
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      <span className="self-start rounded-[2px] bg-label-real px-[7px] text-xs leading-5 text-label-real-foreground" data-testid="stage-label">
-        {tl("label.real")}
-      </span>
+      <ConclusionBadge label="real" testId="stage-label" className="self-start" />
       <p className="m-0 text-sm" data-testid="stage-evidence">{t("schema.evidence", { count: tables.length })}</p>
       <SchemaDiagram tables={tables} focus={focus} />
     </div>

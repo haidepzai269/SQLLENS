@@ -28,7 +28,7 @@
     },
     "whatif": {
       "title": "What-If Index Experiment",
-      "desc": "Experiment with creating or modifying indexes in a safe sandbox to measure optimization gains before applying."
+      "desc": "Experiment with creating or modifying indexes in a safe sandbox to compare read pages and execution cost before applying."
     },
     "capacity": {
       "title": "Capacity & Scaling Advisor",
@@ -36,7 +36,7 @@
     },
     "mentor": {
       "title": "AI Performance Mentor",
-      "desc": "Receive in-depth analysis and query optimization recommendations grounded in verifiable plan evidence."
+      "desc": "Receive in-depth analysis and query recommendations grounded in verifiable plan evidence."
     }
   },
   "errorBoundary": {

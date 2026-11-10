@@ -4,7 +4,7 @@ import { CircleDot, OctagonX, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { ConclusionBadge } from "@/components/ui/conclusion-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Severity } from "@/contracts/finding";
@@ -107,7 +107,11 @@ export function FindingsPanel({
                     <span className="flex flex-wrap items-center gap-2">
                       <Icon className="size-4 shrink-0" aria-hidden />
                       <span className="text-xs font-semibold" data-testid="finding-severity">{t(c ? `severity.${sev}` : "severity.not_simulated")}</span>
-                      {c && <Badge variant="outline" data-testid="finding-label">{tr(`lab.label.${c.label}`)}</Badge>}
+                      {c ? (
+                        <ConclusionBadge label={c.label} testId="finding-label" />
+                      ) : (
+                        <ConclusionBadge label="not_simulated" testId="finding-label" />
+                      )}
                     </span>
                     <span className="break-words">{tr(h.messageKey, h.values)}</span>
                   </button>
