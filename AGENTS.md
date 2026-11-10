@@ -4,7 +4,7 @@
 Chi tiết số đo kiểm chứng thực nghiệm đầy đủ xem tại [CLAUDE.md](file:///c:/SQLLens/CLAUDE.md).
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
-- **Giai đoạn hiện tại:** Đã chốt 14 Epic và 64 Story (`_bmad-output/BAN_DO_STORY.md`). SP001 - SP013 hoàn thành 100%. Bổ sung và hoàn tất toàn diện SP999/STR063 (Auth Shield: Task087, Task088, Task089 - bảo vệ 3 tầng connection pool Neon Postgres). Đã bàn giao Task090 (Header SQL cố định, nút Play SVG, vi tương tác debounce tooltip). Đã bàn giao Task091 (Hợp đồng kiểu ErrorRemediation & Postgres Heuristic Matcher nhận diện 10 mã lỗi thực chiến theo nguyên tắc Raw Error First). Tổng cộng đã bàn giao 86 task, hoàn tất 100% Release Checklist V1 và đang phát triển Epic SP014 (Smart Error Helper & Quick-Fix).
+- **Giai đoạn hiện tại:** Đã chốt 14 Epic và 64 Story (`_bmad-output/BAN_DO_STORY.md`). SP001 - SP013 hoàn thành 100%. Bổ sung và hoàn tất toàn diện SP999/STR063 (Auth Shield: Task087, Task088, Task089 - bảo vệ 3 tầng connection pool Neon Postgres). Đã bàn giao Task090 (Header SQL cố định, nút Play SVG, vi tương tác debounce tooltip). Đã hoàn tất chuỗi Epic SP014 Smart Error Helper & Quick-Fix: Task091 (Postgres Matcher), Task093 (SmartErrorCard UI 1-Click & MySQL Matcher), Task095 (Gin AI Error Diagnosis endpoint). Tổng cộng đã bàn giao 88 task, hoàn tất 100% Release Checklist V1 cùng tính năng trợ lý lỗi thực chiến.
 - **Mục tiêu trước mắt:** Xem `_bmad-output/MUC_TIEU_TRUOC_MAT.md` và `RELEASE_CHECKLIST_V1.md` (toàn bộ luồng PostgreSQL + MySQL production an toàn, bảo mật, sẵn sàng công bố).
 - **Key bên thứ 3:** Danh sách ở `KEY_CAN_LAY.md` (gitignored). Không bao giờ commit secret lên git.
 
