@@ -642,7 +642,15 @@ export function LabWorkspace() {
           )}
           {state.phase === "sql_error" && (
             <div data-testid="error">
-              <SqlErrorView message={state.message} position={state.position} sql={state.sql} title={mysql ? tm("sqlErrorTitle") : undefined} />
+              <SqlErrorView
+                message={state.message}
+                position={state.position}
+                sql={state.sql}
+                title={mysql ? tm("sqlErrorTitle") : undefined}
+                engine={engine}
+                onApplyFix={(newSql) => setSql(newSql)}
+                onRebuild={rebuild}
+              />
             </div>
           )}
           {state.phase === "guard_error" && (

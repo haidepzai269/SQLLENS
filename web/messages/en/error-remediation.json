@@ -10,6 +10,7 @@
     "in_failed_sql_transaction": "Transaction Aborted",
     "invalid_text_representation": "Invalid Data Type Representation",
     "dependent_objects_still_exist": "Dependent Objects Still Exist",
+    "data_too_long": "Data Too Long for Column",
     "unknown_error": "SQL Execution Error"
   },
   "explanations": {
@@ -23,6 +24,7 @@
     "in_failed_sql_transaction": "The current transaction has been aborted because a previous command failed. All subsequent commands are ignored until the transaction block ends.",
     "invalid_text_representation": "Value \"{value}\" cannot be converted into data type \"{type}\".",
     "dependent_objects_still_exist": "Table \"{table}\" is referenced by other database objects (such as foreign keys or views). Use CASCADE to drop the table and its dependencies.",
+    "data_too_long": "The value inserted into column \"{column}\" exceeds the defined column length (e.g. VARCHAR overflow). Shorten the data or expand the column definition.",
     "unknown_error": "The SQL statement encountered an execution error. Inspect the raw engine message below for details."
   },
   "root_cause_hints": {
@@ -34,5 +36,21 @@
     "add_on_conflict_do_nothing": "Add ON CONFLICT DO NOTHING",
     "add_cascade": "Add CASCADE to DROP statement",
     "rebuild_sandbox": "Rebuild Clean Sandbox"
+  },
+  "ui": {
+    "console_title": "Console Error Output",
+    "tab_raw": "Raw Error",
+    "tab_explanation": "Explanation",
+    "quick_fix_title": "1-Click Quick-Fix Suggestions",
+    "ask_ai": "Ask AI Mentor about this error",
+    "root_cause_label": "Root cause:",
+    "category": {
+      "schema": "Schema",
+      "integrity": "Integrity",
+      "datatype": "Datatype",
+      "syntax": "Syntax",
+      "transaction": "Transaction",
+      "other": "Other"
+    }
   }
 }

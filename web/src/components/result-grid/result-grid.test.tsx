@@ -3,12 +3,21 @@ import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, test } from "vitest";
 import messages from "../../../messages/en/result.json";
+import remediationMessages from "../../../messages/en/error-remediation.json";
 import { formatCell } from "./format-cell";
 import { ResultGrid } from "./result-grid";
 import { locateError, SqlErrorView } from "./sql-error-view";
 
 afterEach(cleanup);
-const wrap = (ui: ReactNode) => render(<NextIntlClientProvider locale="en" messages={{ result: messages }}>{ui}</NextIntlClientProvider>);
+const wrap = (ui: ReactNode) =>
+  render(
+    <NextIntlClientProvider
+      locale="en"
+      messages={{ result: messages, "error-remediation": remediationMessages }}
+    >
+      {ui}
+    </NextIntlClientProvider>,
+  );
 
 describe("formatCell", () => {
   test.each([

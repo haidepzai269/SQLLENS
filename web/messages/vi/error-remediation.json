@@ -10,6 +10,7 @@
     "in_failed_sql_transaction": "Transaction đã bị hủy",
     "invalid_text_representation": "Dữ liệu không đúng định dạng kiểu",
     "dependent_objects_still_exist": "Không thể xóa bảng vì có đối tượng phụ thuộc",
+    "data_too_long": "Dữ liệu vượt quá độ dài cột",
     "unknown_error": "Lỗi thực thi SQL"
   },
   "explanations": {
@@ -23,6 +24,7 @@
     "in_failed_sql_transaction": "Khối transaction hiện tại đã bị hủy do một câu lệnh trước đó gặp lỗi. Mọi câu lệnh tiếp theo sẽ bị bỏ qua cho tới khi kết thúc transaction block.",
     "invalid_text_representation": "Giá trị \"{value}\" không thể chuyển đổi thành kiểu dữ liệu \"{type}\".",
     "dependent_objects_still_exist": "Bảng \"{table}\" đang được tham chiếu bởi các đối tượng khác (như khóa ngoại hoặc view). Dùng CASCADE để xóa bảng kèm theo các phụ thuộc liên quan.",
+    "data_too_long": "Giá trị đưa vào cột \"{column}\" dài hơn kích thước khai báo (ví dụ vượt quá độ dài VARCHAR). Hãy rút ngắn dữ liệu hoặc tăng độ dài cột.",
     "unknown_error": "Câu lệnh SQL gặp lỗi khi thực thi. Hãy kiểm tra thông báo lỗi gốc bên dưới để biết thêm chi tiết."
   },
   "root_cause_hints": {
@@ -34,5 +36,21 @@
     "add_on_conflict_do_nothing": "Thêm ON CONFLICT DO NOTHING",
     "add_cascade": "Thêm CASCADE vào câu lệnh DROP",
     "rebuild_sandbox": "Khởi động lại Sandbox sạch"
+  },
+  "ui": {
+    "console_title": "Bản ghi lỗi Console",
+    "tab_raw": "Nguyên bản",
+    "tab_explanation": "Dịch nghĩa tiếng Việt",
+    "quick_fix_title": "Gợi ý sửa nhanh (1-Click)",
+    "ask_ai": "Hỏi AI Mentor về lỗi này",
+    "root_cause_label": "Nguyên nhân gốc rễ:",
+    "category": {
+      "schema": "Cấu trúc (Schema)",
+      "integrity": "Toàn vẹn (Integrity)",
+      "datatype": "Kiểu dữ liệu (Datatype)",
+      "syntax": "Cú pháp (Syntax)",
+      "transaction": "Giao dịch (Transaction)",
+      "other": "Khác"
+    }
   }
 }
