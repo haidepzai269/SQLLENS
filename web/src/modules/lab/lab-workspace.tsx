@@ -122,7 +122,6 @@ export function LabWorkspace() {
   const [schemaError, setSchemaError] = useState<string | undefined>();
   const applied = useRef<string | null>(null); // sql đã được tạo schema xong, chạy lại không hỏi nữa
   const runBtn = useRef<HTMLButtonElement | null>(null);
-  const [showRunTip, setShowRunTip] = useState(false);
   const tin = useTranslations("sql-intake");
   const [selected, setSelected] = useState(0);
   const [pendingSample, setPendingSample] = useState<string | null>(null);
@@ -390,7 +389,6 @@ export function LabWorkspace() {
   }
 
   async function onRun() {
-    setShowRunTip(false);
     if (busy.current || (confirmOpen && dialogOn)) return;
     busy.current = true; // chặn bấm đúp trong lúc parse
     let ask = false;
@@ -463,39 +461,14 @@ export function LabWorkspace() {
       ? { from: focus.start, to: focus.end, nonce: focus.nonce }
       : undefined;
   const loadSample = (text: string) => {
-    setShowRunTip(false);
     if (sql.trim() === "" || sql === text) setSql(text);
     else setPendingSample(text);
   };
   const canRun = sql.trim() !== "" && !working && !(confirmOpen && dialogOn) && state.phase !== "stopped" && !(mysql && authStatus !== "user");
   const handleEditorRun = () => {
-    setShowRunTip(false);
     if (canRun) void onRun();
   };
-  const handleSqlChange = (val: string) => {
-    setShowRunTip(false);
-    setSql(val);
-  };
 
-  // Debounce tooltip "Ấn để chạy" khi người dùng dừng gõ SQL (Task090 AC4)
-  useEffect(() => {
-    if (sql.trim() === "" || !canRun) return;
-    const timer = setTimeout(() => {
-      setShowRunTip(true);
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [sql, canRun]);
-
-  // Tự động tắt sau 3500ms nếu người dùng không thao tác
-  useEffect(() => {
-    if (!showRunTip) return;
-    const timer = setTimeout(() => {
-      setShowRunTip(false);
-    }, 3500);
-    return () => clearTimeout(timer);
-  }, [showRunTip]);
-
-  const activeRunTip = showRunTip && canRun;
   const sqlLabel = mysql ? tm("sqlLabel") : t("sqlLabel");
   const sqlHeaderRight = (
     <div className="flex items-center gap-1.5">
@@ -511,14 +484,7 @@ export function LabWorkspace() {
           {authStatus === "anon" && <Lock className="h-3.5 w-3.5" aria-hidden />}
         </Button>
       </Tip>
-      <Tip
-        label={activeRunTip ? ts("tip.clickToRun") : ts("tip.run")}
-        side="bottom"
-        open={activeRunTip ? true : undefined}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen && showRunTip) setShowRunTip(false);
-        }}
-      >
+      <Tip label={ts("tip.run")} side="bottom">
         <Button
           ref={runBtn}
           size="sm"
@@ -537,7 +503,7 @@ export function LabWorkspace() {
     <Pane title={ts("tab.sql")} headerRight={sqlHeaderRight}>
       <span className="text-sm font-medium">{sqlLabel}</span>
       <div className="h-56 border border-line" id="sql-input">
-        <SqlEditor value={sql} onChange={handleSqlChange} engine={engine} error={editorError} highlight={highlight} ariaLabel={sqlLabel} onRun={handleEditorRun} />
+        <SqlEditor value={sql} onChange={setSql} engine={engine} error={editorError} highlight={highlight} ariaLabel={sqlLabel} onRun={handleEditorRun} />
       </div>
       {sql.trim() === "" && (
         <div className="flex flex-col items-start gap-2">
@@ -550,7 +516,7 @@ export function LabWorkspace() {
         <div role="alertdialog" aria-label={t("sampleAsk")} className="flex flex-col items-start gap-2 border border-line p-2 text-sm">
           <p>{t("sampleAsk")}</p>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => (setShowRunTip(false), setSql(pendingSample), setPendingSample(null))}>
+            <Button size="sm" onClick={() => (setSql(pendingSample), setPendingSample(null))}>
               {t("sampleReplace")}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setPendingSample(null)}>

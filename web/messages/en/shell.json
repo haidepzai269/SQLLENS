@@ -52,7 +52,7 @@
     "signIn": "Sign in with Google or GitHub to use MySQL and the AI Mentor.",
     "account": "Open the account menu, which has the sign-out button.",
     "sample": "Fill the editor with a sample SQL so you can try it right away.",
-    "run": "Split the SQL into statements and run them one by one on PostgreSQL in your browser. Results show in the terminal and the simulation area.",
+    "run": "Split the SQL into statements and run them one by one (Ctrl + Enter). Results show in the terminal and simulation area.",
     "generate": "Create fake rows for the tables you just made, to try with more data.",
     "clickToRun": "Click to run",
     "tab": {

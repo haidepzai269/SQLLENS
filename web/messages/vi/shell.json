@@ -52,7 +52,7 @@
     "signIn": "Đăng nhập bằng Google hoặc GitHub để dùng MySQL và AI Mentor.",
     "account": "Mở menu tài khoản, có nút đăng xuất.",
     "sample": "Điền một câu SQL mẫu vào ô để thử ngay, không cần tự viết.",
-    "run": "Tách SQL thành từng câu rồi chạy lần lượt trên PostgreSQL trong trình duyệt. Kết quả hiện ở terminal và vùng mô phỏng.",
+    "run": "Tách SQL thành từng câu rồi chạy lần lượt (Ctrl + Enter). Kết quả hiện ở terminal và vùng mô phỏng.",
     "generate": "Tạo dòng dữ liệu giả cho các bảng vừa tạo, để thử với nhiều dòng hơn.",
     "clickToRun": "Ấn để chạy",
     "tab": {
