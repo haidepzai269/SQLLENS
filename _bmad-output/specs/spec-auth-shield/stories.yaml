@@ -1,0 +1,36 @@
+- id: "1"
+  title: "Ký số Session Cookie bằng HMAC-SHA256 và xác thực ngay tại RAM của Gin"
+  description: >-
+    Cấp phát cookie sid theo định dạng raw_token.hmac_signature sử dụng SESSION_SECRET.
+    Middleware requireUser xác thực chữ ký HMAC trong RAM (< 0.1ms); từ chối 401 ngay lập
+    tức mọi sid sai hoặc rác mà không chạm vào Neon Postgres (CAP-1).
+  spec_checkpoint: true
+  invoke_dev_with: >-
+    Sử dụng crypto/hmac và crypto/subtle.ConstantTimeCompare trong Go. Đảm bảo cấu trúc
+    bảng sessions trên Neon giữ nguyên (vẫn lưu SHA-256 của raw_token). Viết unit test
+    phủ 100% các trường hợp sid hợp lệ, sai chữ ký, thiếu chữ ký, và token rác.
+
+- id: "2"
+  title: "Redis Atomic Abuse Gatekeeper bằng Lua Script trên Upstash"
+  description: >-
+    Triển khai Lua script nguyên tử trên Upstash Redis theo dõi số lần gửi sid lỗi theo IP.
+    Tự động kích hoạt trạng thái tạm khóa (Ban 15 phút) khi một IP vi phạm quá 10 lần/phút;
+    trả về mã 429 Too Many Requests kèm Retry-After trước khi vào handler (CAP-2).
+  spec_checkpoint: true
+  invoke_dev_with: >-
+    Sử dụng package quota và Upstash REST client hiện có. Lua script phải đảm bảo tính
+    nguyên tử và server-side TTL. Trích xuất Client IP an toàn từ X-Forwarded-For sau
+    proxy tin cậy của Vercel/Render.
+
+- id: "3"
+  title: "Local Fast-Path Ban Cache trong RAM, xử lý chuyển tiếp phiên và Benchmark tải"
+  description: >-
+    Xây dựng cache bộ nhớ cục bộ (TTL 60s) cho danh sách IP bị ban để loại bỏ gọi Upstash REST
+    cho các IP đang bị phạt (CAP-3). Xử lý chuyển tiếp mượt mà các session cũ (CAP-4) và viết
+    kịch bản kiểm thử tải mô phỏng 2.000 req/s chứng minh Neon giữ 0 active connection.
+  spec_checkpoint: true
+  invoke_dev_with: >-
+    Sử dụng sync.Map hoặc thread-safe LRU cache trong Gin. Viết test benchmark tải bằng Go
+    httptest đo đạc số kết nối Postgres không tăng khi bị spam sid rác. Đảm bảo i18n
+    thông báo lỗi trên frontend rõ ràng khi nhận 429 hoặc 401.
+
