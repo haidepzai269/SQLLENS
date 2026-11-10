@@ -4,8 +4,8 @@
 Chi tiết số đo kiểm chứng thực nghiệm đầy đủ xem tại [CLAUDE.md](file:///c:/SQLLens/CLAUDE.md).
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
-- **Giai đoạn hiện tại:** Đã chốt 13 Epic và 61 Story (`_bmad-output/BAN_DO_STORY.md`). SP001, SP002, SP003, SP004, SP005, SP006, SP007, SP008, SP009, SP010, SP011 (hoàn thành 100%), SP012 (PostgreSQL xong), SP013 (Task080, Task081 xong). Đã bàn giao 80 task, hoàn tất 59/61 Story (96.7%). Mục tiêu số 1 tiếp theo là Đợt 4C (Task082: Security Audit & chốt release V1).
-- **Mục tiêu trước mắt:** Xem `_bmad-output/MUC_TIEU_TRUOC_MAT.md` (hoàn tất luồng PostgreSQL trọn vẹn trên production có Auth + AI, sau đó đến MySQL).
+- **Giai đoạn hiện tại:** Đã chốt 13 Epic và 61 Story (`_bmad-output/BAN_DO_STORY.md`). SP001, SP002, SP003, SP004, SP005, SP006, SP007, SP008, SP009, SP010, SP011, SP012 (PostgreSQL xong), SP013 (hoàn thành 100%). Đã bàn giao 81 task, hoàn tất 60/61 Story (98.4%). Đã hoàn thành Đợt 4C (Task082: Security Audit toàn diện, rà soát 100% nhãn kết luận, quét secret & Chốt Release Checklist V1). SQLLens V1 CHÍNH THỨC SẴN SÀNG PHÁT HÀNH!
+- **Mục tiêu trước mắt:** Xem `_bmad-output/MUC_TIEU_TRUOC_MAT.md` và `RELEASE_CHECKLIST_V1.md` (toàn bộ luồng PostgreSQL + MySQL production an toàn, bảo mật, sẵn sàng công bố).
 - **Key bên thứ 3:** Danh sách ở `KEY_CAN_LAY.md` (gitignored). Không bao giờ commit secret lên git.
 
 ---

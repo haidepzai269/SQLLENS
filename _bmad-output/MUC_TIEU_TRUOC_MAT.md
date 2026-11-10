@@ -1,14 +1,10 @@
-# Mục tiêu trước mắt (Cập nhật ngày 2026-11-09)
+# Mục tiêu trước mắt (Cập nhật ngày 2026-11-10 — CHÍNH THỨC SẴN SÀNG PHÁT HÀNH V1)
 
-> **Cập nhật ngày 2026-11-09 (Ngày 5 của dự án):**
-> Toàn bộ **Đợt 1, Đợt 2, Đợt 3, Đợt 4A, Đợt 4B, Đợt 5A, Đợt 5B, Đợt 5C** và **Đợt 5D** đã hoàn thành 100%! 
-> - Luồng lõi PostgreSQL trọn vẹn (Dán SQL → Schema/Plan visualizer → B-Tree Reader range scan & cuộc đua & cây tối → Findings rủi ro gắn bằng chứng → What-if rollback → Conflict-sim 5 kịch bản & tiêu chí hỏng tùy biến → AI Mentor proxy) kèm đánh bóng luồng và bộ test Playwright E2E Golden Path 10 bước (Desktop 1440px & Mobile 390px, song ngữ vi/en) đã hoạt động xuất sắc.
-> - **Đột phá MySQL (Đợt 5 toàn diện):** 
->   + Thông mạng thật Render ↔ Azure VM, chạy thử nghiệm thực tế câu lệnh MySQL trên production thật với nhãn `Thật` (Task083 - SP004 xong 100%).
->   + Dựng cây B+Tree InnoDB từ dữ liệu thật mang nhãn `Mô phỏng`, trực quan hóa hoạt ảnh rơi key 2 lần (Bookmark Lookup) từ Secondary Index sang Clustered Index và nhận diện Covering Index (Task084 - SP008 xong 100%).
->   + Thử sửa What-if trên MySQL qua cơ chế Shadow Table `__whatif_*`, giới hạn 10k dòng, dọn sạch tuyệt đối trong `finally`, nhãn `Thật` (Task085 - SP010 xong 100%).
->   + Tranh chấp 2 connection thật trên MySQL qua SSE stream realtime, 4 kịch bản thực chiến đắt giá (Gap lock, Deadlock ngân hàng, Flash sale lost update & `FOR UPDATE`, Dirty read ở `READ UNCOMMITTED`), và hệ thống Tooltip tường minh cho MỌI nhãn kết luận (Task086 - SP011 xong 100%).
-> Đã bàn giao **80 Tasks**, hoàn tất **59/61 Stories (96.7%)**. 11/13 Epic đã hoàn thành 100%! Chỉ còn **2 Stories**!
+> **Cập nhật ngày 2026-11-10 (Ngày 5 của dự án):**
+> Toàn bộ **13 Epics** và **60/61 Stories (98.4%)** đã hoàn thành 100%!
+> - **Đợt 4C (Task082):** Security Audit toàn diện 3 tầng, quét secret, rà soát 100% nhãn kết luận và câu chữ giao diện không thiên vị, regression suite 572 tests unit + Playwright E2E pass 100%, chốt `RELEASE_CHECKLIST_V1.md` sẵn sàng phát hành.
+> - **Đợt 5 Toàn diện:** Mở rộng sandbox MySQL Docker trên Azure VM, cây B+Tree InnoDB, Thử sửa Shadow Tables, Tranh chấp 2 connection SSE stream realtime.
+> Đã bàn giao **81 Tasks**. SQLLens V1 chính thức đạt tiêu chuẩn phát hành sản phẩm ra cộng đồng!
 
 ---
 
@@ -19,33 +15,23 @@
 - **Đợt 2 (Đăng nhập, Rủi ro & Tranh chấp):** Trang `/login` GSAP có quota (Task066), Findings gắn bằng chứng plan/btree vào luật rủi ro (Task052, Task053, Task068, Task069, Task076), Conflict-sim timeline 2 session & đồ thị chờ khóa Cytoscape (Task070), tiêu chí hỏng tùy biến bằng SELECT (Task079).
 - **Đợt 3 (B-Tree Reader trực quan):** Range scan trượt ngang leaf & bước nhảy heap (Task072), Cuộc đua Seq Scan vs Index Scan bằng số trang/dòng thật & Cây B-Tree tối khi query không dùng được index (Task078).
 - **Đợt 4A (Đánh bóng luồng & Trợ năng):** Empty states trên 7 tabs, Conflict Sim chạy độc lập, phím tắt `Ctrl+Enter`, `Space` pan canvas, Error Boundary bảo vệ từng tab, `prefers-reduced-motion` trong GSAP, CSS `cursor: pointer` toàn cục (Task080).
+- **Đợt 4B (E2E Suite trọn vẹn):** Playwright Golden Path 10 bước (Desktop 1440px & Mobile 390px, song ngữ vi/en) (Task081).
+- **Đợt 4C (Security Audit & Release Checklist V1):** Rà soát an ninh 3 tầng, quét secret, anti-bias audit, đồng bộ tooltip cho mọi nhãn kết luận, `RELEASE_CHECKLIST_V1.md` (Task082).
+- **Đợt 5 (Sandbox MySQL Azure VM):** Task083, Task084, Task085, Task086 thông mạng Render ↔ Azure VM, B+Tree InnoDB, Shadow Table What-if, Conflict SSE stream.
 
 ---
 
-## 2. Lộ trình nước rút về đích (13% còn lại)
+## 2. Lộ trình Đã Hoàn Tất
 
-Chia làm 2 lộ trình rõ ràng để không bị phụ thuộc chéo:
-
-### Lộ trình 1: Đánh bóng & Phát hành V1 PostgreSQL (Ưu tiên số 1 — Không phụ thuộc hạ tầng ngoài)
-Mục tiêu: Đưa SQLLens PostgreSQL hoàn chỉnh, bóng bẩy, bảo mật tuyệt đối lên production cho người dùng cuối.
-
-| Mốc | Story | Việc cần làm | Kết quả người dùng thấy |
+| Mốc | Story | Việc cần làm | Kết quả |
 |---|---|---|---|
-| **Đợt 4A** | **SP013 / STR059** (Đánh bóng luồng) | **Task080:** Rà soát và đánh bóng toàn diện các trạng thái: loading skeleton, empty states, error boundaries cho cả 7 tab stage; hỗ trợ phím tắt (`Ctrl+Enter` chạy SQL, `Space` kéo canvas sơ đồ); `cursor: pointer` toàn cục; kiểm tra `prefers-reduced-motion` toàn trang. | **Đã hoàn thành 100% (bàn giao Task080)** |
-| **Đợt 4B** | **SP013 / STR060** (E2E Suite trọn vẹn) | **Task081:** Xây dựng bộ test Playwright E2E chạy xuyên suốt luồng người dùng chính từ Landing → Editor → Sơ đồ/Plan/BTree → Findings → What-if → Conflict-sim trên cả tiếng Việt (`/vi`) và tiếng Anh (`/en`). | **Đã hoàn thành 100% (bàn giao Task081)** |
-| **Đợt 4C** | **SP013 / STR061** (Kiểm tra cuối & Security Audit) | **Task082:** Chạy `security-audit` toàn diện, quét secret, kiểm tra sandbox injection, rà soát 100% nhãn kết luận trên UI (đảm bảo không còn câu nào hàm ý "thiết kế này ổn" theo Nguyên tắc 2). | Tự tin bấm nút phát hành chính thức V1. |
-
----
-
-### Lộ trình 2: Mở rộng Sandbox MySQL (Sau khi Chủ dự án mở cổng Azure)
-Mục tiêu: Kích hoạt engine MySQL thật chạy trên Docker VM Azure.
-
-| Mốc | Story | Việc cần làm | Điều kiện kích hoạt |
-|---|---|---|---|
-| **Đợt 5A** | **SP004 / STR019** | **Task083:** Nối Gin backend với sandbox agent trên Azure VM; bật tab MySQL trên frontend; hiển thị trạng thái đang khởi tạo container / hết hạn / hàng đợi. | **Đã hoàn thành 100% (bàn giao Task083, nghiệm thu thực tế trên production)** |
-| **Đợt 5B** | **SP008 / STR034** | **Task084:** Dựng lại cây B-Tree InnoDB từ dữ liệu thật, đối chiếu `mysql.innodb_index_stats`, trực quan hóa rơi key 2 lần (Bookmark Lookup) và Covering Index. | **Đã hoàn thành 100% (bàn giao Task084)** |
-| **Đợt 5C** | **SP010 / STR044** | **Task085:** Thử sửa What-if trên bảng clone tạm của MySQL qua cơ chế Shadow Table `__whatif_*`, giải quyết DDL auto-commit, dọn sạch trong `finally`, nhãn `Thật`. | **Đã hoàn thành 100% (bàn giao Task085)** |
-| **Đợt 5D** | **SP011 / STR050** | **Task086:** Tranh chấp 2 connection MySQL thật qua SSE stream, đọc `performance_schema.data_lock_waits`, trực quan hóa deadlock và dirty read ở `READ UNCOMMITTED`, tooltip chuẩn hóa cho mọi nhãn. | **Đã hoàn thành 100% (bàn giao Task086, 12/12 Playwright test pass)** |
+| **Đợt 4A** | **SP013 / STR059** | Đánh bóng luồng, loading, empty states, phím tắt, trợ năng | **Đã hoàn thành 100% (Task080)** |
+| **Đợt 4B** | **SP013 / STR060** | Playwright E2E Suite Golden Path 10 bước | **Đã hoàn thành 100% (Task081)** |
+| **Đợt 4C** | **SP013 / STR061** | Security Audit toàn diện, rà soát nhãn kết luận, quét secret & Chốt Release Checklist V1 | **Đã hoàn thành 100% (Task082)** |
+| **Đợt 5A** | **SP004 / STR019** | Nối Gin backend với sandbox agent trên Azure VM, bật tab MySQL thật | **Đã hoàn thành 100% (Task083)** |
+| **Đợt 5B** | **SP008 / STR034** | Dựng B+Tree InnoDB từ dữ liệu thật, Bookmark Lookup rơi key 2 lần, Covering Index | **Đã hoàn thành 100% (Task084)** |
+| **Đợt 5C** | **SP010 / STR044** | Thử sửa What-if trên MySQL Shadow Table `__whatif_*`, DDL auto-commit | **Đã hoàn thành 100% (Task085)** |
+| **Đợt 5D** | **SP011 / STR050** | Tranh chấp 2 connection MySQL thật qua SSE stream, 4 kịch bản thực chiến | **Đã hoàn thành 100% (Task086)** |
 
 ---
 

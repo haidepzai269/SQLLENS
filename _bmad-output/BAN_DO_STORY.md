@@ -130,4 +130,4 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | STR058 Landing | Trang quảng bá dùng GSAP và `design-taste-frontend`, đủ hai ngôn ngữ | Có | |
 | STR059 Đánh bóng luồng | Đi từ dán SQL đến kết luận không đứt đoạn. Mọi trạng thái tải, rỗng, lỗi đã có. Có bàn phím, có giảm chuyển động | Có | |
 | STR060 E2E | Playwright chạy luồng chính ở hai engine và hai ngôn ngữ | | |
-| STR061 Kiểm tra cuối | `security-audit` đầy đủ, rà nhãn kết luận trên toàn sản phẩm, danh sách việc trước khi phát hành | | |
+| STR061 Kiểm tra cuối | `security-audit` đầy đủ, rà nhãn kết luận trên toàn sản phẩm, danh sách việc trước khi phát hành (Đã xong - Task082) | | |
