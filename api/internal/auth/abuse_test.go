@@ -21,6 +21,7 @@ type mockUpstash struct {
 	mu       sync.Mutex
 	counters map[string]int
 	bans     map[string]time.Time
+	reqCount int
 	fail     bool
 }
 
@@ -34,6 +35,8 @@ func newMockUpstash() *mockUpstash {
 func (m *mockUpstash) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	m.reqCount++
 
 	if m.fail {
 		http.Error(w, `{"error":"upstash internal error"}`, http.StatusInternalServerError)
@@ -300,6 +303,7 @@ func TestAbuseGate_AC1_to_AC5(t *testing.T) {
 		delete(mock.bans, k)
 	}
 	mock.mu.Unlock()
+	gk.ClearLocalCache()
 
 	// Request sau khi hết hạn: không còn bị chặn 429
 	reqAfter := httptest.NewRequest("GET", "/api/protected", nil)
@@ -430,5 +434,153 @@ func TestAbuse_NilSafety(t *testing.T) {
 	unconf := NewAbuseGatekeeper("", "", nil)
 	if unconf != nil {
 		t.Errorf("NewAbuseGatekeeper with empty strings should return nil")
+	}
+}
+
+// TestLocalBan_FastPathZeroUpstashCalls kiểm tra AC1:
+// Khi một IP bị ban tiếp tục spam 1.000 request, 100% request bị chặn tại RAM (Tầng 0),
+// số lượng HTTP request gọi sang Upstash REST tăng thêm = 0.
+func TestLocalBan_FastPathZeroUpstashCalls(t *testing.T) {
+	mock := newMockUpstash()
+	srv := httptest.NewServer(mock)
+	defer srv.Close()
+
+	secret := "0123456789abcdef0123456789abcdef"
+	gk := NewAbuseGatekeeper(srv.URL, "test-token", nil)
+	if gk == nil {
+		t.Fatal("NewAbuseGatekeeper returned nil")
+	}
+	defer gk.Close()
+
+	r := httpapi.NewRouter()
+	a := Mount(r, Deps{
+		Config:     Config{PublicOrigin: "https://app.test", SessionSecret: secret},
+		Gatekeeper: gk,
+	})
+
+	r.GET("/api/data", a.requireUser, func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	testIP := "198.51.100.77"
+
+	// Vi phạm 11 lần để IP bị Banned
+	for i := 1; i <= 11; i++ {
+		req := httptest.NewRequest("GET", "/api/data", nil)
+		req.Header.Set("X-Forwarded-For", testIP)
+		req.AddCookie(&http.Cookie{Name: "sid", Value: "invalid.signature.token"})
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+	}
+
+	// Ghi nhận số request gọi sang Upstash REST tính đến thời điểm bị ban
+	mock.mu.Lock()
+	initialUpstashCalls := mock.reqCount
+	mock.mu.Unlock()
+
+	// Spam tiếp 1.000 request từ IP bị ban
+	for i := 1; i <= 1000; i++ {
+		req := httptest.NewRequest("GET", "/api/data", nil)
+		req.Header.Set("X-Forwarded-For", testIP)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusTooManyRequests {
+			t.Fatalf("request #%d after ban: expected 429 Too Many Requests, got %d", i, w.Code)
+		}
+		if w.Header().Get("Retry-After") == "" {
+			t.Errorf("request #%d after ban: missing Retry-After header", i)
+		}
+	}
+
+	// Khẳng định số lượng HTTP request gọi sang Upstash REST tăng thêm = 0
+	mock.mu.Lock()
+	finalUpstashCalls := mock.reqCount
+	mock.mu.Unlock()
+
+	upstashCallsAdded := finalUpstashCalls - initialUpstashCalls
+	if upstashCallsAdded != 0 {
+		t.Fatalf("AC1 VIOLATION: Upstash REST calls increased by %d, expected 0", upstashCallsAdded)
+	}
+}
+
+// TestGracefulSessionTransition kiểm tra AC2:
+// Người dùng mang session cũ chưa ký (32 bytes raw token, 43 ký tự base64 url không có dấu chấm)
+// được từ chối 401 êm dịu mà KHÔNG bị tính vào abuse counter.
+func TestGracefulSessionTransition(t *testing.T) {
+	mock := newMockUpstash()
+	srv := httptest.NewServer(mock)
+	defer srv.Close()
+
+	secret := "0123456789abcdef0123456789abcdef"
+	gk := NewAbuseGatekeeper(srv.URL, "test-token", nil)
+	if gk == nil {
+		t.Fatal("NewAbuseGatekeeper returned nil")
+	}
+	defer gk.Close()
+
+	r := httpapi.NewRouter()
+	a := Mount(r, Deps{
+		Config:     Config{PublicOrigin: "https://app.test", SessionSecret: secret},
+		Gatekeeper: gk,
+	})
+
+	r.GET("/api/transition", a.requireUser, func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	testIP := "203.0.113.123"
+
+	// Giả lập token cũ: sinh 32 bytes raw token hợp lệ (43 ký tự base64 url)
+	legacyToken := randToken(32)
+	if len(legacyToken) != 43 || strings.Contains(legacyToken, ".") {
+		t.Fatalf("legacyToken format unexpected: len=%d, val=%s", len(legacyToken), legacyToken)
+	}
+
+	// Gửi 15 request liên tục với legacy token
+	for i := 1; i <= 15; i++ {
+		req := httptest.NewRequest("GET", "/api/transition", nil)
+		req.Header.Set("X-Forwarded-For", testIP)
+		req.AddCookie(&http.Cookie{Name: "sid", Value: legacyToken})
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Phải nhận 401 Unauthorized êm dịu, KHÔNG bao giờ bị 429
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("legacy request #%d: expected 401 Unauthorized, got %d", i, w.Code)
+		}
+		if !strings.Contains(w.Body.String(), "auth_required") {
+			t.Errorf("legacy request #%d: body missing auth_required: %s", i, w.Body.String())
+		}
+	}
+
+	// Khẳng định Abuse counter trong Upstash không hề tăng đối với IP này
+	mock.mu.Lock()
+	count := mock.counters[abuseKey(testIP)]
+	mock.mu.Unlock()
+	if count != 0 {
+		t.Fatalf("AC2 VIOLATION: abuse counter for legacy session user is %d, expected 0", count)
+	}
+
+	// Ngược lại: nếu là token rác (không phải legacy token) thì sau 11 lần PHẢI bị ban
+	for i := 1; i <= 10; i++ {
+		req := httptest.NewRequest("GET", "/api/transition", nil)
+		req.Header.Set("X-Forwarded-For", testIP)
+		req.AddCookie(&http.Cookie{Name: "sid", Value: "junk-token-invalid"})
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("junk request #%d: expected 401, got %d", i, w.Code)
+		}
+	}
+
+	// Lần thứ 11 với token rác -> Phải bị ban 429
+	req11 := httptest.NewRequest("GET", "/api/transition", nil)
+	req11.Header.Set("X-Forwarded-For", testIP)
+	req11.AddCookie(&http.Cookie{Name: "sid", Value: "junk-token-invalid"})
+	w11 := httptest.NewRecorder()
+	r.ServeHTTP(w11, req11)
+	if w11.Code != http.StatusTooManyRequests {
+		t.Fatalf("junk request #11: expected 429 Too Many Requests, got %d", w11.Code)
 	}
 }

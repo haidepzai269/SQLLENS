@@ -50,7 +50,8 @@ end
 local ttl = redis.call('TTL', KEYS[1])
 return {0, current, ttl}`
 
-// AbuseGatekeeper quản lý việc phát hiện và cách ly IP lạm dụng qua Upstash Redis.
+// AbuseGatekeeper quản lý việc phát hiện và cách ly IP lạm dụng qua Upstash Redis
+// kết hợp bộ nhớ đệm cục bộ LocalBanCache (Tầng 0 Fast-Path).
 type AbuseGatekeeper struct {
 	url           string
 	token         string
@@ -58,6 +59,7 @@ type AbuseGatekeeper struct {
 	limit         int
 	window        time.Duration
 	blockDuration time.Duration
+	cache         *LocalBanCache
 }
 
 // NewAbuseGatekeeper khởi tạo AbuseGatekeeper. Nếu restURL hoặc restToken rỗng thì trả về nil.
@@ -75,6 +77,7 @@ func NewAbuseGatekeeper(restURL, restToken string, httpClient *http.Client) *Abu
 		limit:         defaultLimit,
 		window:        defaultWindow,
 		blockDuration: defaultBlockDuration,
+		cache:         NewLocalBanCache(0),
 	}
 }
 
@@ -93,6 +96,28 @@ func (g *AbuseGatekeeper) WithConfig(limit int, window, blockDuration time.Durat
 		g.blockDuration = blockDuration
 	}
 	return g
+}
+
+// Cache trả về bộ nhớ đệm cục bộ LocalBanCache.
+func (g *AbuseGatekeeper) Cache() *LocalBanCache {
+	if g == nil {
+		return nil
+	}
+	return g.cache
+}
+
+// ClearLocalCache xóa sạch bộ nhớ đệm cục bộ (dùng cho test hoặc reset).
+func (g *AbuseGatekeeper) ClearLocalCache() {
+	if g != nil && g.cache != nil {
+		g.cache.Clear()
+	}
+}
+
+// Close giải phóng tài nguyên của AbuseGatekeeper và dừng dọn dẹp cache.
+func (g *AbuseGatekeeper) Close() {
+	if g != nil && g.cache != nil {
+		g.cache.Close()
+	}
 }
 
 // ipHash băm SHA-256 IP để tránh Redis key injection và ký tự bất thường.
@@ -198,18 +223,31 @@ func (g *AbuseGatekeeper) RecordAbuse(ctx context.Context, clientIP string) (ban
 		if ttl <= 0 {
 			ttl = int64(g.blockDuration.Seconds())
 		}
+		// Lưu ngay vào LocalBanCache để các request tiếp theo trúng Fast-Path Tầng 0
+		if g.cache != nil {
+			g.cache.SetBanned(clientIP, time.Duration(ttl)*time.Second)
+		}
 		return true, ttl, nil
 	}
 
 	return false, 0, nil
 }
 
-// CheckBan kiểm tra IP có đang bị tạm khóa (Ban) hay không qua TTL của ban key.
+// CheckBan kiểm tra IP có đang bị tạm khóa (Ban) hay không.
+// Tầng 0: kiểm tra LocalBanCache trong RAM (0ms, 0 HTTP request sang Upstash).
+// Nếu cache miss: gọi TTL trên Upstash Redis và lưu kết quả vào cache.
 // Trả về banned=true cùng thời gian còn lại (giây).
 func (g *AbuseGatekeeper) CheckBan(ctx context.Context, clientIP string) (banned bool, ttlSeconds int64, err error) {
 	if g == nil || g.url == "" || g.token == "" {
 		return false, 0, nil
 	}
+	// Tầng 0 Fast-Path: Kiểm tra LocalBanCache trong RAM (0ms)
+	if g.cache != nil {
+		if isBanned, ttl := g.cache.IsBanned(clientIP); isBanned {
+			return true, ttl, nil
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
 
@@ -248,10 +286,17 @@ func (g *AbuseGatekeeper) CheckBan(ctx context.Context, clientIP string) (banned
 	}
 
 	if out.Result > 0 {
+		if g.cache != nil {
+			g.cache.SetBanned(clientIP, time.Duration(out.Result)*time.Second)
+		}
 		return true, out.Result, nil
 	}
 	if out.Result == -1 {
-		return true, int64(g.blockDuration.Seconds()), nil
+		dur := int64(g.blockDuration.Seconds())
+		if g.cache != nil {
+			g.cache.SetBanned(clientIP, g.blockDuration)
+		}
+		return true, dur, nil
 	}
 	return false, 0, nil
 }
