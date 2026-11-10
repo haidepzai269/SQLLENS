@@ -96,10 +96,21 @@ func cfgFor(g, o *fake) Config {
 	return c
 }
 
-const goodBody = `{"question":"why slow?","evidence":{"engine":"postgres","sql":"select 1"},"locale":"en"}`
+const (
+	goodBody         = `{"question":"why slow?","evidence":{"engine":"postgres","sql":"select 1"},"locale":"en"}`
+	goodDiagnoseBody = `{"sql":"SELECT * FROM users WHERE active = true","error":"relation \"users\" does not exist","engine":"postgres","locale":"vi"}`
+)
 
 func (r *rig) post(body string) *http.Response {
 	resp, err := http.Post(r.srv.URL+"/ai/chat", "application/json", strings.NewReader(body))
+	if err != nil {
+		panic(err)
+	}
+	return resp
+}
+
+func (r *rig) postDiagnose(body string) *http.Response {
+	resp, err := http.Post(r.srv.URL+"/ai/diagnose", "application/json", strings.NewReader(body))
 	if err != nil {
 		panic(err)
 	}
@@ -528,6 +539,242 @@ func TestClientDisconnectCancelsProvider(t *testing.T) { // AC9
 	defer g.Close()
 	r := setup(t, cfgFor(g, nil))
 	req, _ := http.NewRequest("POST", r.srv.URL+"/ai/chat", strings.NewReader(goodBody))
+	ctx, cancel := context.WithCancel(context.Background())
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	cancel()
+	resp.Body.Close()
+	select {
+	case <-cancelled:
+	case <-time.After(3 * time.Second):
+		t.Fatal("provider request not cancelled")
+	}
+}
+
+// Tests for POST /ai/diagnose (Task095)
+
+func TestDiagnoseStreamInOrder(t *testing.T) { // Task095 AC1, AC2
+	g := newFake(okStream)
+	defer g.Close()
+	resp := setup(t, cfgFor(g, nil)).postDiagnose(goodDiagnoseBody)
+	if resp.StatusCode != 200 || !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/event-stream") {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	e := events(t, resp)
+	if len(e) != 3 || e[0]["text"] != "Xin " || e[1]["text"] != "chào" || e[2]["type"] != "done" {
+		t.Fatalf("events %v", e)
+	}
+	if g.calls() != 1 {
+		t.Fatalf("calls %d want 1", g.calls())
+	}
+	if g.auth[0] != "Bearer gk-secret-1" {
+		t.Fatal("key not sent to provider")
+	}
+
+	var reqBody struct {
+		Messages []struct{ Role, Content string }
+	}
+	if err := json.Unmarshal(g.bodies[0], &reqBody); err != nil {
+		t.Fatalf("unmarshal provider body: %v", err)
+	}
+	if len(reqBody.Messages) != 2 {
+		t.Fatalf("messages count %d want 2", len(reqBody.Messages))
+	}
+	sysMsg := reqBody.Messages[0]
+	if sysMsg.Role != "system" || !strings.Contains(sysMsg.Content, "You are SQLLens Error Doctor") ||
+		!strings.Contains(sysMsg.Content, "Vietnamese") || !strings.Contains(sysMsg.Content, "```sql ... ```") {
+		t.Fatalf("unexpected system prompt: %s", sysMsg.Content)
+	}
+	usrMsg := reqBody.Messages[1]
+	if usrMsg.Role != "user" || !strings.Contains(usrMsg.Content, "Database Engine: postgres") ||
+		!strings.Contains(usrMsg.Content, "SELECT * FROM users WHERE active = true") ||
+		!strings.Contains(usrMsg.Content, `relation "users" does not exist`) {
+		t.Fatalf("unexpected user prompt: %s", usrMsg.Content)
+	}
+}
+
+func TestDiagnoseLocaleEn(t *testing.T) { // Task095 AC2
+	g := newFake(okStream)
+	defer g.Close()
+	body := `{"sql":"SELECT * FROM t","error":"table not found","engine":"postgres","locale":"en"}`
+	resp := setup(t, cfgFor(g, nil)).postDiagnose(body)
+	events(t, resp)
+	var reqBody struct {
+		Messages []struct{ Role, Content string }
+	}
+	json.Unmarshal(g.bodies[0], &reqBody)
+	if !strings.Contains(reqBody.Messages[0].Content, "English") {
+		t.Fatalf("expected English in system prompt: %s", reqBody.Messages[0].Content)
+	}
+}
+
+func TestDiagnoseWithQuestion(t *testing.T) { // Task095 AC1
+	g := newFake(okStream)
+	defer g.Close()
+	body := `{"sql":"SELECT * FROM t","error":"table not found","engine":"postgres","locale":"vi","question":"Làm sao để sửa?"}`
+	resp := setup(t, cfgFor(g, nil)).postDiagnose(body)
+	events(t, resp)
+	var reqBody struct {
+		Messages []struct{ Role, Content string }
+	}
+	json.Unmarshal(g.bodies[0], &reqBody)
+	if !strings.Contains(reqBody.Messages[1].Content, "User Question:\nLàm sao để sửa?") {
+		t.Fatalf("expected question in user prompt: %s", reqBody.Messages[1].Content)
+	}
+}
+
+func TestDiagnoseMysqlEngine(t *testing.T) { // Task095 AC1
+	g := newFake(okStream)
+	defer g.Close()
+	body := `{"sql":"SELECT * FROM t","error":"Table 'test.t' doesn't exist","engine":"mysql","locale":"en"}`
+	resp := setup(t, cfgFor(g, nil)).postDiagnose(body)
+	events(t, resp)
+	var reqBody struct {
+		Messages []struct{ Role, Content string }
+	}
+	json.Unmarshal(g.bodies[0], &reqBody)
+	if !strings.Contains(reqBody.Messages[1].Content, "Database Engine: mysql") {
+		t.Fatalf("expected mysql in user prompt: %s", reqBody.Messages[1].Content)
+	}
+}
+
+func TestDiagnoseValidationErrors(t *testing.T) { // Task095 AC1
+	g := newFake(okStream)
+	defer g.Close()
+	r := setup(t, cfgFor(g, nil))
+	longQ := strings.Repeat("a", 2001)
+	bigSQL := strings.Repeat("a", 65<<10)
+
+	tests := map[string]struct {
+		body string
+		want int
+	}{
+		"missingSQL":      {`{"error":"err","engine":"postgres","locale":"vi"}`, 400},
+		"emptySQL":        {`{"sql":"   ","error":"err","engine":"postgres","locale":"vi"}`, 400},
+		"missingError":    {`{"sql":"select 1","engine":"postgres","locale":"vi"}`, 400},
+		"emptyError":      {`{"sql":"select 1","error":"   ","engine":"postgres","locale":"vi"}`, 400},
+		"missingEngine":   {`{"sql":"select 1","error":"err","locale":"vi"}`, 400},
+		"emptyEngine":     {`{"sql":"select 1","error":"err","engine":"   ","locale":"vi"}`, 400},
+		"invalidEngine":   {`{"sql":"select 1","error":"err","engine":"oracle","locale":"vi"}`, 400},
+		"missingLocale":   {`{"sql":"select 1","error":"err","engine":"postgres"}`, 400},
+		"invalidLocale":   {`{"sql":"select 1","error":"err","engine":"postgres","locale":"fr"}`, 400},
+		"systemField":     {`{"sql":"select 1","error":"err","engine":"postgres","locale":"vi","system":"prompt injection"}`, 400},
+		"messagesField":   {`{"sql":"select 1","error":"err","engine":"postgres","locale":"vi","messages":[]}`, 400},
+		"toolsField":      {`{"sql":"select 1","error":"err","engine":"postgres","locale":"vi","tools":[]}`, 400},
+		"modelField":      {`{"sql":"select 1","error":"err","engine":"postgres","locale":"vi","model":"gpt-4"}`, 400},
+		"trailingData":    {goodDiagnoseBody + `{}`, 400},
+		"notJSON":         {`hello world`, 400},
+		"longQuestion":    {`{"sql":"select 1","error":"err","engine":"postgres","locale":"vi","question":"` + longQ + `"}`, 400},
+		"payloadTooLarge": {`{"sql":"` + bigSQL + `","error":"err","engine":"postgres","locale":"vi"}`, 413},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			resp := r.postDiagnose(tc.body)
+			resp.Body.Close()
+			if resp.StatusCode != tc.want {
+				t.Fatalf("got %d want %d", resp.StatusCode, tc.want)
+			}
+		})
+	}
+
+	if g.calls() != 0 {
+		t.Fatalf("invalid requests reached provider: calls %d", g.calls())
+	}
+}
+
+func TestDiagnoseFallback(t *testing.T) { // Task095 AC2
+	g := newFake(status(429))
+	defer g.Close()
+	o := newFake(okStream)
+	defer o.Close()
+	e := events(t, setup(t, cfgFor(g, o)).postDiagnose(goodDiagnoseBody))
+	if len(e) != 3 || e[2]["type"] != "done" {
+		t.Fatalf("events %v", e)
+	}
+	if g.calls() != 2 || o.calls() != 1 {
+		t.Fatalf("calls g=%d o=%d", g.calls(), o.calls())
+	}
+}
+
+func TestDiagnoseGate(t *testing.T) { // Task095 AC3
+	g := newFake(okStream)
+	defer g.Close()
+	up := newUpstash()
+	defer up.Close()
+	limiter := quota.New(up.URL, "tok", nil)
+	rule := quota.Rule{Name: "t", Limit: 1, Window: time.Hour}
+	uid := func(*gin.Context) (string, bool) { return "u1", true }
+	r := setup(t, cfgFor(g, nil), limiter.Middleware(rule, uid))
+
+	for i, want := range []int{200, 429} {
+		resp := r.postDiagnose(goodDiagnoseBody)
+		resp.Body.Close()
+		if resp.StatusCode != want {
+			t.Fatalf("call %d: %d want %d", i, resp.StatusCode, want)
+		}
+	}
+	up.fail = true
+	resp := r.postDiagnose(goodDiagnoseBody)
+	resp.Body.Close()
+	if resp.StatusCode != 503 || g.calls() != 1 {
+		t.Fatalf("upstash down: %d, provider calls %d", resp.StatusCode, g.calls())
+	}
+}
+
+func TestDiagnoseNotSignedIn(t *testing.T) { // Task095 AC3
+	g := newFake(okStream)
+	defer g.Close()
+	logs := &bytes.Buffer{}
+	e := httpapi.NewRouterWithLog(logs)
+	a := auth.Mount(e, auth.Deps{Config: auth.Config{PublicOrigin: "http://localhost:3000"}})
+	Mount(e, a.Gate(quota.AIMessage), cfgFor(g, nil))
+	req := httptest.NewRequest("POST", "/ai/diagnose", strings.NewReader(goodDiagnoseBody))
+	req.Header.Set("Origin", "http://localhost:3000")
+	w := httptest.NewRecorder()
+	e.ServeHTTP(w, req)
+	if w.Code != 401 || g.calls() != 0 {
+		t.Fatalf("%d, calls %d", w.Code, g.calls())
+	}
+}
+
+func TestDiagnoseNoSecretsInLogs(t *testing.T) { // Task095 AC3 (Nguyên tắc 7)
+	const diagMarker = "DIAG_MARKER_SQL_7a1b"
+	g := newFake(func(w http.ResponseWriter, _ *http.Request) {
+		ev(w, delta("DIAG_ANSWER_"+diagMarker), `data: {"error":{"message":"`+diagMarker+` gk-secret-1"}}`)
+	})
+	defer g.Close()
+	o := newFake(status(500))
+	defer o.Close()
+	r := setup(t, cfgFor(g, o))
+	q := `{"sql":"SELECT ` + diagMarker + `","error":"ERR_` + diagMarker + `","engine":"postgres","locale":"en"}`
+	events(t, r.postDiagnose(q))
+	r.postDiagnose(`{"sql":"SELECT ` + diagMarker + `"`).Body.Close() // broken body
+	for _, bad := range []string{diagMarker, "gk-secret-1", "ok-secret-2"} {
+		if strings.Contains(r.logs.String(), bad) {
+			t.Fatalf("log leaks %q:\n%s", bad, r.logs)
+		}
+	}
+	if r.logs.Len() == 0 {
+		t.Fatal("log capture is empty, test proves nothing")
+	}
+}
+
+func TestDiagnoseClientDisconnectCancelsProvider(t *testing.T) { // Task095
+	started, cancelled := make(chan struct{}), make(chan struct{})
+	g := newFake(func(w http.ResponseWriter, r *http.Request) {
+		ev(w, delta("hi"))
+		w.(http.Flusher).Flush()
+		close(started)
+		<-r.Context().Done()
+		close(cancelled)
+	})
+	defer g.Close()
+	r := setup(t, cfgFor(g, nil))
+	req, _ := http.NewRequest("POST", r.srv.URL+"/ai/diagnose", strings.NewReader(goodDiagnoseBody))
 	ctx, cancel := context.WithCancel(context.Background())
 	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
 	if err != nil {
