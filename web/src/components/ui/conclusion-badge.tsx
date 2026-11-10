@@ -34,26 +34,12 @@ export function ConclusionBadge({
   testId = "conclusion-badge",
   ...props
 }: ConclusionBadgeProps) {
-  let current: { name: string; tooltip: string };
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const t = useTranslations("common.conclusionLabels");
-    current = {
-      name: t(`${label}.name`),
-      tooltip: note ?? t(`${label}.tooltip`),
-    };
-  } catch {
-    const DEFAULTS: Record<ConclusionLabelType, { name: string; tooltip: string }> = {
-      real: { name: "Thật", tooltip: "Phản ứng vật lý của database" },
-      simulated: { name: "Mô phỏng", tooltip: "Tính toán từ mô hình" },
-      estimated: { name: "Ước lượng", tooltip: "Ngoại suy" },
-      not_simulated: { name: "Chưa mô phỏng được", tooltip: "Chưa đủ dữ kiện" },
-    };
-    current = {
-      name: DEFAULTS[label]?.name ?? label,
-      tooltip: note ?? DEFAULTS[label]?.tooltip ?? "",
-    };
-  }
+  const t = useTranslations("common.conclusionLabels");
+
+  const current = {
+    name: t(`${label}.name`),
+    tooltip: note ?? t(`${label}.tooltip`),
+  };
 
   return (
     <TooltipProvider delay={100}>
@@ -70,7 +56,7 @@ export function ConclusionBadge({
                 className
               )}
             >
-              {current.name}
+              {children ?? current.name}
             </span>
           }
         />

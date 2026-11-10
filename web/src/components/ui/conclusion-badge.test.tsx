@@ -55,4 +55,15 @@ describe("ConclusionBadge", () => {
     const badge = screen.getByTestId("conclusion-badge");
     expect(badge).toBeTruthy();
   });
+
+  it("renders children when provided instead of default name", () => {
+    renderBadge(
+      <ConclusionBadge label="real">
+        <span data-testid="custom-child">Custom Content</span>
+      </ConclusionBadge>
+    );
+    const child = screen.getByTestId("custom-child");
+    expect(child).toBeTruthy();
+    expect(child.textContent).toBe("Custom Content");
+  });
 });
