@@ -197,6 +197,16 @@ func verifyToken(signedTok string, secret []byte) (string, bool) {
 	return parts[0], true
 }
 
+// isLegacyToken kiểm tra cookie sid có phải là token cũ hợp lệ (32 bytes raw token,
+// 43 ký tự base64 raw url, không chứa dấu chấm `.`) của phiên bản trước hay không.
+func isLegacyToken(tok string) bool {
+	if len(tok) != 43 || strings.Contains(tok, ".") {
+		return false
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(tok)
+	return err == nil && len(raw) == 32
+}
+
 func (a *Auth) sessionCookie(token string, maxAge int) *http.Cookie {
 	val := token
 	if val != "" {
@@ -209,6 +219,7 @@ const userKey = "auth.user"
 
 // requireUser chỉ đọc cookie sid. Không có cookie thì 401 ngay. Chữ ký HMAC sai/rác
 // hoặc token không tìm thấy trong DB thì ghi nhận vi phạm vào AbuseGatekeeper.
+// Nếu là legacy unsigned token (32 byte chưa ký): từ chối 401 êm dịu, không ghi nhận abuse.
 // Nếu IP bị ban thì trả về mã 429 kèm header Retry-After, ngược lại từ chối 401.
 func (a *Auth) requireUser(c *gin.Context) {
 	tok, err := c.Cookie(cookieName)
@@ -218,6 +229,14 @@ func (a *Auth) requireUser(c *gin.Context) {
 	}
 	rawTok, ok := verifyToken(tok, a.secret)
 	if !ok {
+		// Graceful Session Transition:
+		// Khi cookie sid là token cũ (32 byte hợp lệ trước đây nhưng chưa có HMAC),
+		// từ chối êm đẹp với 401 Unauthorized (error.authRequired), không tính vào abuse counter
+		// để không phạt oan người dùng cũ khi hệ thống upgrade lên HMAC Signed Cookie.
+		if isLegacyToken(tok) {
+			httpapi.Abort(c, http.StatusUnauthorized, "auth_required", "error.authRequired")
+			return
+		}
 		if a.recordAbuse(c) {
 			return
 		}
