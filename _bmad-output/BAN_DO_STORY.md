@@ -132,6 +132,14 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | STR060 E2E | Playwright chạy luồng chính ở hai engine và hai ngôn ngữ | | |
 | STR061 Kiểm tra cuối | `security-audit` đầy đủ, rà nhãn kết luận trên toàn sản phẩm, danh sách việc trước khi phát hành (Đã xong - Task082) | | |
 
+## SP014 Smart Error Helper & Quick-Fix Engine
+
+| Story | Hành vi khi xong | GD | Nhãn |
+|---|---|---|---|
+| STR064 Lõi phân loại lỗi & Heuristics | Phân tích mã lỗi (SQLSTATE Postgres, Error code MySQL), trích xuất token, tạo phương án sửa nhanh (100% offline, 0ms) | | |
+| STR065 SmartErrorCard & 1-Click Action | Giữ nguyên Raw error console mặc định, toggle dịch nghĩa tiếng Việt, 3 nút Quick-Fix sửa trực tiếp vào ô soạn thảo | Có | |
+| STR066 Cầu nối AI Error Explainer | Cho phép hỏi AI Mentor về lỗi lạ/phức tạp, SQL sửa đề xuất được chạy thử trước khi hiển thị | Có | Thật |
+
 ## SP999 Việc phát sinh (Hậu phát hành & Bảo vệ hạ tầng)
 
 | Story | Hành vi khi xong | GD | Nhãn |
