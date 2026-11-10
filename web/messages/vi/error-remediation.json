@@ -1,0 +1,38 @@
+{
+  "titles": {
+    "duplicate_table": "Bảng đã tồn tại",
+    "undefined_table": "Bảng không tồn tại",
+    "undefined_column": "Cột không tồn tại",
+    "unique_violation": "Vi phạm ràng buộc duy nhất (Unique / Khóa chính)",
+    "foreign_key_violation": "Vi phạm ràng buộc khóa ngoại (Foreign Key)",
+    "not_null_violation": "Vi phạm ràng buộc Not Null",
+    "syntax_error": "Lỗi cú pháp SQL",
+    "in_failed_sql_transaction": "Transaction đã bị hủy",
+    "invalid_text_representation": "Dữ liệu không đúng định dạng kiểu",
+    "dependent_objects_still_exist": "Không thể xóa bảng vì có đối tượng phụ thuộc",
+    "unknown_error": "Lỗi thực thi SQL"
+  },
+  "explanations": {
+    "duplicate_table": "Bảng \"{table}\" đã tồn tại trong database. Bạn không thể tạo lại bảng có cùng tên trừ khi xóa bảng cũ hoặc dùng IF NOT EXISTS.",
+    "undefined_table": "Bảng \"{table}\" chưa được tạo hoặc sai tên. Hãy kiểm tra lại câu lệnh CREATE TABLE hoặc thứ tự thực thi.",
+    "undefined_column": "Cột \"{column}\" không tồn tại trong bảng. Hãy kiểm tra lại chính tả tên cột hoặc khai báo CREATE TABLE.",
+    "unique_violation": "Giá trị cần thêm hoặc cập nhật bị trùng lặp với dữ liệu đã có ở ràng buộc \"{constraint}\".",
+    "foreign_key_violation": "Dữ liệu tham chiếu không tồn tại ở bảng cha theo ràng buộc \"{constraint}\".",
+    "not_null_violation": "Cột \"{column}\" bắt buộc phải có giá trị (NOT NULL) nhưng đang bị để trống.",
+    "syntax_error": "Cú pháp SQL không hợp lệ tại hoặc gần vị trí \"{token}\". Hãy kiểm tra lại dấu phẩy, đóng mở ngoặc hoặc từ khóa.",
+    "in_failed_sql_transaction": "Khối transaction hiện tại đã bị hủy do một câu lệnh trước đó gặp lỗi. Mọi câu lệnh tiếp theo sẽ bị bỏ qua cho tới khi kết thúc transaction block.",
+    "invalid_text_representation": "Giá trị \"{value}\" không thể chuyển đổi thành kiểu dữ liệu \"{type}\".",
+    "dependent_objects_still_exist": "Bảng \"{table}\" đang được tham chiếu bởi các đối tượng khác (như khóa ngoại hoặc view). Dùng CASCADE để xóa bảng kèm theo các phụ thuộc liên quan.",
+    "unknown_error": "Câu lệnh SQL gặp lỗi khi thực thi. Hãy kiểm tra thông báo lỗi gốc bên dưới để biết thêm chi tiết."
+  },
+  "root_cause_hints": {
+    "transaction_aborted": "Câu lệnh này có thể hoàn toàn đúng cú pháp, nhưng không thể chạy vì câu lệnh trước đó trong transaction đã bị lỗi. Hãy cuộn lên và kiểm tra lỗi của câu lệnh trước."
+  },
+  "actions": {
+    "add_if_not_exists": "Thêm IF NOT EXISTS vào CREATE TABLE",
+    "drop_table_first": "Thêm DROP TABLE IF EXISTS lên đầu",
+    "add_on_conflict_do_nothing": "Thêm ON CONFLICT DO NOTHING",
+    "add_cascade": "Thêm CASCADE vào câu lệnh DROP",
+    "rebuild_sandbox": "Khởi động lại Sandbox sạch"
+  }
+}

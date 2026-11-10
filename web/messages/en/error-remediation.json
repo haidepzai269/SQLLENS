@@ -1,0 +1,38 @@
+{
+  "titles": {
+    "duplicate_table": "Table Already Exists",
+    "undefined_table": "Table Does Not Exist",
+    "undefined_column": "Column Does Not Exist",
+    "unique_violation": "Unique Constraint Violation",
+    "foreign_key_violation": "Foreign Key Constraint Violation",
+    "not_null_violation": "Not Null Constraint Violation",
+    "syntax_error": "SQL Syntax Error",
+    "in_failed_sql_transaction": "Transaction Aborted",
+    "invalid_text_representation": "Invalid Data Type Representation",
+    "dependent_objects_still_exist": "Dependent Objects Still Exist",
+    "unknown_error": "SQL Execution Error"
+  },
+  "explanations": {
+    "duplicate_table": "Table \"{table}\" already exists in the database. You cannot create a table with the same name unless you drop the old one or use IF NOT EXISTS.",
+    "undefined_table": "Table \"{table}\" has not been created or the name is misspelled. Check your CREATE TABLE statement or execution order.",
+    "undefined_column": "Column \"{column}\" does not exist in the table. Check the column spelling or CREATE TABLE definition.",
+    "unique_violation": "The value being inserted or updated duplicates an existing entry on constraint \"{constraint}\".",
+    "foreign_key_violation": "The referenced record does not exist in the parent table for constraint \"{constraint}\".",
+    "not_null_violation": "Column \"{column}\" requires a value (NOT NULL) but received null.",
+    "syntax_error": "SQL syntax is invalid at or near \"{token}\". Check your commas, closing parentheses, or keywords.",
+    "in_failed_sql_transaction": "The current transaction has been aborted because a previous command failed. All subsequent commands are ignored until the transaction block ends.",
+    "invalid_text_representation": "Value \"{value}\" cannot be converted into data type \"{type}\".",
+    "dependent_objects_still_exist": "Table \"{table}\" is referenced by other database objects (such as foreign keys or views). Use CASCADE to drop the table and its dependencies.",
+    "unknown_error": "The SQL statement encountered an execution error. Inspect the raw engine message below for details."
+  },
+  "root_cause_hints": {
+    "transaction_aborted": "This statement may be syntactically valid, but was rejected because a prior statement in the transaction failed. Scroll up to inspect the earlier error."
+  },
+  "actions": {
+    "add_if_not_exists": "Add IF NOT EXISTS to CREATE TABLE",
+    "drop_table_first": "Prepend DROP TABLE IF EXISTS",
+    "add_on_conflict_do_nothing": "Add ON CONFLICT DO NOTHING",
+    "add_cascade": "Add CASCADE to DROP statement",
+    "rebuild_sandbox": "Rebuild Clean Sandbox"
+  }
+}
