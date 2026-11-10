@@ -48,9 +48,10 @@ type Config struct {
 }
 
 type Deps struct {
-	Config  Config
-	Store   *store.Store   // nil: chưa có DATABASE_URL
-	Limiter *quota.Limiter // nil: chưa có Upstash
+	Config     Config
+	Store      *store.Store        // nil: chưa có DATABASE_URL
+	Limiter    *quota.Limiter      // nil: chưa có Upstash
+	Gatekeeper *AbuseGatekeeper    // nil: chưa có Abuse Gatekeeper
 }
 
 type pending struct {
@@ -60,14 +61,15 @@ type pending struct {
 }
 
 type Auth struct {
-	cfg     Config
-	origin  string // PublicOrigin đã chuẩn hóa, rỗng nếu không hợp lệ
-	secret  []byte // Khóa bí mật ký cookie sid (tối thiểu 32 bytes)
-	secure  bool
-	store   *store.Store
-	limiter *quota.Limiter
-	hc      *http.Client
-	rate    *rateLimiter
+	cfg        Config
+	origin     string // PublicOrigin đã chuẩn hóa, rỗng nếu không hợp lệ
+	secret     []byte // Khóa bí mật ký cookie sid (tối thiểu 32 bytes)
+	secure     bool
+	store      *store.Store
+	limiter    *quota.Limiter
+	gatekeeper *AbuseGatekeeper
+	hc         *http.Client
+	rate       *rateLimiter
 
 	mu     sync.Mutex
 	states map[string]pending
@@ -95,14 +97,15 @@ func Mount(r *gin.Engine, d Deps) *Auth {
 		}
 	}
 	a := &Auth{
-		cfg:     d.Config,
-		origin:  normalizeOrigin(d.Config.PublicOrigin),
-		secret:  sec,
-		store:   d.Store,
-		limiter: d.Limiter,
-		hc:      d.Config.HTTPClient,
-		rate:    newRateLimiter(30, time.Minute),
-		states:  map[string]pending{},
+		cfg:        d.Config,
+		origin:     normalizeOrigin(d.Config.PublicOrigin),
+		secret:     sec,
+		store:      d.Store,
+		limiter:    d.Limiter,
+		gatekeeper: d.Gatekeeper,
+		hc:         d.Config.HTTPClient,
+		rate:       newRateLimiter(30, time.Minute),
+		states:     map[string]pending{},
 	}
 	if a.hc == nil {
 		a.hc = &http.Client{Timeout: 10 * time.Second}
@@ -111,6 +114,7 @@ func Mount(r *gin.Engine, d Deps) *Auth {
 		a.secure = !(u.Scheme == "http" && u.Hostname() == "localhost")
 	}
 	r.Use(a.originCheck)
+	r.Use(a.AbuseGate())
 	r.GET("/auth/:provider/start", a.start)
 	r.GET("/auth/:provider/callback", a.callback)
 	r.POST("/auth/logout", a.logout)
@@ -120,6 +124,34 @@ func Mount(r *gin.Engine, d Deps) *Auth {
 
 func notConfigured(c *gin.Context) {
 	httpapi.Abort(c, http.StatusServiceUnavailable, "not_configured", "error.notConfigured")
+}
+
+// AbuseGate trả về middleware chặn request từ IP bị ban. Nếu gatekeeper nil thì no-op.
+func (a *Auth) AbuseGate() gin.HandlerFunc {
+	if a.gatekeeper == nil {
+		return func(c *gin.Context) { c.Next() }
+	}
+	return a.gatekeeper.AbuseGate()
+}
+
+// recordAbuse ghi nhận vi phạm của Client IP. Nếu IP vừa bị ban thì abort 429 và trả về true.
+func (a *Auth) recordAbuse(c *gin.Context) bool {
+	if a.gatekeeper == nil {
+		return false
+	}
+	banned, ttl, err := a.gatekeeper.RecordAbuse(c.Request.Context(), ClientIP(c))
+	if err != nil {
+		return false
+	}
+	if banned {
+		if ttl < 1 {
+			ttl = 1
+		}
+		c.Header("Retry-After", strconv.FormatInt(ttl, 10))
+		httpapi.Abort(c, http.StatusTooManyRequests, "rate_limited", "error.rateLimited")
+		return true
+	}
+	return false
 }
 
 // originCheck: mọi yêu cầu đổi trạng thái phải mang Origin đúng PUBLIC_ORIGIN.
@@ -175,8 +207,9 @@ func (a *Auth) sessionCookie(token string, maxAge int) *http.Cookie {
 
 const userKey = "auth.user"
 
-// requireUser chỉ đọc cookie sid. Không có cookie hoặc chữ ký HMAC sai/rác
-// thì từ chối 401 ngay tại RAM mà không chạm database.
+// requireUser chỉ đọc cookie sid. Không có cookie thì 401 ngay. Chữ ký HMAC sai/rác
+// hoặc token không tìm thấy trong DB thì ghi nhận vi phạm vào AbuseGatekeeper.
+// Nếu IP bị ban thì trả về mã 429 kèm header Retry-After, ngược lại từ chối 401.
 func (a *Auth) requireUser(c *gin.Context) {
 	tok, err := c.Cookie(cookieName)
 	if err != nil || tok == "" {
@@ -185,6 +218,9 @@ func (a *Auth) requireUser(c *gin.Context) {
 	}
 	rawTok, ok := verifyToken(tok, a.secret)
 	if !ok {
+		if a.recordAbuse(c) {
+			return
+		}
 		httpapi.Abort(c, http.StatusUnauthorized, "auth_required", "error.authRequired")
 		return
 	}
@@ -195,6 +231,9 @@ func (a *Auth) requireUser(c *gin.Context) {
 	u, err := a.store.SessionUser(c.Request.Context(), rawTok)
 	switch {
 	case errors.Is(err, store.ErrNotFound):
+		if a.recordAbuse(c) {
+			return
+		}
 		httpapi.Abort(c, http.StatusUnauthorized, "auth_required", "error.authRequired")
 	case err != nil:
 		log.Print("auth: session lookup failed")

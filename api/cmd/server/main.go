@@ -46,6 +46,7 @@ func build(ctx context.Context) *gin.Engine {
 	}
 	if u, t := os.Getenv("UPSTASH_REDIS_REST_URL"), os.Getenv("UPSTASH_REDIS_REST_TOKEN"); u != "" && t != "" {
 		d.Limiter = quota.New(u, t, nil)
+		d.Gatekeeper = auth.NewAbuseGatekeeper(u, t, nil)
 	}
 	var budget mysql.Budget
 	if u, t := os.Getenv("UPSTASH_REDIS_REST_URL"), os.Getenv("UPSTASH_REDIS_REST_TOKEN"); u != "" && t != "" {
