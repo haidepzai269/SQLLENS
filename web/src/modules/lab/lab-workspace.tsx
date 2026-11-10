@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
-import { Lock } from "lucide-react";
+import { Lock, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { ResultGrid } from "@/components/result-grid/result-grid";
@@ -62,10 +62,13 @@ const mb = (b?: number) => (b === undefined ? undefined : (b / 1048576).toFixed(
 const stopCode = (e: unknown): Stop | null =>
   e instanceof EngineError && (e.code === "cancelled" || e.code === "timeout" || e.code === "worker_crashed") ? e.code : null;
 
-function Pane({ title, children }: { title: string; children: ReactNode }) {
+function Pane({ title, children, headerRight }: { title: string; children: ReactNode; headerRight?: ReactNode }) {
   return (
     <div className="flex min-h-full min-w-0 flex-col">
-      <div className="flex h-[var(--h-bar)] flex-none items-center border-b border-line px-[var(--edge)] font-semibold">{title}</div>
+      <div className="sticky top-0 z-10 flex h-[var(--h-bar)] flex-none items-center justify-between border-b border-line bg-surface px-[var(--edge)] font-semibold">
+        <span>{title}</span>
+        {headerRight && <div className="flex items-center gap-1.5">{headerRight}</div>}
+      </div>
       <div className="flex min-w-0 flex-col gap-3 p-[var(--edge)]">{children}</div>
     </div>
   );
@@ -119,6 +122,7 @@ export function LabWorkspace() {
   const [schemaError, setSchemaError] = useState<string | undefined>();
   const applied = useRef<string | null>(null); // sql đã được tạo schema xong, chạy lại không hỏi nữa
   const runBtn = useRef<HTMLButtonElement | null>(null);
+  const [showRunTip, setShowRunTip] = useState(false);
   const tin = useTranslations("sql-intake");
   const [selected, setSelected] = useState(0);
   const [pendingSample, setPendingSample] = useState<string | null>(null);
@@ -386,6 +390,7 @@ export function LabWorkspace() {
   }
 
   async function onRun() {
+    setShowRunTip(false);
     if (busy.current || (confirmOpen && dialogOn)) return;
     busy.current = true; // chặn bấm đúp trong lúc parse
     let ask = false;
@@ -457,18 +462,82 @@ export function LabWorkspace() {
     focus && stageRun && focus.runId === stageRun.id && stageRun.srcSql === sql && stageRun.sql === sql && focus.start !== undefined && focus.end !== undefined
       ? { from: focus.start, to: focus.end, nonce: focus.nonce }
       : undefined;
-  const loadSample = (text: string) => (sql.trim() === "" || sql === text ? setSql(text) : setPendingSample(text));
+  const loadSample = (text: string) => {
+    setShowRunTip(false);
+    if (sql.trim() === "" || sql === text) setSql(text);
+    else setPendingSample(text);
+  };
   const canRun = sql.trim() !== "" && !working && !(confirmOpen && dialogOn) && state.phase !== "stopped" && !(mysql && authStatus !== "user");
   const handleEditorRun = () => {
+    setShowRunTip(false);
     if (canRun) void onRun();
   };
+  const handleSqlChange = (val: string) => {
+    setShowRunTip(false);
+    setSql(val);
+  };
 
+  // Debounce tooltip "Ấn để chạy" khi người dùng dừng gõ SQL (Task090 AC4)
+  useEffect(() => {
+    if (sql.trim() === "" || !canRun) return;
+    const timer = setTimeout(() => {
+      setShowRunTip(true);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [sql, canRun]);
+
+  // Tự động tắt sau 3500ms nếu người dùng không thao tác
+  useEffect(() => {
+    if (!showRunTip) return;
+    const timer = setTimeout(() => {
+      setShowRunTip(false);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [showRunTip]);
+
+  const activeRunTip = showRunTip && canRun;
   const sqlLabel = mysql ? tm("sqlLabel") : t("sqlLabel");
+  const sqlHeaderRight = (
+    <div className="flex items-center gap-1.5">
+      <Tip label={ts("tip.generate")} side="bottom">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => (authStatus === "anon" ? setGenLock(true) : setGenOpen(true))}
+          disabled={(!hasTables && authStatus !== "anon") || working || state.phase === "stopped" || mysql}
+          aria-describedby={hasTables || authStatus === "anon" ? undefined : "gen-hint"}
+        >
+          {tth("open")}
+          {authStatus === "anon" && <Lock className="h-3.5 w-3.5" aria-hidden />}
+        </Button>
+      </Tip>
+      <Tip
+        label={activeRunTip ? ts("tip.clickToRun") : ts("tip.run")}
+        side="bottom"
+        open={activeRunTip ? true : undefined}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && showRunTip) setShowRunTip(false);
+        }}
+      >
+        <Button
+          ref={runBtn}
+          size="sm"
+          variant="default"
+          onClick={onRun}
+          disabled={!canRun}
+          aria-label={t("run")}
+        >
+          <Play className="h-4 w-4 fill-current" />
+        </Button>
+      </Tip>
+    </div>
+  );
+
   const sqlZone = (
-    <Pane title={ts("tab.sql")}>
+    <Pane title={ts("tab.sql")} headerRight={sqlHeaderRight}>
       <span className="text-sm font-medium">{sqlLabel}</span>
       <div className="h-56 border border-line" id="sql-input">
-        <SqlEditor value={sql} onChange={setSql} engine={engine} error={editorError} highlight={highlight} ariaLabel={sqlLabel} onRun={handleEditorRun} />
+        <SqlEditor value={sql} onChange={handleSqlChange} engine={engine} error={editorError} highlight={highlight} ariaLabel={sqlLabel} onRun={handleEditorRun} />
       </div>
       {sql.trim() === "" && (
         <div className="flex flex-col items-start gap-2">
@@ -481,7 +550,7 @@ export function LabWorkspace() {
         <div role="alertdialog" aria-label={t("sampleAsk")} className="flex flex-col items-start gap-2 border border-line p-2 text-sm">
           <p>{t("sampleAsk")}</p>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => (setSql(pendingSample), setPendingSample(null))}>
+            <Button size="sm" onClick={() => (setShowRunTip(false), setSql(pendingSample), setPendingSample(null))}>
               {t("sampleReplace")}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setPendingSample(null)}>
@@ -499,33 +568,13 @@ export function LabWorkspace() {
       {statements.length > 0 && (
         <StatementList sql={effSql} statements={statements} selected={Math.min(selected, statements.length - 1)} onSelect={setSelected} />
       )}
-      <div>
-        <Tip label={ts("tip.run")} side="right">
-          <Button ref={runBtn} onClick={onRun} disabled={sql.trim() === "" || working || (confirmOpen && dialogOn) || state.phase === "stopped" || (mysql && authStatus !== "user")}>
-            {t("run")}
-          </Button>
-        </Tip>
-      </div>
       <GuestNote gate={gate} />
-      <div className="flex flex-col items-start gap-1">
-        <Tip label={ts("tip.generate")} side="right">
-        <Button
-          variant="outline"
-          onClick={() => (authStatus === "anon" ? setGenLock(true) : setGenOpen(true))}
-          disabled={(!hasTables && authStatus !== "anon") || working || state.phase === "stopped" || mysql}
-          aria-describedby={hasTables || authStatus === "anon" ? undefined : "gen-hint"}
-        >
-          {tth("open")}
-          {authStatus === "anon" && <Lock aria-hidden />}
-        </Button>
-        </Tip>
-        {genLock && authStatus === "anon" && <LockedTab name={tth("open")} feature />}
-        {!hasTables && !mysql && authStatus !== "anon" && (
-          <p id="gen-hint" className="text-xs text-muted-foreground">
-            {tth("openDisabled")}
-          </p>
-        )}
-      </div>
+      {genLock && authStatus === "anon" && <LockedTab name={tth("open")} feature />}
+      {!hasTables && !mysql && authStatus !== "anon" && (
+        <p id="gen-hint" className="text-xs text-muted-foreground">
+          {tth("openDisabled")}
+        </p>
+      )}
     </Pane>
   );
 

@@ -54,6 +54,7 @@
     "sample": "Điền một câu SQL mẫu vào ô để thử ngay, không cần tự viết.",
     "run": "Tách SQL thành từng câu rồi chạy lần lượt trên PostgreSQL trong trình duyệt. Kết quả hiện ở terminal và vùng mô phỏng.",
     "generate": "Tạo dòng dữ liệu giả cho các bảng vừa tạo, để thử với nhiều dòng hơn.",
+    "clickToRun": "Ấn để chạy",
     "tab": {
       "schema": "Xem các bảng và khóa ngoại của schema vừa chạy dưới dạng sơ đồ.",
       "plan": "Xem database chạy câu SELECT qua những bước nào và đọc bao nhiêu trang.",
