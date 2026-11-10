@@ -407,7 +407,8 @@ func gatedPing(r *gin.Engine, a *Auth) {
 // Không cần Docker: thiếu cấu hình thì server vẫn chạy, route liên quan trả 503.
 func TestNotConfigured(t *testing.T) {
 	r := httpapi.NewRouter()
-	gatedPing(r, Mount(r, Deps{}))
+	a := Mount(r, Deps{})
+	gatedPing(r, a)
 	do := func(m, p string, hdr map[string]string, c *http.Cookie) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(m, p, nil)
 		for k, v := range hdr {
@@ -420,7 +421,8 @@ func TestNotConfigured(t *testing.T) {
 		r.ServeHTTP(w, req)
 		return w
 	}
-	sid := &http.Cookie{Name: "sid", Value: "x"}
+	validSid := a.sessionCookie(strings.Repeat("a", 43), 3600)
+	junkSid := &http.Cookie{Name: "sid", Value: "x"}
 	cases := []struct {
 		m, p string
 		c    *http.Cookie
@@ -431,7 +433,8 @@ func TestNotConfigured(t *testing.T) {
 		{"GET", "/auth/github/callback?state=a", nil, 503},
 		{"POST", "/auth/logout", nil, 503},
 		{"GET", "/me", nil, 401},
-		{"GET", "/me", sid, 503},
+		{"GET", "/me", junkSid, 401},  // sid rác bị từ chối 401 ngay tại RAM, không chạm database
+		{"GET", "/me", validSid, 503}, // sid hợp lệ qua được RAM nhưng store chưa cấu hình trả 503
 		{"POST", "/mysql/ping", nil, 503}, // Origin không kiểm được khi thiếu PUBLIC_ORIGIN
 	}
 	for _, c := range cases {
@@ -475,4 +478,191 @@ func resetDB(t *testing.T, url string) {
 	if _, err := c.Exec(context.Background(), `DROP TABLE IF EXISTS sessions, identities, users, schema_migrations`); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// TestAuth_CookieHMAC kiểm tra toàn diện Task087 theo các tiêu chí AC1-AC5.
+func TestAuth_CookieHMAC(t *testing.T) {
+	secret := []byte("0123456789abcdef0123456789abcdef") // 32 bytes secret chuẩn
+	otherSecret := []byte("fedcba9876543210fedcba9876543210")
+
+	t.Run("AC1_SignAndVerify_Success", func(t *testing.T) {
+		rawToken := randToken(32) // 43 ký tự base64url
+		if len(rawToken) != 43 {
+			t.Fatalf("randToken(32) length = %d, want 43", len(rawToken))
+		}
+		signed := signToken(rawToken, secret)
+		if len(signed) != 87 {
+			t.Fatalf("signedToken length = %d, want 87 (%q)", len(signed), signed)
+		}
+		parts := strings.Split(signed, ".")
+		if len(parts) != 2 || len(parts[0]) != 43 || len(parts[1]) != 43 {
+			t.Fatalf("cấu trúc signed token không hợp lệ: %v", parts)
+		}
+		gotRaw, ok := verifyToken(signed, secret)
+		if !ok || gotRaw != rawToken {
+			t.Fatalf("verifyToken failed: got %q, ok=%v, want %q", gotRaw, ok, rawToken)
+		}
+	})
+
+	t.Run("AC1_TamperDetection", func(t *testing.T) {
+		rawToken := randToken(32)
+		signed := signToken(rawToken, secret)
+
+		// 1. Sửa 1 byte ở raw token
+		tamperedRaw := []byte(signed)
+		if tamperedRaw[0] == 'a' {
+			tamperedRaw[0] = 'b'
+		} else {
+			tamperedRaw[0] = 'a'
+		}
+		if _, ok := verifyToken(string(tamperedRaw), secret); ok {
+			t.Error("chấp nhận token bị sửa phần raw")
+		}
+
+		// 2. Sửa 1 byte ở signature
+		tamperedSig := []byte(signed)
+		lastIdx := len(tamperedSig) - 1
+		if tamperedSig[lastIdx] == 'z' {
+			tamperedSig[lastIdx] = 'y'
+		} else {
+			tamperedSig[lastIdx] = 'z'
+		}
+		if _, ok := verifyToken(string(tamperedSig), secret); ok {
+			t.Error("chấp nhận token bị sửa phần signature")
+		}
+
+		// 3. Khóa bí mật khác
+		if _, ok := verifyToken(signed, otherSecret); ok {
+			t.Error("chấp nhận chữ ký ký bởi secret khác")
+		}
+
+		// 4. Thiếu chữ ký (chỉ có raw token 43 ký tự)
+		if _, ok := verifyToken(rawToken, secret); ok {
+			t.Error("chấp nhận token thiếu chữ ký")
+		}
+
+		// 5. Chuỗi rác rỗng hoặc độ dài bất thường
+		for _, bad := range []string{
+			"",
+			"invalid",
+			strings.Repeat("x", 43),
+			strings.Repeat("x", 86),
+			strings.Repeat("x", 88),
+			strings.Repeat("x", 120),
+			rawToken + "." + rawToken + "." + rawToken, // 2 dấu chấm
+			strings.Repeat("a", 42) + "." + strings.Repeat("b", 44), // đúng 87 ký tự nhưng sai vị trí chấm
+			strings.Repeat("a", 44) + "." + strings.Repeat("b", 42),
+			"." + strings.Repeat("a", 86),
+			strings.Repeat("a", 86) + ".",
+		} {
+			if _, ok := verifyToken(bad, secret); ok {
+				t.Errorf("chấp nhận token không hợp lệ: %q", bad)
+			}
+		}
+	})
+
+	t.Run("AC1_SecretFallback", func(t *testing.T) {
+		// Rỗng -> fallback sinh ephemeral key
+		r1 := httpapi.NewRouter()
+		a1 := Mount(r1, Deps{Config: Config{SessionSecret: ""}})
+		if len(a1.secret) < 32 {
+			t.Fatalf("secret length = %d, want >= 32", len(a1.secret))
+		}
+		tok1 := randToken(32)
+		sig1 := a1.sessionCookie(tok1, 3600)
+		if len(sig1.Value) != 87 {
+			t.Fatalf("cookie value length = %d, want 87", len(sig1.Value))
+		}
+		if got, ok := verifyToken(sig1.Value, a1.secret); !ok || got != tok1 {
+			t.Fatalf("fallback secret verify failed: got %q, ok=%v", got, ok)
+		}
+
+		// Ngắn hơn 32 ký tự -> fallback sinh ephemeral key
+		r2 := httpapi.NewRouter()
+		a2 := Mount(r2, Deps{Config: Config{SessionSecret: "too-short-secret"}})
+		if len(a2.secret) < 32 {
+			t.Fatalf("secret length = %d, want >= 32", len(a2.secret))
+		}
+
+		// Secret đủ chuẩn 32 ký tự -> sử dụng đúng secret đó
+		customSec := "0123456789abcdef0123456789abcdef"
+		r3 := httpapi.NewRouter()
+		a3 := Mount(r3, Deps{Config: Config{SessionSecret: customSec}})
+		if string(a3.secret) != customSec {
+			t.Fatalf("secret mismatch: got %q, want %q", string(a3.secret), customSec)
+		}
+	})
+
+	t.Run("AC2_CookieIssuance", func(t *testing.T) {
+		r := httpapi.NewRouter()
+		a := Mount(r, Deps{Config: Config{PublicOrigin: origin, SessionSecret: string(secret)}})
+
+		rawTok := randToken(32)
+		cookie := a.sessionCookie(rawTok, 3600)
+		if cookie.Name != "sid" {
+			t.Errorf("cookie name = %q, want sid", cookie.Name)
+		}
+		if len(cookie.Value) != 87 {
+			t.Fatalf("cookie value length = %d, want 87", len(cookie.Value))
+		}
+		gotRaw, ok := verifyToken(cookie.Value, a.secret)
+		if !ok || gotRaw != rawTok {
+			t.Fatalf("verify cookie value failed: got %q, ok=%v, want %q", gotRaw, ok, rawTok)
+		}
+
+		// Khi xóa phiên lúc logout, Value phải là chuỗi rỗng
+		clearCookie := a.sessionCookie("", -1)
+		if clearCookie.Value != "" {
+			t.Errorf("clear cookie value = %q, want empty", clearCookie.Value)
+		}
+	})
+
+	t.Run("AC3_RequireUser_RAM_Rejection", func(t *testing.T) {
+		r := httpapi.NewRouter()
+		// Store nil: nếu token lọt qua verifyToken thì sẽ gặp notConfigured (503).
+		// Nếu bị chặn ở RAM do HMAC sai thì sẽ nhận 401 ngay lập tức.
+		a := Mount(r, Deps{Config: Config{PublicOrigin: origin, SessionSecret: string(secret)}})
+		r.GET("/test-protected", a.requireUser, func(c *gin.Context) {
+			c.Status(http.StatusOK)
+		})
+
+		doReq := func(c *http.Cookie) *httptest.ResponseRecorder {
+			req := httptest.NewRequest("GET", "/test-protected", nil)
+			if c != nil {
+				req.AddCookie(c)
+			}
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			return w
+		}
+
+		rawTok := randToken(32)
+		validSigned := signToken(rawTok, secret)
+		otherSigned := signToken(rawTok, otherSecret)
+
+		testCases := []struct {
+			name     string
+			cookie   *http.Cookie
+			wantCode int
+			wantErr  string
+		}{
+			{"Không có cookie", nil, 401, "auth_required"},
+			{"Cookie rỗng", &http.Cookie{Name: "sid", Value: ""}, 401, "auth_required"},
+			{"Cookie rác ngẫu nhiên", &http.Cookie{Name: "sid", Value: "random_junk_string"}, 401, "auth_required"},
+			{"Cookie thiếu chữ ký", &http.Cookie{Name: "sid", Value: rawTok}, 401, "auth_required"},
+			{"Cookie ký bằng secret khác", &http.Cookie{Name: "sid", Value: otherSigned}, 401, "auth_required"},
+			{"Cookie bị sửa 1 ký tự", &http.Cookie{Name: "sid", Value: validSigned[:len(validSigned)-1] + "X"}, 401, "auth_required"},
+			{"Cookie đúng HMAC chạm tầng Store (503 do Store nil)", &http.Cookie{Name: "sid", Value: validSigned}, 503, "not_configured"},
+		}
+
+		for _, tc := range testCases {
+			w := doReq(tc.cookie)
+			if w.Code != tc.wantCode {
+				t.Errorf("%s: status = %d, want %d (body: %s)", tc.name, w.Code, tc.wantCode, w.Body.String())
+			}
+			if !strings.Contains(w.Body.String(), tc.wantErr) {
+				t.Errorf("%s: body = %q, want error %q", tc.name, w.Body.String(), tc.wantErr)
+			}
+		}
+	})
 }
