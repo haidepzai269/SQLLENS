@@ -131,3 +131,10 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | STR059 Đánh bóng luồng | Đi từ dán SQL đến kết luận không đứt đoạn. Mọi trạng thái tải, rỗng, lỗi đã có. Có bàn phím, có giảm chuyển động | Có | |
 | STR060 E2E | Playwright chạy luồng chính ở hai engine và hai ngôn ngữ | | |
 | STR061 Kiểm tra cuối | `security-audit` đầy đủ, rà nhãn kết luận trên toàn sản phẩm, danh sách việc trước khi phát hành (Đã xong - Task082) | | |
+
+## SP999 Việc phát sinh (Hậu phát hành & Bảo vệ hạ tầng)
+
+| Story | Hành vi khi xong | GD | Nhãn |
+|---|---|---|---|
+| STR063 Auth Shield | Lá chắn 3 tầng chống cạn kiệt connection pool Neon Postgres: Signed Session Cookie (HMAC-SHA256) tại RAM Gin, Redis Atomic Abuse Gatekeeper bằng Lua Script trên Upstash, và Local Fast-Path Ban Cache trong RAM (Đã xong - Task087, Task088, Task089) | | |
+
