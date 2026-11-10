@@ -5,7 +5,8 @@
 > - **Đợt 4C (Task082):** Security Audit toàn diện 3 tầng, quét secret, rà soát 100% nhãn kết luận và câu chữ giao diện không thiên vị, regression suite 572 tests unit + Playwright E2E pass 100%, chốt `RELEASE_CHECKLIST_V1.md` sẵn sàng phát hành.
 > - **Đợt 5 Toàn diện:** Mở rộng sandbox MySQL Docker trên Azure VM, cây B+Tree InnoDB, Thử sửa Shadow Tables, Tranh chấp 2 connection SSE stream realtime.
 > - **Gọt giũa UX (Task090):** Header SQL cố định (sticky), đưa nút Chạy (icon Play tam giác SVG) & nút Sinh dữ liệu lên header, vi tương tác Debounce Tooltip "Ấn để chạy" (574 unit tests pass).
-> Đã bàn giao **85 Tasks**. SQLLens V1 chính thức đạt tiêu chuẩn phát hành sản phẩm ra cộng đồng! Đang thảo luận duyệt SPEC Epic SP014 (Smart Error Helper & Quick-Fix).
+> - **Lõi chẩn đoán lỗi (Task091):** Hợp đồng kiểu ErrorRemediation, Postgres Heuristic Matcher nhận diện 10 mã lỗi production theo nguyên tắc Raw Error First, 18 unit tests pass (592 unit tests pass toàn hệ thống).
+> Đã bàn giao **86 Tasks**. SQLLens V1 chính thức đạt tiêu chuẩn phát hành sản phẩm ra cộng đồng! Đang triển khai Epic SP014 (Smart Error Helper & Quick-Fix).
 
 ---
 
