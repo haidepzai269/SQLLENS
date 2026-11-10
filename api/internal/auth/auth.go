@@ -3,6 +3,7 @@ package auth
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,9 +41,10 @@ type Provider struct {
 
 // Config: trường rỗng nghĩa là chưa cấu hình, route liên quan trả 503.
 type Config struct {
-	PublicOrigin   string // https://host hoặc http://localhost:3000, không có path
+	PublicOrigin  string // https://host hoặc http://localhost:3000, không có path
+	SessionSecret string // Tối thiểu 32 ký tự dùng ký HMAC-SHA256 cho session cookie sid
 	Google, GitHub Provider
-	HTTPClient     *http.Client // nil: client timeout 10 giây
+	HTTPClient    *http.Client // nil: client timeout 10 giây
 }
 
 type Deps struct {
@@ -59,6 +62,7 @@ type pending struct {
 type Auth struct {
 	cfg     Config
 	origin  string // PublicOrigin đã chuẩn hóa, rỗng nếu không hợp lệ
+	secret  []byte // Khóa bí mật ký cookie sid (tối thiểu 32 bytes)
 	secure  bool
 	store   *store.Store
 	limiter *quota.Limiter
@@ -82,8 +86,24 @@ func normalizeOrigin(s string) string {
 // Mount gắn /auth/*, /me, kiểm Origin cho mọi route đăng ký sau đó, và nhóm /mysql đã có cổng.
 // Dùng Auth trả về để gắn cổng cho /ai ở SP012: a.Gate(quota.AIMessage).
 func Mount(r *gin.Engine, d Deps) *Auth {
-	a := &Auth{cfg: d.Config, origin: normalizeOrigin(d.Config.PublicOrigin), store: d.Store, limiter: d.Limiter,
-		hc: d.Config.HTTPClient, rate: newRateLimiter(30, time.Minute), states: map[string]pending{}}
+	sec := []byte(d.Config.SessionSecret)
+	if len(sec) < 32 {
+		log.Print("auth: SESSION_SECRET is missing or shorter than 32 bytes; generating ephemeral random secret for development")
+		sec = make([]byte, 32)
+		if _, err := rand.Read(sec); err != nil {
+			panic("auth: crypto/rand failed to generate session secret: " + err.Error())
+		}
+	}
+	a := &Auth{
+		cfg:     d.Config,
+		origin:  normalizeOrigin(d.Config.PublicOrigin),
+		secret:  sec,
+		store:   d.Store,
+		limiter: d.Limiter,
+		hc:      d.Config.HTTPClient,
+		rate:    newRateLimiter(30, time.Minute),
+		states:  map[string]pending{},
+	}
 	if a.hc == nil {
 		a.hc = &http.Client{Timeout: 10 * time.Second}
 	}
@@ -118,16 +138,53 @@ func (a *Auth) originCheck(c *gin.Context) {
 	c.Next()
 }
 
+// signToken ký token bằng HMAC-SHA256, trả về sid = <raw_token>.<signature_base64url> (87 ký tự).
+func signToken(token string, secret []byte) string {
+	h := hmac.New(sha256.New, secret)
+	h.Write([]byte(token))
+	sig := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+	return token + "." + sig
+}
+
+// verifyToken xác thực chữ ký HMAC-SHA256 bằng subtle.ConstantTimeCompare trong RAM Gin.
+// Bắt buộc chuỗi có đúng 2 phần, mỗi phần 43 ký tự (độ dài tổng đúng 87 ký tự).
+func verifyToken(signedTok string, secret []byte) (string, bool) {
+	if len(signedTok) != 87 {
+		return "", false
+	}
+	parts := strings.Split(signedTok, ".")
+	if len(parts) != 2 || len(parts[0]) != 43 || len(parts[1]) != 43 {
+		return "", false
+	}
+	h := hmac.New(sha256.New, secret)
+	h.Write([]byte(parts[0]))
+	expectedSig := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+	if subtle.ConstantTimeCompare([]byte(parts[1]), []byte(expectedSig)) != 1 {
+		return "", false
+	}
+	return parts[0], true
+}
+
 func (a *Auth) sessionCookie(token string, maxAge int) *http.Cookie {
-	return &http.Cookie{Name: cookieName, Value: token, Path: "/", MaxAge: maxAge, HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteLaxMode}
+	val := token
+	if val != "" {
+		val = signToken(token, a.secret)
+	}
+	return &http.Cookie{Name: cookieName, Value: val, Path: "/", MaxAge: maxAge, HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteLaxMode}
 }
 
 const userKey = "auth.user"
 
-// requireUser chỉ đọc cookie sid. Không có cookie thì trả 401 mà không chạm database.
+// requireUser chỉ đọc cookie sid. Không có cookie hoặc chữ ký HMAC sai/rác
+// thì từ chối 401 ngay tại RAM mà không chạm database.
 func (a *Auth) requireUser(c *gin.Context) {
 	tok, err := c.Cookie(cookieName)
 	if err != nil || tok == "" {
+		httpapi.Abort(c, http.StatusUnauthorized, "auth_required", "error.authRequired")
+		return
+	}
+	rawTok, ok := verifyToken(tok, a.secret)
+	if !ok {
 		httpapi.Abort(c, http.StatusUnauthorized, "auth_required", "error.authRequired")
 		return
 	}
@@ -135,7 +192,7 @@ func (a *Auth) requireUser(c *gin.Context) {
 		notConfigured(c)
 		return
 	}
-	u, err := a.store.SessionUser(c.Request.Context(), tok)
+	u, err := a.store.SessionUser(c.Request.Context(), rawTok)
 	switch {
 	case errors.Is(err, store.ErrNotFound):
 		httpapi.Abort(c, http.StatusUnauthorized, "auth_required", "error.authRequired")
@@ -188,14 +245,16 @@ func (a *Auth) logout(c *gin.Context) {
 	http.SetCookie(c.Writer, a.sessionCookie("", -1))
 	c.Header("Cache-Control", "no-store")
 	if tok != "" {
-		if a.store == nil {
-			notConfigured(c)
-			return
-		}
-		if err := a.store.DeleteSession(c.Request.Context(), tok); err != nil {
-			log.Print("auth: delete session failed")
-			httpapi.Abort(c, http.StatusServiceUnavailable, "auth_unavailable", "error.authUnavailable")
-			return
+		if rawTok, ok := verifyToken(tok, a.secret); ok {
+			if a.store == nil {
+				notConfigured(c)
+				return
+			}
+			if err := a.store.DeleteSession(c.Request.Context(), rawTok); err != nil {
+				log.Print("auth: delete session failed")
+				httpapi.Abort(c, http.StatusServiceUnavailable, "auth_unavailable", "error.authUnavailable")
+				return
+			}
 		}
 	}
 	c.Status(http.StatusNoContent)

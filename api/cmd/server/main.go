@@ -26,9 +26,10 @@ const cleanupEvery = 6 * time.Hour
 // build dựng router. Thiếu biến môi trường nào thì phần cần biến đó trả 503, server vẫn chạy và /healthz vẫn ổn.
 func build(ctx context.Context) *gin.Engine {
 	cfg := auth.Config{
-		PublicOrigin: os.Getenv("PUBLIC_ORIGIN"),
-		Google:       auth.Provider{ClientID: os.Getenv("GOOGLE_CLIENT_ID"), ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET")},
-		GitHub:       auth.Provider{ClientID: os.Getenv("GITHUB_CLIENT_ID"), ClientSecret: os.Getenv("GITHUB_CLIENT_SECRET")},
+		PublicOrigin:  os.Getenv("PUBLIC_ORIGIN"),
+		SessionSecret: os.Getenv("SESSION_SECRET"),
+		Google:        auth.Provider{ClientID: os.Getenv("GOOGLE_CLIENT_ID"), ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET")},
+		GitHub:        auth.Provider{ClientID: os.Getenv("GITHUB_CLIENT_ID"), ClientSecret: os.Getenv("GITHUB_CLIENT_SECRET")},
 	}
 	d := auth.Deps{Config: cfg}
 	if u := os.Getenv("DATABASE_URL"); u != "" {
