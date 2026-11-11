@@ -140,6 +140,16 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | STR065 SmartErrorCard & 1-Click Action | Giữ nguyên Raw error console mặc định, toggle dịch nghĩa tiếng Việt, 3 nút Quick-Fix sửa trực tiếp vào ô soạn thảo | Có | |
 | STR066 Cầu nối AI Error Explainer | Cho phép hỏi AI Mentor về lỗi lạ/phức tạp, SQL sửa đề xuất được chạy thử trước khi hiển thị | Có | Thật |
 
+## SP015 AI Mentor 2.0 (Rule-Indexed Context & Deterministic Engine)
+
+| Story | Hành vi khi xong | GD | Nhãn |
+|---|---|---|---|
+| STR067 Kho tri thức Rule-Indexed Catalog | Xây dựng thư viện tri thức chuẩn 15 tình huống tối ưu Postgres & MySQL, tra cứu O(1) in-memory, tiêm tối đa 400 tokens | | Mô phỏng |
+| STR068 Bộ bóc tách Plan & Nén Evidence | Quét điểm nghẽn Plan (I/O, Sort Disk, Seq Scan lớn) gán tag tự động, nén giảm 75% dung lượng JSON gửi lên AI | | Thật |
+| STR069 Gin AI Proxy 2.0 & Intent Guard | Đổi model chính sang Qwen 3.8-27B siêu tốc (0.19s), xử lý reasoning stream, chặn đứng Prompt Injection phi-database tại Gin | | Thật |
+| STR070 Hội thoại đa lượt & Rolling Summary | Giao diện chat liên tục (Thread view), cơ chế Rolling Summary gửi tóm tắt câu trước cho phép hỏi sâu không loãng token | Có | Theo nguồn |
+| STR071 Minh bạch Verify & Sandbox MySQL | Chấm dứt cụt lủn khi SQL AI lỗi (hiển thị khung hổ phách minh bạch), hỗ trợ dry-run EXPLAIN an toàn cho MySQL qua Sandbox Agent | Có | Thật |
+
 ## SP999 Việc phát sinh (Hậu phát hành & Bảo vệ hạ tầng)
 
 | Story | Hành vi khi xong | GD | Nhãn |
