@@ -108,6 +108,15 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
     }
   }
 
+  // Dựng worker mới và làm sạch history (không chạy lại câu cũ). Gọi trong hàng đợi.
+  async function freshNow() {
+    if (disposed) throw new EngineError("worker_crashed", "Engine disposed");
+    worker?.terminate();
+    worker = undefined;
+    ran.length = 0;
+    await start();
+  }
+
   await start();
 
   return {
@@ -189,6 +198,7 @@ export async function createPostgresAdapter({ onProgress, timeoutMs = 30_000 }: 
     },
     history: () => ran,
     rebuild: () => enqueue(rebuildNow),
+    fresh: () => enqueue(freshNow),
     async dispose() {
       disposed = true;
       kill(new EngineError("cancelled", "Engine disposed"));

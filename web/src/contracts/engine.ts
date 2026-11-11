@@ -46,5 +46,7 @@ export interface EngineAdapter {
   history(): readonly string[];
   /** Tạo worker mới rồi chạy lại history(). */
   rebuild(): Promise<void>;
+  /** Tạo worker mới và làm rỗng history() (không chạy lại các câu cũ). */
+  fresh(): Promise<void>;
   dispose(): Promise<void>;
 }

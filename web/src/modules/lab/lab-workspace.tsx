@@ -81,6 +81,7 @@ export function LabWorkspace() {
   const engine = parseEngine(useSearchParams().get("engine"));
   // Toàn bộ trạng thái phiên nằm ở đây, trên WorkspaceLayout, nên đổi qua mốc 900 px không mất gì.
   const [sql, setSql] = useState("");
+  const [selection, setSelection] = useState<{ hasSelection: boolean; text: string }>({ hasSelection: false, text: "" });
   const { sqlRef, markAnon, status: authStatus } = useAuth();
   const tm = useTranslations("mysql");
   const router = useRouter();
@@ -230,19 +231,19 @@ export function LabWorkspace() {
   }, [sql, engine]);
 
   // Cổng của khách: mọi đường chạy (Chạy, Thử lại, xác nhận schema) đều qua đây. true là bị chặn: không chạy gì, không tính lượt.
-  async function guestBlocked(): Promise<boolean> {
+  async function guestBlocked(target?: string): Promise<boolean> {
     if (authStatus !== "anon" || engine !== "postgres") return setGate(null), false;
-    const g = await guestCheck(prepareDump(sql, engine).sql, engine);
+    const g = await guestCheck(prepareDump(target ?? sql, engine).sql, engine);
     setGate(g);
     return g !== null;
   }
 
-  async function run(schemaSql?: string) {
+  async function run(schemaSql?: string, targetSql?: string) {
     if (busy.current) return;
     busy.current = true;
     let blocked = true; // lỗi bất ngờ ở cổng thì coi như bị chặn và vẫn thả cờ busy
     try {
-      blocked = await guestBlocked();
+      blocked = await guestBlocked(targetSql);
     } finally {
       if (blocked) busy.current = false;
     }
@@ -283,7 +284,8 @@ export function LabWorkspace() {
       }
       setState({ phase: "running" });
       const ctl = (abort.current = new AbortController());
-      const toRun = prepareDump(sql, engine).sql;
+      const activeSql = targetSql ?? sql;
+      const toRun = prepareDump(activeSql, engine).sql;
       let step: "schema" | "query" = "query";
       try {
         if (schemaSql) {
@@ -294,7 +296,7 @@ export function LabWorkspace() {
           step = "query";
         }
         const results = await db.execute(toRun, { signal: ctl.signal });
-        applied.current = sql; // chỉ khi query cũng chạy xong; nếu query lỗi thì lần Chạy sau kiểm lại bảng và có thể mở lại bản nháp
+        if (!targetSql) applied.current = sql; // chỉ khi query cũng chạy xong; nếu query lỗi thì lần Chạy sau kiểm lại bảng và có thể mở lại bản nháp
         const last = results[results.length - 1] ?? { columns: [], rows: [] };
         const data = { statements: results.length, rows: last.rows.length };
         note({ kind: "ran", n: results.length });
@@ -315,7 +317,7 @@ export function LabWorkspace() {
           guestRun.current = false;
           guestRunDone();
         }
-        setStageRun({ id: ++stageSeq.current, db, select, sql: toRun, srcSql: sql, statements, explain: memoExplain(db) });
+        setStageRun({ id: ++stageSeq.current, db, select, sql: toRun, srcSql: activeSql, statements, explain: memoExplain(db) });
 
         setState({
           phase: "done",
@@ -388,8 +390,13 @@ export function LabWorkspace() {
     }
   }
 
-  async function onRun() {
+  async function onRun(targetSql?: string) {
     if (busy.current || (confirmOpen && dialogOn)) return;
+    if (targetSql) {
+      if (targetSql.trim() === "") return;
+      void run(undefined, targetSql);
+      return;
+    }
     busy.current = true; // chặn bấm đúp trong lúc parse
     let ask = false;
     try {
@@ -434,6 +441,30 @@ export function LabWorkspace() {
     }
   }
 
+  async function resetClean() {
+    if (busy.current || !adapter.current) return;
+    busy.current = true;
+    setStageRun(null);
+    setState({ phase: "rebuilding" });
+    try {
+      const db = await adapter.current;
+      await db.fresh();
+      setHasTables(false);
+      applied.current = null;
+      note({ kind: "rebuilt", n: 0 });
+      afterRebuild(db);
+      setState(IDLE);
+    } catch (e) {
+      setState(
+        e instanceof SandboxError
+          ? { phase: "sandbox_error", failure: e.failure, count: 0 }
+          : { phase: "stopped", code: stopCode(e) ?? "worker_crashed", count: 0, rebuildError: errMsg(e) },
+      );
+    } finally {
+      busy.current = false;
+    }
+  }
+
   const working = state.phase === "loading" || state.phase === "running" || state.phase === "rebuilding";
   const mysql = engine === "mysql";
   const outcome = parsed && parsed.sql === sql && parsed.engine === engine ? parsed.outcome : null;
@@ -465,8 +496,16 @@ export function LabWorkspace() {
     else setPendingSample(text);
   };
   const canRun = sql.trim() !== "" && !working && !(confirmOpen && dialogOn) && state.phase !== "stopped" && !(mysql && authStatus !== "user");
-  const handleEditorRun = () => {
-    if (canRun) void onRun();
+  const hasSelectionToRun = Boolean(selection.hasSelection && selection.text.trim());
+  const handlePlayClick = () => {
+    if (hasSelectionToRun) {
+      void onRun(selection.text);
+    } else {
+      void onRun();
+    }
+  };
+  const handleEditorRun = (options?: { targetSql?: string; isSelection?: boolean }) => {
+    if (canRun) void onRun(options?.targetSql);
   };
 
   const sqlLabel = mysql ? tm("sqlLabel") : t("sqlLabel");
@@ -484,14 +523,14 @@ export function LabWorkspace() {
           {authStatus === "anon" && <Lock className="h-3.5 w-3.5" aria-hidden />}
         </Button>
       </Tip>
-      <Tip label={ts("tip.run")} side="bottom">
+      <Tip label={hasSelectionToRun ? ts("tip.runSelection") : ts("tip.run")} side="bottom">
         <Button
           ref={runBtn}
           size="sm"
           variant="default"
-          onClick={onRun}
+          onClick={handlePlayClick}
           disabled={!canRun}
-          aria-label={t("run")}
+          aria-label={hasSelectionToRun ? t("runSelected") : t("run")}
         >
           <Play className="h-4 w-4 fill-current" />
         </Button>
@@ -503,7 +542,16 @@ export function LabWorkspace() {
     <Pane title={ts("tab.sql")} headerRight={sqlHeaderRight}>
       <span className="text-sm font-medium">{sqlLabel}</span>
       <div className="h-56 border border-line" id="sql-input">
-        <SqlEditor value={sql} onChange={setSql} engine={engine} error={editorError} highlight={highlight} ariaLabel={sqlLabel} onRun={handleEditorRun} />
+        <SqlEditor
+          value={sql}
+          onChange={setSql}
+          engine={engine}
+          error={editorError}
+          highlight={highlight}
+          ariaLabel={sqlLabel}
+          onRun={handleEditorRun}
+          onSelectionChange={(has, text) => setSelection({ hasSelection: has, text })}
+        />
       </div>
       {sql.trim() === "" && (
         <div className="flex flex-col items-start gap-2">
@@ -614,7 +662,7 @@ export function LabWorkspace() {
                 title={mysql ? tm("sqlErrorTitle") : undefined}
                 engine={engine}
                 onApplyFix={(newSql) => setSql(newSql)}
-                onRebuild={rebuild}
+                onRebuild={resetClean}
               />
             </div>
           )}
