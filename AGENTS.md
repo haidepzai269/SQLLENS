@@ -4,8 +4,8 @@
 Chi tiết số đo kiểm chứng thực nghiệm đầy đủ xem tại [CLAUDE.md](file:///c:/SQLLens/CLAUDE.md).
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
-- **Giai đoạn hiện tại:** Đã chốt 14 Epic và 64 Story (`_bmad-output/BAN_DO_STORY.md`). SP001 - SP013 hoàn thành 100%. Bổ sung và hoàn tất toàn diện SP999/STR063 (Auth Shield: Task087, Task088, Task089 - bảo vệ 3 tầng connection pool Neon Postgres). Đã bàn giao Task090 (Header SQL cố định, nút Play SVG, vi tương tác debounce tooltip). Đã hoàn tất chuỗi Epic SP014 Smart Error Helper & Quick-Fix: Task091 (Postgres Matcher), Task093 (SmartErrorCard UI 1-Click & MySQL Matcher), Task095 (Gin AI Error Diagnosis endpoint). Tổng cộng đã bàn giao 88 task, hoàn tất 100% Release Checklist V1 cùng tính năng trợ lý lỗi thực chiến.
-- **Mục tiêu trước mắt:** Xem `_bmad-output/MUC_TIEU_TRUOC_MAT.md` và `RELEASE_CHECKLIST_V1.md` (toàn bộ luồng PostgreSQL + MySQL production an toàn, bảo mật, sẵn sàng công bố).
+- **Giai đoạn hiện tại:** Đã chốt 15 Epic và 69 Story (`_bmad-output/BAN_DO_STORY.md`). SP001 - SP014 hoàn thành 100%. Khởi động Epic SP015 (AI Mentor 2.0: Rule-Indexed Context & Deterministic Engine, SPEC tại `_bmad-output/SPEC_RULE_INDEX.md`). Đã bàn giao Task096 (Kho tri thức Rule-Indexed Catalog 15 case cốt lõi, in-memory O(1) < 1ms, review độc lập PASS 100%). Tiếp tục chuẩn bị triển khai Task098 (Gin AI Proxy 2.0 & Intent Guard) và Task097 (Evidence Compactor).
+- **Mục tiêu trước mắt:** Hoàn thiện 5 task của Epic SP015 (Task096 -> Task100) để đưa AI Mentor lên tầm Production an toàn, siêu tốc (<0.5s), không ảo giác và tiết kiệm 70% token. Xem `_bmad-output/SP015/README.md`.
 - **Key bên thứ 3:** Danh sách ở `KEY_CAN_LAY.md` (gitignored). Không bao giờ commit secret lên git.
 
 ---
