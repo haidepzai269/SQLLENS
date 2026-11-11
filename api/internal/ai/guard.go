@@ -7,6 +7,8 @@ import (
 
 // jailbreakPatterns contains known prompt injection, jailbreak, and off-topic patterns.
 // If any of these patterns appear in the question, it is rejected immediately.
+// Note: "act as" is evaluated separately by isActAsJailbreak to avoid false positives
+// on questions like "Does a primary key act as a unique index?".
 var jailbreakPatterns = []string{
 	// English injection & jailbreak
 	"ignore previous instructions",
@@ -15,13 +17,13 @@ var jailbreakPatterns = []string{
 	"ignore instructions",
 	"disregard previous instructions",
 	"disregard all instructions",
+	"disregard instructions",
 	"forget all instructions",
 	"forget previous instructions",
 	"forget all rules",
 	"forget your rules",
 	"forget rules",
 	"bypass rules",
-	"act as",
 	"pretend to be",
 	"pretend you are",
 	"you are now",
@@ -71,12 +73,16 @@ var jailbreakPatterns = []string{
 	"python script",
 	"write python",
 
-	// Math & General science non-database
+	// Math & General science non-database (specific to math/calculation, avoiding Lock Compatibility Matrix)
 	"toán học",
 	"giải toán",
 	"tính toán ma trận",
-	"ma trận",
+	"nhân ma trận",
+	"nghịch đảo ma trận",
+	"tính ma trận",
 	"matrix multiplication",
+	"matrix calculation",
+	"inverse matrix",
 	"solve equation",
 	"phương trình",
 
@@ -85,6 +91,100 @@ var jailbreakPatterns = []string{
 	"weather",
 	"công thức nấu",
 	"recipe",
+}
+
+// validDbRoleTerms are database concepts allowed to follow "act as [a/an/the]".
+var validDbRoleTerms = []string{
+	"unique index",
+	"covering index",
+	"clustered index",
+	"primary key",
+	"foreign key",
+	"secondary index",
+	"composite index",
+	"b-tree",
+	"btree",
+	"hash index",
+	"gin index",
+	"gist index",
+	"constraint",
+	"filter",
+	"table",
+	"column",
+	"key",
+	"surrogate key",
+	"natural key",
+	"candidate key",
+	"queue",
+	"cache",
+	"lock",
+}
+
+// isActAsJailbreak checks if "act as" is used as a persona jailbreak (e.g. "act as a python developer",
+// "act as dan", "act as someone") rather than legitimate database roles (e.g. "act as a unique index",
+// "act as a covering index").
+func isActAsJailbreak(text string) bool {
+	cursor := text
+	for {
+		idx := strings.Index(cursor, "act as")
+		if idx == -1 {
+			break
+		}
+		// Check word boundary before "act"
+		if idx > 0 {
+			prev := cursor[idx-1]
+			if (prev >= 'a' && prev <= 'z') || (prev >= '0' && prev <= '9') {
+				// Part of another word like "compact asset", skip
+				cursor = cursor[idx+6:]
+				continue
+			}
+		}
+
+		after := strings.TrimSpace(cursor[idx+len("act as"):])
+		if after == "" {
+			return true // "act as" alone at end is suspicious
+		}
+
+		// Strip articles if present: "a ", "an ", "the "
+		target := after
+		if strings.HasPrefix(target, "a ") {
+			target = strings.TrimPrefix(target, "a ")
+		} else if strings.HasPrefix(target, "an ") {
+			target = strings.TrimPrefix(target, "an ")
+		} else if strings.HasPrefix(target, "the ") {
+			target = strings.TrimPrefix(target, "the ")
+		}
+		target = strings.TrimSpace(target)
+
+		// Check if target starts with an allowed database concept/role
+		isDbRole := false
+		for _, dbTerm := range validDbRoleTerms {
+			if strings.HasPrefix(target, dbTerm) {
+				isDbRole = true
+				break
+			}
+		}
+
+		if !isDbRole {
+			return true // Detected persona jailbreak
+		}
+
+		cursor = cursor[idx+6:]
+	}
+	return false
+}
+
+// normalizeText collapses all contiguous whitespace characters (spaces, tabs, newlines) into a single space.
+func normalizeText(s string) string {
+	return strings.Join(strings.Fields(strings.ToLower(s)), " ")
+}
+
+// stripCommentDelimiters replaces SQL comment tokens (-- and /* */) with spaces.
+func stripCommentDelimiters(s string) string {
+	r := strings.ReplaceAll(s, "/*", " ")
+	r = strings.ReplaceAll(r, "*/", " ")
+	r = strings.ReplaceAll(r, "--", " ")
+	return r
 }
 
 // dbSubstrings are distinct multi-character or domain-specific database keywords.
@@ -155,6 +255,9 @@ var dbSubstrings = []string{
 	"merge join",
 	"sort spill",
 	"temp table",
+	"ma trận tương thích khóa",
+	"ma trận khóa",
+	"lock compatibility matrix",
 }
 
 // dbWordRegex checks word boundaries for short database/SQL keywords or concepts.
@@ -170,24 +273,32 @@ func IsDatabaseQuestion(question string) (bool, string) {
 		return false, "error.nonDatabaseQuestion"
 	}
 
-	lower := strings.ToLower(trimmed)
+	// Step 0: Normalize whitespaces (spaces, tabs, newlines) on both raw text and comment-stripped text.
+	normalized := normalizeText(trimmed)
+	normalizedWithoutComments := normalizeText(stripCommentDelimiters(trimmed))
 
 	// Step 1: Reject any known prompt injection, jailbreak, or forbidden off-topic pattern.
-	for _, pattern := range jailbreakPatterns {
-		if strings.Contains(lower, pattern) {
+	for _, text := range []string{normalized, normalizedWithoutComments} {
+		for _, pattern := range jailbreakPatterns {
+			if strings.Contains(text, pattern) {
+				return false, "error.nonDatabaseQuestion"
+			}
+		}
+		if isActAsJailbreak(text) {
 			return false, "error.nonDatabaseQuestion"
 		}
 	}
 
 	// Step 2: Verify the question contains legitimate database/SQL context.
-	for _, kw := range dbSubstrings {
-		if strings.Contains(lower, kw) {
+	for _, text := range []string{normalized, normalizedWithoutComments} {
+		for _, kw := range dbSubstrings {
+			if strings.Contains(text, kw) {
+				return true, ""
+			}
+		}
+		if dbWordRegex.MatchString(text) {
 			return true, ""
 		}
-	}
-
-	if dbWordRegex.MatchString(lower) {
-		return true, ""
 	}
 
 	return false, "error.nonDatabaseQuestion"
