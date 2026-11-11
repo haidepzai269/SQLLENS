@@ -12,6 +12,7 @@
   "authUnavailable": "The sign-in service is temporarily unavailable. Please try again later.",
   "rateLimited": "You are going too fast. Wait a moment and try again.",
   "badRequest": "The request is not valid.",
+  "nonDatabaseQuestion": "This question is not related to databases. SQLLens only assists with database design and optimization.",
   "aiUnavailable": "The AI service is temporarily unavailable. Please try again later.",
   "aiTooLong": "The AI answer was too long and was cut off."
 }

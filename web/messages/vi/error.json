@@ -12,6 +12,7 @@
   "authUnavailable": "Dịch vụ đăng nhập tạm thời không dùng được. Hãy thử lại sau.",
   "rateLimited": "Bạn thao tác quá nhanh. Hãy chờ một chút rồi thử lại.",
   "badRequest": "Yêu cầu không hợp lệ.",
+  "nonDatabaseQuestion": "Câu hỏi không liên quan đến cơ sở dữ liệu. SQLLens chỉ hỗ trợ phân tích và tối ưu database.",
   "aiUnavailable": "Dịch vụ AI tạm thời không dùng được. Hãy thử lại sau.",
   "aiTooLong": "Câu trả lời của AI quá dài nên bị cắt."
 }
