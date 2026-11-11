@@ -155,4 +155,6 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | Story | Hành vi khi xong | GD | Nhãn |
 |---|---|---|---|
 | STR063 Auth Shield | Lá chắn 3 tầng chống cạn kiệt connection pool Neon Postgres: Signed Session Cookie (HMAC-SHA256) tại RAM Gin, Redis Atomic Abuse Gatekeeper bằng Lua Script trên Upstash, và Local Fast-Path Ban Cache trong RAM (Đã xong - Task087, Task088, Task089) | | |
+| STR072 Sandbox Reset & Smart Run Scope | Khởi động lại Sandbox sạch thực sự (`fresh()`), hỗ trợ chạy đoạn bôi đen (Run Selection) và chạy câu lệnh tại con trỏ (Ctrl+Enter) tránh xung đột DDL | Có | Thật |
+
 
