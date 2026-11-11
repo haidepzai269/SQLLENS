@@ -511,7 +511,6 @@ export function LabWorkspace() {
           <SampleButton engine={engine} onLoad={loadSample} />
         </div>
       )}
-      {sql.trim() !== "" && <SampleButton engine={engine} onLoad={loadSample} />}
       {pendingSample !== null && (
         <div role="alertdialog" aria-label={t("sampleAsk")} className="flex flex-col items-start gap-2 border border-line p-2 text-sm">
           <p>{t("sampleAsk")}</p>

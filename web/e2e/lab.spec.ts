@@ -331,7 +331,11 @@ for (const l of ["vi", "en"] as const) {
       await expect.poll(() => sqlText(page)).toContain("CREATE TABLE users");
       await expect(page.getByText(S[l].empty)).toHaveCount(0);
       await sqlBox(page).fill("SELECT 7 AS mine");
-      await page.getByRole("button", { name: S[l].sample }).click();
+      // Phương án 1: Cột SQL ẩn nút nạp mẫu khi đã có chữ để giao diện gọn gàng
+      await expect(page.locator("#sql").getByRole("button", { name: S[l].sample })).toHaveCount(0);
+      // Nạp mẫu từ vùng Stage (EmptyTab) khi đã có chữ phải hỏi xác nhận
+      const stageSampleBtn = page.getByTestId("stage-empty-load-sample").first();
+      await stageSampleBtn.click();
       await expect(page.getByRole("alertdialog")).toBeVisible();
       await expect.poll(() => sqlText(page)).toBe("SELECT 7 AS mine");
       await page.getByRole("button", { name: S[l].keep }).click();
@@ -340,7 +344,7 @@ for (const l of ["vi", "en"] as const) {
       await page.getByRole("tab", { name: T[l].mysqlTab }).click();
       await expect.poll(() => sqlText(page)).toBe("SELECT 7 AS mine");
       await page.getByRole("tab", { name: "PostgreSQL" }).click();
-      await page.getByRole("button", { name: S[l].sample }).click();
+      await stageSampleBtn.click();
       await page.getByRole("button", { name: S[l].replace }).click();
       await expect.poll(() => sqlText(page)).toContain("CREATE TABLE users");
     });
