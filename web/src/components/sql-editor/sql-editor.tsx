@@ -4,6 +4,11 @@ import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { EngineId } from "@/contracts/engine";
 
+export type RunScopeOptions = {
+  targetSql?: string;
+  isSelection?: boolean;
+};
+
 export type SqlEditorProps = {
   value: string;
   onChange: (v: string) => void;
@@ -14,7 +19,9 @@ export type SqlEditorProps = {
   highlight?: { from: number; to: number; nonce: number };
   ariaLabel: string;
   /** Kích hoạt khi người dùng nhấn Ctrl+Enter hoặc Cmd+Enter. */
-  onRun?: () => void;
+  onRun?: (options?: RunScopeOptions) => void;
+  /** Kích hoạt khi vùng bôi đen (selection) thay đổi. */
+  onSelectionChange?: (hasSelection: boolean, selectedText: string) => void;
 };
 
 // Skeleton cùng chiều cao tối thiểu với ô thật để trang không nhảy khi tải xong.

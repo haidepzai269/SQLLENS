@@ -1,6 +1,7 @@
 {
   "sqlLabel": "SQL (PostgreSQL)",
   "run": "Run",
+  "runSelected": "Run selected",
   "retry": "Retry",
   "loading": "Loading PostgreSQL in the browser...",
   "running": "Running...",

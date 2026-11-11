@@ -1,6 +1,7 @@
 {
   "sqlLabel": "Câu SQL (PostgreSQL)",
   "run": "Chạy",
+  "runSelected": "Chạy đoạn chọn",
   "retry": "Thử lại",
   "loading": "Đang tải PostgreSQL trong trình duyệt...",
   "running": "Đang chạy...",

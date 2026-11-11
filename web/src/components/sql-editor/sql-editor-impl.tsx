@@ -16,6 +16,7 @@ import CodeMirror, {
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { DIALECT } from "./dialect";
 import type { SqlEditorProps } from "./sql-editor";
+import { getStatementAtOffset } from "./statement-at-cursor";
 
 const setError = StateEffect.define<number | null>();
 // Giữ vị trí lỗi qua map để gõ tiếp không làm lệch dấu; parent nên xóa `error` khi sửa.
@@ -111,7 +112,7 @@ const toDocOffset = (value: string, position: number) => {
   return normalize(value.slice(0, position)).length;
 };
 
-export default function SqlEditorImpl({ value, onChange, engine, error, highlight: hl, ariaLabel, onRun }: SqlEditorProps) {
+export default function SqlEditorImpl({ value, onChange, engine, error, highlight: hl, ariaLabel, onRun, onSelectionChange }: SqlEditorProps) {
   const errId = useId();
   const [view, setView] = useState<EditorView | null>(null);
   const doc = useMemo(() => normalize(value), [value]);
@@ -143,7 +144,21 @@ export default function SqlEditorImpl({ value, onChange, engine, error, highligh
         if (onRunRef.current) {
           e.preventDefault();
           e.stopPropagation();
-          onRunRef.current();
+          const sel = view.state.selection.main;
+          if (!sel.empty) {
+            const selectedText = view.state.sliceDoc(sel.from, sel.to);
+            if (selectedText.trim()) {
+              onRunRef.current({ targetSql: selectedText, isSelection: true });
+              return;
+            }
+          }
+          const docText = view.state.doc.toString();
+          const stmt = getStatementAtOffset(docText, sel.head);
+          if (stmt && stmt.trim()) {
+            onRunRef.current({ targetSql: stmt, isSelection: false });
+          } else if (docText.trim()) {
+            onRunRef.current({ targetSql: docText, isSelection: false });
+          }
         }
       }
     };
@@ -184,6 +199,14 @@ export default function SqlEditorImpl({ value, onChange, engine, error, highligh
           height="100%"
           className="absolute inset-0"
           onCreateEditor={setView}
+          onUpdate={(update) => {
+            if (update.selectionSet || update.docChanged) {
+              const sel = update.state.selection.main;
+              const has = !sel.empty;
+              const txt = has ? update.state.sliceDoc(sel.from, sel.to) : "";
+              onSelectionChange?.(has, txt);
+            }
+          }}
           basicSetup={{ foldGutter: false, highlightActiveLine: true, autocompletion: false }}
         />
       </div>
