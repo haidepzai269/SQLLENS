@@ -33,10 +33,9 @@ type target struct {
 }
 
 var models = []target{
+	{false, "qwen/qwen3.8-27b"},
 	{false, "openai/gpt-oss-120b"},
-	{false, "llama-3.3-70b-versatile"},
 	{true, "openai/gpt-oss-120b"},
-	{true, "meta-llama/llama-3.3-70b-instruct"},
 }
 
 const (
@@ -127,6 +126,11 @@ func parse(c *gin.Context) (q string, ev []byte, locale string, ok bool) {
 	ev0 := bytes.TrimSpace(req.Evidence)
 	if len(ev0) == 0 || ev0[0] != '{' || json.Compact(&buf, ev0) != nil {
 		bad(c)
+		return
+	}
+	valid, msgKey := IsDatabaseQuestion(req.Question)
+	if !valid {
+		httpapi.Abort(c, http.StatusBadRequest, "non_database_question", msgKey)
 		return
 	}
 	return req.Question, buf.Bytes(), req.Locale, true
@@ -295,7 +299,8 @@ type chunk struct {
 	Error   json.RawMessage `json:"error"`
 	Choices []struct {
 		Delta struct {
-			Content string `json:"content"` // tool_calls are deliberately not read
+			Content   string `json:"content"` // tool_calls are deliberately not read
+			Reasoning string `json:"reasoning"`
 		} `json:"delta"`
 		FinishReason *string `json:"finish_reason"`
 	} `json:"choices"`
@@ -364,6 +369,9 @@ func (h *chat) try(ctx context.Context, t target, payload []byte, out *sse) erro
 		for _, choice := range ch.Choices {
 			if fr := choice.FinishReason; fr != nil && *fr == "error" {
 				return fail()
+			}
+			if choice.Delta.Reasoning != "" {
+				timer.Reset(h.Idle)
 			}
 			text := strings.ToValidUTF8(choice.Delta.Content, "�")
 			if text == "" {

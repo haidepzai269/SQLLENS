@@ -23,7 +23,7 @@ export const MAX_QUESTION = 2000;
 const MAX_ANSWER_CHARS = 40_000; // Gin cắt ở 32 KiB; quá mức này là server sai, không hiển thị tiếp
 // Chỉ các khóa này có trong messages/*/error.json; khóa lạ từ server quy về "internal".
 const ERROR_KEYS = new Set([
-  "badRequest", "payloadTooLarge", "authRequired", "quotaExceeded", "quotaUnavailable", "notConfigured",
+  "badRequest", "nonDatabaseQuestion", "payloadTooLarge", "authRequired", "quotaExceeded", "quotaUnavailable", "notConfigured",
   "rateLimited", "aiUnavailable", "aiTooLong", "internal",
 ]);
 const errKey = (raw: string) => {
