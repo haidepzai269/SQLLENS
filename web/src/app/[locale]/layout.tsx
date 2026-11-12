@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { AppFrame } from "@/components/shell/app-frame";
-import { ShellProvider } from "@/components/shell/shell-provider";
+import { Providers } from "./providers";
 import { routing } from "@/i18n/routing";
 import "../globals.css";
 
@@ -36,9 +36,9 @@ export default async function RootLayout({
     <html lang={locale} className={`dark ${publicSans.variable} ${jetbrainsMono.variable} h-full antialiased`}>
       <body className="relative flex h-dvh flex-col overflow-hidden">
         <NextIntlClientProvider>
-          <ShellProvider>
+          <Providers>
             <AppFrame>{children}</AppFrame>
-          </ShellProvider>
+          </Providers>
         </NextIntlClientProvider>
       </body>
     </html>
