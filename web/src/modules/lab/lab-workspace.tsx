@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
-import { Lock, Play } from "lucide-react";
+import { ChevronDown, ChevronUp, Lock, Play, Terminal as TerminalIcon, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { ResultGrid } from "@/components/result-grid/result-grid";
@@ -13,6 +13,7 @@ import { ZonePlaceholder } from "@/components/shell/zone-placeholder";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { SAMPLE_SQL } from "@/components/sql-editor/samples";
 import { SampleButton } from "@/components/sql-editor/sample-button";
 import { SqlEditor } from "@/components/sql-editor/sql-editor";
@@ -62,14 +63,14 @@ const mb = (b?: number) => (b === undefined ? undefined : (b / 1048576).toFixed(
 const stopCode = (e: unknown): Stop | null =>
   e instanceof EngineError && (e.code === "cancelled" || e.code === "timeout" || e.code === "worker_crashed") ? e.code : null;
 
-function Pane({ title, children, headerRight }: { title: string; children: ReactNode; headerRight?: ReactNode }) {
+function Pane({ title, children, headerRight }: { title: ReactNode; children: ReactNode; headerRight?: ReactNode }) {
   return (
     <div className="flex min-h-full min-w-0 flex-col">
       <div className="sticky top-0 z-10 flex h-[var(--h-bar)] flex-none items-center justify-between border-b border-line bg-surface px-[var(--edge)] font-semibold">
-        <span>{title}</span>
+        <span className="flex items-center gap-1.5">{title}</span>
         {headerRight && <div className="flex items-center gap-1.5">{headerRight}</div>}
       </div>
-      <div className="flex min-w-0 flex-col gap-3 p-[var(--edge)]">{children}</div>
+      <div className="flex min-w-0 flex-1 flex-col gap-3 p-[var(--edge)]">{children}</div>
     </div>
   );
 }
@@ -156,8 +157,13 @@ export function LabWorkspace() {
   const stageRun = mine ? rawStageRun : null;
   // Rời MySQL: phiên bị hủy (effect bên dưới), nên bỏ luôn màn hình của nó.
   const [lastEngine, setLastEngine] = useState(engine);
+  const [durationMs, setDurationMs] = useState<number | null>(null);
+  const [allOpen, setAllOpen] = useState<boolean | null>(null);
+  const [logOpen, setLogOpen] = useState(true);
   if (lastEngine !== engine) {
     setLastEngine(engine);
+    setDurationMs(null);
+    setAllOpen(null);
     if (lastEngine === "mysql") {
       setMysqlReady(false);
       if (owner === "mysql") {
@@ -295,7 +301,10 @@ export function LabWorkspace() {
           await refreshTables(db);
           step = "query";
         }
+        const t0 = performance.now();
         const results = await db.execute(toRun, { signal: ctl.signal });
+        const elapsed = Math.round(performance.now() - t0);
+        setDurationMs(elapsed);
         if (!targetSql) applied.current = sql; // chỉ khi query cũng chạy xong; nếu query lỗi thì lần Chạy sau kiểm lại bảng và có thể mở lại bản nháp
         const last = results[results.length - 1] ?? { columns: [], rows: [] };
         const data = { statements: results.length, rows: last.rows.length };
@@ -591,8 +600,83 @@ export function LabWorkspace() {
     </Pane>
   );
 
+  const terminalDots = (
+    <div className="flex items-center gap-1 mr-1">
+      <span className="h-2 w-2 rounded-full bg-rose-500/80 inline-block" />
+      <span className="h-2 w-2 rounded-full bg-amber-500/80 inline-block" />
+      <span className="h-2 w-2 rounded-full bg-emerald-500/80 inline-block" />
+    </div>
+  );
+
+  const engineName = engine === "postgres" ? "PostgreSQL (PGlite)" : "MySQL (Sandbox)";
+  const engineDotColor =
+    state.phase === "running" || state.phase === "loading" || state.phase === "rebuilding"
+      ? "bg-amber-500 animate-pulse"
+      : state.phase === "sql_error" ||
+          state.phase === "guard_error" ||
+          state.phase === "load_error" ||
+          state.phase === "sandbox_error" ||
+          state.phase === "stopped"
+        ? "bg-rose-500"
+        : "bg-emerald-500";
+
+  const clearTerminal = () => {
+    setState(IDLE);
+    setLog([]);
+    setStageRun(null);
+    setDurationMs(null);
+    setAllOpen(null);
+  };
+
+  const terminalHeaderRight = (
+    <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+        <span className={cn("h-1.5 w-1.5 rounded-full", engineDotColor)} />
+        <span>{engineName}</span>
+      </div>
+      {state.phase === "done" && state.results.length > 1 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setAllOpen((cur) => (cur ? false : true))}
+          className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+        >
+          {allOpen ? t("collapseAll") : t("expandAll")}
+        </Button>
+      )}
+      {(state.phase !== "idle" || log.length > 0) && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={clearTerminal}
+          className="h-6 px-1.5 text-xs text-muted-foreground hover:text-destructive"
+          title={t("clear")}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          <span className="sr-only sm:not-sr-only sm:text-xs">{t("clear")}</span>
+        </Button>
+      )}
+    </div>
+  );
+
+  const successSummary = state.phase === "done" ? `✓ ${t("statementsSuccess", { count: state.results.length })}` : null;
+  const durationSummary =
+    durationMs !== null
+      ? `• ${durationMs < 1000 ? t("durationMs", { ms: durationMs }) : t("durationSec", { s: (durationMs / 1000).toFixed(2) })}`
+      : null;
+  const logButtonLabel = `${t("log.systemTitle")} (${log.length})`;
+  const logBullet = "›";
+
   const terminalZone = (
-    <Pane title={ts("tab.terminal")}>
+    <Pane
+      title={
+        <div className="flex items-center gap-1.5">
+          {terminalDots}
+          <span>{ts("tab.terminal")}</span>
+        </div>
+      }
+      headerRight={terminalHeaderRight}
+    >
       <MysqlGate on={mysql}>
         <>
           <div role="status" className="flex min-w-0 flex-col items-start gap-2 text-sm text-muted-foreground">
@@ -685,17 +769,50 @@ export function LabWorkspace() {
           )}
           {state.phase === "done" && (
             <div className="min-w-0">
-              <ResultGrid results={state.results} />
+              <ResultGrid results={state.results} rawSql={stageRun?.sql ?? sql} allOpen={allOpen} />
             </div>
           )}
-          {log.length > 0 && (
-            <ol aria-label={t("log.title")} className="m-0 list-none p-0 font-mono text-xs text-muted-foreground">
-              {log.map((l, i) => (
-                <li key={i}>{l.kind === "note" ? l.text : t(`log.${l.kind}`, { n: l.n ?? 0 })}</li>
-              ))}
-            </ol>
-          )}
           {state.phase === "idle" && log.length === 0 && <p className="text-dim">{mysql ? tm("idle") : ts("placeholder.terminal")}</p>}
+
+          {(state.phase === "done" || log.length > 0) && (
+            <div className="mt-auto flex flex-col gap-2 pt-2 border-t border-border/60">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  {successSummary && (
+                    <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                      {successSummary}
+                    </span>
+                  )}
+                  {durationSummary && <span>{durationSummary}</span>}
+                </div>
+                {log.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setLogOpen((v) => !v)}
+                    className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <TerminalIcon className="h-3 w-3 mr-1" />
+                    <span>{logButtonLabel}</span>
+                    {logOpen ? <ChevronDown className="h-3 w-3 ml-1" /> : <ChevronUp className="h-3 w-3 ml-1" />}
+                  </Button>
+                )}
+              </div>
+
+              {log.length > 0 && logOpen && (
+                <div className="rounded-md border border-border/60 bg-muted/20 p-2 font-mono text-xs">
+                  <ol aria-label={t("log.title")} className="m-0 list-none p-0 flex flex-col gap-1 max-h-36 overflow-y-auto text-muted-foreground">
+                    {log.map((l, i) => (
+                      <li key={i} className="flex items-start gap-1.5 leading-relaxed">
+                        <span className="text-dim select-none">{logBullet}</span>
+                        <span>{l.kind === "note" ? l.text : t(`log.${l.kind}`, { n: l.n ?? 0 })}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+            </div>
+          )}
         </>
       </MysqlGate>
     </Pane>
