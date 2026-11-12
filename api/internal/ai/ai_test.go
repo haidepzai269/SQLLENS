@@ -369,6 +369,7 @@ func TestRejectedBodies(t *testing.T) { // AC5, AC6
 		"evMissing":   {`{"question":"q","locale":"en"}`, 400},
 		"locale":      {`{"question":"q","evidence":{},"locale":"fr"}`, 400},
 		"localeEmpty": {`{"question":"q","evidence":{}}`, 400},
+		"longCS":      {`{"question":"why slow?","evidence":{},"locale":"en","contextSummary":"` + strings.Repeat("x", 1001) + `"}`, 400},
 		"trailing":    {goodBody + `{}`, 400},
 		"notJSON":     {`hello`, 400},
 		"big":         {`{"question":"q","evidence":{"sql":"` + strings.Repeat("a", 65<<10) + `"},"locale":"en"}`, 413},
@@ -390,6 +391,51 @@ func TestRejectedBodies(t *testing.T) { // AC5, AC6
 	ok := `{"question":"` + q2000 + `","evidence":{},"locale":"vi"}`
 	if resp := r.post(ok); resp.StatusCode != 200 {
 		t.Fatalf("2000 runes: %d", resp.StatusCode)
+	}
+}
+
+func TestContextSummaryPrompt(t *testing.T) { // Task099 AC3
+	g := newFake(okStream)
+	defer g.Close()
+	r := setup(t, cfgFor(g, nil))
+
+	// Case 1: có contextSummary
+	bodyWithCS := `{"question":"why slow?","evidence":{"engine":"postgres","sql":"select 1"},"locale":"en","contextSummary":"User previously asked about index on users.created_at"}`
+	resp := r.post(bodyWithCS)
+	if resp.StatusCode != 200 {
+		t.Fatalf("with contextSummary: status %d", resp.StatusCode)
+	}
+	events(t, resp)
+
+	type m struct {
+		Messages []struct{ Role, Content string }
+	}
+	var req m
+	if err := json.Unmarshal(g.bodies[0], &req); err != nil {
+		t.Fatalf("unmarshal provider body: %v", err)
+	}
+	if len(req.Messages) != 2 {
+		t.Fatalf("got %d messages, want 2", len(req.Messages))
+	}
+	userContent := req.Messages[1].Content
+	if !strings.HasPrefix(userContent, "CONVERSATION CONTEXT:\nUser previously asked about index on users.created_at\n\nQuestion:\n") {
+		t.Fatalf("user content missing context summary format: %q", userContent)
+	}
+
+	// Case 2: không có contextSummary
+	g.bodies = nil
+	resp2 := r.post(goodBody)
+	if resp2.StatusCode != 200 {
+		t.Fatalf("without contextSummary: status %d", resp2.StatusCode)
+	}
+	events(t, resp2)
+	var req2 m
+	if err := json.Unmarshal(g.bodies[0], &req2); err != nil {
+		t.Fatalf("unmarshal provider body 2: %v", err)
+	}
+	userContent2 := req2.Messages[1].Content
+	if strings.Contains(userContent2, "CONVERSATION CONTEXT:") {
+		t.Fatalf("user content should not contain context summary: %q", userContent2)
 	}
 }
 

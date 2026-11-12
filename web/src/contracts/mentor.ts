@@ -17,7 +17,22 @@ export type EvidencePack = {
 };
 
 // Thân của POST /api/ai/chat.
-export type MentorRequest = { question: string; evidence: EvidencePack; locale: "vi" | "en" };
+export type MentorRequest = {
+  question: string;
+  evidence: EvidencePack;
+  locale: "vi" | "en";
+  contextSummary?: string;
+};
+
+// Đại diện một lượt hỏi đáp trong phiên hội thoại đa lượt
+export type ConversationTurn = {
+  id: number;
+  question: string;
+  answerText: string;
+  phase: "sending" | "streaming" | "verifying" | "done" | "stopped" | "failed";
+  timestamp: number;
+  verified?: unknown;
+};
 
 // Mỗi sự kiện SSE là một dòng `data: <JSON>`.
 export type MentorStreamEvent = { type: "delta"; text: string } | { type: "done" } | { type: "error"; messageKey: string };
