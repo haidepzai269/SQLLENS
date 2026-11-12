@@ -14,5 +14,16 @@
     "title": "PostgreSQL error",
     "at": "Line {line}, column {column}"
   },
-  "cutByServer": "The server cut this result: it keeps at most the first 10,000 rows."
+  "cutByServer": "The server cut this result: it keeps at most the first 10,000 rows.",
+  "aiDoctor": {
+    "title": "AI Doctor Diagnosis",
+    "badge": "AI Mentor",
+    "diagnosing": "Analyzing error root cause...",
+    "applyFix": "Apply Fix Now (1-Click Fix)",
+    "applied": "Fix Applied",
+    "suggestedSql": "Suggested SQL fix:",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "close": "Close"
+  }
 }
