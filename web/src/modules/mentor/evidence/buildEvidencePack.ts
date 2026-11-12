@@ -40,6 +40,9 @@ function copyNode(n: unknown, depth = 0): PlanNode | undefined {
     actualRows: num(n.actualRows),
     loops: num(n.loops),
     pagesRead: num(n.pagesRead),
+    sortMethod: str(n.sortMethod),
+    batches: num(n.batches),
+    cost: num(n.cost),
     children: kids.map((k) => copyNode(k, depth + 1)).filter((k): k is PlanNode => !!k),
   });
 }
@@ -117,6 +120,8 @@ export function buildEvidencePack(input: EvidenceInput): EvidencePack {
     findings: Array.isArray(i.findings) ? i.findings.map(copyFinding).filter((f): f is RuleHit => !!f) : undefined,
     whatIf: copyWhatIf(i.whatIf),
     capacity: Array.isArray(i.capacity) ? i.capacity.map(copyCapacity).filter((c): c is CapacityPoint => !!c) : undefined,
+    ruleTags: Array.isArray(i.ruleTags) ? (i.ruleTags.filter((t) => typeof t === "string") as string[]) : undefined,
+    compact: typeof i.compact === "boolean" ? i.compact : undefined,
   }) as EvidencePack;
   const fits = () => packBytes(pack) <= MAX_PACK_BYTES;
   if (fits()) return pack;

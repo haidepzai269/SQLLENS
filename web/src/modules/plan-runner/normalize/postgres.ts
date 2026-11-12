@@ -52,6 +52,9 @@ function node(n: Obj, id: string): PlanNode {
     actualRows: perLoop === undefined ? undefined : Math.round(perLoop * (loops ?? 1)),
     loops,
     pagesRead: total === undefined ? undefined : Math.max(0, total - childTotal),
+    sortMethod: str(n["Sort Method"]),
+    batches: num(n["Hash Batches"]),
+    cost: num(n["Total Cost"]),
     children: kids.map((k, i) => node(k, `${id}.${i}`)),
   };
 }

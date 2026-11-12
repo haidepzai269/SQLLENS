@@ -12,6 +12,8 @@ export type EvidencePack = {
   findings?: RuleHit[];
   whatIf?: WhatIfData;
   capacity?: CapacityPoint[];
+  ruleTags?: string[];
+  compact?: boolean;
 };
 
 // Thân của POST /api/ai/chat.

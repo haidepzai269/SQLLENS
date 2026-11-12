@@ -31,6 +31,9 @@ export type PlanNode = {
   actualRows?: number;
   loops?: number;
   pagesRead?: number;
+  sortMethod?: string;
+  batches?: number;
+  cost?: number;
   children: PlanNode[];
 };
 

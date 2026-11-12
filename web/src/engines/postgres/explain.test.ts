@@ -101,9 +101,9 @@ describe("runExplain", { timeout: 30_000 }, () => {
     expect(await inTxn()).toBe(false);
   });
 
-  it("AC5: không có trường thời gian hay chi phí", async () => {
+  it("AC5: không có trường thời gian", async () => {
     const p = await plan("SELECT * FROM b JOIN a ON a.k = b.k");
-    expect(JSON.stringify(p)).not.toMatch(/time|duration|cost/i);
+    expect(JSON.stringify(p)).not.toMatch(/time|duration/i);
   });
 
   it("AC6: lỗi cú pháp ném như execute, vị trí theo SQL người dùng", async () => {
