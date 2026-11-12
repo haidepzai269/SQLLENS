@@ -150,11 +150,23 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | STR070 Hội thoại đa lượt & Rolling Summary | Giao diện chat liên tục (Thread view), cơ chế Rolling Summary gửi tóm tắt câu trước cho phép hỏi sâu không loãng token | Có | Theo nguồn |
 | STR071 Minh bạch Verify & Sandbox MySQL | Chấm dứt cụt lủn khi SQL AI lỗi (hiển thị khung hổ phách minh bạch), hỗ trợ dry-run EXPLAIN an toàn cho MySQL qua Sandbox Agent | Có | Thật |
 
+## SP016 Trợ lý Soạn thảo Thông minh & Nâng tầm Trải nghiệm (Smart Editor, VIP RBAC & Terminal AI Diagnosis)
+
+| Story | Hành vi khi xong | GD | Nhãn |
+|---|---|---|---|
+| STR074 Chẩn đoán Terminal & 1-Click Fix | Nối nút "Hỏi AI Mentor" ở Terminal vào endpoint `POST /ai/diagnose`, hiển thị AI Doctor Card stream SSE ngay dưới lỗi, nút "Áp dụng sửa ngay" chèn thẳng vào editor | Có | Thật |
+| STR075 CustomSwitch & Cài đặt nâng cao | Bộ linh kiện CustomSwitch SVG Cross/Checkmark trượt 3D độc quyền, Dropdown Header có "Cài đặt nâng cao...", trang `/settings` 4 phân khu (Editor, Appearance, Autocomplete, Account) lưu localStorage | Có | Theo nguồn |
+| STR076 Phân quyền RBAC & Gói VIP | Phân quyền 3 cấp (Guest, User thường, VIP) trong Neon DB & JWT claims, Gin middleware chặn API VIP, huy hiệu VIP hoàng gia và luồng nâng cấp/nhập mã kích hoạt | Có | Thật |
+| STR077 Code-based Dropdown Autocomplete | Trình gợi ý popup CodeMirror 6 theo schema CSDL động (<1ms, 0đ, 0 token), tra cứu từ khóa/bảng/cột, mặc định TẮT trong cài đặt | Có | Thật |
+| STR078 Code-based Inline Ghost Text | Động cơ suy luận quy tắc cục bộ (FK JOIN ON, GROUP BY không aggregate, INSERT column list), chữ mờ xám sau con trỏ, Tab nhận, Esc hủy, 0đ, mặc định BẬT trong cài đặt | Có | Thật |
+| STR079 AI Inline Copilot cho VIP | Đọc hiểu ngữ cảnh và comment tiếng Việt sinh khối truy vấn phức tạp (CTE, Window function) qua model Qwen 3.8-27B (0.19s), smart debounce 600ms, multi-line ghost text, dành riêng cho VIP | Có | Thật |
+
 ## SP999 Việc phát sinh (Hậu phát hành & Bảo vệ hạ tầng)
 
 | Story | Hành vi khi xong | GD | Nhãn |
 |---|---|---|---|
 | STR063 Auth Shield | Lá chắn 3 tầng chống cạn kiệt connection pool Neon Postgres: Signed Session Cookie (HMAC-SHA256) tại RAM Gin, Redis Atomic Abuse Gatekeeper bằng Lua Script trên Upstash, và Local Fast-Path Ban Cache trong RAM (Đã xong - Task087, Task088, Task089) | | |
-| STR072 Sandbox Reset & Smart Run Scope | Khởi động lại Sandbox sạch thực sự (`fresh()`), hỗ trợ chạy đoạn bôi đen (Run Selection) và chạy câu lệnh tại con trỏ (Ctrl+Enter) tránh xung đột DDL | Có | Thật |
+| STR072 Sandbox Reset & Smart Run Scope | Khởi động lại Sandbox sạch thực sự (`fresh()`), hỗ trợ chạy đoạn bôi đen (Run Selection) và chạy câu lệnh tại con trỏ (Ctrl+Enter) tránh xung đột DDL (Đã xong - Task101) | Có | Thật |
+| STR073 Tái thiết kế Terminal & ResultGrid | Accordion phân loại câu lệnh có ngữ cảnh DDL/DML, bảng bordered cell kèm cột `#` tự động, ngăn kéo system log tách biệt (Đã xong - Task102) | Có | Thật |
 
 
