@@ -1,25 +1,34 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import errorMessagesEn from "../../../messages/en/error.json";
+import errorMessagesVi from "../../../messages/vi/error.json";
 import remediationMessagesEn from "../../../messages/en/error-remediation.json";
 import remediationMessagesVi from "../../../messages/vi/error-remediation.json";
 import resultMessagesEn from "../../../messages/en/result.json";
 import resultMessagesVi from "../../../messages/vi/result.json";
+import * as diagnoseModule from "@/modules/mentor/api/diagnose";
+import { extractSuggestedSql } from "@/modules/mentor/api/diagnose";
 import { SmartErrorCard, SqlErrorView } from "./sql-error-view";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 function renderWithIntl(ui: ReactNode, locale: "vi" | "en" = "vi") {
   const resultMessages = locale === "vi" ? resultMessagesVi : resultMessagesEn;
   const remediationMessages =
     locale === "vi" ? remediationMessagesVi : remediationMessagesEn;
+  const errorMessages = locale === "vi" ? errorMessagesVi : errorMessagesEn;
   return render(
     <NextIntlClientProvider
       locale={locale}
       messages={{
         result: resultMessages,
         "error-remediation": remediationMessages,
+        error: errorMessages,
       }}
     >
       {ui}
@@ -210,5 +219,223 @@ describe("SmartErrorCard / SqlErrorView", () => {
     expect(explanation.textContent).toContain(
       "Câu lệnh này có thể hoàn toàn đúng cú pháp, nhưng không thể chạy vì câu lệnh trước đó",
     );
+  });
+
+  // Task103 - AC2 & AC3: Click Hỏi AI Mentor stream SSE và mở AI Doctor Card
+  it("khi click 'Hỏi AI Mentor', mở AI Doctor Card, nút chuyển sang loading và stream chẩn đoán", () => {
+    let capturedParams: diagnoseModule.DiagnoseParams | null = null;
+    const abortMock = vi.fn();
+    vi.spyOn(diagnoseModule, "diagnoseSqlError").mockImplementation((params) => {
+      capturedParams = params;
+      return abortMock;
+    });
+
+    renderWithIntl(
+      <SqlErrorView
+        message='relation "orders" does not exist'
+        sql="SELECT * FROM orders;"
+        engine="postgres"
+      />,
+      "vi",
+    );
+
+    const askAiBtn = screen.getByTestId("ask-ai-button");
+    fireEvent.click(askAiBtn);
+
+    // Nút chuyển sang trạng thái disabled
+    expect(askAiBtn.getAttribute("disabled")).not.toBeNull();
+
+    // diagnoseSqlError được gọi với đúng payload
+    expect(capturedParams).not.toBeNull();
+    expect(capturedParams!.sql).toBe("SELECT * FROM orders;");
+    expect(capturedParams!.error).toBe('relation "orders" does not exist');
+    expect(capturedParams!.engine).toBe("postgres");
+    expect(capturedParams!.locale).toBe("vi");
+
+    // AI Doctor Card được mở và đang loading
+    const doctorCard = screen.getByTestId("ai-doctor-card");
+    expect(doctorCard).toBeTruthy();
+    expect(screen.getByTestId("ai-doctor-loading")).toBeTruthy();
+
+    // Giả lập stream delta bọc trong act
+    act(() => {
+      capturedParams!.onDelta?.("Bảng orders chưa được tạo. ");
+    });
+    expect(screen.getByTestId("ai-doctor-explanation").textContent).toContain("Bảng orders chưa được tạo.");
+
+    act(() => {
+      capturedParams!.onDelta?.("Hãy tạo bảng trước khi query.");
+    });
+    expect(screen.getByTestId("ai-doctor-explanation").textContent).toContain(
+      "Bảng orders chưa được tạo. Hãy tạo bảng trước khi query.",
+    );
+
+    // Stream hoàn tất với khối SQL đề xuất bọc trong act
+    act(() => {
+      capturedParams!.onComplete?.(
+        "Bảng orders chưa được tạo. Hãy tạo bảng trước khi query.\n\n```sql\nCREATE TABLE orders (id int);\n```",
+        "CREATE TABLE orders (id int);",
+      );
+    });
+
+    // Loading tắt, nút hết disabled
+    expect(askAiBtn.getAttribute("disabled")).toBeNull();
+    expect(screen.queryByTestId("ai-doctor-loading")).toBeNull();
+
+    // Khối SQL đề xuất xuất hiện
+    const suggestedSqlBlock = screen.getByTestId("ai-doctor-suggested-sql");
+    expect(suggestedSqlBlock.textContent).toBe("CREATE TABLE orders (id int);");
+  });
+
+  // Task103 - AC4: 1-Click Fix áp dụng câu lệnh đã sửa vào SQL Editor
+  it("nhấn 'Áp dụng sửa ngay (1-Click Fix)' gọi onApplyFix với SQL đề xuất và chuyển trạng thái Đã áp dụng", () => {
+    let capturedParams: diagnoseModule.DiagnoseParams | null = null;
+    vi.spyOn(diagnoseModule, "diagnoseSqlError").mockImplementation((params) => {
+      capturedParams = params;
+      return vi.fn();
+    });
+
+    const onApplyFix = vi.fn();
+
+    renderWithIntl(
+      <SqlErrorView
+        message='column "namee" does not exist'
+        sql="SELECT namee FROM users;"
+        engine="postgres"
+        onApplyFix={onApplyFix}
+      />,
+      "vi",
+    );
+
+    fireEvent.click(screen.getByTestId("ask-ai-button"));
+
+    // Hoàn tất stream có câu SQL sửa bọc trong act
+    act(() => {
+      capturedParams!.onComplete?.(
+        "Cột namee bị sai chính tả.\n```sql\nSELECT name FROM users;\n```",
+        "SELECT name FROM users;",
+      );
+    });
+
+    const applyBtn = screen.getByTestId("apply-ai-fix-button");
+    expect(applyBtn.textContent).toContain("Áp dụng sửa ngay (1-Click Fix)");
+    expect(applyBtn.getAttribute("disabled")).toBeNull();
+
+    // Click 1-Click Fix
+    fireEvent.click(applyBtn);
+
+    expect(onApplyFix).toHaveBeenCalledWith("SELECT name FROM users;");
+    // Nút chuyển sang trạng thái đã áp dụng
+    expect(applyBtn.textContent).toContain("Đã áp dụng");
+    expect(applyBtn.getAttribute("disabled")).not.toBeNull();
+  });
+
+  // Task103 - AC5: Xử lý lỗi kết nối / quota và nút Thử lại
+  it("hiển thị thông báo lỗi và nút Thử lại khi stream bị lỗi kết nối hoặc quota", () => {
+    let capturedParams: diagnoseModule.DiagnoseParams | null = null;
+    let callCount = 0;
+    vi.spyOn(diagnoseModule, "diagnoseSqlError").mockImplementation((params) => {
+      capturedParams = params;
+      callCount++;
+      return vi.fn();
+    });
+
+    renderWithIntl(
+      <SqlErrorView
+        message="syntax error at or near SELEC"
+        sql="SELEC 1;"
+        engine="postgres"
+      />,
+      "vi",
+    );
+
+    fireEvent.click(screen.getByTestId("ask-ai-button"));
+    expect(callCount).toBe(1);
+
+    // Kích hoạt lỗi bọc trong act
+    act(() => {
+      capturedParams!.onError?.({ messageKey: "error.quotaExceeded" });
+    });
+
+    // Hiển thị thông báo lỗi
+    const errorBlock = screen.getByTestId("ai-doctor-error");
+    expect(errorBlock.textContent).toContain("Bạn đã hết hạn mức dùng trong ngày.");
+
+    // Bấm nút Thử lại
+    const retryBtn = screen.getByTestId("ai-doctor-retry");
+    fireEvent.click(retryBtn);
+
+    expect(callCount).toBe(2);
+  });
+
+  // Task103 - Ca biên: Người dùng bấm Đóng/Hủy AI Doctor Card
+  it("người dùng bấm nút Đóng/Hủy gọi abort và ẩn thẻ AI Doctor Card", () => {
+    const abortMock = vi.fn();
+    vi.spyOn(diagnoseModule, "diagnoseSqlError").mockImplementation(() => abortMock);
+
+    renderWithIntl(
+      <SqlErrorView
+        message="syntax error at end of input"
+        sql="SELECT"
+        engine="postgres"
+      />,
+      "vi",
+    );
+
+    fireEvent.click(screen.getByTestId("ask-ai-button"));
+    expect(screen.getByTestId("ai-doctor-card")).toBeTruthy();
+
+    const closeBtn = screen.getByTestId("ai-doctor-close");
+    fireEvent.click(closeBtn);
+
+    expect(abortMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("ai-doctor-card")).toBeNull();
+  });
+
+  // Task103 - Song ngữ tiếng Anh
+  it("hiển thị đúng bản dịch tiếng Anh cho AI Doctor Card", () => {
+    let capturedParams: diagnoseModule.DiagnoseParams | null = null;
+    vi.spyOn(diagnoseModule, "diagnoseSqlError").mockImplementation((params) => {
+      capturedParams = params;
+      return vi.fn();
+    });
+
+    renderWithIntl(
+      <SqlErrorView
+        message='relation "items" does not exist'
+        sql="SELECT * FROM items;"
+        engine="postgres"
+      />,
+      "en",
+    );
+
+    fireEvent.click(screen.getByTestId("ask-ai-button"));
+
+    expect(capturedParams!.locale).toBe("en");
+    expect(screen.getByTestId("ai-doctor-card").textContent).toContain("AI Doctor Diagnosis");
+    expect(screen.getByTestId("ai-doctor-loading").textContent).toContain("Analyzing error root cause...");
+
+    act(() => {
+      capturedParams!.onComplete?.("Fixed SQL:\n```sql\nSELECT 1;\n```", "SELECT 1;");
+    });
+    expect(screen.getByTestId("apply-ai-fix-button").textContent).toContain("Apply Fix Now (1-Click Fix)");
+  });
+
+  // Unit tests cho extractSuggestedSql
+  describe("extractSuggestedSql", () => {
+    it("bóc tách chính xác khối ```sql ... ```", () => {
+      const text = "Giải thích nguyên nhân:\n```sql\nSELECT id, name FROM users;\n```\nChúc bạn thành công.";
+      expect(extractSuggestedSql(text)).toBe("SELECT id, name FROM users;");
+    });
+
+    it("fallback bóc tách khối ``` ... ``` không có tag ngôn ngữ", () => {
+      const text = "Sửa lại như sau:\n```\nUPDATE users SET active = true;\n```";
+      expect(extractSuggestedSql(text)).toBe("UPDATE users SET active = true;");
+    });
+
+    it("trả về null nếu không có khối mã nào", () => {
+      const text = "Lỗi này do bạn gõ sai cú pháp, hãy kiểm tra lại dấu chấm phẩy.";
+      expect(extractSuggestedSql(text)).toBeNull();
+    });
   });
 });

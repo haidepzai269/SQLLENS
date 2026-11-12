@@ -747,6 +747,7 @@ export function LabWorkspace() {
                 engine={engine}
                 onApplyFix={(newSql) => setSql(newSql)}
                 onRebuild={resetClean}
+                onAskAi={() => {}}
               />
             </div>
           )}

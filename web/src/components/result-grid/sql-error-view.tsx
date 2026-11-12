@@ -1,14 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
+  Check,
   FileCode,
   Lightbulb,
+  Loader2,
   RotateCcw,
   Sparkles,
   Terminal,
   Wrench,
+  X,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +23,7 @@ import {
   type ErrorRemediation,
   type QuickFixAction,
 } from "@/modules/error-remediation";
+import { diagnoseSqlError } from "@/modules/mentor/api/diagnose";
 
 /** position là vị trí 1-based theo ký tự, như PostgreSQL báo. Trả null nếu nằm ngoài sql. */
 export function locateError(sql: string, position: number) {
@@ -62,11 +66,28 @@ export function SqlErrorView({
   onRebuild,
   onAskAi,
 }: SqlErrorViewProps) {
+  const locale = useLocale();
   const tResult = useTranslations("result");
   const tRemediation = useTranslations("error-remediation");
+  const tError = useTranslations("error");
   type RemediationKey = Parameters<typeof tRemediation>[0];
 
   const [viewMode, setViewMode] = useState<"raw" | "explanation">("raw");
+
+  // State cho AI Doctor Card
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
+  const [showDoctorCard, setShowDoctorCard] = useState(false);
+  const [diagnosisText, setDiagnosisText] = useState("");
+  const [suggestedSql, setSuggestedSql] = useState<string | null>(null);
+  const [diagnoseError, setDiagnoseError] = useState<string | null>(null);
+  const [isApplied, setIsApplied] = useState(false);
+  const abortRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.();
+    };
+  }, []);
 
   const loc = position === undefined ? null : locateError(sql, position);
 
@@ -84,6 +105,56 @@ export function SqlErrorView({
     } else if (action.type === "rebuild_sandbox") {
       onRebuild?.();
     }
+  };
+
+  const handleAskAi = useCallback(() => {
+    onAskAi?.(remediation);
+
+    abortRef.current?.();
+    setShowDoctorCard(true);
+    setIsDiagnosing(true);
+    setDiagnoseError(null);
+    setDiagnosisText("");
+    setSuggestedSql(null);
+    setIsApplied(false);
+
+    const reqLocale: "vi" | "en" = locale === "en" ? "en" : "vi";
+
+    abortRef.current = diagnoseSqlError({
+      sql,
+      error: message,
+      engine,
+      locale: reqLocale,
+      onDelta: (delta) => {
+        setDiagnosisText((prev) => prev + delta);
+      },
+      onComplete: (fullText, fixSql) => {
+        setDiagnosisText(fullText);
+        setSuggestedSql(fixSql);
+        setIsDiagnosing(false);
+      },
+      onError: (err) => {
+        let errStr = tError("aiUnavailable");
+        if (err.messageKey) {
+          const key = err.messageKey.replace(/^error\./, "") as Parameters<typeof tError>[0];
+          try {
+            errStr = tError(key);
+          } catch {
+            errStr = err.message || tError("aiUnavailable");
+          }
+        } else if (err.message) {
+          errStr = err.message;
+        }
+        setDiagnoseError(errStr);
+        setIsDiagnosing(false);
+      },
+    });
+  }, [engine, locale, message, onAskAi, remediation, sql, tError]);
+
+  const handleCloseDoctorCard = () => {
+    abortRef.current?.();
+    setIsDiagnosing(false);
+    setShowDoctorCard(false);
   };
 
   const defaultTitle = title ?? tResult("error.title");
@@ -208,10 +279,15 @@ export function SqlErrorView({
               size="sm"
               variant="outline"
               data-testid="ask-ai-button"
+              disabled={isDiagnosing}
               className="h-7 gap-1 text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
-              onClick={() => onAskAi?.(remediation)}
+              onClick={handleAskAi}
             >
-              <Sparkles className="h-3.5 w-3.5" />
+              {isDiagnosing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
               {tRemediation("ui.ask_ai")}
             </Button>
           </div>
@@ -236,6 +312,121 @@ export function SqlErrorView({
             </div>
           )}
         </div>
+
+        {/* Khối AI Doctor Card mở rộng */}
+        {showDoctorCard && (
+          <div
+            data-testid="ai-doctor-card"
+            className="mt-3 rounded-lg border border-purple-500/30 bg-purple-950/15 p-3.5 text-xs text-foreground dark:bg-purple-950/25"
+          >
+            <div className="flex items-center justify-between border-b border-purple-500/20 pb-2">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-purple-500" />
+                <span className="font-semibold text-purple-700 dark:text-purple-300">
+                  {tResult("aiDoctor.title")}
+                </span>
+                <Badge variant="outline" className="ml-1 border-purple-500/40 text-[10px] text-purple-600 dark:text-purple-400">
+                  {tResult("aiDoctor.badge")}
+                </Badge>
+              </div>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                data-testid="ai-doctor-close"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                onClick={handleCloseDoctorCard}
+                title={tResult("aiDoctor.close")}
+              >
+                <X className="h-3.5 w-3.5" />
+                <span className="sr-only">{tResult("aiDoctor.close")}</span>
+              </Button>
+            </div>
+
+            <div className="mt-3 space-y-3">
+              {isDiagnosing && !diagnosisText && !diagnoseError && (
+                <div data-testid="ai-doctor-loading" className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin text-purple-500" />
+                  <span>{tResult("aiDoctor.diagnosing")}</span>
+                </div>
+              )}
+
+              {diagnosisText && (
+                <div
+                  data-testid="ai-doctor-explanation"
+                  className="whitespace-pre-wrap leading-relaxed text-foreground/90 font-sans"
+                >
+                  {diagnosisText}
+                </div>
+              )}
+
+              {suggestedSql && (
+                <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-950 p-2.5 dark:bg-black">
+                  <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                    <span>{tResult("aiDoctor.suggestedSql")}</span>
+                  </div>
+                  <pre
+                    data-testid="ai-doctor-suggested-sql"
+                    className="overflow-x-auto font-mono text-xs text-emerald-400"
+                  >
+                    {suggestedSql}
+                  </pre>
+                  <div className="pt-1.5 flex justify-end">
+                    <Button
+                      type="button"
+                      size="sm"
+                      data-testid="apply-ai-fix-button"
+                      variant={isApplied ? "outline" : "default"}
+                      disabled={isApplied}
+                      className={cn(
+                        "h-7 gap-1.5 text-xs font-medium",
+                        isApplied
+                          ? "border-emerald-600/40 text-emerald-600 dark:text-emerald-400 cursor-default"
+                          : "bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500",
+                      )}
+                      onClick={() => {
+                        onApplyFix?.(suggestedSql);
+                        setIsApplied(true);
+                      }}
+                    >
+                      {isApplied ? (
+                        <>
+                          <Check className="h-3.5 w-3.5 text-emerald-500" />
+                          <span>{tResult("aiDoctor.applied")}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Wrench className="h-3.5 w-3.5" />
+                          <span>{tResult("aiDoctor.applyFix")}</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {diagnoseError && (
+                <div
+                  data-testid="ai-doctor-error"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-destructive"
+                >
+                  <span className="text-xs">{diagnoseError}</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    data-testid="ai-doctor-retry"
+                    className="h-6 gap-1 px-2 text-xs"
+                    onClick={handleAskAi}
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    <span>{tResult("aiDoctor.retry")}</span>
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </AlertDescription>
     </Alert>
   );
