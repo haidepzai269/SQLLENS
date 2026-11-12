@@ -399,11 +399,13 @@ export function SettingsView() {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {isVip && user?.vipUntil
-                      ? `Hạn dùng VIP: ${new Date(user.vipUntil).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}`
+                      ? t("sections.account.vipUntil", {
+                          date: new Date(user.vipUntil).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          }),
+                        })
                       : t("sections.account.statusDescription")}
                   </p>
                 </div>
@@ -414,7 +416,7 @@ export function SettingsView() {
                   className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-semibold shadow-xs"
                 >
                   <Crown className="size-4 mr-1.5" aria-hidden="true" />
-                  <span>{isVip ? "Gia hạn VIP" : t("sections.account.upgradeButton")}</span>
+                  <span>{isVip ? t("sections.account.renewButton") : t("sections.account.upgradeButton")}</span>
                 </Button>
               </div>
 

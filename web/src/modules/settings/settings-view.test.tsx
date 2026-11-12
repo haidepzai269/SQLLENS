@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import settingsMessagesEn from "../../../messages/en/settings.json";
 import settingsMessagesVi from "../../../messages/vi/settings.json";
 import { SettingsProvider, SETTINGS_STORAGE_KEY } from "@/contexts/settings-context";
+import { AuthContext, type Auth } from "@/modules/auth/auth-provider";
 import { SettingsView } from "./settings-view";
 
 vi.mock("@/i18n/navigation", () => ({
@@ -218,5 +219,56 @@ describe("SettingsView (Task105)", () => {
     expect(screen.getByText("Code Completion & Smart Assistant")).toBeTruthy();
     expect(screen.getByText("Account & VIP Tier")).toBeTruthy();
     expect(screen.getByRole("button", { name: /Upgrade to VIP/i })).toBeTruthy();
+  });
+
+  it("AC5.1: Hiển thị chuẩn i18n cho tài khoản VIP ở cả tiếng Việt và tiếng Anh", () => {
+    const vipUser = {
+      id: "usr_vip",
+      name: "VIP Dev",
+      provider: "github",
+      role: "vip" as const,
+      isVip: true,
+      vipUntil: "2027-12-31T00:00:00Z",
+    };
+
+    const mockAuth: Auth = {
+      status: "user",
+      user: vipUser,
+      markAnon: vi.fn(),
+      logout: vi.fn().mockResolvedValue(true),
+      refreshUser: vi.fn().mockResolvedValue(undefined),
+      banner: null,
+      setBanner: vi.fn(),
+      sqlRef: { current: "" },
+    };
+
+    // Test tiếng Việt
+    const { unmount } = render(
+      <NextIntlClientProvider locale="vi" messages={{ settings: settingsMessagesVi }}>
+        <AuthContext.Provider value={mockAuth}>
+          <SettingsProvider>
+            <SettingsView />
+          </SettingsProvider>
+        </AuthContext.Provider>
+      </NextIntlClientProvider>
+    );
+
+    expect(screen.getByRole("button", { name: "Gia hạn VIP" })).toBeTruthy();
+    expect(screen.getByText(/Hạn dùng VIP:/i)).toBeTruthy();
+    unmount();
+
+    // Test tiếng Anh
+    render(
+      <NextIntlClientProvider locale="en" messages={{ settings: settingsMessagesEn }}>
+        <AuthContext.Provider value={mockAuth}>
+          <SettingsProvider>
+            <SettingsView />
+          </SettingsProvider>
+        </AuthContext.Provider>
+      </NextIntlClientProvider>
+    );
+
+    expect(screen.getByRole("button", { name: "Extend VIP" })).toBeTruthy();
+    expect(screen.getByText(/VIP until:/i)).toBeTruthy();
   });
 });
