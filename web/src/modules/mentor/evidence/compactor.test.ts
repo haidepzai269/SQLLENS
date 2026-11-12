@@ -90,6 +90,64 @@ describe("Plan & Evidence Tag Extractor (AC1, AC4)", () => {
     expect(extractPlanTags(planCost, "postgres")).toContain("RULE_MISSING_PRIMARY_KEY");
   });
 
+  it("không nhận diện nhầm Bitmap Heap Scan hay Function/CTE/Subquery/Values Scan thành Seq Scan", () => {
+    // Bitmap Heap Scan với actualRows lớn
+    const bitmapPlan: Plan = {
+      engine: "postgres",
+      analyzed: true,
+      root: {
+        id: "0",
+        kind: "bitmap_scan",
+        label: "Bitmap Heap Scan",
+        actualRows: 2500,
+        children: [],
+      },
+    };
+    expect(extractPlanTags(bitmapPlan, "postgres")).not.toContain("RULE_MISSING_PRIMARY_KEY");
+
+    // Function Scan với actualRows lớn
+    const functionPlan: Plan = {
+      engine: "postgres",
+      analyzed: true,
+      root: {
+        id: "0",
+        kind: "other",
+        label: "Function Scan",
+        actualRows: 2500,
+        children: [],
+      },
+    };
+    expect(extractPlanTags(functionPlan, "postgres")).not.toContain("RULE_MISSING_PRIMARY_KEY");
+
+    // CTE Scan
+    const ctePlan: Plan = {
+      engine: "postgres",
+      analyzed: true,
+      root: {
+        id: "0",
+        kind: "other",
+        label: "CTE Scan",
+        actualRows: 5000,
+        children: [],
+      },
+    };
+    expect(extractPlanTags(ctePlan, "postgres")).not.toContain("RULE_MISSING_PRIMARY_KEY");
+
+    // Values Scan
+    const valuesPlan: Plan = {
+      engine: "postgres",
+      analyzed: true,
+      root: {
+        id: "0",
+        kind: "other",
+        label: "Values Scan",
+        actualRows: 3000,
+        children: [],
+      },
+    };
+    expect(extractPlanTags(valuesPlan, "postgres")).not.toContain("RULE_MISSING_PRIMARY_KEY");
+  });
+
   it("phát hiện Nested Loop chênh lệch dòng > 100x -> RULE_ACCIDENTAL_CARTESIAN", () => {
     const plan: Plan = {
       engine: "postgres",

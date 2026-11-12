@@ -22,10 +22,25 @@ function isHashJoinNode(node: PlanNode): boolean {
 }
 
 function isSeqScanNode(node: PlanNode): boolean {
+  // Loại trừ tuyệt đối các loại scan có chỉ mục hoặc scan phi-bảng
+  if (
+    node.kind === "bitmap_scan" ||
+    node.kind === "index_scan" ||
+    node.kind === "index_only_scan"
+  ) {
+    return false;
+  }
+  const label = (node.label ?? "").trim();
+  if (/bitmap|index|function|values|cte|subquery|worktable/i.test(label)) {
+    return false;
+  }
+
   if (node.kind === "seq_scan") return true;
-  const label = node.label ?? "";
-  if (/seq[\s_-]?scan/i.test(label)) return true;
-  return /scan/i.test(label) && !/index/i.test(label);
+  return (
+    /^seq[\s_-]?scan$/i.test(label) ||
+    /^table[\s_-]?scan$/i.test(label) ||
+    label === "ALL"
+  );
 }
 
 function isNestedLoopNode(node: PlanNode): boolean {
