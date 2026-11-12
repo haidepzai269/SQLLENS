@@ -1,10 +1,15 @@
 {
   "statement": "Câu {n}",
+  "rowNumber": "#",
   "empty": "Truy vấn không trả dòng nào. Các cột vẫn hiện bên dưới.",
   "noRows": "Câu này không trả dòng nào.",
   "affected": "{count, plural, one {# dòng bị ảnh hưởng} other {# dòng bị ảnh hưởng}}",
   "total": "Tổng {count} dòng.",
   "truncated": "Đã cắt, chỉ hiện {max} dòng đầu.",
+  "headerReturned": "{count, plural, one {# dòng trả về} other {# dòng trả về}}",
+  "headerAffected": "{count, plural, one {# dòng tác động} other {# dòng tác động}}",
+  "headerSuccess": "Thành công",
+  "zeroRows": "0 dòng trả về",
   "error": {
     "title": "PostgreSQL báo lỗi",
     "at": "Dòng {line}, cột {column}"

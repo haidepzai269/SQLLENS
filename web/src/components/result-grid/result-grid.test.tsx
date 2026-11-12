@@ -58,9 +58,54 @@ describe("ResultGrid", () => {
   }, 30_000);
   test("AC2 rỗng giữ tên cột, câu không trả dòng hiện số dòng", () => {
     wrap(<ResultGrid results={[{ columns: [], rows: [], affectedRows: 3 }, { columns: ["a", "a"], rows: [] }]} />);
-    expect(screen.getAllByRole("columnheader")).toHaveLength(2);
+    // 3 cột header: cột # và 2 cột dữ liệu "a", "a"
+    expect(screen.getAllByRole("columnheader")).toHaveLength(3);
     fireEvent.click(screen.getByRole("button", { name: "Statement 1" }));
     expect(screen.getByText("3 rows affected")).toBeTruthy();
+  });
+  test("AC1 phân loại lệnh và trích đoạn snippet SQL", () => {
+    const rawSql = "CREATE TABLE users (id int);\nINSERT INTO users VALUES (1);\nSELECT * FROM users;";
+    const results = [
+      { columns: [], rows: [], affectedRows: 0 },
+      { columns: [], rows: [], affectedRows: 1 },
+      { columns: ["id"], rows: [[1]] },
+    ];
+    wrap(<ResultGrid results={results} rawSql={rawSql} />);
+    // Badge phân loại
+    expect(screen.getByText("DDL")).toBeTruthy();
+    expect(screen.getByText("INSERT")).toBeTruthy();
+    expect(screen.getByText("SELECT")).toBeTruthy();
+    // Trích đoạn câu lệnh
+    expect(screen.getByText(/CREATE TABLE users/)).toBeTruthy();
+    expect(screen.getByText(/INSERT INTO users/)).toBeTruthy();
+    expect(screen.getByText(/SELECT \* FROM users/)).toBeTruthy();
+  });
+  test("AC2 cột số thứ tự # và căn lề bảng chuẩn", () => {
+    const results = [{ columns: ["id", "val", "extra"], rows: [[1, "text", null], [2, "other", 42]] }];
+    const { container } = wrap(<ResultGrid results={results} />);
+    // Hàng có header row #
+    const rowHeaders = container.querySelectorAll("tbody th");
+    expect(rowHeaders).toHaveLength(2);
+    expect(rowHeaders[0].textContent).toBe("1");
+    expect(rowHeaders[1].textContent).toBe("2");
+    // Căn phải cho số, nghiêng cho null, căn trái cho chuỗi
+    const cells = container.querySelectorAll("tbody td");
+    expect(cells[0].className).toContain("text-right"); // id = 1
+    expect(cells[1].className).toContain("text-left"); // val = text
+    expect(cells[2].className).toContain("italic"); // extra = null
+  });
+  test("Mở tất cả và thu gọn qua prop allOpen", () => {
+    const results = [{ columns: ["a"], rows: [[1]] }, { columns: ["b"], rows: [[2]] }];
+    const { rerender } = wrap(<ResultGrid results={results} allOpen={false} />);
+    expect(screen.getByRole("button", { name: "Statement 1" }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByRole("button", { name: "Statement 2" }).getAttribute("aria-expanded")).toBe("false");
+    rerender(
+      <NextIntlClientProvider locale="en" messages={{ result: messages, "error-remediation": remediationMessages }}>
+        <ResultGrid results={results} allOpen={true} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Statement 1" }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "Statement 2" }).getAttribute("aria-expanded")).toBe("true");
   });
   test("AC3 câu cuối mở, câu trước thu gọn được", () => {
     wrap(<ResultGrid results={[{ columns: ["a"], rows: [[1]] }, { columns: ["b"], rows: [[2]] }]} />);

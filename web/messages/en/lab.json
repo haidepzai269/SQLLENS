@@ -32,8 +32,16 @@
     "timeout": "The statement took too long and was stopped. The PostgreSQL session was stopped, so data created by earlier statements is gone.",
     "worker_crashed": "The PostgreSQL session stopped unexpectedly, so data created by earlier statements is gone."
   },
+  "expandAll": "Expand all",
+  "collapseAll": "Collapse all",
+  "clear": "Clear",
+  "statementsSuccess": "{count, plural, one {# statement succeeded} other {# statements succeeded}}",
+  "durationMs": "{ms} ms",
+  "durationSec": "{s} s",
   "log": {
     "title": "Run log",
+    "systemTitle": "System logs",
+    "entryCount": "{count, plural, one {# entry} other {# entries}}",
     "loaded": "PostgreSQL loaded.",
     "ran": "Ran {n, plural, one {# statement} other {# statements}}.",
     "errorAt": "Error in statement {n}.",
