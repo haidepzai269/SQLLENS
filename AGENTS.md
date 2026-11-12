@@ -13,6 +13,7 @@ Chi tiết số đo kiểm chứng thực nghiệm đầy đủ xem tại [CLAUD
 ## Quy trình làm việc của Agent
 
 Đọc `_bmad-output/QUY_TRINH.md` trước khi làm bất kỳ task nào:
+
 1. Mỗi task nằm ở `_bmad-output/SP0xx/STR0xx/Task0xx/` và làm việc trong một **git worktree riêng**.
 2. Dev làm việc theo `task0xx.md`, chạy kiểm tra bằng máy (`npm run check`, tests), commit theo mẫu quy trình.
 3. Mỗi task có một `task-reviewer` độc lập kiểm tra trước khi bàn giao.
@@ -26,6 +27,7 @@ Chi tiết số đo kiểm chứng thực nghiệm đầy đủ xem tại [CLAUD
 Nền tảng web giúp lập trình viên nhìn thấy thiết kế database của mình hỏng ở đâu trước khi code, đồng thời giúp người mới hiểu database chạy bên trong như thế nào.
 
 **3 Trụ cột cốt lõi V1:**
+
 - **A. Thấy bên trong:** B-Tree, luồng thực thi (Plan runner), sơ đồ schema.
 - **B. Thử kịch bản hỏng:** Tranh chấp giữa 2 session (Conflict sim), tác động quy mô dữ liệu (Capacity advisor), sửa rồi chạy lại (What-if).
 - **C. Kiểm tra thiết kế:** Danh sách rủi ro của schema và query kèm bằng chứng (Findings).
