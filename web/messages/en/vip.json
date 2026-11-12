@@ -1,0 +1,48 @@
+{
+  "badgeLabel": "VIP",
+  "memberTitle": "VIP Member",
+  "upgradeCta": "Upgrade VIP",
+  "vipAccount": "VIP Account",
+  "vipUntilLabel": "VIP until: {date}",
+  "renewButton": "Extend VIP",
+  "backToLab": "Back to Workspace",
+  "title": "Upgrade to Royal VIP Tier",
+  "subtitle": "Unlock deep multi-line AI Copilot completions, dedicated CPU priority, and expanded quotas.",
+  "comparison": {
+    "freePlanTitle": "Free Tier",
+    "freePlanPrice": "$0 / Lifetime",
+    "freeFeature1": "Ultra-fast Heuristic Ghost Text (0ms, $0)",
+    "freeFeature2": "Standard AI Mentor quota",
+    "freeFeature3": "Shared MySQL sandbox container",
+    "freeFeature4": "B-Tree inspection & Conflict simulation",
+    "currentBadge": "Current Plan",
+    "vipPlanTitle": "Royal VIP Tier",
+    "vipPlanBadge": "Pro & Exclusive",
+    "vipPlanPrice": "Activate via Voucher Code",
+    "vipFeature1": "Deep multi-line AI Copilot (Qwen 0.19s)",
+    "vipFeature2": "Expanded / unlimited AI quota",
+    "vipFeature3": "Dedicated CPU priority for MySQL sandboxes",
+    "vipFeature4": "Exclusive Royal VIP badge across profile"
+  },
+  "redeem": {
+    "title": "Redeem Promo Code / Voucher",
+    "description": "Enter your activation voucher or gift code to immediately upgrade your account.",
+    "placeholder": "ENTER CODE (e.g. SQLPRO2026, EARLYVIP)...",
+    "submitButton": "Activate Now",
+    "activating": "Activating...",
+    "successTitle": "VIP Activated Successfully!",
+    "successSubtitle": "Welcome to Royal VIP tier. All exclusive features are now unlocked.",
+    "expiresAt": "Valid until: {date}",
+    "finishButton": "Start Exploring",
+    "loginRequiredWarning": "Please sign in before redeeming your VIP code.",
+    "loginButton": "Sign In Now"
+  },
+  "errors": {
+    "emptyCode": "Please enter a promo code.",
+    "invalidCode": "The code does not exist or is invalid.",
+    "codeExhausted": "The code has reached its usage limit or is expired.",
+    "codeAlreadyRedeemed": "You have already redeemed this code.",
+    "authRequired": "Please sign in before redeeming.",
+    "internal": "Server error, please try again later."
+  }
+}

@@ -13,6 +13,7 @@ type Auth = {
   user: Me | null;
   markAnon: () => void; // một yêu cầu khác nhận 401: cookie hết hạn
   logout: () => Promise<boolean>; // chỉ gọi Gin; người gọi tự markAnon sau khi đã đổi engine
+  refreshUser: () => Promise<void>; // nạp lại thông tin người dùng từ máy chủ (sau khi nạp VIP)
 
   banner: Banner | null;
   setBanner: (b: Banner | null) => void;
@@ -56,6 +57,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus("anon");
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const r = await fetch("/api/me", { credentials: "same-origin", cache: "no-store" });
+      if (r.status === 401) {
+        setUser(null);
+        setStatus("anon");
+        return;
+      }
+      if (!r.ok) return;
+      const me = (await r.json()) as Me;
+      if (typeof me?.id === "string" && typeof me.name === "string") {
+        setUser(me);
+        setStatus("user");
+      }
+    } catch {
+      // lỗi mạng tạm thời thì giữ nguyên
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     await endMysqlSession(); // hủy phiên MySQL trước khi cookie mất, nếu không yêu cầu hủy sẽ bị 401
     try {
@@ -69,8 +89,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ status, user, markAnon, logout, banner, setBanner, sqlRef }),
-    [status, user, markAnon, logout, banner],
+    () => ({ status, user, markAnon, logout, refreshUser, banner, setBanner, sqlRef }),
+    [status, user, markAnon, logout, refreshUser, banner],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

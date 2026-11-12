@@ -1,6 +1,14 @@
 import { isApiError } from "@/contracts/api-error";
 
-export type Me = { id: string; name: string; avatarUrl?: string; provider: string };
+export type Me = {
+  id: string;
+  name: string;
+  avatarUrl?: string;
+  provider: string;
+  role?: "guest" | "user" | "vip" | "admin";
+  vipUntil?: string | null;
+  isVip?: boolean;
+};
 
 // Chỉ các khóa này có trong messages/*/error.json; messageKey lạ từ server quy về "internal".
 const KEYS = [

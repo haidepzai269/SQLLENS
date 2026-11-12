@@ -1,0 +1,48 @@
+{
+  "badgeLabel": "VIP",
+  "memberTitle": "Hội viên VIP",
+  "upgradeCta": "Nâng cấp VIP",
+  "vipAccount": "Tài khoản VIP",
+  "vipUntilLabel": "Hạn VIP: {date}",
+  "renewButton": "Gia hạn thêm",
+  "backToLab": "Quay lại không gian làm việc",
+  "title": "Nâng Cấp Gói VIP Hoàng Gia",
+  "subtitle": "Khai mở sức mạnh AI Copilot viết mã sâu đa dòng, ưu tiên CPU và mở rộng hạn mức.",
+  "comparison": {
+    "freePlanTitle": "Bản Miễn Phí",
+    "freePlanPrice": "0đ / Vĩnh viễn",
+    "freeFeature1": "Ghost text Heuristics tốc độ cao (0ms, 0đ)",
+    "freeFeature2": "Hạn mức AI Mentor cơ bản",
+    "freeFeature3": "Môi trường MySQL chia sẻ",
+    "freeFeature4": "Phân tích B-Tree & Kịch bản tranh chấp",
+    "currentBadge": "Gói hiện tại",
+    "vipPlanTitle": "Bản VIP Hoàng Gia",
+    "vipPlanBadge": "Đẳng cấp & Chuyên nghiệp",
+    "vipPlanPrice": "Kích hoạt bằng mã quà tặng",
+    "vipFeature1": "AI Copilot viết mã sâu đa dòng (Qwen 0.19s)",
+    "vipFeature2": "Hạn mức AI mở rộng / không giới hạn",
+    "vipFeature3": "Ưu tiên tài nguyên CPU container MySQL",
+    "vipFeature4": "Huy hiệu VIP hoàng gia nổi bật hồ sơ"
+  },
+  "redeem": {
+    "title": "Kích Hoạt Mã Bản Quyền / Quà Tặng",
+    "description": "Nhập mã kích hoạt (Voucher/Giftcode) để nâng cấp tài khoản lên VIP ngay lập tức.",
+    "placeholder": "NHẬP MÃ (VD: SQLPRO2026, EARLYVIP)...",
+    "submitButton": "Kích hoạt ngay",
+    "activating": "Đang kích hoạt...",
+    "successTitle": "Kích hoạt VIP thành công!",
+    "successSubtitle": "Chào mừng bạn đến với hội đồng VIP Hoàng Gia. Mọi đặc quyền đã sẵn sàng.",
+    "expiresAt": "Thời hạn VIP: {date}",
+    "finishButton": "Bắt đầu trải nghiệm",
+    "loginRequiredWarning": "Vui lòng đăng nhập tài khoản trước khi nạp mã kích hoạt.",
+    "loginButton": "Đăng nhập ngay"
+  },
+  "errors": {
+    "emptyCode": "Vui lòng nhập mã kích hoạt.",
+    "invalidCode": "Mã kích hoạt không tồn tại hoặc không hợp lệ.",
+    "codeExhausted": "Mã kích hoạt đã hết lượt sử dụng hoặc đã hết hạn.",
+    "codeAlreadyRedeemed": "Bạn đã sử dụng mã kích hoạt này trước đó.",
+    "authRequired": "Vui lòng đăng nhập trước khi nạp mã.",
+    "internal": "Lỗi kết nối máy chủ, vui lòng thử lại sau."
+  }
+}
