@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import {
   ArrowLeft,
   Code2,
@@ -21,11 +21,19 @@ import { CustomSwitch } from "@/components/ui/custom-switch";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { VipBadge } from "@/components/ui/vip-badge";
+import { AuthContext } from "@/modules/auth/auth-provider";
+import { UpgradeModal } from "@/modules/vip/upgrade-modal";
 
 export function SettingsView() {
   const t = useTranslations("settings");
   const { settings, updateSettings, resetSettings } = useSettings();
   const [resetNotice, setResetNotice] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  const auth = useContext(AuthContext);
+  const user = auth?.user ?? null;
+  const isVip = Boolean(user?.isVip || user?.role === "vip");
 
   const handleReset = () => {
     resetSettings();
@@ -381,24 +389,35 @@ export function SettingsView() {
                     <span className="text-xs font-medium text-muted-foreground">
                       {t("sections.account.currentPlan")}:
                     </span>
-                    <Badge variant="secondary" className="font-semibold text-xs">
-                      {t("sections.account.planFree")}
-                    </Badge>
+                    {isVip ? (
+                      <VipBadge size="sm" />
+                    ) : (
+                      <Badge variant="secondary" className="font-semibold text-xs">
+                        {t("sections.account.planFree")}
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {t("sections.account.statusDescription")}
+                    {isVip && user?.vipUntil
+                      ? t("sections.account.vipUntil", {
+                          date: new Date(user.vipUntil).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          }),
+                        })
+                      : t("sections.account.statusDescription")}
                   </p>
                 </div>
 
-                <Link href="/login" className="inline-block shrink-0">
-                  <Button
-                    type="button"
-                    className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-semibold shadow-xs"
-                  >
-                    <Crown className="size-4 mr-1.5" aria-hidden="true" />
-                    <span>{t("sections.account.upgradeButton")}</span>
-                  </Button>
-                </Link>
+                <Button
+                  type="button"
+                  onClick={() => setUpgradeOpen(true)}
+                  className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-semibold shadow-xs"
+                >
+                  <Crown className="size-4 mr-1.5" aria-hidden="true" />
+                  <span>{isVip ? t("sections.account.renewButton") : t("sections.account.upgradeButton")}</span>
+                </Button>
               </div>
 
               {/* VIP Perks */}
@@ -426,6 +445,8 @@ export function SettingsView() {
           </Card>
         </div>
       </div>
+
+      {upgradeOpen && <UpgradeModal open={upgradeOpen} onOpenChange={setUpgradeOpen} />}
     </main>
   );
 }

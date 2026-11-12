@@ -1,15 +1,15 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect } from "react";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { parseEngine } from "@/components/shell/engine-tabs";
 import { Tip } from "@/components/shell/tip";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePathname, useRouter } from "@/i18n/navigation";
+import { UserNav } from "@/components/shell/user-nav";
 import { useAuth } from "./auth-provider";
 import { SignInLink } from "./guest";
 import { LoginDialog } from "./login-dialog";
@@ -23,61 +23,30 @@ const toPostgres = (router: ReturnType<typeof useRouter>, pathname: string) => {
 function Controls() {
   const t = useTranslations("auth");
   const ts = useTranslations("shell");
-  const { status, user, logout, markAnon, setBanner } = useAuth();
+  const { status, user } = useAuth();
   const engine = parseEngine(useSearchParams().get("engine"));
   const router = useRouter();
   const pathname = usePathname();
-  // Đang đăng xuất khỏi MySQL: URL đổi sau một nhịp, trong lúc đó không mở cổng.
-  const [leaving, setLeaving] = useState(false);
-  useEffect(() => {
-    if (engine !== "mysql") setLeaving(false); // eslint-disable-line react-hooks/set-state-in-effect -- URL đã rời MySQL thì hết cờ
-  }, [engine]);
-  // Cổng MySQL suy ra từ URL và trạng thái, không qua effect: hủy thì về PostgreSQL, đăng nhập xong thì tự tắt.
-  const gate = engine === "mysql" && status === "anon" && !leaving;
+
+  // Cổng MySQL suy ra từ URL và trạng thái: hủy thì về PostgreSQL, đăng nhập xong thì tự tắt.
+  const gate = engine === "mysql" && status === "anon";
   const close = () => toPostgres(router, pathname);
 
   return (
-    <div className="flex h-[var(--h-top)] items-center px-1">
+    <div className="flex h-[var(--h-top)] items-center px-1 gap-2">
       {status === "loading" ? (
         <Skeleton aria-hidden className="h-7 w-20" data-testid="auth-skeleton" />
       ) : user ? (
-        <DropdownMenu>
-          <Tip label={ts("tip.account")}>
-          <DropdownMenuTrigger
-            aria-label={t("menu", { name: user.name })}
-            className={buttonVariants({ variant: "ghost", size: "sm" }) + " max-w-40 gap-2"}
-          >
-            {user.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- ảnh của Google/GitHub, không qua trình tối ưu của Next
-              <img src={user.avatarUrl} alt="" referrerPolicy="no-referrer" className="size-5 rounded-full" />
-            ) : (
-              <span aria-hidden className="grid size-5 place-items-center rounded-full bg-muted text-xs">
-                {[...user.name][0]?.toUpperCase()}
-              </span>
-            )}
-            <span className="truncate max-[900px]:sr-only">{user.name}</span>
-          </DropdownMenuTrigger>
-          </Tip>
-          <DropdownMenuContent align="end" className="min-w-44">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="truncate">{user.name}</DropdownMenuLabel>
-            </DropdownMenuGroup>
-            <DropdownMenuItem
-              onClick={async () => {
-                setLeaving(true);
-                if (!(await logout())) return setLeaving(false), setBanner("logoutFailed");
-                if (engine === "mysql") toPostgres(router, pathname); // trước markAnon để cổng MySQL không chớp
-                markAnon();
-              }}
-            >
-              {t("signOut")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <UserNav />
       ) : (
-        <Tip label={ts("tip.signIn")}>
-          <SignInLink className={buttonVariants({ variant: "outline", size: "sm" })}>{t("signIn")}</SignInLink>
-        </Tip>
+        <>
+          <UserNav />
+          <Tip label={ts("tip.signIn")}>
+            <SignInLink className={buttonVariants({ variant: "outline", size: "sm" }) + " h-7 text-xs font-medium"}>
+              {t("signIn")}
+            </SignInLink>
+          </Tip>
+        </>
       )}
       <LoginDialog open={gate} reason="mysql" onClose={close} />
     </div>
