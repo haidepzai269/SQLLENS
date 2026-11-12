@@ -1,9 +1,19 @@
 "use client";
 
-import { Network, PanelBottom, PanelLeft, PanelRight, Settings } from "lucide-react";
+import { Network, PanelBottom, PanelLeft, PanelRight, Settings, SlidersHorizontal } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useRouter } from "@/i18n/navigation";
 import { isLastOpen, ZONES, type Zone } from "./layout-state";
 import { useShell } from "./shell-provider";
 import { Tip } from "./tip";
@@ -13,6 +23,7 @@ const ICON: Record<Zone, typeof Network> = { sql: PanelLeft, stage: Network, fin
 // Một nút bánh răng thay bốn icon. Vùng cuối còn bật thì mục đó bị khóa, nên không bao giờ có màn hình trống.
 export function PanelToggles() {
   const t = useTranslations("shell");
+  const router = useRouter();
   const { state, toggle } = useShell();
   const lastOpen = ZONES.some((z) => isLastOpen(state, z));
   return (
@@ -53,6 +64,11 @@ export function PanelToggles() {
           })}
         </DropdownMenuGroup>
         {lastOpen && <p role="note" className="px-1.5 py-1 text-xs text-muted-foreground">{t("toggles.lastOpen")}</p>}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => router.push("/settings")}>
+          <SlidersHorizontal aria-hidden />
+          <span>{t("toggles.advancedSettings")}</span>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

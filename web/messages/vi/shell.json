@@ -14,7 +14,8 @@
     "lastOpen": "Vùng cuối cùng còn bật, không thể tắt",
     "menu": "Bố cục: bật tắt các vùng",
     "on": "Bật",
-    "off": "Tắt"
+    "off": "Tắt",
+    "advancedSettings": "Cài đặt nâng cao..."
   },
   "zone": {
     "label": "Các vùng làm việc",
