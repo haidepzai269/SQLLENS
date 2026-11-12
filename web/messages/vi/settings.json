@@ -1,0 +1,77 @@
+{
+  "title": "Cài đặt & Tùy chọn",
+  "subtitle": "Tùy biến trải nghiệm soạn thảo SQL, giao diện hiển thị và tính năng trợ lý thông minh.",
+  "backToWorkspace": "Quay lại không gian làm việc",
+  "resetDefault": "Khôi phục mặc định",
+  "resetSuccess": "Đã khôi phục cài đặt mặc định",
+  "sections": {
+    "editor": {
+      "title": "Soạn thảo SQL",
+      "description": "Tùy chỉnh hành vi và hiển thị của khung soạn thảo mã nguồn",
+      "lineNumbers": {
+        "title": "Hiển thị số dòng",
+        "description": "Hiện số thứ tự dòng ở lề trái khung soạn thảo"
+      },
+      "lineWrapping": {
+        "title": "Tự động ngắt dòng",
+        "description": "Tự động xuống dòng khi câu lệnh vượt quá chiều rộng màn hình"
+      },
+      "highlightActiveLine": {
+        "title": "Tô sáng dòng hiện tại",
+        "description": "Làm nổi bật dòng chứa con trỏ soạn thảo để dễ theo dõi"
+      },
+      "fontSize": {
+        "title": "Kích thước phông chữ",
+        "description": "Cỡ chữ hiển thị trong trình soạn thảo mã SQL",
+        "unit": "px"
+      }
+    },
+    "appearance": {
+      "title": "Giao diện & Màu sắc",
+      "description": "Điều chỉnh chủ đề và mức độ tương phản của nền tảng",
+      "theme": {
+        "title": "Chủ đề giao diện",
+        "description": "Chọn tông màu giao diện phù hợp với môi trường làm việc",
+        "dark": "Tối",
+        "light": "Sáng",
+        "auto": "Hệ thống"
+      },
+      "contrastBoost": {
+        "title": "Chế độ tương phản cao",
+        "description": "Làm rõ nét viền, chữ và các thành phần giao diện quan trọng"
+      }
+    },
+    "autocomplete": {
+      "title": "Trợ lý soạn thảo & Gợi ý mã",
+      "description": "Cấu hình cơ chế gợi ý từ khóa, cấu trúc database và trợ lý AI",
+      "ghostText": {
+        "title": "Gợi ý viết tiếp trực tiếp (Inline Ghost Text)",
+        "description": "Chữ mờ sau con trỏ, phím Tab nhận - 0ms, 0đ"
+      },
+      "dropdown": {
+        "title": "Menu gợi ý dạng popup (Code-based Dropdown)",
+        "description": "Menu xổ xuống khi gõ từ khóa SQL, tên bảng, cột"
+      },
+      "aiCopilot": {
+        "title": "Gợi ý sâu từ AI Copilot (AI Inline Ghost Text)",
+        "description": "Dự đoán nhiều dòng lệnh thông minh theo ngữ cảnh schema CSDL",
+        "vipBadge": "VIP",
+        "vipWarning": "Đặc quyền dành riêng cho VIP"
+      }
+    },
+    "account": {
+      "title": "Tài khoản & Phân quyền",
+      "description": "Quản lý gói tài khoản và các đặc quyền sử dụng nâng cao",
+      "currentPlan": "Cấp độ tài khoản",
+      "planGuest": "Khách (Guest)",
+      "planFree": "Tiêu chuẩn (Miễn phí)",
+      "planVip": "VIP Hoàng Gia",
+      "statusDescription": "Đang sử dụng các tính năng cơ bản, gợi ý Ghost Text 0ms, Quota AI tiêu chuẩn.",
+      "upgradeButton": "Nâng cấp VIP",
+      "perksTitle": "Đặc quyền tài khoản VIP:",
+      "perk1": "AI Inline Copilot gợi ý đa dòng thông minh không giới hạn",
+      "perk2": "Chẩn đoán lỗi Terminal AI Doctor Card ưu tiên",
+      "perk3": "Mở rộng Quota AI và tài nguyên Sandbox CPU cao cấp"
+    }
+  }
+}

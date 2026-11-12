@@ -14,7 +14,8 @@
     "lastOpen": "Last visible panel, it cannot be hidden",
     "menu": "Layout: show or hide panels",
     "on": "On",
-    "off": "Off"
+    "off": "Off",
+    "advancedSettings": "Advanced Settings..."
   },
   "zone": {
     "label": "Work panels",

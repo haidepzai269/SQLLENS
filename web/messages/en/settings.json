@@ -1,0 +1,77 @@
+{
+  "title": "Settings & Preferences",
+  "subtitle": "Customize your SQL editor experience, visual appearance, and smart assistant features.",
+  "backToWorkspace": "Back to Workspace",
+  "resetDefault": "Reset to Default",
+  "resetSuccess": "Reset settings to default successfully",
+  "sections": {
+    "editor": {
+      "title": "SQL Editor",
+      "description": "Customize editor behavior and source code appearance",
+      "lineNumbers": {
+        "title": "Line Numbers",
+        "description": "Show line numbers in the editor gutter"
+      },
+      "lineWrapping": {
+        "title": "Line Wrapping",
+        "description": "Wrap long lines to fit within the editor viewport"
+      },
+      "highlightActiveLine": {
+        "title": "Highlight Active Line",
+        "description": "Visually emphasize the line where cursor is currently located"
+      },
+      "fontSize": {
+        "title": "Font Size",
+        "description": "Text size of the SQL code editor",
+        "unit": "px"
+      }
+    },
+    "appearance": {
+      "title": "Appearance & Theme",
+      "description": "Adjust platform color theme and visual contrast levels",
+      "theme": {
+        "title": "Color Theme",
+        "description": "Select the color theme matching your work environment",
+        "dark": "Dark",
+        "light": "Light",
+        "auto": "System"
+      },
+      "contrastBoost": {
+        "title": "High Contrast Mode",
+        "description": "Boost border sharpness and text contrast for better legibility"
+      }
+    },
+    "autocomplete": {
+      "title": "Code Completion & Smart Assistant",
+      "description": "Configure SQL keyword suggestions, database schema, and AI assistant",
+      "ghostText": {
+        "title": "Inline Ghost Text Completion",
+        "description": "Ghost text after cursor, press Tab to accept - 0ms, free"
+      },
+      "dropdown": {
+        "title": "Dropdown Popup Autocomplete",
+        "description": "Popup menu listing SQL keywords, tables, and columns as you type"
+      },
+      "aiCopilot": {
+        "title": "AI Inline Copilot Completion",
+        "description": "Multi-line intelligent SQL suggestions based on your database schema",
+        "vipBadge": "VIP",
+        "vipWarning": "Exclusive privilege for VIP accounts"
+      }
+    },
+    "account": {
+      "title": "Account & VIP Tier",
+      "description": "Manage your subscription plan and advanced feature privileges",
+      "currentPlan": "Current Tier",
+      "planGuest": "Guest",
+      "planFree": "Standard (Free)",
+      "planVip": "Royal VIP",
+      "statusDescription": "Currently using basic features, 0ms Ghost Text, standard AI Quota.",
+      "upgradeButton": "Upgrade to VIP",
+      "perksTitle": "VIP Member Privileges:",
+      "perk1": "Unlimited multi-line AI Inline Copilot code generation",
+      "perk2": "Priority Terminal AI Doctor Card error diagnosis",
+      "perk3": "Expanded AI Quota and premium Sandbox CPU allocation"
+    }
+  }
+}
