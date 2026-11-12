@@ -1,11 +1,14 @@
 {
-  "notSimulated": "Đề xuất SQL này chưa mô phỏng được nên không hiển thị.",
-  "notAllowed": "Đề xuất SQL này không thuộc loại được chạy thử (chỉ SELECT, CREATE INDEX và ALTER TABLE đơn giản), nên không hiển thị.",
-  "multiple": "Đề xuất SQL này gồm nhiều hơn một câu nên không hiển thị.",
-  "empty": "Khối SQL rỗng.",
-  "parseError": "Đề xuất SQL này không đọc được cú pháp nên không hiển thị.",
-  "needsProbe": "Không có truy vấn đo để thử đề xuất này, nên không hiển thị.",
-  "failed": "Đề xuất SQL này chạy thử bị lỗi nên không hiển thị.",
-  "timeout": "Đề xuất SQL này chạy thử quá thời gian nên không hiển thị.",
-  "limit": "Chỉ chạy thử tối đa 5 khối SQL cho mỗi câu trả lời; khối này không được kiểm nên không hiển thị."
+  "unverifiedBadge": "Chưa qua kiểm thử sandbox: {reason}",
+  "needMysqlSandbox": "Cần kết nối MySQL sandbox để kiểm thử",
+  "syntaxError": "Lỗi cú pháp SQL",
+  "parseError": "Không phân tích được cú pháp SQL",
+  "notAllowed": "Câu lệnh không thuộc loại được phép chạy thử",
+  "multiple": "Chứa nhiều hơn một câu lệnh SQL",
+  "empty": "Khối SQL rỗng",
+  "needsProbe": "Thiếu câu lệnh đo để chạy thử",
+  "failed": "Lỗi khi thực thi trong database",
+  "timeout": "Quá thời gian chờ phản hồi từ database",
+  "limit": "Vượt quá giới hạn 5 khối SQL được kiểm thử",
+  "notSimulated": "Chưa hỗ trợ mô phỏng trên engine này"
 }

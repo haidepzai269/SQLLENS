@@ -4,11 +4,9 @@ import { useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { ConclusionBadge } from "@/components/ui/conclusion-badge";
-import type { TryChangeResult } from "@/contracts/engine";
-import type { Plan, PlanNode } from "@/contracts/plan";
-import type { VerifiedAnswer } from "../verify";
+import type { VerifiedAnswer, VerifiedPart } from "../verify";
 import { splitAnswer } from "../verify/split";
+import { VerifiedBlock } from "./verified-block";
 
 export type Kind = "auth" | "limit" | "unavailable" | "badRequest" | "network" | "interrupted" | "stream" | "tooLong";
 export type Fail = { kind: Kind; key?: string; waitSeconds?: number };
@@ -32,8 +30,6 @@ export type Applied = { n: number; change?: string; probe: string };
 export type Tr = (key: string, values?: Record<string, string | number>) => string;
 
 export const BUSY = new Set<Phase>(["sending", "streaming", "verifying"]);
-const sumPages = (n: PlanNode): number => (n.pagesRead ?? 0) + n.children.reduce((a, c) => a + sumPages(c), 0);
-const blocks = (s: { sharedHitBlocks: number; sharedReadBlocks: number }) => s.sharedHitBlocks + s.sharedReadBlocks;
 
 /**
  * Tóm tắt ngắn gọn (1-2 câu, < 300 ký tự) từ các lượt trước
@@ -75,63 +71,28 @@ export function FailView({ fail, onLogin }: { fail: Fail; onLogin: () => void })
   );
 }
 
-// Nội dung AI luôn là text node: không dangerouslySetInnerHTML, không Markdown, không thẻ a.
+// Nội dung AI luôn là text node hoặc block có kiểm soát: không dangerouslySetInnerHTML, không Markdown, không thẻ a.
 export function Parts({ turn, tr, probe, onApply }: { turn: Turn; tr: Tr; probe?: string; onApply: (a: Applied) => void }) {
   const t = useTranslations("mentor");
   const counter = useRef(0);
   const waiting = BUSY.has(turn.phase);
-  const parts = turn.verified?.parts ?? splitAnswer(turn.text).map((p) => (p.kind === "text" ? p : ({ kind: "pending" } as const)));
+  const pendingText = waiting ? t("sqlPending") : turn.verifyFailed ? t("verifyFailed") : t("sqlUnchecked");
+  const parts: (VerifiedPart | { kind: "pending" })[] =
+    turn.verified?.parts ??
+    splitAnswer(turn.text).map((p) => (p.kind === "text" ? p : ({ kind: "pending" } as const)));
+
   return (
     <>
-      {parts.map((p, i) => {
-        if (p.kind === "text") {
-          return p.text.trim() ? (
-            <p key={i} className="m-0 min-w-0 whitespace-pre-wrap break-words text-sm" data-testid="mentor-text">{p.text}</p>
-          ) : null;
-        }
-        if (p.kind === "hidden") {
-          return <p key={i} className="m-0 text-xs text-ink2" data-testid="mentor-sql-hidden">{tr(p.reasonKey)}</p>;
-        }
-        if (p.kind === "pending") {
-          return (
-            <p key={i} className="m-0 text-xs text-dim" data-testid="mentor-sql-pending">
-              {waiting ? t("sqlPending") : turn.verifyFailed ? t("verifyFailed") : t("sqlUnchecked")}
-            </p>
-          );
-        }
-        const { outcome } = p;
-        const isPlan = "root" in outcome.data;
-        let pages: string | null = null;
-        if (isPlan) {
-          const plan = outcome.data as Plan;
-          if (plan.analyzed) pages = t("pages", { pages: sumPages(plan.root) });
-        } else {
-          const r = outcome.data as TryChangeResult;
-          pages = t("pagesChange", { before: blocks(r.before), after: blocks(r.after) });
-        }
-        const applyProbe = isPlan ? p.sql : probe;
-        return (
-          <div key={i} className="flex min-w-0 flex-col gap-1 border border-line p-2" data-testid="mentor-sql-ok">
-            <div className="flex flex-wrap items-center gap-2">
-              <ConclusionBadge label={outcome.label} testId="mentor-label" />
-              <span className="text-xs text-ink2">{t("ranHere")}</span>
-            </div>
-            <pre className="m-0 max-w-full overflow-x-auto text-sm"><code className="font-mono">{p.sql}</code></pre>
-            {pages && <p className="m-0 text-xs text-ink2" data-testid="mentor-pages">{pages}</p>}
-            {applyProbe && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-fit"
-                data-testid="mentor-apply"
-                onClick={() => onApply({ n: ++counter.current, probe: applyProbe, change: isPlan ? undefined : p.sql })}
-              >
-                {t("apply")}
-              </Button>
-            )}
-          </div>
-        );
-      })}
+      {parts.map((p, i) => (
+        <VerifiedBlock
+          key={i}
+          part={p}
+          probe={probe}
+          onApply={(arg) => onApply({ n: ++counter.current, ...arg })}
+          tr={tr}
+          pendingText={pendingText}
+        />
+      ))}
     </>
   );
 }
@@ -296,3 +257,5 @@ export function ConversationThread({
     </div>
   );
 }
+
+export { VerifiedBlock } from "./verified-block";
