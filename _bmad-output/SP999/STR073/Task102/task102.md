@@ -37,3 +37,4 @@ Ca biên: Script chỉ có DDL không có dữ liệu trả về; Script có nhi
 Kiểm tra: `npm run check` và `npx vitest run web/src/components/result-grid/result-grid.test.tsx` trong `web/`.
 Góc review thêm: Trải nghiệm người dùng (UX) / Độ tương thích ngược E2E Playwright / Chuẩn accessibility (aria-expanded, aria-controls).
 Đọc thêm: Thảo luận Party Mode ngày 12/11/2026 và ảnh lỗi giao diện Terminal.
+
