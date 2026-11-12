@@ -16,7 +16,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var ErrNotFound = errors.New("store: not found")
+var (
+	ErrNotFound            = errors.New("store: not found")
+	ErrCodeNotFound        = errors.New("store: mã kích hoạt không tồn tại")
+	ErrCodeExhausted       = errors.New("store: mã kích hoạt đã hết lượt hoặc hết hạn")
+	ErrCodeAlreadyRedeemed = errors.New("store: bạn đã sử dụng mã kích hoạt này")
+)
 
 type Profile struct {
 	DisplayName string
@@ -29,8 +34,21 @@ type User struct {
 	DisplayName string
 	Email       string
 	AvatarURL   string
+	Role        string     // "guest", "user", "vip", "admin"
+	VipUntil    *time.Time // nil nếu chưa có hạn hoặc vĩnh viễn
 	CreatedAt   time.Time
 	Provider    string // chỉ SessionUser điền; mỗi user có đúng một identity vì không gộp theo email
+}
+
+// IsVIP kiểm tra xem user có phải tài khoản VIP còn hạn hay không.
+func (u User) IsVIP() bool {
+	if u.Role != "vip" {
+		return false
+	}
+	if u.VipUntil == nil {
+		return true // VIP vĩnh viễn
+	}
+	return time.Now().Before(*u.VipUntil)
 }
 
 type Store struct{ pool *pgxpool.Pool }
@@ -124,11 +142,11 @@ func nullable(s string) *string {
 	return &s
 }
 
-const userCols = `u.id::text, u.display_name, COALESCE(u.email, ''), COALESCE(u.avatar_url, ''), u.created_at`
+const userCols = `u.id::text, u.display_name, COALESCE(u.email, ''), COALESCE(u.avatar_url, ''), COALESCE(u.role, 'user'), u.vip_until, u.created_at`
 
 func scanUser(row pgx.Row) (User, error) {
 	var u User
-	err := row.Scan(&u.ID, &u.DisplayName, &u.Email, &u.AvatarURL, &u.CreatedAt)
+	err := row.Scan(&u.ID, &u.DisplayName, &u.Email, &u.AvatarURL, &u.Role, &u.VipUntil, &u.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
@@ -215,7 +233,7 @@ func (s *Store) SessionUser(ctx context.Context, token string) (User, error) {
 			AND last_used_at < now() - $2::interval)
 		SELECT `+userCols+`, COALESCE((SELECT provider FROM identities WHERE user_id = u.id LIMIT 1), '')
 		FROM users u JOIN s ON s.user_id = u.id`, hashToken(token), fmt.Sprintf("%d microseconds", lastUsedGranularity.Microseconds())).
-		Scan(&u.ID, &u.DisplayName, &u.Email, &u.AvatarURL, &u.CreatedAt, &u.Provider)
+		Scan(&u.ID, &u.DisplayName, &u.Email, &u.AvatarURL, &u.Role, &u.VipUntil, &u.CreatedAt, &u.Provider)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
@@ -238,4 +256,85 @@ func (s *Store) DeleteExpired(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("store: dọn phiên: %w", err)
 	}
 	return int(tag.RowsAffected()), nil
+}
+
+// RedeemVipCode kiểm tra mã và kích hoạt/gia hạn gói VIP cho người dùng trong một transaction an toàn.
+func (s *Store) RedeemVipCode(ctx context.Context, userID, code string) (time.Time, error) {
+	cleanCode := strings.TrimSpace(code)
+	if cleanCode == "" {
+		return time.Time{}, ErrCodeNotFound
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("store: redeem vip begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+
+	// 1. Khóa dòng vip_codes để chống race condition khi nhiều người cùng nhập 1 mã
+	var durationDays, maxUses, usedCount int
+	var expiresAt *time.Time
+	err = tx.QueryRow(ctx, `SELECT duration_days, max_uses, used_count, expires_at FROM vip_codes WHERE code = $1 FOR UPDATE`, cleanCode).
+		Scan(&durationDays, &maxUses, &usedCount, &expiresAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return time.Time{}, ErrCodeNotFound
+	}
+	if err != nil {
+		return time.Time{}, fmt.Errorf("store: tra mã vip: %w", err)
+	}
+
+	now := time.Now()
+	if usedCount >= maxUses || (expiresAt != nil && now.After(*expiresAt)) {
+		return time.Time{}, ErrCodeExhausted
+	}
+
+	// 2. Kiểm tra xem user này đã kích hoạt mã này trước đó hay chưa
+	var alreadyRedeemed bool
+	err = tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM user_vip_redemptions WHERE user_id = $1::uuid AND code = $2)`, userID, cleanCode).
+		Scan(&alreadyRedeemed)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("store: kiểm tra lịch sử kích hoạt: %w", err)
+	}
+	if alreadyRedeemed {
+		return time.Time{}, ErrCodeAlreadyRedeemed
+	}
+
+	// 3. Khóa dòng user hiện tại và tính toán thời gian hết hạn mới
+	var currentRole string
+	var currentVipUntil *time.Time
+	err = tx.QueryRow(ctx, `SELECT COALESCE(role, 'user'), vip_until FROM users WHERE id = $1::uuid FOR UPDATE`, userID).
+		Scan(&currentRole, &currentVipUntil)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return time.Time{}, ErrNotFound
+	}
+	if err != nil {
+		return time.Time{}, fmt.Errorf("store: tra user để gia hạn: %w", err)
+	}
+
+	var newExpiry time.Time
+	if currentRole == "vip" && currentVipUntil != nil && currentVipUntil.After(now) {
+		newExpiry = currentVipUntil.AddDate(0, 0, durationDays)
+	} else {
+		newExpiry = now.AddDate(0, 0, durationDays)
+	}
+
+	// 4. Cập nhật lượt dùng mã kích hoạt
+	if _, err := tx.Exec(ctx, `UPDATE vip_codes SET used_count = used_count + 1 WHERE code = $1`, cleanCode); err != nil {
+		return time.Time{}, fmt.Errorf("store: tăng lượt dùng mã: %w", err)
+	}
+
+	// 5. Ghi nhận lịch sử người dùng đã dùng mã
+	if _, err := tx.Exec(ctx, `INSERT INTO user_vip_redemptions (user_id, code) VALUES ($1::uuid, $2)`, userID, cleanCode); err != nil {
+		return time.Time{}, fmt.Errorf("store: ghi nhận lịch sử kích hoạt: %w", err)
+	}
+
+	// 6. Cập nhật role vip và hạn mới cho user
+	if _, err := tx.Exec(ctx, `UPDATE users SET role = 'vip', vip_until = $2 WHERE id = $1::uuid`, userID, newExpiry); err != nil {
+		return time.Time{}, fmt.Errorf("store: cập nhật quyền vip user: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return time.Time{}, fmt.Errorf("store: commit redeem vip: %w", err)
+	}
+
+	return newExpiry, nil
 }

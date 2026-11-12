@@ -43,7 +43,7 @@ func TestMigrateTwice(t *testing.T) { // AC1
 		t.Fatal(err)
 	}
 	var n int
-	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM schema_migrations`).Scan(&n); err != nil || n != 1 {
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM schema_migrations`).Scan(&n); err != nil || n != 2 {
 		t.Fatalf("schema_migrations = %d, %v", n, err)
 	}
 }
@@ -212,5 +212,32 @@ func TestSessionUserTouchAndProvider(t *testing.T) { // AC7d
 	}
 	if !last().After(old.Add(9 * time.Minute)) {
 		t.Fatal("lần dùng cũ hơn 5 phút phải được cập nhật")
+	}
+}
+
+func TestUserIsVIP(t *testing.T) {
+	past := time.Now().Add(-1 * time.Hour)
+	future := time.Now().Add(24 * time.Hour)
+
+	tests := []struct {
+		name string
+		user User
+		want bool
+	}{
+		{"user thường", User{Role: "user"}, false},
+		{"guest", User{Role: "guest"}, false},
+		{"role rỗng", User{Role: ""}, false},
+		{"admin", User{Role: "admin"}, false},
+		{"vip vĩnh viễn (nil vip_until)", User{Role: "vip", VipUntil: nil}, true},
+		{"vip còn hạn", User{Role: "vip", VipUntil: &future}, true},
+		{"vip đã hết hạn", User{Role: "vip", VipUntil: &past}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.user.IsVIP(); got != tt.want {
+				t.Errorf("IsVIP() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

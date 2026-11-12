@@ -119,6 +119,8 @@ func Mount(r *gin.Engine, d Deps) *Auth {
 	r.GET("/auth/:provider/callback", a.callback)
 	r.POST("/auth/logout", a.logout)
 	r.GET("/me", a.requireUser, a.me)
+	r.POST("/auth/redeem-vip", a.requireUser, a.redeemVIP)
+	r.POST("/api/auth/redeem-vip", a.requireUser, a.redeemVIP)
 	return a
 }
 
@@ -295,7 +297,83 @@ func (a *Auth) me(c *gin.Context) {
 		avatar = &u.AvatarURL
 	}
 	c.Header("Cache-Control", "no-store")
-	c.JSON(http.StatusOK, gin.H{"id": u.ID, "name": u.DisplayName, "avatarUrl": avatar, "provider": u.Provider})
+	c.JSON(http.StatusOK, gin.H{
+		"id":        u.ID,
+		"name":      u.DisplayName,
+		"avatarUrl": avatar,
+		"provider":  u.Provider,
+		"role":      u.Role,
+		"vipUntil":  u.VipUntil,
+		"isVip":     u.IsVIP(),
+	})
+}
+
+type redeemVIPRequest struct {
+	Code string `json:"code"`
+}
+
+func (a *Auth) redeemVIP(c *gin.Context) {
+	var req redeemVIPRequest
+	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.Code) == "" {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":       "invalid_code",
+				"messageKey": "error.invalidCode",
+			},
+			"message": "Mã kích hoạt không hợp lệ",
+		})
+		return
+	}
+
+	u, ok := c.Get(userKey)
+	if !ok {
+		httpapi.Abort(c, http.StatusUnauthorized, "auth_required", "error.authRequired")
+		return
+	}
+	user := u.(store.User)
+
+	if a.store == nil {
+		notConfigured(c)
+		return
+	}
+
+	newExpiry, err := a.store.RedeemVipCode(c.Request.Context(), user.ID, strings.TrimSpace(req.Code))
+	switch {
+	case errors.Is(err, store.ErrCodeNotFound):
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":       "invalid_code",
+				"messageKey": "error.invalidCode",
+			},
+			"message": "Mã kích hoạt không tồn tại hoặc không hợp lệ",
+		})
+	case errors.Is(err, store.ErrCodeExhausted):
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":       "code_exhausted",
+				"messageKey": "error.codeExhausted",
+			},
+			"message": "Mã kích hoạt đã hết lượt sử dụng hoặc đã hết hạn",
+		})
+	case errors.Is(err, store.ErrCodeAlreadyRedeemed):
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":       "code_already_redeemed",
+				"messageKey": "error.codeAlreadyRedeemed",
+			},
+			"message": "Bạn đã sử dụng mã kích hoạt này trước đó",
+		})
+	case err != nil:
+		log.Printf("auth: redeem vip code failed: %v", err)
+		httpapi.Abort(c, http.StatusInternalServerError, "internal", "error.internal")
+	default:
+		c.JSON(http.StatusOK, gin.H{
+			"ok":       true,
+			"role":     "vip",
+			"vipUntil": newExpiry,
+			"message":  "Kích hoạt VIP thành công",
+		})
+	}
 }
 
 func (a *Auth) logout(c *gin.Context) {
