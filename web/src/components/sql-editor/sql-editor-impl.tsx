@@ -14,7 +14,9 @@ import CodeMirror, {
   type Extension,
 } from "@uiw/react-codemirror";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { DEFAULT_SETTINGS, useSettings } from "@/contexts/settings-context";
 import { DIALECT } from "./dialect";
+import { createSqlAutocompleteExtension } from "./extensions/dropdown-autocomplete";
 import type { SqlEditorProps } from "./sql-editor";
 import { getStatementAtOffset } from "./statement-at-cursor";
 
@@ -112,7 +114,28 @@ const toDocOffset = (value: string, position: number) => {
   return normalize(value.slice(0, position)).length;
 };
 
-export default function SqlEditorImpl({ value, onChange, engine, error, highlight: hl, ariaLabel, onRun, onSelectionChange }: SqlEditorProps) {
+function useSafeSettings() {
+  try {
+    return useSettings().settings;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
+export default function SqlEditorImpl({
+  value,
+  onChange,
+  engine,
+  error,
+  highlight: hl,
+  ariaLabel,
+  onRun,
+  onSelectionChange,
+  schema,
+  dropdownAutocomplete,
+}: SqlEditorProps) {
+  const settings = useSafeSettings();
+  const isAutocompleteEnabled = dropdownAutocomplete ?? settings.dropdownAutocomplete;
   const errId = useId();
   const [view, setView] = useState<EditorView | null>(null);
   const doc = useMemo(() => normalize(value), [value]);
@@ -169,9 +192,20 @@ export default function SqlEditorImpl({ value, onChange, engine, error, highligh
   }, [view]);
 
   const invalid = Boolean(error);
+  const autocompleteExt = useMemo(
+    () =>
+      createSqlAutocompleteExtension({
+        schema,
+        dialect: DIALECT[engine],
+        enabled: isAutocompleteEnabled,
+      }),
+    [schema, engine, isAutocompleteEnabled]
+  );
+
   const extensions = useMemo<Extension[]>(
     () => [
-      sql({ dialect: DIALECT[engine] }),
+      sql({ dialect: DIALECT[engine], upperCaseKeywords: true }),
+      autocompleteExt,
       EditorView.lineWrapping, // số dòng ở lề là dòng logic nên không cần cấu hình thêm
       theme,
       highlight,
@@ -184,7 +218,7 @@ export default function SqlEditorImpl({ value, onChange, engine, error, highligh
         ...(invalid ? { "aria-describedby": errId } : {}),
       }),
     ],
-    [engine, ariaLabel, invalid, errId],
+    [engine, ariaLabel, invalid, errId, autocompleteExt],
   );
 
   // Viền focus kiểu ring của shadcn/ui vẽ bằng lớp phủ trong khung, nên đủ bốn cạnh, không bị gutter che và không bị khung cha cắt.

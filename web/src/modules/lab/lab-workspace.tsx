@@ -23,6 +23,7 @@ import { hitsOf, useFindings } from "@/modules/findings/ui/use-findings";
 import { EngineError, type EngineAdapter, type LoadProgress, type QueryResult } from "@/contracts/engine";
 import { createPostgresAdapter } from "@/engines/postgres/adapter";
 import { GenerateDialog, type StopCode } from "@/modules/data-lab/ui/generate-dialog";
+import { parseSchema } from "@/modules/data-lab/generate/plan-data";
 import { classifyInput, prepareDump } from "@/modules/sql-intake/classify";
 import { inferSchema, type InferWarning } from "@/modules/sql-intake/infer";
 import { disposeParser, parseSql, type ParseOutcome } from "@/modules/sql-intake/parser";
@@ -39,7 +40,7 @@ import { stashSql, takeSql } from "@/modules/auth/sql-stash";
 import { Tip } from "@/components/shell/tip";
 import { Stage, type StageFocus, type StageRun } from "./stage/stage";
 import { packStash, unpackStash } from "./stage/stash";
-import { lastSelect, memoExplain } from "./stage/stage-data";
+import { lastSelect, memoExplain, MYSQL_SCHEMA_QUERY, mysqlSchema, STAGE_SCHEMA_QUERY } from "./stage/stage-data";
 import { StatementList } from "./statement-list";
 
 type RunData = { statements: number; rows: number };
@@ -149,6 +150,7 @@ export function LabWorkspace() {
   const abort = useRef<AbortController | null>(null);
   const note = (l: Log) => setLog((x) => [...x.slice(-49), l]);
   const [hasTables, setHasTables] = useState(false);
+  const [tablesSchema, setTablesSchema] = useState<Record<string, string[]>>({});
   // Dữ liệu cho vùng stage của lần chạy gần nhất đã xong; null khi đang chạy, lỗi, bị hủy hay engine dựng lại, để tab không hiện số cũ.
   const [rawStageRun, setStageRun] = useState<StageRun | null>(null);
   const mine = owner === engine;
@@ -164,6 +166,8 @@ export function LabWorkspace() {
     setLastEngine(engine);
     setDurationMs(null);
     setAllOpen(null);
+    setTablesSchema({});
+    setHasTables(false);
     if (lastEngine === "mysql") {
       setMysqlReady(false);
       if (owner === "mysql") {
@@ -191,13 +195,17 @@ export function LabWorkspace() {
   }
 
   async function refreshTables(db: EngineAdapter) {
-    if (db.engine !== "postgres") return; // câu kiểm bảng là catalog PostgreSQL
     try {
-      const r = await db.execute(
-        "SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind IN ('r','p') LIMIT 1",
-        { internal: true },
-      );
-      setHasTables((r[0]?.rows.length ?? 0) > 0);
+      const my = db.engine === "mysql";
+      const q = my ? MYSQL_SCHEMA_QUERY : STAGE_SCHEMA_QUERY;
+      const res = (await db.execute(q, { internal: true }))[0] ?? { columns: [], rows: [] };
+      const tableInfos = parseSchema(my ? mysqlSchema(res) : res);
+      const schemaDict: Record<string, string[]> = {};
+      for (const t of tableInfos) {
+        schemaDict[t.name] = t.columns.map((c) => c.name);
+      }
+      setTablesSchema(schemaDict);
+      setHasTables(tableInfos.length > 0);
     } catch {
       /* giữ trạng thái cũ */
     }
@@ -459,6 +467,7 @@ export function LabWorkspace() {
       const db = await adapter.current;
       await db.fresh();
       setHasTables(false);
+      setTablesSchema({});
       applied.current = null;
       note({ kind: "rebuilt", n: 0 });
       afterRebuild(db);
@@ -560,6 +569,7 @@ export function LabWorkspace() {
           ariaLabel={sqlLabel}
           onRun={handleEditorRun}
           onSelectionChange={(has, text) => setSelection({ hasSelection: has, text })}
+          schema={tablesSchema}
         />
       </div>
       {sql.trim() === "" && (
@@ -722,7 +732,13 @@ export function LabWorkspace() {
               failure={state.failure}
               historyCount={state.count}
               onRetry={() => run()}
-              onFresh={async () => ((await adapter.current) as MysqlAdapter | null)?.fresh().then(() => setState(IDLE))}
+              onFresh={async () =>
+                ((await adapter.current) as MysqlAdapter | null)?.fresh().then(() => {
+                  setHasTables(false);
+                  setTablesSchema({});
+                  setState(IDLE);
+                })
+              }
               onReplay={rebuild}
               onUsePostgres={() => router.replace(`${pathname}?engine=postgres`)}
             />

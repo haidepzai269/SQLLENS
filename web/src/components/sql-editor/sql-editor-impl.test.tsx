@@ -89,4 +89,33 @@ describe("SqlEditorImpl", () => {
     editor?.dispatchEvent(event);
     expect(onRun).not.toHaveBeenCalled();
   });
+
+  it("chấp nhận schema và dropdownAutocomplete props mà không gây lỗi", () => {
+    const { container } = render(
+      <SqlEditorImpl
+        value="SELECT * FROM users;"
+        onChange={vi.fn()}
+        engine="postgres"
+        ariaLabel="SQL Editor"
+        schema={{ users: ["id", "email"], orders: ["id", "amount"] }}
+        dropdownAutocomplete={true}
+      />,
+    );
+    expect(container.querySelector(".cm-editor")).toBeTruthy();
+    expect(container.textContent).toContain("SELECT * FROM users;");
+  });
+
+  it("hoạt động mượt mà khi dropdownAutocomplete tắt tường minh (false)", () => {
+    const { container } = render(
+      <SqlEditorImpl
+        value="SELECT 1;"
+        onChange={vi.fn()}
+        engine="mysql"
+        ariaLabel="SQL Editor"
+        schema={{}}
+        dropdownAutocomplete={false}
+      />,
+    );
+    expect(container.querySelector(".cm-editor")).toBeTruthy();
+  });
 });
