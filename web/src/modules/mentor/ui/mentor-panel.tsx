@@ -351,4 +351,4 @@ export function MentorPanel({ adapter, evidence, probe }: { adapter: Adapter; ev
     </section>
   );
 }
-export { buildContextSummary };
+export { buildContextSummary, VerifiedBlock } from "./conversation-thread";

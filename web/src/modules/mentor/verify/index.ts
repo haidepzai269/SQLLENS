@@ -8,14 +8,25 @@ import { splitAnswer } from "./split";
 export type VerifiedPart =
   | { kind: "text"; text: string }
   | { kind: "sql"; sql: string; outcome: Conclusion<Plan | TryChangeResult> }
-  // Không chứa SQL gốc hay thông báo lỗi: chỉ khóa dịch trong namespace `mentorVerify`.
-  | { kind: "hidden"; reasonKey: string };
-export type VerifiedAnswer = { parts: VerifiedPart[]; hiddenCount: number };
+  | { kind: "unverified"; sql: string; reasonKey: string }
+  | { kind: "hidden"; reasonKey: string }; // giữ để tương thích ngược nếu còn code cũ tham chiếu
+
+export type VerifiedAnswer = {
+  parts: VerifiedPart[];
+  hiddenCount: number;
+  unverifiedCount?: number;
+};
+
 type Adapter = Pick<EngineAdapter, "engine" | "explain" | "tryChange">;
 
 export const MAX_RUN = 5;
 const TIMEOUT_MS = 15_000;
-const hidden = (reason: string): VerifiedPart => ({ kind: "hidden", reasonKey: `mentorVerify.${reason}` });
+
+export const hidden = (reason: string, sql = ""): VerifiedPart => ({
+  kind: "unverified",
+  sql,
+  reasonKey: `mentorVerify.${reason}`,
+});
 
 // Hết giờ hoặc bị hủy thì bỏ kết quả. Câu đã gửi vào engine vẫn có thể chạy tiếp (adapter con không có cancel).
 function guarded<T>(p: Promise<T>, ms: number, signal?: AbortSignal): Promise<T> {
@@ -30,27 +41,62 @@ function guarded<T>(p: Promise<T>, ms: number, signal?: AbortSignal): Promise<T>
   });
 }
 
-async function check(adapter: Adapter, sql: string, probe: string | undefined, signal: AbortSignal | undefined, ms: number, called: { n: number }): Promise<VerifiedPart> {
-  if (!sql) return hidden("empty");
-  const parsed = await parseSql(sql, "postgres");
-  if (!parsed.ok) return hidden("parseError");
-  if (parsed.statements.length !== 1) return hidden(parsed.statements.length ? "multiple" : "empty");
-  const stmt = parsed.statements[0];
-  if (!allowed(stmt)) return hidden("notAllowed");
-  const isSelect = stmt.kind === "select";
-  if (!isSelect && !probe) return hidden("needsProbe");
-  signal?.throwIfAborted();
-  called.n++;
-  try {
-    const outcome = await guarded<Outcome<Plan | TryChangeResult>>(isSelect ? adapter.explain(sql, { signal }) : adapter.tryChange(sql, probe!), ms, signal);
-    return outcome.kind === "conclusion" ? { kind: "sql", sql, outcome } : hidden("notSimulated");
-  } catch (e) {
-    if (signal?.aborted) throw e;
-    return hidden(e instanceof Error && e.message === "timeout" ? "timeout" : "failed");
+async function check(
+  adapter: Adapter,
+  sql: string,
+  probe: string | undefined,
+  signal: AbortSignal | undefined,
+  ms: number,
+  called: { n: number },
+): Promise<VerifiedPart> {
+  if (!sql || !sql.trim()) return hidden("empty", sql);
+
+  if (adapter.engine === "mysql") {
+    const parsed = await parseSql(sql, "mysql");
+    if (!parsed.ok) return hidden("parseError", sql);
+    if (parsed.statements.length !== 1) return hidden(parsed.statements.length ? "multiple" : "empty", sql);
+    const stmt = parsed.statements[0];
+    if (stmt.kind !== "select") return hidden("notAllowed", sql);
+    signal?.throwIfAborted();
+    called.n++;
+    try {
+      const outcome = await guarded<Outcome<Plan | TryChangeResult>>(adapter.explain(sql, { signal }), ms, signal);
+      if (outcome.kind === "conclusion") return { kind: "sql", sql, outcome };
+      return hidden("needMysqlSandbox", sql);
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      if (e instanceof Error && e.message === "timeout") return hidden("timeout", sql);
+      return hidden("needMysqlSandbox", sql);
+    }
   }
+
+  if (adapter.engine === "postgres") {
+    const parsed = await parseSql(sql, "postgres");
+    if (!parsed.ok) return hidden("parseError", sql);
+    if (parsed.statements.length !== 1) return hidden(parsed.statements.length ? "multiple" : "empty", sql);
+    const stmt = parsed.statements[0];
+    if (!allowed(stmt)) return hidden("notAllowed", sql);
+    const isSelect = stmt.kind === "select";
+    if (!isSelect && !probe) return hidden("needsProbe", sql);
+    signal?.throwIfAborted();
+    called.n++;
+    try {
+      const outcome = await guarded<Outcome<Plan | TryChangeResult>>(
+        isSelect ? adapter.explain(sql, { signal }) : adapter.tryChange(sql, probe!),
+        ms,
+        signal,
+      );
+      return outcome.kind === "conclusion" ? { kind: "sql", sql, outcome } : hidden("notSimulated", sql);
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      return hidden(e instanceof Error && e.message === "timeout" ? "timeout" : "failed", sql);
+    }
+  }
+
+  return hidden("notSimulated", sql);
 }
 
-/** Chạy thử từng khối SQL trong câu trả lời của AI, chỉ giữ khối đã chạy được. Chỉ ném lỗi khi `signal` bị hủy. */
+/** Chạy thử từng khối SQL trong câu trả lời của AI, chỉ giữ khối đã chạy được hoặc đánh dấu unverified. Chỉ ném lỗi khi `signal` bị hủy. */
 export async function verifyAnswer(
   adapter: Adapter,
   answer: string,
@@ -66,18 +112,21 @@ export async function verifyAnswer(
       continue;
     }
     signal?.throwIfAborted();
-    if (adapter.engine !== "postgres") parts.push(hidden("notSimulated"));
-    else if (ran >= MAX_RUN) parts.push(hidden("limit"));
-    else if (stuck) parts.push(hidden("timeout"));
-    else {
+    if (ran >= MAX_RUN) {
+      parts.push(hidden("limit", piece.sql));
+    } else if (stuck) {
+      parts.push(hidden("timeout", piece.sql));
+    } else {
       const called = { n: 0 };
       const r = await check(adapter, piece.sql, probe, signal, timeoutMs, called);
       // Chỉ khối thật sự gọi engine mới tính vào giới hạn.
       ran += called.n;
       // Câu hết giờ có thể còn đang chạy trong engine: không xếp thêm câu sau nó.
-      if (r.kind === "hidden" && r.reasonKey.endsWith(".timeout")) stuck = true;
+      if ((r.kind === "unverified" || r.kind === "hidden") && r.reasonKey.endsWith(".timeout")) stuck = true;
       parts.push(r);
     }
   }
-  return { parts, hiddenCount: parts.filter((p) => p.kind === "hidden").length };
+  const unverifiedCount = parts.filter((p) => p.kind === "unverified").length;
+  const hiddenCount = unverifiedCount + parts.filter((p) => p.kind === "hidden").length;
+  return { parts, hiddenCount, unverifiedCount };
 }

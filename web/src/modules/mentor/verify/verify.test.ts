@@ -9,12 +9,24 @@ import { loadGuard } from "@/engines/postgres/guard";
 import { runExplain } from "@/engines/postgres/explain";
 import { createSession } from "@/engines/postgres/roles";
 import { runTryChange } from "@/engines/postgres/try-rollback";
-import { verifyAnswer, type VerifiedPart } from "./index";
+import { verifyAnswer } from "./index";
 import { splitAnswer } from "./split";
 
 // parseSql thật chạy trong Worker; ở đây dùng cùng lõi parse, đồng bộ.
 vi.mock("@/modules/sql-intake/parser", () => ({
-  parseSql: async (sql: string) => parsePostgres(sql, parseSync as unknown as PgParser),
+  parseSql: async (sql: string, engine = "postgres") => {
+    if (engine === "mysql") {
+      const s = sql.trim().toUpperCase();
+      if (s.startsWith("SELECT")) {
+        return { ok: true, statements: [{ index: 0, kind: "select", start: 0, end: sql.length, tables: [], ast: {} }] };
+      }
+      if (s.startsWith("UPDATE") || s.startsWith("DROP") || s.startsWith("INSERT") || s.startsWith("DELETE")) {
+        return { ok: true, statements: [{ index: 0, kind: "other", start: 0, end: sql.length, tables: [], ast: {} }] };
+      }
+      return { ok: false, error: { message: "syntax error" } };
+    }
+    return parsePostgres(sql, parseSync as unknown as PgParser);
+  },
 }));
 
 const fence = (s: string, lang = "sql") => "```" + lang + "\n" + s + "\n```\n";
@@ -23,7 +35,6 @@ const fake = (engine: "postgres" | "mysql" = "postgres") => {
   const tryChange = vi.fn(async () => ({ kind: "conclusion", label: "real", data: {}, evidence: [{ kind: "k", messageKey: "m" }] }) as never);
   return { engine, explain, tryChange } satisfies Pick<EngineAdapter, "engine" | "explain" | "tryChange">;
 };
-const hiddenOf = (parts: VerifiedPart[]) => parts.filter((p) => p.kind === "hidden");
 
 beforeAll(() => loadModule(), 60_000);
 
@@ -101,12 +112,14 @@ describe("verifyAnswer với adapter giả", () => {
     const r = await verifyAnswer(a, `trước\n${fence(sql)}sau`, { probe: "SELECT 1" });
     expect(a.explain).not.toHaveBeenCalled();
     expect(a.tryChange).not.toHaveBeenCalled();
-    expect(r.parts.map((p) => p.kind)).toEqual(["text", "hidden", "text"]);
+    expect(r.parts.map((p) => p.kind)).toEqual(["text", "unverified", "text"]);
     expect(r.hiddenCount).toBe(1);
-    expect(JSON.stringify(r)).not.toContain(sql.slice(0, 12));
+    expect(r.parts[1].kind).toBe("unverified");
+    expect((r.parts[1] as { sql: string }).sql).toBe(sql);
+    expect(["mentorVerify.notAllowed", "mentorVerify.multiple"]).toContain((r.parts[1] as { reasonKey: string }).reasonKey);
   });
 
-  it("cho SELECT, CREATE INDEX, ALTER TABLE hợp lệ; CREATE INDEX và ALTER không có probe thì hidden", async () => {
+  it("cho SELECT, CREATE INDEX, ALTER TABLE hợp lệ; CREATE INDEX và ALTER không có probe thì unverified", async () => {
     const a = fake();
     const ans = fence("SELECT count(*) FROM t WHERE a = 1") + fence("CREATE INDEX ON t(a)") + fence("ALTER TABLE t ADD COLUMN b int");
     const r = await verifyAnswer(a, ans, { probe: "SELECT * FROM t" });
@@ -115,42 +128,50 @@ describe("verifyAnswer với adapter giả", () => {
     expect(a.tryChange).toHaveBeenCalledTimes(2);
     const b = fake();
     const r2 = await verifyAnswer(b, ans);
-    expect(r2.parts.map((p) => p.kind)).toEqual(["sql", "hidden", "hidden"]);
+    expect(r2.parts.map((p) => p.kind)).toEqual(["sql", "unverified", "unverified"]);
     expect(b.tryChange).not.toHaveBeenCalled();
   });
 
-  it("engine mysql: mọi khối hidden, adapter không bị gọi", async () => {
+  it("engine mysql (AC3): gọi explain thành công ra sql, explain lỗi fallback ra needMysqlSandbox", async () => {
     const a = fake("mysql");
     const r = await verifyAnswer(a, fence("SELECT 1") + fence("SELECT 2"), { probe: "SELECT 1" });
-    expect(hiddenOf(r.parts)).toHaveLength(2);
-    expect(r.parts[0]).toEqual({ kind: "hidden", reasonKey: "mentorVerify.notSimulated" });
-    expect(a.explain).not.toHaveBeenCalled();
+    expect(r.parts.map((p) => p.kind)).toEqual(["sql", "sql"]);
+    expect(a.explain).toHaveBeenCalledTimes(2);
+
+    const b = fake("mysql");
+    b.explain.mockRejectedValueOnce(new Error("sandbox not connected"));
+    const r2 = await verifyAnswer(b, fence("SELECT 1"));
+    expect(r2.parts[0]).toEqual({
+      kind: "unverified",
+      sql: "SELECT 1",
+      reasonKey: "mentorVerify.needMysqlSandbox",
+    });
   });
 
   it("khối rỗng, lỗi cú pháp, không có khối", async () => {
     const a = fake();
     expect((await verifyAnswer(a, "```sql\n```\n")).hiddenCount).toBe(1);
     expect((await verifyAnswer(a, fence("SELEC FROM"))).hiddenCount).toBe(1);
-    expect(await verifyAnswer(a, "không có khối")).toEqual({ parts: [{ kind: "text", text: "không có khối" }], hiddenCount: 0 });
+    expect(await verifyAnswer(a, "không có khối")).toEqual({ parts: [{ kind: "text", text: "không có khối" }], hiddenCount: 0, unverifiedCount: 0 });
     expect(a.explain).not.toHaveBeenCalled();
   });
 
-  it("AC6 adapter ném lỗi hoặc không phải kết luận: hidden, không lộ thông báo lỗi", async () => {
+  it("AC6 adapter ném lỗi hoặc không phải kết luận: unverified, không lộ thông báo lỗi", async () => {
     const a = fake();
     a.explain.mockRejectedValueOnce(new Error('column "secret_col" does not exist in SELECT secret_col'));
     a.explain.mockResolvedValueOnce({ kind: "not_simulated", reasonKey: "plan.x" } as never);
     const r = await verifyAnswer(a, fence("SELECT secret_col FROM t") + fence("SELECT 2"));
-    expect(r.parts.map((p) => p.kind)).toEqual(["hidden", "hidden"]);
-    expect(JSON.stringify(r)).not.toMatch(/secret_col|plan\.x/);
+    expect(r.parts.map((p) => p.kind)).toEqual(["unverified", "unverified"]);
+    expect(JSON.stringify(r)).not.toMatch(/does not exist|plan\.x/);
   });
 
-  it("AC6 hết giờ: hidden, các khối sau không chạy", async () => {
+  it("AC6 hết giờ: unverified, các khối sau không chạy", async () => {
     const a = fake();
     a.explain.mockImplementationOnce(() => new Promise(() => {}));
     const r = await verifyAnswer(a, fence("SELECT 1") + fence("SELECT 2"), { timeoutMs: 20 });
     expect(r.parts).toEqual([
-      { kind: "hidden", reasonKey: "mentorVerify.timeout" },
-      { kind: "hidden", reasonKey: "mentorVerify.timeout" },
+      { kind: "unverified", sql: "SELECT 1", reasonKey: "mentorVerify.timeout" },
+      { kind: "unverified", sql: "SELECT 2", reasonKey: "mentorVerify.timeout" },
     ]);
     expect(a.explain).toHaveBeenCalledTimes(1);
   });
@@ -170,7 +191,7 @@ describe("verifyAnswer với adapter giả", () => {
     const a = fake();
     const r = await verifyAnswer(a, Array.from({ length: 7 }, (_, i) => fence(`SELECT ${i}`)).join(""));
     expect(a.explain).toHaveBeenCalledTimes(5);
-    expect(r.parts.map((p) => p.kind)).toEqual(["sql", "sql", "sql", "sql", "sql", "hidden", "hidden"]);
+    expect(r.parts.map((p) => p.kind)).toEqual(["sql", "sql", "sql", "sql", "sql", "unverified", "unverified"]);
     expect(r.hiddenCount).toBe(2);
   });
 });
@@ -209,14 +230,14 @@ describe("verifyAnswer với PGlite thật", { timeout: 60_000 }, () => {
     expect(await val(CHECKSUM)).toBe(sum);
   });
 
-  it("AC2 SELECT sai tên cột: hidden, JSON không còn SQL hay lỗi", async () => {
+  it("AC2 SELECT sai tên cột: unverified, giữ sql nhưng không lộ thông báo lỗi", async () => {
     const r = await verifyAnswer(adapter(), fence("SELECT no_such_col FROM orders"));
-    expect(r.parts).toEqual([{ kind: "hidden", reasonKey: "mentorVerify.failed" }]);
-    expect(JSON.stringify(r)).not.toMatch(/no_such_col|does not exist/);
+    expect(r.parts).toEqual([{ kind: "unverified", sql: "SELECT no_such_col FROM orders", reasonKey: "mentorVerify.failed" }]);
+    expect(JSON.stringify(r)).not.toMatch(/does not exist/);
     expect(await val("SELECT 1")).toBe(1);
   });
 
-  it("AC4 hàm nguy hiểm: không đổi role, không khóa, không tiến sequence, không hiện", async () => {
+  it("AC4 hàm nguy hiểm: không đổi role, không khóa, không tiến sequence, đánh dấu unverified notAllowed", async () => {
     const seq = await val("SELECT last_value::text || is_called::text FROM s");
     const role = await val("SELECT current_user");
     for (const sql of [
@@ -227,14 +248,14 @@ describe("verifyAnswer với PGlite thật", { timeout: 60_000 }, () => {
       "SELECT lo_import('/etc/passwd')",
     ]) {
       const r = await verifyAnswer(adapter(), fence(sql));
-      expect(r.parts, sql).toEqual([{ kind: "hidden", reasonKey: "mentorVerify.notAllowed" }]);
+      expect(r.parts, sql).toEqual([{ kind: "unverified", sql, reasonKey: "mentorVerify.notAllowed" }]);
     }
     expect(await val("SELECT current_user")).toBe(role);
     expect(await val("SELECT count(*)::int FROM pg_locks WHERE locktype = 'advisory'")).toBe(0);
     expect(await val("SELECT last_value::text || is_called::text FROM s")).toBe(seq);
   });
 
-  it("phiên đang có transaction mở của người dùng: hidden, transaction còn nguyên", async () => {
+  it("phiên đang có transaction mở của người dùng: unverified, transaction còn nguyên", async () => {
     await s.run("BEGIN");
     await s.run("CREATE TABLE open_txn(a int)");
     const r = await verifyAnswer(adapter(), fence("SELECT 1 FROM orders") + fence("CREATE INDEX ON orders(note)"), { probe: "SELECT 1 FROM orders" });

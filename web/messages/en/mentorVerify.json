@@ -1,11 +1,14 @@
 {
-  "notSimulated": "This SQL suggestion cannot be simulated yet, so it is not shown.",
-  "notAllowed": "This SQL suggestion is not a type we trial-run (only SELECT, CREATE INDEX and simple ALTER TABLE), so it is not shown.",
-  "multiple": "This SQL suggestion has more than one statement, so it is not shown.",
-  "empty": "Empty SQL block.",
-  "parseError": "This SQL suggestion could not be parsed, so it is not shown.",
-  "needsProbe": "There is no measuring query to trial-run this suggestion with, so it is not shown.",
-  "failed": "Trial-running this SQL suggestion failed, so it is not shown.",
-  "timeout": "Trial-running this SQL suggestion timed out, so it is not shown.",
-  "limit": "At most 5 SQL blocks are trial-run per answer; this one was not checked, so it is not shown."
+  "unverifiedBadge": "Not verified in sandbox: {reason}",
+  "needMysqlSandbox": "Requires active MySQL sandbox connection to test",
+  "syntaxError": "SQL syntax error",
+  "parseError": "Could not parse SQL syntax",
+  "notAllowed": "Statement type not permitted for trial run",
+  "multiple": "Contains more than one SQL statement",
+  "empty": "Empty SQL block",
+  "needsProbe": "Missing probe query to verify change",
+  "failed": "Execution failed in database",
+  "timeout": "Database execution timed out",
+  "limit": "Exceeded limit of 5 trial-run SQL blocks",
+  "notSimulated": "Simulation not supported on this engine"
 }
