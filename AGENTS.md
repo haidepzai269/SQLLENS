@@ -4,8 +4,18 @@
 Chi tiết số đo kiểm chứng thực nghiệm đầy đủ xem tại [CLAUDE.md](file:///c:/SQLLens/CLAUDE.md).
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
-- **Giai đoạn hiện tại:** Đã chốt 16 Epic và 75 Story (`_bmad-output/BAN_DO_STORY.md`). SP001 - SP015 hoàn thành 100%! Đã bàn giao Task101 (Khởi động lại Sandbox sạch `fresh()`, Run Selection/Cursor) và Task102 (Tái thiết kế Terminal & ResultGrid). Đã hoàn tất SPEC cho **SP016: Smart Editor, User Tiering & Terminal AI Diagnosis** (`_bmad-output/SPEC_SMART_EDITOR.md`) gồm 6 Story (STR074 - STR079) và 10 Task chi tiết (Task103 - Task112). **ĐÃ BÀN GIAO XUẤT SẮC TASK103, TASK104, TASK105, TASK106, TASK107, TASK108, TASK109, TASK110 & TASK111** (Task103: Fix nút Terminal AI Doctor Card 1-Click Fix; Task104: Linh kiện CustomSwitch độc quyền SVG Cross/Checkmark và SettingsContext; Task105: Dropdown Header nâng cao & Trang Cài đặt /settings toàn diện 4 phân khu; Task106: Phân quyền RBAC Backend Gin & Neon DB; Task107: Giao diện nhận diện Badge VIP, Modal nâng cấp /upgrade và cổng kích hoạt mã VIP Promo code; Task108: Tích hợp CodeMirror 6 Dropdown Autocomplete theo Schema Sandbox CSDL động; Task109: Động cơ Heuristic AST gợi ý cục bộ; Task110: Extension CodeMirror 6 Inline Ghost Text; Task111: Backend Gin Proxy `/ai/inline-complete`: Nén context 20 dòng, gọi model Qwen 3.8-27B 0.19s, kiểm tra Role VIP, reviewer PASS 100%, đã merge vào `main`).
-- **Mục tiêu trước mắt:** Triển khai Task cuối cùng của SP016 là **Task112: Tích hợp AI Copilot Multi-line Ghost Text vào CodeMirror 6** (Smart trigger Comment / Debounce 600ms / Phím tắt Ctrl+Space, hiển thị khối mã AI nhiều dòng mờ xám cho VIP, phím Tab nhận và Esc hủy). Hoàn tất để khép lại trọn vẹn Epic SP016!
+- **Giai đoạn hiện tại:** Đã chốt 16 Epic và 75 Story (`_bmad-output/BAN_DO_STORY.md`). **SP001 - SP016 ĐÃ HOÀN THÀNH 100%!** Toàn bộ 10 Task của **SP016: Smart Editor, User Tiering & Terminal AI Diagnosis** (`_bmad-output/SPEC_SMART_EDITOR.md`, STR074 - STR079) gồm Task103 - Task112 đã hoàn tất, được reviewer độc lập nghiệm thu PASS 100% và đã merge sạch vào `main`:
+  + *Task103:* Fix nút Terminal AI Doctor Card 1-Click Fix.
+  + *Task104:* Linh kiện CustomSwitch độc quyền SVG Cross/Checkmark và SettingsContext.
+  + *Task105:* Dropdown Header nâng cao & Trang Cài đặt /settings toàn diện 4 phân khu.
+  + *Task106:* Phân quyền RBAC Backend Gin & Neon DB (Free vs VIP).
+  + *Task107:* Giao diện nhận diện Badge VIP, Modal nâng cấp /upgrade và cổng kích hoạt mã VIP Promo code.
+  + *Task108:* Tích hợp CodeMirror 6 Dropdown Autocomplete theo Schema Sandbox CSDL động (<1ms, 0đ).
+  + *Task109:* Động cơ Heuristic AST gợi ý cục bộ (FK JOIN ON, GROUP BY không aggregate, INSERT column list).
+  + *Task110:* Extension CodeMirror 6 Inline Ghost Text (Gợi ý chữ mờ xám cục bộ, Tab nhận, Esc hủy).
+  + *Task111:* Backend Gin Proxy `/ai/inline-complete`: Nén context 20 dòng, gọi model Qwen 3.8-27B 0.19s, kiểm tra Role VIP.
+  + *Task112:* Extension CodeMirror 6 AI Copilot Multi-line Ghost Text: Smart trigger (Comment / Debounce 600ms / Ctrl+Space), hiển thị khối mã AI nhiều dòng cho VIP, non-blocking AbortController, Tab nhận và Esc hủy.
+- **Mục tiêu tiếp theo:** Sẵn sàng cho giai đoạn kiểm thử tổng thể toàn diện (Regression / E2E / Penetration Testing) hoặc triển khai các tính năng mở rộng tiếp theo theo định hướng của Chủ dự án.
 - **Key bên thứ 3:** Danh sách ở `KEY_CAN_LAY.md` (gitignored). Không bao giờ commit secret lên git.
 
 ---

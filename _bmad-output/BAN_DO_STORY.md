@@ -154,12 +154,12 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 
 | Story | Hành vi khi xong | GD | Nhãn |
 |---|---|---|---|
-| STR074 Chẩn đoán Terminal & 1-Click Fix | Nối nút "Hỏi AI Mentor" ở Terminal vào endpoint `POST /ai/diagnose`, hiển thị AI Doctor Card stream SSE ngay dưới lỗi, nút "Áp dụng sửa ngay" chèn thẳng vào editor | Có | Thật |
-| STR075 CustomSwitch & Cài đặt nâng cao | Bộ linh kiện CustomSwitch SVG Cross/Checkmark trượt 3D độc quyền, Dropdown Header có "Cài đặt nâng cao...", trang `/settings` 4 phân khu (Editor, Appearance, Autocomplete, Account) lưu localStorage | Có | Theo nguồn |
-| STR076 Phân quyền RBAC & Gói VIP | Phân quyền 3 cấp (Guest, User thường, VIP) trong Neon DB & JWT claims, Gin middleware chặn API VIP, huy hiệu VIP hoàng gia và luồng nâng cấp/nhập mã kích hoạt | Có | Thật |
-| STR077 Code-based Dropdown Autocomplete | Trình gợi ý popup CodeMirror 6 theo schema CSDL động (<1ms, 0đ, 0 token), tra cứu từ khóa/bảng/cột, mặc định TẮT trong cài đặt | Có | Thật |
-| STR078 Code-based Inline Ghost Text | Động cơ suy luận quy tắc cục bộ (FK JOIN ON, GROUP BY không aggregate, INSERT column list), chữ mờ xám sau con trỏ, Tab nhận, Esc hủy, 0đ, mặc định BẬT trong cài đặt | Có | Thật |
-| STR079 AI Inline Copilot cho VIP | Đọc hiểu ngữ cảnh và comment tiếng Việt sinh khối truy vấn phức tạp (CTE, Window function) qua model Qwen 3.8-27B (0.19s), smart debounce 600ms, multi-line ghost text, dành riêng cho VIP | Có | Thật |
+| STR074 Chẩn đoán Terminal & 1-Click Fix | Nối nút "Hỏi AI Mentor" ở Terminal vào endpoint `POST /ai/diagnose`, hiển thị AI Doctor Card stream SSE ngay dưới lỗi, nút "Áp dụng sửa ngay" chèn thẳng vào editor (Đã xong - Task103) | Có | Thật |
+| STR075 CustomSwitch & Cài đặt nâng cao | Bộ linh kiện CustomSwitch SVG Cross/Checkmark trượt 3D độc quyền, Dropdown Header có "Cài đặt nâng cao...", trang `/settings` 4 phân khu (Editor, Appearance, Autocomplete, Account) lưu localStorage (Đã xong - Task104, Task105) | Có | Theo nguồn |
+| STR076 Phân quyền RBAC & Gói VIP | Phân quyền 3 cấp (Guest, User thường, VIP) trong Neon DB & JWT claims, Gin middleware chặn API VIP, huy hiệu VIP hoàng gia và luồng nâng cấp/nhập mã kích hoạt (Đã xong - Task106, Task107) | Có | Thật |
+| STR077 Code-based Dropdown Autocomplete | Trình gợi ý popup CodeMirror 6 theo schema CSDL động (<1ms, 0đ, 0 token), tra cứu từ khóa/bảng/cột, mặc định TẮT trong cài đặt (Đã xong - Task108) | Có | Thật |
+| STR078 Code-based Inline Ghost Text | Động cơ suy luận quy tắc cục bộ (FK JOIN ON, GROUP BY không aggregate, INSERT column list), chữ mờ xám sau con trỏ, Tab nhận, Esc hủy, 0đ, mặc định BẬT trong cài đặt (Đã xong - Task109, Task110) | Có | Thật |
+| STR079 AI Inline Copilot cho VIP | Đọc hiểu ngữ cảnh và comment tiếng Việt sinh khối truy vấn phức tạp (CTE, Window function) qua model Qwen 3.8-27B (0.19s), smart debounce 600ms, multi-line ghost text, dành riêng cho VIP (Đã xong - Task111, Task112) | Có | Thật |
 
 ## SP999 Việc phát sinh (Hậu phát hành & Bảo vệ hạ tầng)
 
