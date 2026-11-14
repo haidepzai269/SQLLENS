@@ -168,7 +168,7 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | STR080 1-Click Fix An Toàn & Bảo Toàn Script | Thay thế câu lệnh theo tọa độ statement offset trong SQL Editor; sửa cục bộ chính xác câu lệnh lỗi, giữ nguyên 100% các câu lệnh trước/sau và hỗ trợ hoàn tác Undo (Đã xong - Task113) | Có | Thật |
 | STR081 Hiện Thực Hóa 6 Cài Đặt Settings | Kết nối thực tế toàn bộ cài đặt (Cỡ chữ, ngắt dòng, số dòng, highlight dòng) vào CodeMirror; đồng bộ Theme (Tối/Sáng) và Contrast Boost vào thẻ `<html>` và biến CSS (Đã xong - Task114) | Có | Theo nguồn |
 | STR082 Chuẩn Hóa RBAC & Khắc Phục Hạn VIP | Bắt buộc kiểm tra `u.IsVIP()` (tính cả `vip_until`) trong mọi middleware Go Gin; chuẩn hóa xác thực Session Cookie an toàn cho endpoint `/ai/inline-complete` (Đã xong - Task115) | | Thật |
-| STR083 Động Cơ Heuristics Nhận Thức Scope | Khắc phục bug subquery trong `predictGroupBy` (chỉ lấy SELECT ở cấp độ ngoặc 0); mở rộng `predictFkJoin` tự động gợi ý `ON ...` khi người dùng đã tự gõ tên bảng sau `JOIN` | Có | Thật |
+| STR083 Động Cơ Heuristics Nhận Thức Scope | Khắc phục bug subquery trong `predictGroupBy` (chỉ lấy SELECT ở cấp độ ngoặc 0); mở rộng `predictFkJoin` tự động gợi ý `ON ...` khi người dùng đã tự gõ tên bảng sau `JOIN` (Đã xong - Task116) | Có | Thật |
 | STR084 Precedence Dispatcher CodeMirror | Xây dựng bộ điều phối phím Tab/Enter: ưu tiên Dropdown popup khi đang mở; triệt tiêu xung đột giữa Local Ghost Text và AI Copilot Ghost Text, chống render chồng đè | Có | Thật |
 | STR085 Bảo Vệ Hạ Tầng AI Copilot Bằng Redis | Chuyển Rate Limiter của VIP Inline Complete từ RAM sang Upstash Redis token bucket; thiết lập hạn mức bảo vệ API upstream chống cạn kiệt key khi server restart | | Thật |
 
