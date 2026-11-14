@@ -155,4 +155,36 @@ describe("SqlEditorImpl", () => {
     );
     expect(container.querySelector(".cm-editor")).toBeTruthy();
   });
+
+  it("chấp nhận isVip, aiCopilotEnabled và onRequireUpgrade props an toàn", () => {
+    const onRequireUpgrade = vi.fn();
+    const { container } = render(
+      <SqlEditorImpl
+        value="-- Gợi ý top 10 đơn hàng\n"
+        onChange={vi.fn()}
+        engine="postgres"
+        ariaLabel="SQL Editor"
+        schema={{ orders: ["id", "amount"] }}
+        isVip={true}
+        aiCopilotEnabled={true}
+        onRequireUpgrade={onRequireUpgrade}
+      />,
+    );
+    expect(container.querySelector(".cm-editor")).toBeTruthy();
+    expect(container.textContent).toContain("-- Gợi ý top 10 đơn hàng");
+  });
+
+  it("hoạt động mượt mà khi aiCopilotEnabled tắt tường minh (false)", () => {
+    const { container } = render(
+      <SqlEditorImpl
+        value="SELECT 1;"
+        onChange={vi.fn()}
+        engine="postgres"
+        ariaLabel="SQL Editor"
+        isVip={false}
+        aiCopilotEnabled={false}
+      />,
+    );
+    expect(container.querySelector(".cm-editor")).toBeTruthy();
+  });
 });

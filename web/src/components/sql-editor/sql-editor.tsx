@@ -31,6 +31,12 @@ export type SqlEditorProps = {
   foreignKeys?: ForeignKeyRelation[];
   /** Bật/tắt gợi ý viết tiếp mờ xám (inline ghost text). Nếu không truyền, đọc fallback từ useSettings(). */
   ghostTextEnabled?: boolean;
+  /** Tài khoản có đặc quyền VIP hay không. */
+  isVip?: boolean;
+  /** Bật/tắt tính năng AI Copilot. Nếu không truyền, đọc fallback từ useSettings(). */
+  aiCopilotEnabled?: boolean;
+  /** Callback khi người dùng chưa nâng cấp VIP kích hoạt AI Copilot. */
+  onRequireUpgrade?: () => void;
 };
 
 // Skeleton cùng chiều cao tối thiểu với ô thật để trang không nhảy khi tải xong.

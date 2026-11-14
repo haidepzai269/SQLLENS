@@ -38,6 +38,7 @@ import { createMysqlAdapter, SandboxError, type MysqlAdapter } from "@/engines/m
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { stashSql, takeSql } from "@/modules/auth/sql-stash";
 import { Tip } from "@/components/shell/tip";
+import { UpgradeModal } from "@/modules/vip/upgrade-modal";
 import { Stage, type StageFocus, type StageRun } from "./stage/stage";
 import { packStash, unpackStash } from "./stage/stash";
 import { lastSelect, memoExplain, MYSQL_SCHEMA_QUERY, mysqlSchema, STAGE_SCHEMA_QUERY } from "./stage/stage-data";
@@ -85,7 +86,9 @@ export function LabWorkspace() {
   // Toàn bộ trạng thái phiên nằm ở đây, trên WorkspaceLayout, nên đổi qua mốc 900 px không mất gì.
   const [sql, setSql] = useState("");
   const [selection, setSelection] = useState<{ hasSelection: boolean; text: string }>({ hasSelection: false, text: "" });
-  const { sqlRef, markAnon, status: authStatus } = useAuth();
+  const { sqlRef, markAnon, status: authStatus, user } = useAuth();
+  const isVip = Boolean(user?.isVip || user?.role === "vip");
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const tm = useTranslations("mysql");
   const router = useRouter();
   const pathname = usePathname();
@@ -587,6 +590,8 @@ export function LabWorkspace() {
           onSelectionChange={(has, text) => setSelection({ hasSelection: has, text })}
           schema={tablesSchema}
           foreignKeys={foreignKeys}
+          isVip={isVip}
+          onRequireUpgrade={() => setIsUpgradeModalOpen(true)}
         />
       </div>
       {sql.trim() === "" && (
@@ -927,6 +932,7 @@ export function LabWorkspace() {
         }}
         onStopped={onStopped}
       />
+      <UpgradeModal open={isUpgradeModalOpen} onOpenChange={setIsUpgradeModalOpen} />
     </>
   );
 }

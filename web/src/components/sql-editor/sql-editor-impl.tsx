@@ -18,6 +18,7 @@ import { DEFAULT_SETTINGS, useSettings } from "@/contexts/settings-context";
 import { DIALECT } from "./dialect";
 import { createSqlAutocompleteExtension } from "./extensions/dropdown-autocomplete";
 import { createInlineGhostTextExtension } from "./extensions/inline-ghost-text";
+import { createAiCopilotExtension } from "./extensions/ai-copilot";
 import type { SqlEditorProps } from "./sql-editor";
 import { getStatementAtOffset } from "./statement-at-cursor";
 
@@ -136,10 +137,14 @@ export default function SqlEditorImpl({
   dropdownAutocomplete,
   foreignKeys,
   ghostTextEnabled,
+  isVip,
+  aiCopilotEnabled,
+  onRequireUpgrade,
 }: SqlEditorProps) {
   const settings = useSafeSettings();
   const isAutocompleteEnabled = dropdownAutocomplete ?? settings.dropdownAutocomplete;
   const isGhostTextEnabled = ghostTextEnabled ?? settings.ghostTextEnabled;
+  const isAiCopilotEnabled = aiCopilotEnabled ?? settings.aiCopilotEnabled;
   const errId = useId();
   const [view, setView] = useState<EditorView | null>(null);
   const doc = useMemo(() => normalize(value), [value]);
@@ -216,11 +221,24 @@ export default function SqlEditorImpl({
     [schema, foreignKeys, isGhostTextEnabled]
   );
 
+  const aiCopilotExt = useMemo(
+    () =>
+      createAiCopilotExtension({
+        enabled: isAiCopilotEnabled,
+        isVip,
+        engine,
+        schema,
+        onRequireUpgrade,
+      }),
+    [isAiCopilotEnabled, isVip, engine, schema, onRequireUpgrade]
+  );
+
   const extensions = useMemo<Extension[]>(
     () => [
       sql({ dialect: DIALECT[engine], upperCaseKeywords: true }),
       autocompleteExt,
       ghostTextExt,
+      aiCopilotExt,
       EditorView.lineWrapping, // số dòng ở lề là dòng logic nên không cần cấu hình thêm
       theme,
       highlight,
@@ -233,7 +251,7 @@ export default function SqlEditorImpl({
         ...(invalid ? { "aria-describedby": errId } : {}),
       }),
     ],
-    [engine, ariaLabel, invalid, errId, autocompleteExt, ghostTextExt],
+    [engine, ariaLabel, invalid, errId, autocompleteExt, ghostTextExt, aiCopilotExt],
   );
 
   // Viền focus kiểu ring của shadcn/ui vẽ bằng lớp phủ trong khung, nên đủ bốn cạnh, không bị gutter che và không bị khung cha cắt.
