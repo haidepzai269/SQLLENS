@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/haidepzai269/SQLLENS/api/internal/auth"
 	"github.com/haidepzai269/SQLLENS/api/internal/httpapi"
+	"github.com/haidepzai269/SQLLENS/api/internal/quota"
 	"github.com/haidepzai269/SQLLENS/api/internal/store"
 )
 
@@ -224,12 +226,12 @@ func (l *inlineLimiter) allow(key string) (time.Duration, bool) {
 func getUserIdentifier(c *gin.Context) string {
 	if val, exists := c.Get("auth.user"); exists {
 		if u, ok := val.(store.User); ok && u.ID != "" {
-			return "user:" + u.ID
+			return u.ID
 		}
 	}
 	if val, exists := c.Get("auth.claims"); exists {
 		if cl, ok := val.(*auth.Claims); ok && cl.UserID != "" {
-			return "user:" + cl.UserID
+			return cl.UserID
 		}
 	}
 	authHeader := c.GetHeader("Authorization")
@@ -348,15 +350,73 @@ func (h *chat) executeInlineComplete(ctx context.Context, prefix, suffix, engine
 	return InlineCompleteResponse{Completion: "", FinishReason: "stop"}, lastErr
 }
 
-func (h *chat) serveInlineComplete(c *gin.Context) {
-	// AC4: Rate limit check (30 requests/phút)
-	if h.inlineLimiter != nil {
-		id := getUserIdentifier(c)
-		if wait, ok := h.inlineLimiter.allow(id); !ok {
-			c.Header("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
-			httpapi.Abort(c, http.StatusTooManyRequests, "rate_limited", "error.rateLimited")
-			return
+func (h *chat) checkRateLimit(c *gin.Context, id string) (blocked bool) {
+	if h.Limiter != nil {
+		// Tầng 1: 60 requests/phút
+		countMin, ttlMin, errMin := h.Limiter.Hit(c.Request.Context(), quota.VipInlineMinute, id)
+		if errMin != nil {
+			// Fallback an toàn: Upstash Redis lỗi/timeout -> log nội bộ, không abort, dùng RAM
+			log.Printf("quota: rule=%s unavailable: %v", quota.VipInlineMinute.Name, errMin)
+			if h.inlineLimiter != nil {
+				if wait, ok := h.inlineLimiter.allow(id); !ok {
+					secs := int(wait.Seconds()) + 1
+					c.Header("Retry-After", strconv.Itoa(secs))
+					httpapi.Abort(c, http.StatusTooManyRequests, "rate_limited", "error.rateLimited")
+					return true
+				}
+			}
+			return false
 		}
+
+		if countMin > int64(quota.VipInlineMinute.Limit) {
+			secs := (ttlMin + 999) / 1000
+			if secs < 1 {
+				secs = 1
+			}
+			c.Header("Retry-After", strconv.FormatInt(secs, 10))
+			c.Header("X-Quota-Reset", time.Now().Add(time.Duration(ttlMin)*time.Millisecond).UTC().Format(time.RFC3339))
+			httpapi.Abort(c, http.StatusTooManyRequests, "rate_limited", "error.rateLimited")
+			return true
+		}
+
+		// Tầng 2: 1000 requests/ngày (Daily Ceiling)
+		countDay, ttlDay, errDay := h.Limiter.Hit(c.Request.Context(), quota.VipInlineDay, id)
+		if errDay != nil {
+			log.Printf("quota: rule=%s unavailable: %v", quota.VipInlineDay.Name, errDay)
+			return false
+		}
+
+		if countDay > int64(quota.VipInlineDay.Limit) {
+			secs := (ttlDay + 999) / 1000
+			if secs < 1 {
+				secs = 1
+			}
+			c.Header("Retry-After", strconv.FormatInt(secs, 10))
+			c.Header("X-Quota-Reset", time.Now().Add(time.Duration(ttlDay)*time.Millisecond).UTC().Format(time.RFC3339))
+			httpapi.Abort(c, http.StatusTooManyRequests, "quota_exceeded", "error.quotaExceeded")
+			return true
+		}
+
+		return false
+	}
+
+	// Chế độ in-memory (local dev / mock)
+	if h.inlineLimiter != nil {
+		if wait, ok := h.inlineLimiter.allow(id); !ok {
+			secs := int(wait.Seconds()) + 1
+			c.Header("Retry-After", strconv.Itoa(secs))
+			httpapi.Abort(c, http.StatusTooManyRequests, "rate_limited", "error.rateLimited")
+			return true
+		}
+	}
+
+	return false
+}
+
+func (h *chat) serveInlineComplete(c *gin.Context) {
+	id := getUserIdentifier(c)
+	if h.checkRateLimit(c, id) {
+		return
 	}
 
 	req, ok := parseInlineComplete(c)

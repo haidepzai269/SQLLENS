@@ -18,6 +18,7 @@ import (
 
 	"github.com/haidepzai269/SQLLENS/api/internal/auth"
 	"github.com/haidepzai269/SQLLENS/api/internal/httpapi"
+	"github.com/haidepzai269/SQLLENS/api/internal/quota"
 )
 
 // Model list, tried in this order (fixed fallback, no rotation yet). Checked against
@@ -55,6 +56,7 @@ const (
 type Config struct {
 	GroqKey, OpenRouterKey string
 	GroqURL, OpenRouterURL string
+	Limiter                *quota.Limiter
 	Client                 *http.Client
 	FirstByte, Idle        time.Duration
 }
@@ -68,7 +70,7 @@ type chat struct {
 // Mount adds POST /ai/chat and POST /ai/diagnose behind gate (a.Gate(quota.AIMessage) from auth.Mount),
 // and adds POST /ai/inline-complete protected by vipGate (or auth.RequireVip() by default).
 func Mount(r *gin.Engine, gate []gin.HandlerFunc, cfg Config, vipGate ...gin.HandlerFunc) {
-	h := &chat{Config: cfg, hc: cfg.Client, inlineLimiter: newInlineLimiter(30, time.Minute)}
+	h := &chat{Config: cfg, hc: cfg.Client, inlineLimiter: newInlineLimiter(60, time.Minute)}
 	if h.hc == nil {
 		h.hc = &http.Client{}
 	}

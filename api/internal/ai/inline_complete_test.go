@@ -9,7 +9,9 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -17,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/haidepzai269/SQLLENS/api/internal/auth"
 	"github.com/haidepzai269/SQLLENS/api/internal/httpapi"
+	"github.com/haidepzai269/SQLLENS/api/internal/quota"
 	"github.com/haidepzai269/SQLLENS/api/internal/store"
 )
 
@@ -493,7 +496,7 @@ func TestInlineComplete_AC3_ModelIntegrationAndClean(t *testing.T) {
 	})
 }
 
-// AC4: Rate Limiting 30 requests/phút per user
+// AC4: In-Memory Rate Limiting 60 requests/phút per user (Local dev / Limiter == nil)
 func TestInlineComplete_AC4_RateLimit(t *testing.T) {
 	fakeGroq := newFake(mockGroqCompletion("id FROM users", "stop"))
 	defer fakeGroq.Close()
@@ -506,8 +509,8 @@ func TestInlineComplete_AC4_RateLimit(t *testing.T) {
 	rg := setupInlineRig(t, cfg, injectUser)
 
 	body := `{"prefix":"SELECT "}`
-	// Gửi 30 requests hợp lệ
-	for i := 1; i <= 30; i++ {
+	// Gửi 60 requests hợp lệ
+	for i := 1; i <= 60; i++ {
 		resp, err := http.Post(rg.srv.URL+"/ai/inline-complete", "application/json", strings.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
@@ -518,14 +521,14 @@ func TestInlineComplete_AC4_RateLimit(t *testing.T) {
 		}
 	}
 
-	// Request thứ 31 phải bị chặn 429
+	// Request thứ 61 phải bị chặn 429
 	resp, err := http.Post(rg.srv.URL+"/ai/inline-complete", "application/json", strings.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusTooManyRequests {
-		t.Fatalf("request 31: want 429 Too Many Requests, got %d", resp.StatusCode)
+		t.Fatalf("request 61: want 429 Too Many Requests, got %d", resp.StatusCode)
 	}
 	retryAfter := resp.Header.Get("Retry-After")
 	if retryAfter == "" {
@@ -701,4 +704,219 @@ func TestInlineComplete_AC5_EdgeCasesAndFallbacks(t *testing.T) {
 			t.Fatalf("CRITICAL SECURITY VIOLATION: User SQL leaked to log: %s", logged)
 		}
 	})
+}
+
+func newCustomMockRedis(handler func(cmd []string) (count, ttlMs int64, statusCode int)) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var cmd []string
+		if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil || len(cmd) < 5 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		cnt, ttl, code := handler(cmd)
+		if code != http.StatusOK {
+			w.WriteHeader(code)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"result": []int64{cnt, ttl},
+		})
+	}))
+}
+
+// AC6: Rate Limiting 60 req/phút qua Upstash Redis Token Bucket
+func TestInlineComplete_AC6_UpstashRedis_RateLimitMinute(t *testing.T) {
+	fakeGroq := newFake(mockGroqCompletion("id FROM users", "stop"))
+	defer fakeGroq.Close()
+
+	var mu sync.Mutex
+	counts := make(map[string]int64)
+	mockRedis := newCustomMockRedis(func(cmd []string) (int64, int64, int) {
+		mu.Lock()
+		defer mu.Unlock()
+		key := cmd[3]
+		ms, _ := strconv.ParseInt(cmd[4], 10, 64)
+		counts[key]++
+		return counts[key], ms, http.StatusOK
+	})
+	defer mockRedis.Close()
+
+	limiter := quota.New(mockRedis.URL, "test-token", nil)
+	cfg := cfgFor(fakeGroq, nil)
+	cfg.Limiter = limiter
+
+	injectUser := func(c *gin.Context) {
+		c.Set("auth.user", store.User{ID: "usr_vip_redis_min", Role: "vip"})
+		c.Next()
+	}
+	rg := setupInlineRig(t, cfg, injectUser)
+
+	body := `{"prefix":"SELECT "}`
+	// 60 requests hợp lệ
+	for i := 1; i <= 60; i++ {
+		resp, err := http.Post(rg.srv.URL+"/ai/inline-complete", "application/json", strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("request %d: want 200, got %d", i, resp.StatusCode)
+		}
+	}
+
+	// Request thứ 61 phải bị chặn 429 rate_limited
+	resp, err := http.Post(rg.srv.URL+"/ai/inline-complete", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("request 61: want 429 Too Many Requests, got %d", resp.StatusCode)
+	}
+	raw, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(raw), "rate_limited") || !strings.Contains(string(raw), "error.rateLimited") {
+		t.Fatalf("expected rate_limited error code and messageKey, got: %s", string(raw))
+	}
+	if resp.Header.Get("Retry-After") == "" {
+		t.Fatalf("expected Retry-After header on 429 response")
+	}
+	if resp.Header.Get("X-Quota-Reset") == "" {
+		t.Fatalf("expected X-Quota-Reset header on 429 response")
+	}
+}
+
+// AC7: Daily Ceiling 1000 req/ngày qua Upstash Redis
+func TestInlineComplete_AC7_UpstashRedis_DailyCeiling(t *testing.T) {
+	fakeGroq := newFake(mockGroqCompletion("id FROM users", "stop"))
+	defer fakeGroq.Close()
+
+	mockRedis := newCustomMockRedis(func(cmd []string) (int64, int64, int) {
+		ms, _ := strconv.ParseInt(cmd[4], 10, 64)
+		if ms == 60000 { // VipInlineMinute
+			return 1, 60000, http.StatusOK
+		}
+		// VipInlineDay: Giả lập chạm mốc 1001 (vượt trần 1000 req/ngày)
+		return 1001, 86400000, http.StatusOK
+	})
+	defer mockRedis.Close()
+
+	limiter := quota.New(mockRedis.URL, "test-token", nil)
+	cfg := cfgFor(fakeGroq, nil)
+	cfg.Limiter = limiter
+
+	injectUser := func(c *gin.Context) {
+		c.Set("auth.user", store.User{ID: "usr_vip_redis_day", Role: "vip"})
+		c.Next()
+	}
+	rg := setupInlineRig(t, cfg, injectUser)
+
+	body := `{"prefix":"SELECT "}`
+	resp, err := http.Post(rg.srv.URL+"/ai/inline-complete", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("want 429 Too Many Requests, got %d", resp.StatusCode)
+	}
+	raw, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(raw), "quota_exceeded") || !strings.Contains(string(raw), "error.quotaExceeded") {
+		t.Fatalf("expected quota_exceeded code and messageKey, got: %s", string(raw))
+	}
+	if resp.Header.Get("Retry-After") == "" {
+		t.Fatalf("expected Retry-After header")
+	}
+	if resp.Header.Get("X-Quota-Reset") == "" {
+		t.Fatalf("expected X-Quota-Reset header")
+	}
+}
+
+// AC8: Fallback an toàn khi Upstash Redis trả về 500 Server Error
+func TestInlineComplete_AC8_UpstashRedis_FallbackSafe(t *testing.T) {
+	fakeGroq := newFake(mockGroqCompletion("id FROM users", "stop"))
+	defer fakeGroq.Close()
+
+	mockRedis := newCustomMockRedis(func(cmd []string) (int64, int64, int) {
+		return 0, 0, http.StatusInternalServerError
+	})
+	defer mockRedis.Close()
+
+	limiter := quota.New(mockRedis.URL, "test-token", nil)
+	cfg := cfgFor(fakeGroq, nil)
+	cfg.Limiter = limiter
+
+	injectUser := func(c *gin.Context) {
+		c.Set("auth.user", store.User{ID: "usr_vip_fallback", Role: "vip"})
+		c.Next()
+	}
+	rg := setupInlineRig(t, cfg, injectUser)
+
+	body := `{"prefix":"SELECT "}`
+	// Request đầu tiên phải nhận 200 OK (fallback thành công sang in-memory, không sập hay 503)
+	resp, err := http.Post(rg.srv.URL+"/ai/inline-complete", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("want 200 OK on fallback, got %d", resp.StatusCode)
+	}
+
+	// In-memory limiter vẫn kiểm soát: gửi thêm 59 requests (tổng 60)
+	for i := 2; i <= 60; i++ {
+		r, err := http.Post(rg.srv.URL+"/ai/inline-complete", "application/json", strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Body.Close()
+		if r.StatusCode != http.StatusOK {
+			t.Fatalf("request %d: want 200, got %d", i, r.StatusCode)
+		}
+	}
+
+	// Request thứ 61 bị in-memory rate limiter chặn 429
+	resp61, err := http.Post(rg.srv.URL+"/ai/inline-complete", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp61.Body.Close()
+	if resp61.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("request 61: want 429 on fallback in-memory, got %d", resp61.StatusCode)
+	}
+}
+
+// AC9: Fallback an toàn khi Upstash Redis bị timeout
+func TestInlineComplete_AC9_UpstashRedis_TimeoutFallback(t *testing.T) {
+	fakeGroq := newFake(mockGroqCompletion("id FROM users", "stop"))
+	defer fakeGroq.Close()
+
+	hangSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+	}))
+	defer hangSrv.Close()
+
+	fastClient := &http.Client{Timeout: 20 * time.Millisecond}
+	limiter := quota.New(hangSrv.URL, "test-token", fastClient)
+
+	cfg := cfgFor(fakeGroq, nil)
+	cfg.Limiter = limiter
+
+	injectUser := func(c *gin.Context) {
+		c.Set("auth.user", store.User{ID: "usr_vip_timeout", Role: "vip"})
+		c.Next()
+	}
+	rg := setupInlineRig(t, cfg, injectUser)
+
+	body := `{"prefix":"SELECT "}`
+	resp, err := http.Post(rg.srv.URL+"/ai/inline-complete", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("want 200 OK on timeout fallback, got %d", resp.StatusCode)
+	}
 }
