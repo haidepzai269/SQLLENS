@@ -325,19 +325,19 @@ describe("Inline Ghost Text Extension (Task 110)", () => {
     });
 
     it("tính toán lại khi người dùng xóa lùi (Backspace)", () => {
-      const doc = "SELECT * FROM orders o JOIN users";
+      const doc = "SELECT * FROM orders o JOIN unknown_tbl";
       const view = createTestView(doc, doc.length, {
         tables: mockTables,
         foreignKeys: mockForeignKeys,
       });
 
-      // Ban đầu không khớp gợi ý
+      // Ban đầu không khớp gợi ý (vì unknown_tbl không có quan hệ FK)
       expect(view.state.field(ghostTextField)).toBeNull();
 
-      // Xóa chữ "users" lùi về "JOIN "
+      // Xóa chữ "unknown_tbl" lùi về "JOIN "
       view.dispatch({
-        changes: { from: doc.length - 5, to: doc.length },
-        selection: { anchor: doc.length - 5 },
+        changes: { from: doc.length - 11, to: doc.length },
+        selection: { anchor: doc.length - 11 },
       });
 
       // Sau khi xóa lùi về "JOIN ", Heuristics tự động tính lại và gợi ý FK

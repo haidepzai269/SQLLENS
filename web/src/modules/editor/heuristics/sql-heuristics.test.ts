@@ -134,6 +134,174 @@ describe('SQL Heuristics Engine', () => {
 
       expect(suggestion).toBe('orders o ON o.user_id = u.id');
     });
+
+    // -----------------------------------------------------------------------
+    // Mở rộng Task116 (STR083 / BUG-SP016-04): Đã gõ tên bảng sau JOIN
+    // -----------------------------------------------------------------------
+    it('AC3: gợi ý vế ON khi đã gõ tên bảng (chưa alias) sau JOIN (JOIN orders )', () => {
+      const sql = 'SELECT * FROM users u JOIN orders ';
+      const suggestion = predictFkJoin({
+        textBeforeCursor: sql,
+        tables: sampleSchema,
+        foreignKeys: sampleForeignKeys,
+      });
+
+      expect(suggestion).toBe('ON orders.user_id = u.id');
+    });
+
+    it('AC4: gợi ý vế ON khi đã gõ tên bảng và alias sau JOIN (JOIN orders o )', () => {
+      const sql = 'SELECT * FROM users u JOIN orders o ';
+      const suggestion = predictFkJoin({
+        textBeforeCursor: sql,
+        tables: sampleSchema,
+        foreignKeys: sampleForeignKeys,
+      });
+
+      expect(suggestion).toBe('ON o.user_id = u.id');
+    });
+
+    it('gợi ý vế ON khi người dùng dùng cú pháp AS alias (JOIN orders AS o )', () => {
+      const sql = 'SELECT * FROM users u JOIN orders AS o ';
+      const suggestion = predictFkJoin({
+        textBeforeCursor: sql,
+        tables: sampleSchema,
+        foreignKeys: sampleForeignKeys,
+      });
+
+      expect(suggestion).toBe('ON o.user_id = u.id');
+    });
+
+    it('tự động thêm khoảng trắng ở đầu nếu chưa có space sau tên bảng hoặc alias', () => {
+      const sqlNoSpaceTable = 'SELECT * FROM users u JOIN orders';
+      expect(
+        predictFkJoin({
+          textBeforeCursor: sqlNoSpaceTable,
+          tables: sampleSchema,
+          foreignKeys: sampleForeignKeys,
+        })
+      ).toBe(' ON orders.user_id = u.id');
+
+      const sqlNoSpaceAlias = 'SELECT * FROM users u JOIN orders o';
+      expect(
+        predictFkJoin({
+          textBeforeCursor: sqlNoSpaceAlias,
+          tables: sampleSchema,
+          foreignKeys: sampleForeignKeys,
+        })
+      ).toBe(' ON o.user_id = u.id');
+    });
+
+    it('hỗ trợ chiều ngược lại khi đã gõ tên bảng: FROM orders o JOIN users ', () => {
+      const sqlWithoutAlias = 'SELECT * FROM orders o JOIN users ';
+      expect(
+        predictFkJoin({
+          textBeforeCursor: sqlWithoutAlias,
+          tables: sampleSchema,
+          foreignKeys: sampleForeignKeys,
+        })
+      ).toBe('ON users.id = o.user_id');
+
+      const sqlWithAlias = 'SELECT * FROM orders o JOIN users u ';
+      expect(
+        predictFkJoin({
+          textBeforeCursor: sqlWithAlias,
+          tables: sampleSchema,
+          foreignKeys: sampleForeignKeys,
+        })
+      ).toBe('ON u.id = o.user_id');
+    });
+
+    it('hỗ trợ cú pháp MySQL với backticks khi đã gõ tên bảng sau JOIN', () => {
+      const sql = 'SELECT * FROM `users` `u` JOIN `orders` `o` ';
+      const suggestion = predictFkJoin({
+        textBeforeCursor: sql,
+        tables: sampleSchema,
+        foreignKeys: sampleForeignKeys,
+      });
+
+      expect(suggestion).toBe('ON o.user_id = u.id');
+    });
+
+    it('bỏ qua subquery trong WHERE trước khi gặp JOIN', () => {
+      const sql =
+        'SELECT * FROM users u WHERE u.id IN (SELECT user_id FROM blacklist) JOIN orders o ';
+      const suggestion = predictFkJoin({
+        textBeforeCursor: sql,
+        tables: sampleSchema,
+        foreignKeys: sampleForeignKeys,
+      });
+
+      expect(suggestion).toBe('ON o.user_id = u.id');
+    });
+
+    it('bỏ qua bảng nằm trong subquery của WHERE kể cả khi bảng đó có FK với bảng JOIN', () => {
+      // Trong câu lệnh này, outer table là order_items oi.
+      // Subquery trong WHERE chứa FROM users u.
+      // orders có FK với cả users (user_id -> id) và order_items (id <- order_id).
+      // Heuristics phải bỏ qua users u trong subquery và JOIN với order_items oi của outer query.
+      const sql =
+        'SELECT * FROM order_items oi WHERE oi.id IN (SELECT u.id FROM users u) JOIN orders o ';
+      const suggestion = predictFkJoin({
+        textBeforeCursor: sql,
+        tables: sampleSchema,
+        foreignKeys: sampleForeignKeys,
+      });
+
+      expect(suggestion).toBe('ON o.id = oi.order_id');
+    });
+
+    it('bỏ qua comment chứa từ khóa FROM giả lập trước khi JOIN', () => {
+      const sqlLineComment =
+        'SELECT * FROM users u -- FROM order_items oi\n JOIN orders o ';
+      expect(
+        predictFkJoin({
+          textBeforeCursor: sqlLineComment,
+          tables: sampleSchema,
+          foreignKeys: sampleForeignKeys,
+        })
+      ).toBe('ON o.user_id = u.id');
+
+      const sqlBlockComment =
+        'SELECT * FROM users u /* FROM order_items oi */ JOIN orders o ';
+      expect(
+        predictFkJoin({
+          textBeforeCursor: sqlBlockComment,
+          tables: sampleSchema,
+          foreignKeys: sampleForeignKeys,
+        })
+      ).toBe('ON o.user_id = u.id');
+    });
+
+    it('trả về null nếu người dùng đã tự tay gõ ON sau tên bảng hoặc alias', () => {
+      const sqlWithOnAfterAlias = 'SELECT * FROM users u JOIN orders o ON ';
+      expect(
+        predictFkJoin({
+          textBeforeCursor: sqlWithOnAfterAlias,
+          tables: sampleSchema,
+          foreignKeys: sampleForeignKeys,
+        })
+      ).toBeNull();
+
+      const sqlWithOnAfterTable = 'SELECT * FROM users u JOIN orders ON ';
+      expect(
+        predictFkJoin({
+          textBeforeCursor: sqlWithOnAfterTable,
+          tables: sampleSchema,
+          foreignKeys: sampleForeignKeys,
+        })
+      ).toBeNull();
+    });
+
+    it('trả về null nếu bảng mục tiêu không có quan hệ FK với các bảng trước đó', () => {
+      const sqlNoFk = 'SELECT * FROM users u JOIN categories ';
+      expect(
+        predictFkJoin({
+          textBeforeCursor: sqlNoFk,
+          tables: sampleSchema,
+          foreignKeys: sampleForeignKeys,
+        })
+      ).toBeNull();
+    });
   });
 
   // =========================================================================
@@ -177,6 +345,53 @@ describe('SQL Heuristics Engine', () => {
       const suggestion = predictGroupBy({ textBeforeCursor: sql });
 
       expect(suggestion).toBe(' dept');
+    });
+
+    // -----------------------------------------------------------------------
+    // Mở rộng Task116 (STR083 / BUG-SP016-04): Paren-depth aware trong GROUP BY
+    // -----------------------------------------------------------------------
+    it('AC1: bỏ qua subquery trong WHERE, chỉ lấy cột non-aggregate của SELECT cha', () => {
+      const sql =
+        'SELECT u.dept, COUNT(*) FROM users u WHERE u.id IN (SELECT user_id FROM orders) GROUP BY ';
+      const suggestion = predictGroupBy({ textBeforeCursor: sql });
+
+      expect(suggestion).toBe('u.dept');
+    });
+
+    it('AC2: hỗ trợ câu lệnh có CTE và subquery nhiều cấp lồng nhau', () => {
+      const sql =
+        'WITH summary AS (SELECT dept_id, COUNT(*) FROM orders GROUP BY dept_id) ' +
+        'SELECT u.role, u.department, COUNT(*) FROM users u ' +
+        'WHERE u.id NOT IN (SELECT user_id FROM logs WHERE action IN (SELECT name FROM actions)) GROUP BY ';
+      const suggestion = predictGroupBy({ textBeforeCursor: sql });
+
+      expect(suggestion).toBe('u.role, u.department');
+    });
+
+    it('ca biên: xử lý an toàn khi string literal chứa dấu ngoặc đơn', () => {
+      const sql =
+        "SELECT u.name, COUNT(*) FROM users u WHERE u.bio = 'special (note)' GROUP BY ";
+      const suggestion = predictGroupBy({ textBeforeCursor: sql });
+
+      expect(suggestion).toBe('u.name');
+    });
+
+    it('ca biên: xử lý an toàn khi comment chứa dấu ngoặc đơn', () => {
+      const sqlLineComment =
+        'SELECT u.department, COUNT(*) FROM users u -- (subquery note here)\n GROUP BY ';
+      expect(predictGroupBy({ textBeforeCursor: sqlLineComment })).toBe('u.department');
+
+      const sqlBlockComment =
+        'SELECT u.department, COUNT(*) FROM users u /* (multi-line note) */ GROUP BY ';
+      expect(predictGroupBy({ textBeforeCursor: sqlBlockComment })).toBe('u.department');
+    });
+
+    it('ca biên: bỏ qua câu lệnh trước đó khi có nhiều câu lệnh phân cách bởi dấu chấm phẩy', () => {
+      const sql =
+        'SELECT old_col FROM old_table; SELECT u.role, COUNT(*) FROM users u GROUP BY ';
+      const suggestion = predictGroupBy({ textBeforeCursor: sql });
+
+      expect(suggestion).toBe('u.role');
     });
 
     it('ca biên: trả về null nếu SELECT chỉ toàn hàm aggregate', () => {
@@ -312,6 +527,26 @@ describe('SQL Heuristics Engine', () => {
         })
       ).toBe('orders o ON o.user_id = u.id');
 
+      // 1b. FK Join khi đã gõ tên bảng (Task116)
+      expect(
+        predictNextSqlSnippet({
+          docText: 'SELECT * FROM users u JOIN orders ',
+          cursorOffset: 34,
+          tables: sampleSchema,
+          foreignKeys: sampleForeignKeys,
+        })
+      ).toBe('ON orders.user_id = u.id');
+
+      // 1c. FK Join khi đã gõ tên bảng và alias (Task116)
+      expect(
+        predictNextSqlSnippet({
+          docText: 'SELECT * FROM users u JOIN orders o ',
+          cursorOffset: 36,
+          tables: sampleSchema,
+          foreignKeys: sampleForeignKeys,
+        })
+      ).toBe('ON o.user_id = u.id');
+
       // 2. Group By
       expect(
         predictNextSqlSnippet({
@@ -320,6 +555,17 @@ describe('SQL Heuristics Engine', () => {
           tables: sampleSchema,
         })
       ).toBe('role');
+
+      // 2b. Group By với subquery trong WHERE (Task116)
+      const subquerySql =
+        'SELECT u.department, count(*) FROM users u WHERE u.id IN (SELECT user_id FROM orders) GROUP BY ';
+      expect(
+        predictNextSqlSnippet({
+          docText: subquerySql,
+          cursorOffset: subquerySql.length,
+          tables: sampleSchema,
+        })
+      ).toBe('u.department');
 
       // 3. Insert Columns
       expect(
