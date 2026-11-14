@@ -38,6 +38,7 @@ import { createMysqlAdapter, SandboxError, type MysqlAdapter } from "@/engines/m
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { stashSql, takeSql } from "@/modules/auth/sql-stash";
 import { Tip } from "@/components/shell/tip";
+import { applyStatementFix } from "@/components/sql-editor/statement-at-cursor";
 import { UpgradeModal } from "@/modules/vip/upgrade-modal";
 import { Stage, type StageFocus, type StageRun } from "./stage/stage";
 import { packStash, unpackStash } from "./stage/stash";
@@ -784,7 +785,10 @@ export function LabWorkspace() {
                 sql={state.sql}
                 title={mysql ? tm("sqlErrorTitle") : undefined}
                 engine={engine}
-                onApplyFix={(newSql) => setSql(newSql)}
+                onApplyFix={(newSql) => {
+                  const updated = applyStatementFix(sql, state.sql, newSql, state.position);
+                  setSql(updated);
+                }}
                 onRebuild={resetClean}
                 onAskAi={() => {}}
               />
