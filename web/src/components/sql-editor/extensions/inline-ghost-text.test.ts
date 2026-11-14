@@ -7,6 +7,12 @@ import { describe, expect, it } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
+  autocompletion,
+  closeCompletion,
+  completionStatus,
+  startCompletion,
+} from "@codemirror/autocomplete";
+import {
   acceptGhostText,
   createInlineGhostTextExtension,
   dismissGhostText,
@@ -342,6 +348,54 @@ describe("Inline Ghost Text Extension (Task 110)", () => {
 
       // Sau khi xóa lùi về "JOIN ", Heuristics tự động tính lại và gợi ý FK
       expect(view.state.field(ghostTextField)?.text).toBe("users u ON u.id = o.user_id");
+    });
+  });
+
+  describe("Task 117: Precedence Dispatcher & Autocomplete integration", () => {
+    it("AC1: nhường quyền cho Dropdown Popup khi completionStatus === 'active'", async () => {
+      const doc = "SELECT u.id, u.name, COUNT(o.id) FROM users u GROUP BY ";
+      const state = EditorState.create({
+        doc,
+        selection: { anchor: doc.length },
+        extensions: [
+          autocompletion({
+            override: [
+              () => ({
+                from: doc.length,
+                options: [{ label: "u.id" }],
+              }),
+            ],
+          }),
+          createInlineGhostTextExtension({
+            tables: mockTables,
+            foreignKeys: mockForeignKeys,
+          }),
+        ],
+      });
+      const view = new EditorView({ state });
+
+      // Đảm bảo có local ghost text
+      expect(view.state.field(ghostTextField)).not.toBeNull();
+
+      // Kích hoạt autocomplete popup
+      startCompletion(view);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(completionStatus(view.state)).toBe("active");
+
+      // Khi completionStatus === "active", acceptGhostText trả về false
+      const handled = acceptGhostText(view);
+      expect(handled).toBe(false);
+      // Văn bản không bị chèn bởi ghost text
+      expect(view.state.doc.toString()).toBe(doc);
+
+      // Đóng completion popup
+      closeCompletion(view);
+      expect(completionStatus(view.state)).toBeNull();
+
+      // Bây giờ acceptGhostText trả về true và chèn ghost text
+      const handledAfterClose = acceptGhostText(view);
+      expect(handledAfterClose).toBe(true);
+      expect(view.state.doc.toString()).toBe(doc + "u.id, u.name");
     });
   });
 });
