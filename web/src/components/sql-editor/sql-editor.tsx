@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { EngineId } from "@/contracts/engine";
+import type { ForeignKeyRelation } from "@/modules/editor/heuristics/types";
 
 export type RunScopeOptions = {
   targetSql?: string;
@@ -26,6 +27,10 @@ export type SqlEditorProps = {
   schema?: Record<string, string[]>;
   /** Bật/tắt gợi ý dropdown autocomplete. Nếu không truyền, đọc fallback từ useSettings(). */
   dropdownAutocomplete?: boolean;
+  /** Danh sách quan hệ khóa ngoại CSDL dùng cho gợi ý FK JOIN inline ghost text. */
+  foreignKeys?: ForeignKeyRelation[];
+  /** Bật/tắt gợi ý viết tiếp mờ xám (inline ghost text). Nếu không truyền, đọc fallback từ useSettings(). */
+  ghostTextEnabled?: boolean;
 };
 
 // Skeleton cùng chiều cao tối thiểu với ô thật để trang không nhảy khi tải xong.

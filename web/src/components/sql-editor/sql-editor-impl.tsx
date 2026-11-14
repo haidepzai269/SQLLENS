@@ -17,6 +17,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { DEFAULT_SETTINGS, useSettings } from "@/contexts/settings-context";
 import { DIALECT } from "./dialect";
 import { createSqlAutocompleteExtension } from "./extensions/dropdown-autocomplete";
+import { createInlineGhostTextExtension } from "./extensions/inline-ghost-text";
 import type { SqlEditorProps } from "./sql-editor";
 import { getStatementAtOffset } from "./statement-at-cursor";
 
@@ -133,9 +134,12 @@ export default function SqlEditorImpl({
   onSelectionChange,
   schema,
   dropdownAutocomplete,
+  foreignKeys,
+  ghostTextEnabled,
 }: SqlEditorProps) {
   const settings = useSafeSettings();
   const isAutocompleteEnabled = dropdownAutocomplete ?? settings.dropdownAutocomplete;
+  const isGhostTextEnabled = ghostTextEnabled ?? settings.ghostTextEnabled;
   const errId = useId();
   const [view, setView] = useState<EditorView | null>(null);
   const doc = useMemo(() => normalize(value), [value]);
@@ -202,10 +206,21 @@ export default function SqlEditorImpl({
     [schema, engine, isAutocompleteEnabled]
   );
 
+  const ghostTextExt = useMemo(
+    () =>
+      createInlineGhostTextExtension({
+        tables: schema,
+        foreignKeys,
+        enabled: isGhostTextEnabled,
+      }),
+    [schema, foreignKeys, isGhostTextEnabled]
+  );
+
   const extensions = useMemo<Extension[]>(
     () => [
       sql({ dialect: DIALECT[engine], upperCaseKeywords: true }),
       autocompleteExt,
+      ghostTextExt,
       EditorView.lineWrapping, // số dòng ở lề là dòng logic nên không cần cấu hình thêm
       theme,
       highlight,
@@ -218,7 +233,7 @@ export default function SqlEditorImpl({
         ...(invalid ? { "aria-describedby": errId } : {}),
       }),
     ],
-    [engine, ariaLabel, invalid, errId, autocompleteExt],
+    [engine, ariaLabel, invalid, errId, autocompleteExt, ghostTextExt],
   );
 
   // Viền focus kiểu ring của shadcn/ui vẽ bằng lớp phủ trong khung, nên đủ bốn cạnh, không bị gutter che và không bị khung cha cắt.

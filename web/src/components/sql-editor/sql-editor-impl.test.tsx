@@ -118,4 +118,41 @@ describe("SqlEditorImpl", () => {
     );
     expect(container.querySelector(".cm-editor")).toBeTruthy();
   });
+
+  it("chấp nhận foreignKeys và ghostTextEnabled props mà không gây lỗi", () => {
+    const { container } = render(
+      <SqlEditorImpl
+        value="SELECT * FROM orders o JOIN "
+        onChange={vi.fn()}
+        engine="postgres"
+        ariaLabel="SQL Editor"
+        schema={{ users: ["id", "name"], orders: ["id", "user_id"] }}
+        foreignKeys={[
+          {
+            fromTable: "orders",
+            fromColumn: "user_id",
+            toTable: "users",
+            toColumn: "id",
+          },
+        ]}
+        ghostTextEnabled={true}
+      />,
+    );
+    expect(container.querySelector(".cm-editor")).toBeTruthy();
+    expect(container.textContent).toContain("orders");
+  });
+
+  it("tắt inline ghost text an toàn khi ghostTextEnabled = false", () => {
+    const { container } = render(
+      <SqlEditorImpl
+        value="SELECT * FROM users "
+        onChange={vi.fn()}
+        engine="postgres"
+        ariaLabel="SQL Editor"
+        schema={{ users: ["id"] }}
+        ghostTextEnabled={false}
+      />,
+    );
+    expect(container.querySelector(".cm-editor")).toBeTruthy();
+  });
 });

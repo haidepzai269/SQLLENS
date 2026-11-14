@@ -42,6 +42,7 @@ import { Stage, type StageFocus, type StageRun } from "./stage/stage";
 import { packStash, unpackStash } from "./stage/stash";
 import { lastSelect, memoExplain, MYSQL_SCHEMA_QUERY, mysqlSchema, STAGE_SCHEMA_QUERY } from "./stage/stage-data";
 import { StatementList } from "./statement-list";
+import type { ForeignKeyRelation } from "@/modules/editor/heuristics/types";
 
 type RunData = { statements: number; rows: number };
 type Stop = "cancelled" | "timeout" | "worker_crashed";
@@ -151,6 +152,7 @@ export function LabWorkspace() {
   const note = (l: Log) => setLog((x) => [...x.slice(-49), l]);
   const [hasTables, setHasTables] = useState(false);
   const [tablesSchema, setTablesSchema] = useState<Record<string, string[]>>({});
+  const [foreignKeys, setForeignKeys] = useState<ForeignKeyRelation[]>([]);
   // Dữ liệu cho vùng stage của lần chạy gần nhất đã xong; null khi đang chạy, lỗi, bị hủy hay engine dựng lại, để tab không hiện số cũ.
   const [rawStageRun, setStageRun] = useState<StageRun | null>(null);
   const mine = owner === engine;
@@ -167,6 +169,7 @@ export function LabWorkspace() {
     setDurationMs(null);
     setAllOpen(null);
     setTablesSchema({});
+    setForeignKeys([]);
     setHasTables(false);
     if (lastEngine === "mysql") {
       setMysqlReady(false);
@@ -201,10 +204,22 @@ export function LabWorkspace() {
       const res = (await db.execute(q, { internal: true }))[0] ?? { columns: [], rows: [] };
       const tableInfos = parseSchema(my ? mysqlSchema(res) : res);
       const schemaDict: Record<string, string[]> = {};
+      const fks: ForeignKeyRelation[] = [];
       for (const t of tableInfos) {
         schemaDict[t.name] = t.columns.map((c) => c.name);
+        for (const c of t.columns) {
+          if (c.references) {
+            fks.push({
+              fromTable: t.name,
+              fromColumn: c.name,
+              toTable: c.references.table,
+              toColumn: c.references.column,
+            });
+          }
+        }
       }
       setTablesSchema(schemaDict);
+      setForeignKeys(fks);
       setHasTables(tableInfos.length > 0);
     } catch {
       /* giữ trạng thái cũ */
@@ -468,6 +483,7 @@ export function LabWorkspace() {
       await db.fresh();
       setHasTables(false);
       setTablesSchema({});
+      setForeignKeys([]);
       applied.current = null;
       note({ kind: "rebuilt", n: 0 });
       afterRebuild(db);
@@ -570,6 +586,7 @@ export function LabWorkspace() {
           onRun={handleEditorRun}
           onSelectionChange={(has, text) => setSelection({ hasSelection: has, text })}
           schema={tablesSchema}
+          foreignKeys={foreignKeys}
         />
       </div>
       {sql.trim() === "" && (
@@ -736,6 +753,7 @@ export function LabWorkspace() {
                 ((await adapter.current) as MysqlAdapter | null)?.fresh().then(() => {
                   setHasTables(false);
                   setTablesSchema({});
+                  setForeignKeys([]);
                   setState(IDLE);
                 })
               }
