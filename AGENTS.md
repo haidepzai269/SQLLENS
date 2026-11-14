@@ -4,13 +4,14 @@
 Chi tiết số đo kiểm chứng thực nghiệm đầy đủ xem tại [CLAUDE.md](file:///c:/SQLLens/CLAUDE.md).
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
-- **Giai đoạn hiện tại:** Đã chốt 17 Epic và 81 Story (`_bmad-output/BAN_DO_STORY.md`). **SP001 - SP016 ĐÃ HOÀN THÀNH 100%!** Đang triển khai **SP017: Smart Editor Hardening & Platform Integrity** (`_bmad-output/SPEC_VA_LOI_SP016.md`, STR080 - STR085):
+- **Giai đoạn hiện tại:** Đã chốt 18 Epic và 84 Story (`_bmad-output/BAN_DO_STORY.md`). **SP001 - SP017 ĐÃ HOÀN THÀNH 100%!**
   + *Task113 (STR080):* ĐÃ HOÀN THÀNH 100%! Khắc phục triệt để lỗi 1-Click Fix xóa sạch editor bằng thuật toán bóc tách statement boundary và offset locator `applyStatementFix`, bảo toàn 100% các câu lệnh trước/sau và hỗ trợ hoàn tác Undo `Ctrl+Z`, đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
   + *Task114 (STR081):* ĐÃ HOÀN THÀNH 100%! Hiện thực hóa 6 tùy chọn Settings vào CodeMirror (theme cỡ chữ động 13/14/16px, ngắt dòng động, số dòng, highlight dòng) và đồng bộ Theme/Contrast Boost vào DOM `<html>`, đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
   + *Task115 (STR082):* ĐÃ HOÀN THÀNH 100%! Chuẩn hóa phân quyền RBAC Backend Gin (tự động nhận diện session cookie độc lập, bắt buộc kiểm tra `u.IsVIP()` kèm hạn `vip_until`, tự động demote VIP hết hạn về `user` trong DB), bảo vệ tuyệt đối `/ai/inline-complete`, đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
   + *Task116 (STR083):* ĐÃ HOÀN THÀNH 100%! Nâng cấp động cơ Heuristics nhận thức Scope (`predictGroupBy` nhận biết độ sâu ngoặc `depth === 0`, bỏ qua hoàn toàn subquery trong `WHERE`/`SELECT` và comment/string; `predictFkJoin` mở rộng phát hiện bảng mục tiêu sau `JOIN <table> [alias]` để gợi ý `ON ...` chuẩn xác theo quan hệ FK hai chiều), đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
   + *Task117 (STR084):* ĐÃ HOÀN THÀNH 100%! Bộ điều phối ưu tiên Precedence Dispatcher CodeMirror 6 (nhường quyền Dropdown popup khi `completionStatus === 'active'`, ưu tiên Local Ghost Text > AI Ghost Text khi nhấn `Tab`, mutual exclusion hủy timer/abort request AI khi Local có gợi ý 0ms, chống render chồng đè với `Decoration.none`), đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
-- **Mục tiêu tiếp theo:** Triển khai tiếp **Task118 (STR085)**: Bảo vệ hạ tầng AI Copilot bằng Upstash Redis Token Bucket (chuyển rate limiter của VIP Inline Complete từ RAM sang Upstash Redis, rate limit 60 req/phút/user, daily ceiling 1000 req/ngày, fallback in-memory an toàn).
+  + *Task118 (STR085):* ĐÃ HOÀN THÀNH 100%! Bảo vệ hạ tầng AI Copilot bằng Upstash Redis Token Bucket (2 tầng rate limit 60 req/phút và daily ceiling 1000 req/ngày, cơ chế graceful degradation fallback an toàn in-memory khi Redis lỗi, tuân thủ tuyệt đối Core Rule 7), đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
+- **Mục tiêu tiếp theo:** Triển khai **SP018: Bằng chứng Thực thi Kế hoạch cho AI Mentor (Execution Plan Evidence & Upfront Feeding)** gồm STR086 (Hook PGlite nén AST Plan), STR087 (Upfront Evidence & AI Live Verification), STR088 (UI Smart Controls & Rào chắn Sandbox).
 - **Key bên thứ 3:** Danh sách ở `KEY_CAN_LAY.md` (gitignored). Không bao giờ commit secret lên git.
 
 ---
