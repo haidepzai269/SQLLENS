@@ -219,13 +219,13 @@ func (a *Auth) sessionCookie(token string, maxAge int) *http.Cookie {
 
 const userKey = "auth.user"
 
-// requireUser chỉ đọc cookie sid. Không có cookie thì 401 ngay. Chữ ký HMAC sai/rác
+// requireUser chỉ đọc cookie sid (hoặc sqllens_session). Không có cookie thì 401 ngay. Chữ ký HMAC sai/rác
 // hoặc token không tìm thấy trong DB thì ghi nhận vi phạm vào AbuseGatekeeper.
 // Nếu là legacy unsigned token (32 byte chưa ký): từ chối 401 êm dịu, không ghi nhận abuse.
 // Nếu IP bị ban thì trả về mã 429 kèm header Retry-After, ngược lại từ chối 401.
 func (a *Auth) requireUser(c *gin.Context) {
-	tok, err := c.Cookie(cookieName)
-	if err != nil || tok == "" {
+	tok := extractSessionCookie(c)
+	if tok == "" {
 		httpapi.Abort(c, http.StatusUnauthorized, "auth_required", "error.authRequired")
 		return
 	}
@@ -292,6 +292,12 @@ func (a *Auth) Gate(rule quota.Rule) []gin.HandlerFunc {
 
 func (a *Auth) me(c *gin.Context) {
 	u := c.MustGet(userKey).(store.User)
+	if u.Role == "vip" && u.VipUntil != nil && time.Now().After(*u.VipUntil) {
+		u.Role = "user"
+		if a.store != nil {
+			_ = a.store.DemoteExpiredVIP(c.Request.Context(), u.ID)
+		}
+	}
 	var avatar *string
 	if u.AvatarURL != "" {
 		avatar = &u.AvatarURL

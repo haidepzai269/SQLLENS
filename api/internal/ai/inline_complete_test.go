@@ -2,6 +2,7 @@ package ai
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -52,6 +53,17 @@ func mockGroqCompletion(content, finishReason string) http.HandlerFunc {
 	}
 }
 
+type inlineMockSessionFinder struct {
+	users map[string]store.User
+}
+
+func (m *inlineMockSessionFinder) SessionUser(ctx context.Context, token string) (store.User, error) {
+	if u, ok := m.users[token]; ok {
+		return u, nil
+	}
+	return store.User{}, store.ErrNotFound
+}
+
 // AC1: Kiểm tra RequireVip() với các phân tầng tài khoản
 func TestInlineComplete_AC1_RequireVip(t *testing.T) {
 	fakeGroq := newFake(mockGroqCompletion("SELECT id FROM users", "stop"))
@@ -92,7 +104,7 @@ func TestInlineComplete_AC1_RequireVip(t *testing.T) {
 		}
 	})
 
-	t.Run("expired vip returns 403 vip_required", func(t *testing.T) {
+	t.Run("expired vip returns 403 vip_expired", func(t *testing.T) {
 		past := time.Now().Add(-1 * time.Hour)
 		injectUser := func(c *gin.Context) {
 			c.Set("auth.user", store.User{ID: "usr_expired", Role: "vip", VipUntil: &past})
@@ -107,6 +119,10 @@ func TestInlineComplete_AC1_RequireVip(t *testing.T) {
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusForbidden {
 			t.Fatalf("want 403 Forbidden, got %d", resp.StatusCode)
+		}
+		raw, _ := io.ReadAll(resp.Body)
+		if !strings.Contains(string(raw), "vip_expired") {
+			t.Fatalf("expected vip_expired error code, got %s", string(raw))
 		}
 	})
 
@@ -169,6 +185,122 @@ func TestInlineComplete_AC1_RequireVip(t *testing.T) {
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusForbidden {
 			t.Fatalf("want 403 Forbidden, got %d", resp.StatusCode)
+		}
+		raw, _ := io.ReadAll(resp.Body)
+		if !strings.Contains(string(raw), "vip_required") {
+			t.Fatalf("expected vip_required error code, got %s", string(raw))
+		}
+	})
+
+	t.Run("bearer jwt token expired vip returns 403 vip_expired", func(t *testing.T) {
+		past := time.Now().Add(-1 * time.Hour)
+		rg := setupInlineRig(t, cfg, auth.RequireVip(testSecret))
+		token, err := auth.GenerateUserToken(store.User{ID: "usr_jwt_exp", Role: "vip", VipUntil: &past}, testSecret, time.Hour)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		body := `{"prefix":"SELECT ","engine":"postgres"}`
+		req, _ := http.NewRequest(http.MethodPost, rg.srv.URL+"/ai/inline-complete", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusForbidden {
+			t.Fatalf("want 403 Forbidden, got %d", resp.StatusCode)
+		}
+		raw, _ := io.ReadAll(resp.Body)
+		if !strings.Contains(string(raw), "vip_expired") {
+			t.Fatalf("expected vip_expired error code, got %s", string(raw))
+		}
+	})
+
+	t.Run("session cookie active vip returns 200 OK", func(t *testing.T) {
+		future := time.Now().Add(24 * time.Hour)
+		rawTok := "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFG" // đúng 43 ký tự
+		mockStore := &inlineMockSessionFinder{
+			users: map[string]store.User{
+				rawTok: {ID: "usr_cookie_vip", Role: "vip", VipUntil: &future},
+			},
+		}
+		rg := setupInlineRig(t, cfg, auth.RequireVipWithStore(testSecret, mockStore))
+		signedCookie := auth.SignSessionToken(rawTok, testSecret)
+
+		body := `{"prefix":"SELECT ","engine":"postgres"}`
+		req, _ := http.NewRequest(http.MethodPost, rg.srv.URL+"/ai/inline-complete", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(&http.Cookie{Name: "sid", Value: signedCookie})
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("want 200 OK, got %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("session cookie free user returns 403 vip_required", func(t *testing.T) {
+		rawTok := "abcdefghijklmnopqrstuvwxyz1234567890ABCDEF1" // đúng 43 ký tự
+		mockStore := &inlineMockSessionFinder{
+			users: map[string]store.User{
+				rawTok: {ID: "usr_cookie_free", Role: "user"},
+			},
+		}
+		rg := setupInlineRig(t, cfg, auth.RequireVipWithStore(testSecret, mockStore))
+		signedCookie := auth.SignSessionToken(rawTok, testSecret)
+
+		body := `{"prefix":"SELECT ","engine":"postgres"}`
+		req, _ := http.NewRequest(http.MethodPost, rg.srv.URL+"/ai/inline-complete", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(&http.Cookie{Name: "sid", Value: signedCookie})
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusForbidden {
+			t.Fatalf("want 403 Forbidden, got %d", resp.StatusCode)
+		}
+		raw, _ := io.ReadAll(resp.Body)
+		if !strings.Contains(string(raw), "vip_required") {
+			t.Fatalf("expected vip_required error code, got %s", string(raw))
+		}
+	})
+
+	t.Run("session cookie expired vip returns 403 vip_expired", func(t *testing.T) {
+		past := time.Now().Add(-1 * time.Hour)
+		rawTok := "abcdefghijklmnopqrstuvwxyz1234567890ABCDEF2" // đúng 43 ký tự
+		mockStore := &inlineMockSessionFinder{
+			users: map[string]store.User{
+				rawTok: {ID: "usr_cookie_exp", Role: "vip", VipUntil: &past},
+			},
+		}
+		rg := setupInlineRig(t, cfg, auth.RequireVipWithStore(testSecret, mockStore))
+		signedCookie := auth.SignSessionToken(rawTok, testSecret)
+
+		body := `{"prefix":"SELECT ","engine":"postgres"}`
+		req, _ := http.NewRequest(http.MethodPost, rg.srv.URL+"/ai/inline-complete", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(&http.Cookie{Name: "sqllens_session", Value: signedCookie})
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusForbidden {
+			t.Fatalf("want 403 Forbidden, got %d", resp.StatusCode)
+		}
+		raw, _ := io.ReadAll(resp.Body)
+		if !strings.Contains(string(raw), "vip_expired") {
+			t.Fatalf("expected vip_expired error code, got %s", string(raw))
 		}
 	})
 }

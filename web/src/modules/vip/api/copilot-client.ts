@@ -52,6 +52,7 @@ export async function fetchAiInlineCompletion(
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "same-origin",
       body: JSON.stringify({
         prefix,
         suffix,
