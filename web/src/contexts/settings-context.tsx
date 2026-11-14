@@ -4,6 +4,7 @@ import React, {
   createContext,
   useContext,
   useCallback,
+  useEffect,
   useMemo,
   useSyncExternalStore,
 } from "react";
@@ -67,17 +68,92 @@ export interface SettingsContextValue {
   resetSettings: () => void;
 }
 
+/**
+ * Đồng bộ Theme và Contrast Boost lên DOM root (document.documentElement).
+ * Hỗ trợ theme:
+ * - "dark": thêm class `dark`, bỏ class `light`
+ * - "light": thêm class `light`, bỏ class `dark`
+ * - "auto": lắng nghe prefers-color-scheme của hệ điều hành
+ * Contrast boost:
+ * - true: thêm class `contrast-high` và attribute data-contrast="boost"
+ * - false: bỏ class `contrast-high` và bỏ attribute data-contrast
+ */
+export function applyThemeAndContrastToDOM(
+  theme: "dark" | "light" | "auto",
+  contrastBoost: boolean
+): () => void {
+  if (typeof document === "undefined") return () => {};
+  const root = document.documentElement;
+
+  const applyTheme = (isDark: boolean) => {
+    if (isDark) {
+      root.classList.add("dark");
+      root.classList.remove("light");
+    } else {
+      root.classList.add("light");
+      root.classList.remove("dark");
+    }
+  };
+
+  let mediaQuery: MediaQueryList | null = null;
+  let listener: ((e: MediaQueryListEvent) => void) | null = null;
+
+  if (theme === "dark") {
+    applyTheme(true);
+  } else if (theme === "light") {
+    applyTheme(false);
+  } else if (theme === "auto") {
+    if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+      mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      applyTheme(mediaQuery.matches);
+      listener = (e: MediaQueryListEvent) => {
+        applyTheme(e.matches);
+      };
+      if (typeof mediaQuery.addEventListener === "function") {
+        mediaQuery.addEventListener("change", listener);
+      } else if (typeof (mediaQuery as unknown as { addListener?: (l: unknown) => void }).addListener === "function") {
+        (mediaQuery as unknown as { addListener: (l: unknown) => void }).addListener(listener);
+      }
+    } else {
+      applyTheme(true);
+    }
+  }
+
+  if (contrastBoost) {
+    root.classList.add("contrast-high");
+    root.setAttribute("data-contrast", "boost");
+  } else {
+    root.classList.remove("contrast-high");
+    root.removeAttribute("data-contrast");
+  }
+
+  return () => {
+    if (mediaQuery && listener) {
+      if (typeof mediaQuery.removeEventListener === "function") {
+        mediaQuery.removeEventListener("change", listener);
+      } else if (typeof (mediaQuery as unknown as { removeListener?: (l: unknown) => void }).removeListener === "function") {
+        (mediaQuery as unknown as { removeListener: (l: unknown) => void }).removeListener(listener);
+      }
+    }
+  };
+}
+
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 let memoryFallback: string | null = null;
 
+export function _resetMemoryFallbackForTest(): void {
+  memoryFallback = null;
+}
+
 function getSnapshot(): string {
   if (typeof window === "undefined") return "";
+  if (memoryFallback !== null) return memoryFallback;
   try {
     const val = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
-    return val ?? memoryFallback ?? "";
+    return val ?? "";
   } catch {
-    return memoryFallback ?? "";
+    return "";
   }
 }
 
@@ -131,6 +207,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children, in
       if (typeof window !== "undefined") {
         try {
           window.localStorage.setItem(SETTINGS_STORAGE_KEY, str);
+          memoryFallback = null;
         } catch {
           memoryFallback = str;
         }
@@ -147,6 +224,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children, in
     if (typeof window !== "undefined") {
       try {
         window.localStorage.setItem(SETTINGS_STORAGE_KEY, str);
+        memoryFallback = null;
       } catch {
         memoryFallback = str;
       }
@@ -164,6 +242,10 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children, in
     }),
     [settings, updateSettings, resetSettings]
   );
+
+  useEffect(() => {
+    return applyThemeAndContrastToDOM(settings.theme, settings.contrastBoost);
+  }, [settings.theme, settings.contrastBoost]);
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 };

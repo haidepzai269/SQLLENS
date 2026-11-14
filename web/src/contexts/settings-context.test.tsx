@@ -7,6 +7,7 @@ import {
   DEFAULT_SETTINGS,
   SETTINGS_STORAGE_KEY,
   sanitizeSettings,
+  _resetMemoryFallbackForTest,
 } from "./settings-context";
 
 // Component helper để đọc và thao tác context trong test
@@ -49,6 +50,38 @@ const TestConsumer = () => {
         Enable AI
       </button>
 
+      <button
+        type="button"
+        data-testid="setThemeLight"
+        onClick={() => updateSettings({ theme: "light" })}
+      >
+        Theme Light
+      </button>
+
+      <button
+        type="button"
+        data-testid="setThemeDark"
+        onClick={() => updateSettings({ theme: "dark" })}
+      >
+        Theme Dark
+      </button>
+
+      <button
+        type="button"
+        data-testid="setThemeAuto"
+        onClick={() => updateSettings({ theme: "auto" })}
+      >
+        Theme Auto
+      </button>
+
+      <button
+        type="button"
+        data-testid="toggleContrast"
+        onClick={() => updateSettings({ contrastBoost: !settings.contrastBoost })}
+      >
+        Toggle Contrast
+      </button>
+
       <button type="button" data-testid="resetBtn" onClick={() => resetSettings()}>
         Reset
       </button>
@@ -58,11 +91,13 @@ const TestConsumer = () => {
 
 describe("SettingsContext", () => {
   beforeEach(() => {
+    _resetMemoryFallbackForTest();
     window.localStorage.clear();
   });
 
   afterEach(() => {
     cleanup();
+    _resetMemoryFallbackForTest();
     window.localStorage.clear();
     vi.restoreAllMocks();
   });
@@ -217,5 +252,104 @@ describe("SettingsContext", () => {
     expect(() => render(<ComponentOutside />)).toThrow(
       "useSettings must be used within a SettingsProvider"
     );
+  });
+
+  describe("DOM Root Sync (Theme & Contrast Boost - Task114)", () => {
+    it("đồng bộ class dark và xóa class light lên document.documentElement khi theme là dark", () => {
+      document.documentElement.className = "light";
+      render(
+        <SettingsProvider initialSettings={{ theme: "dark" }}>
+          <TestConsumer />
+        </SettingsProvider>
+      );
+
+      expect(document.documentElement.classList.contains("dark")).toBe(true);
+      expect(document.documentElement.classList.contains("light")).toBe(false);
+    });
+
+    it("đồng bộ class light và xóa class dark lên document.documentElement khi theme là light", () => {
+      document.documentElement.className = "dark";
+      render(
+        <SettingsProvider initialSettings={{ theme: "light" }}>
+          <TestConsumer />
+        </SettingsProvider>
+      );
+
+      expect(document.documentElement.classList.contains("light")).toBe(true);
+      expect(document.documentElement.classList.contains("dark")).toBe(false);
+    });
+
+    it("đồng bộ class contrast-high và data-contrast='boost' khi contrastBoost bật và gỡ bỏ khi tắt", () => {
+      render(
+        <SettingsProvider initialSettings={{ contrastBoost: false }}>
+          <TestConsumer />
+        </SettingsProvider>
+      );
+
+      expect(document.documentElement.classList.contains("contrast-high")).toBe(false);
+      expect(document.documentElement.getAttribute("data-contrast")).toBeNull();
+
+      act(() => {
+        screen.getByTestId("toggleContrast").click();
+      });
+
+      expect(document.documentElement.classList.contains("contrast-high")).toBe(true);
+      expect(document.documentElement.getAttribute("data-contrast")).toBe("boost");
+
+      act(() => {
+        screen.getByTestId("toggleContrast").click();
+      });
+
+      expect(document.documentElement.classList.contains("contrast-high")).toBe(false);
+      expect(document.documentElement.getAttribute("data-contrast")).toBeNull();
+    });
+
+    it("xử lý theme 'auto' theo matchMedia prefers-color-scheme và phản hồi sự kiện change", () => {
+      let changeHandler: ((e: MediaQueryListEvent) => void) | null = null;
+      let matchesState = true; // dark by default
+
+      const mockMatchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: matchesState,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn((event: string, handler: (e: MediaQueryListEvent) => void) => {
+          if (event === "change") changeHandler = handler;
+        }),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+
+      vi.stubGlobal("matchMedia", mockMatchMedia);
+
+      render(
+        <SettingsProvider initialSettings={{ theme: "auto" }}>
+          <TestConsumer />
+        </SettingsProvider>
+      );
+
+      // Ban đầu matchState = true -> dark
+      expect(document.documentElement.classList.contains("dark")).toBe(true);
+      expect(document.documentElement.classList.contains("light")).toBe(false);
+
+      // Giả lập OS đổi sang light mode
+      act(() => {
+        matchesState = false;
+        changeHandler?.({ matches: false } as MediaQueryListEvent);
+      });
+
+      expect(document.documentElement.classList.contains("light")).toBe(true);
+      expect(document.documentElement.classList.contains("dark")).toBe(false);
+
+      // Giả lập OS đổi lại sang dark mode
+      act(() => {
+        matchesState = true;
+        changeHandler?.({ matches: true } as MediaQueryListEvent);
+      });
+
+      expect(document.documentElement.classList.contains("dark")).toBe(true);
+      expect(document.documentElement.classList.contains("light")).toBe(false);
+    });
   });
 });
