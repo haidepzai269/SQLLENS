@@ -4,18 +4,9 @@
 Chi tiết số đo kiểm chứng thực nghiệm đầy đủ xem tại [CLAUDE.md](file:///c:/SQLLens/CLAUDE.md).
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
-- **Giai đoạn hiện tại:** Đã chốt 16 Epic và 75 Story (`_bmad-output/BAN_DO_STORY.md`). **SP001 - SP016 ĐÃ HOÀN THÀNH 100%!** Toàn bộ 10 Task của **SP016: Smart Editor, User Tiering & Terminal AI Diagnosis** (`_bmad-output/SPEC_SMART_EDITOR.md`, STR074 - STR079) gồm Task103 - Task112 đã hoàn tất, được reviewer độc lập nghiệm thu PASS 100% và đã merge sạch vào `main`:
-  + *Task103:* Fix nút Terminal AI Doctor Card 1-Click Fix.
-  + *Task104:* Linh kiện CustomSwitch độc quyền SVG Cross/Checkmark và SettingsContext.
-  + *Task105:* Dropdown Header nâng cao & Trang Cài đặt /settings toàn diện 4 phân khu.
-  + *Task106:* Phân quyền RBAC Backend Gin & Neon DB (Free vs VIP).
-  + *Task107:* Giao diện nhận diện Badge VIP, Modal nâng cấp /upgrade và cổng kích hoạt mã VIP Promo code.
-  + *Task108:* Tích hợp CodeMirror 6 Dropdown Autocomplete theo Schema Sandbox CSDL động (<1ms, 0đ).
-  + *Task109:* Động cơ Heuristic AST gợi ý cục bộ (FK JOIN ON, GROUP BY không aggregate, INSERT column list).
-  + *Task110:* Extension CodeMirror 6 Inline Ghost Text (Gợi ý chữ mờ xám cục bộ, Tab nhận, Esc hủy).
-  + *Task111:* Backend Gin Proxy `/ai/inline-complete`: Nén context 20 dòng, gọi model Qwen 3.8-27B 0.19s, kiểm tra Role VIP.
-  + *Task112:* Extension CodeMirror 6 AI Copilot Multi-line Ghost Text: Smart trigger (Comment / Debounce 600ms / Ctrl+Space), hiển thị khối mã AI nhiều dòng cho VIP, non-blocking AbortController, Tab nhận và Esc hủy.
-- **Mục tiêu tiếp theo:** Sẵn sàng cho giai đoạn kiểm thử tổng thể toàn diện (Regression / E2E / Penetration Testing) hoặc triển khai các tính năng mở rộng tiếp theo theo định hướng của Chủ dự án.
+- **Giai đoạn hiện tại:** Đã chốt 17 Epic và 81 Story (`_bmad-output/BAN_DO_STORY.md`). **SP001 - SP016 ĐÃ HOÀN THÀNH 100%!** Đang triển khai **SP017: Smart Editor Hardening & Platform Integrity** (`_bmad-output/SPEC_VA_LOI_SP016.md`, STR080 - STR085):
+  + *Task113 (STR080):* ĐÃ HOÀN THÀNH 100%! Khắc phục triệt để lỗi 1-Click Fix xóa sạch editor bằng thuật toán bóc tách statement boundary và offset locator `applyStatementFix`, bảo toàn 100% các câu lệnh trước/sau và hỗ trợ hoàn tác Undo `Ctrl+Z`, đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
+- **Mục tiêu tiếp theo:** Triển khai tiếp **Task114 (STR081)**: Hiện thực hóa toàn diện 6 tùy chọn trong `/settings` (Cỡ chữ, ngắt dòng, số dòng, highlight dòng vào CodeMirror; đồng bộ Theme và Contrast Boost vào DOM `<html>`).
 - **Key bên thứ 3:** Danh sách ở `KEY_CAN_LAY.md` (gitignored). Không bao giờ commit secret lên git.
 
 ---
