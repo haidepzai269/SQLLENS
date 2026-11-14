@@ -170,6 +170,108 @@
   --sidebar-ring: var(--lamp);
 }
 
+.light {
+  color-scheme: light;
+
+  /* Bề mặt cho theme sáng */
+  --stage: #f1f2f4;
+  --ground: #f8f9fa;
+  --surface: #ffffff;
+  --raised: #e9ecef;
+  --rule: #e4e6eb;
+  --line: #d1d5db;
+  --control: #e5e7eb;
+
+  /* Chữ */
+  --text: #111827;
+  --ink2: #374151;
+  --dim: #6b7280;
+
+  /* Màu đèn */
+  --lamp: #b45309;
+  --lamp-ink: #ffffff;
+  --negative: #dc2626;
+
+  /* Nhãn kết luận */
+  --label-real: #111827;
+  --label-real-foreground: #ffffff;
+  --label-simulated: #4b5563;
+  --label-estimated: #4b5563;
+  --label-unsimulated: #4b5563;
+
+  /* Mức độ ở cột rủi ro */
+  --severity-broken: #dc2626;
+  --severity-broken-bg: #fee2e2;
+  --severity-broken-foreground: #991b1b;
+  --severity-passed: #16a34a;
+  --severity-passed-bg: #dcfce7;
+  --severity-passed-foreground: #166534;
+  --severity-uncertain: #ca8a04;
+  --severity-uncertain-bg: #fef9c3;
+  --severity-uncertain-foreground: #854d0e;
+
+  --canvas-dot: #d1d5db;
+
+  /* Token shadcn/ui cho light mode */
+  --background: var(--ground);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface);
+  --popover-foreground: var(--text);
+  --primary: var(--lamp);
+  --primary-foreground: var(--lamp-ink);
+  --secondary: var(--raised);
+  --secondary-foreground: var(--text);
+  --muted: var(--raised);
+  --muted-foreground: var(--dim);
+  --accent: var(--raised);
+  --accent-foreground: var(--text);
+  --destructive: var(--negative);
+  --border: var(--line);
+  --input: var(--control);
+  --ring: var(--lamp);
+  --chart-1: var(--lamp);
+  --chart-2: var(--ink2);
+  --chart-3: var(--dim);
+  --chart-4: var(--control);
+  --chart-5: var(--raised);
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--text);
+  --sidebar-primary: var(--lamp);
+  --sidebar-primary-foreground: var(--lamp-ink);
+  --sidebar-accent: var(--raised);
+  --sidebar-accent-foreground: var(--text);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--lamp);
+}
+
+/* Chế độ tương phản cao (Contrast Boost) */
+.contrast-high,
+[data-contrast="boost"] {
+  --line: #4b5563;
+  --border: #6b7280;
+  --rule: #4b5563;
+  --dim: #d1d5db;
+}
+
+.light.contrast-high,
+.light[data-contrast="boost"],
+.light .contrast-high {
+  --text: #000000;
+  --ink2: #1f2937;
+  --dim: #374151;
+  --line: #6b7280;
+  --border: #4b5563;
+  --rule: #6b7280;
+}
+
+.contrast-high :focus-visible,
+[data-contrast="boost"] :focus-visible {
+  outline-width: 3px !important;
+  outline-offset: 2px !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

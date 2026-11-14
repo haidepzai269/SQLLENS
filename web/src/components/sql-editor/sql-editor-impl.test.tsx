@@ -1,5 +1,6 @@
 import { render } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { SettingsProvider } from "@/contexts/settings-context";
 import SqlEditorImpl from "./sql-editor-impl";
 
 beforeAll(() => {
@@ -186,5 +187,123 @@ describe("SqlEditorImpl", () => {
       />,
     );
     expect(container.querySelector(".cm-editor")).toBeTruthy();
+  });
+
+  describe("Task114: Hiện thực hóa 4 tùy chọn CodeMirror từ Settings", () => {
+    it("AC1: Cỡ chữ động loại bỏ các class Tailwind ép cứng font-size", () => {
+      const { container } = render(
+        <SettingsProvider initialSettings={{ fontSize: 16 }}>
+          <SqlEditorImpl
+            value="SELECT * FROM users;"
+            onChange={vi.fn()}
+            engine="postgres"
+            ariaLabel="SQL Editor"
+          />
+        </SettingsProvider>
+      );
+
+      // Đảm bảo không còn class ghim cứng Tailwind
+      const wrapper = container.querySelector(".min-h-0.flex-1");
+      expect(wrapper?.className).not.toContain("[&_.cm-content]:!text-[16px]");
+      expect(wrapper?.className).not.toContain("min-[901px]:[&_.cm-content]:!text-[13px]");
+      expect(container.querySelector(".cm-editor")).toBeTruthy();
+    });
+
+    it("AC2: Tự động ngắt dòng (lineWrapping) nạp động khi bật và gỡ bỏ khi tắt", () => {
+      // Khi bật lineWrapping (mặc định)
+      const { container: enabledContainer } = render(
+        <SettingsProvider initialSettings={{ lineWrapping: true }}>
+          <SqlEditorImpl
+            value="SELECT 1;"
+            onChange={vi.fn()}
+            engine="postgres"
+            ariaLabel="SQL Editor"
+          />
+        </SettingsProvider>
+      );
+      expect(enabledContainer.querySelector(".cm-lineWrapping")).toBeTruthy();
+
+      // Khi tắt lineWrapping
+      const { container: disabledContainer } = render(
+        <SettingsProvider initialSettings={{ lineWrapping: false }}>
+          <SqlEditorImpl
+            value="SELECT 1;"
+            onChange={vi.fn()}
+            engine="postgres"
+            ariaLabel="SQL Editor"
+          />
+        </SettingsProvider>
+      );
+      expect(disabledContainer.querySelector(".cm-lineWrapping")).toBeFalsy();
+    });
+
+    it("AC3: Hiển thị số dòng (lineNumbers) bật/tắt chính xác, errorGutter vẫn bảo toàn khi có lỗi", () => {
+      // Khi bật lineNumbers: có .cm-lineNumbers
+      const { container: withNumbers } = render(
+        <SettingsProvider initialSettings={{ lineNumbers: true }}>
+          <SqlEditorImpl
+            value="SELECT 1;"
+            onChange={vi.fn()}
+            engine="postgres"
+            ariaLabel="SQL Editor"
+          />
+        </SettingsProvider>
+      );
+      expect(withNumbers.querySelector(".cm-lineNumbers")).toBeTruthy();
+
+      // Khi tắt lineNumbers: không có .cm-lineNumbers nhưng khi có lỗi errorGutter vẫn hiện
+      const { container: withoutNumbers } = render(
+        <SettingsProvider initialSettings={{ lineNumbers: false }}>
+          <SqlEditorImpl
+            value="SELECT syntax error;"
+            onChange={vi.fn()}
+            engine="postgres"
+            ariaLabel="SQL Editor"
+            error={{ message: "syntax error", position: 7 }}
+          />
+        </SettingsProvider>
+      );
+      expect(withoutNumbers.querySelector(".cm-lineNumbers")).toBeFalsy();
+      expect(withoutNumbers.querySelector(".cm-sql-error-gutter")).toBeTruthy();
+    });
+
+    it("AC4: Tô sáng dòng hiện tại (highlightActiveLine) phản ánh cấu hình", () => {
+      const { container: withActiveLine } = render(
+        <SettingsProvider initialSettings={{ highlightActiveLine: true }}>
+          <SqlEditorImpl
+            value="SELECT 1;"
+            onChange={vi.fn()}
+            engine="postgres"
+            ariaLabel="SQL Editor"
+          />
+        </SettingsProvider>
+      );
+      expect(withActiveLine.querySelector(".cm-activeLine")).toBeTruthy();
+
+      const { container: withoutActiveLine } = render(
+        <SettingsProvider initialSettings={{ highlightActiveLine: false }}>
+          <SqlEditorImpl
+            value="SELECT 1;"
+            onChange={vi.fn()}
+            engine="postgres"
+            ariaLabel="SQL Editor"
+          />
+        </SettingsProvider>
+      );
+      expect(withoutActiveLine.querySelector(".cm-activeLine")).toBeFalsy();
+    });
+
+    it("Ca biên: fallback an toàn khi render bên ngoài SettingsProvider", () => {
+      const { container } = render(
+        <SqlEditorImpl
+          value="SELECT 42;"
+          onChange={vi.fn()}
+          engine="postgres"
+          ariaLabel="SQL Editor"
+        />
+      );
+      expect(container.querySelector(".cm-editor")).toBeTruthy();
+      expect(container.textContent).toContain("SELECT 42;");
+    });
   });
 });

@@ -179,6 +179,8 @@ describe("SettingsView (Task105)", () => {
 
     let stored = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || "{}");
     expect(stored.theme).toBe("light");
+    expect(document.documentElement.classList.contains("light")).toBe(true);
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
 
     // Chọn Hệ thống
     act(() => {
@@ -187,6 +189,32 @@ describe("SettingsView (Task105)", () => {
     expect(btnAuto.getAttribute("aria-checked")).toBe("true");
     stored = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || "{}");
     expect(stored.theme).toBe("auto");
+  });
+
+  it("AC5 (Task114): Bật Tăng độ tương phản đồng bộ ngay lên document.documentElement", () => {
+    renderSettingsView("vi");
+
+    const contrastSwitch = screen.getByLabelText(/Chế độ tương phản cao/i) as HTMLInputElement;
+    expect(contrastSwitch.checked).toBe(false);
+    expect(document.documentElement.classList.contains("contrast-high")).toBe(false);
+    expect(document.documentElement.getAttribute("data-contrast")).toBeNull();
+
+    act(() => {
+      fireEvent.click(contrastSwitch);
+    });
+
+    expect(contrastSwitch.checked).toBe(true);
+    expect(document.documentElement.classList.contains("contrast-high")).toBe(true);
+    expect(document.documentElement.getAttribute("data-contrast")).toBe("boost");
+
+    // Click tắt lại
+    act(() => {
+      fireEvent.click(contrastSwitch);
+    });
+
+    expect(contrastSwitch.checked).toBe(false);
+    expect(document.documentElement.classList.contains("contrast-high")).toBe(false);
+    expect(document.documentElement.getAttribute("data-contrast")).toBeNull();
   });
 
   it("Nút Khôi phục mặc định reset lại toàn bộ cài đặt", () => {

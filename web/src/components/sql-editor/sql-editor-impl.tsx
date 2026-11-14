@@ -233,14 +233,25 @@ export default function SqlEditorImpl({
     [isAiCopilotEnabled, isVip, engine, schema, onRequireUpgrade]
   );
 
+  const fontSizeTheme = useMemo(
+    () =>
+      EditorView.theme({
+        ".cm-content, .cm-gutters": {
+          fontSize: `${settings.fontSize}px !important`,
+        },
+      }),
+    [settings.fontSize]
+  );
+
   const extensions = useMemo<Extension[]>(
     () => [
       sql({ dialect: DIALECT[engine], upperCaseKeywords: true }),
       autocompleteExt,
       ghostTextExt,
       aiCopilotExt,
-      EditorView.lineWrapping, // số dòng ở lề là dòng logic nên không cần cấu hình thêm
+      ...(settings.lineWrapping ? [EditorView.lineWrapping] : []),
       theme,
+      fontSizeTheme,
       highlight,
       errorField,
       hitField,
@@ -251,13 +262,23 @@ export default function SqlEditorImpl({
         ...(invalid ? { "aria-describedby": errId } : {}),
       }),
     ],
-    [engine, ariaLabel, invalid, errId, autocompleteExt, ghostTextExt, aiCopilotExt],
+    [
+      engine,
+      ariaLabel,
+      invalid,
+      errId,
+      autocompleteExt,
+      ghostTextExt,
+      aiCopilotExt,
+      settings.lineWrapping,
+      fontSizeTheme,
+    ],
   );
 
   // Viền focus kiểu ring của shadcn/ui vẽ bằng lớp phủ trong khung, nên đủ bốn cạnh, không bị gutter che và không bị khung cha cắt.
   return (
     <div className="relative flex h-full min-h-40 flex-col after:pointer-events-none after:absolute after:inset-0 after:z-10 after:border after:border-ring after:opacity-0 after:ring-3 after:ring-ring/50 after:transition-opacity after:duration-150 after:ring-inset focus-within:after:opacity-100">
-      <div className="relative min-h-0 flex-1 [&_.cm-content]:!text-[16px] [&_.cm-gutters]:!text-[16px] min-[901px]:[&_.cm-content]:!text-[13px] min-[901px]:[&_.cm-gutters]:!text-[13px] [&_.cm-editor]:h-full">
+      <div className="relative min-h-0 flex-1 [&_.cm-editor]:h-full">
         <CodeMirror
           value={doc}
           onChange={onChange}
@@ -274,7 +295,12 @@ export default function SqlEditorImpl({
               onSelectionChange?.(has, txt);
             }
           }}
-          basicSetup={{ foldGutter: false, highlightActiveLine: true, autocompletion: false }}
+          basicSetup={{
+            foldGutter: false,
+            lineNumbers: settings.lineNumbers,
+            highlightActiveLine: settings.highlightActiveLine,
+            autocompletion: false,
+          }}
         />
       </div>
       {error && (
