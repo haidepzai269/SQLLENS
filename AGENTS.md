@@ -6,7 +6,8 @@ Chi tiết số đo kiểm chứng thực nghiệm đầy đủ xem tại [CLAUD
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
 - **Giai đoạn hiện tại:** Đã chốt 17 Epic và 81 Story (`_bmad-output/BAN_DO_STORY.md`). **SP001 - SP016 ĐÃ HOÀN THÀNH 100%!** Đang triển khai **SP017: Smart Editor Hardening & Platform Integrity** (`_bmad-output/SPEC_VA_LOI_SP016.md`, STR080 - STR085):
   + *Task113 (STR080):* ĐÃ HOÀN THÀNH 100%! Khắc phục triệt để lỗi 1-Click Fix xóa sạch editor bằng thuật toán bóc tách statement boundary và offset locator `applyStatementFix`, bảo toàn 100% các câu lệnh trước/sau và hỗ trợ hoàn tác Undo `Ctrl+Z`, đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
-- **Mục tiêu tiếp theo:** Triển khai tiếp **Task114 (STR081)**: Hiện thực hóa toàn diện 6 tùy chọn trong `/settings` (Cỡ chữ, ngắt dòng, số dòng, highlight dòng vào CodeMirror; đồng bộ Theme và Contrast Boost vào DOM `<html>`).
+  + *Task114 (STR081):* ĐÃ HOÀN THÀNH 100%! Hiện thực hóa 6 tùy chọn Settings vào CodeMirror (theme cỡ chữ động 13/14/16px, ngắt dòng động, số dòng, highlight dòng) và đồng bộ Theme/Contrast Boost vào DOM `<html>`, đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
+- **Mục tiêu tiếp theo:** Triển khai tiếp **Task115 (STR082)**: Chuẩn hóa phân quyền RBAC Backend Gin (kiểm tra `u.IsVIP()` kèm `vip_until` ngăn chặn VIP hết hạn) & đồng nhất Session Cookie cho `/ai/inline-complete`.
 - **Key bên thứ 3:** Danh sách ở `KEY_CAN_LAY.md` (gitignored). Không bao giờ commit secret lên git.
 
 ---

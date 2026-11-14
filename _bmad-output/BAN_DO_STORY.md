@@ -166,7 +166,7 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | Story | Hành vi khi xong | GD | Nhãn |
 |---|---|---|---|
 | STR080 1-Click Fix An Toàn & Bảo Toàn Script | Thay thế câu lệnh theo tọa độ statement offset trong SQL Editor; sửa cục bộ chính xác câu lệnh lỗi, giữ nguyên 100% các câu lệnh trước/sau và hỗ trợ hoàn tác Undo (Đã xong - Task113) | Có | Thật |
-| STR081 Hiện Thực Hóa 6 Cài Đặt Settings | Kết nối thực tế toàn bộ cài đặt (Cỡ chữ, ngắt dòng, số dòng, highlight dòng) vào CodeMirror; đồng bộ Theme (Tối/Sáng) và Contrast Boost vào thẻ `<html>` và biến CSS | Có | Theo nguồn |
+| STR081 Hiện Thực Hóa 6 Cài Đặt Settings | Kết nối thực tế toàn bộ cài đặt (Cỡ chữ, ngắt dòng, số dòng, highlight dòng) vào CodeMirror; đồng bộ Theme (Tối/Sáng) và Contrast Boost vào thẻ `<html>` và biến CSS (Đã xong - Task114) | Có | Theo nguồn |
 | STR082 Chuẩn Hóa RBAC & Khắc Phục Hạn VIP | Bắt buộc kiểm tra `u.IsVIP()` (tính cả `vip_until`) trong mọi middleware Go Gin; chuẩn hóa xác thực Session Cookie an toàn cho endpoint `/ai/inline-complete` | | Thật |
 | STR083 Động Cơ Heuristics Nhận Thức Scope | Khắc phục bug subquery trong `predictGroupBy` (chỉ lấy SELECT ở cấp độ ngoặc 0); mở rộng `predictFkJoin` tự động gợi ý `ON ...` khi người dùng đã tự gõ tên bảng sau `JOIN` | Có | Thật |
 | STR084 Precedence Dispatcher CodeMirror | Xây dựng bộ điều phối phím Tab/Enter: ưu tiên Dropdown popup khi đang mở; triệt tiêu xung đột giữa Local Ghost Text và AI Copilot Ghost Text, chống render chồng đè | Có | Thật |
