@@ -172,6 +172,14 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | STR084 Precedence Dispatcher CodeMirror | Xây dựng bộ điều phối phím Tab/Enter: ưu tiên Dropdown popup khi đang mở; triệt tiêu xung đột giữa Local Ghost Text và AI Copilot Ghost Text, chống render chồng đè | Có | Thật |
 | STR085 Bảo Vệ Hạ Tầng AI Copilot Bằng Redis | Chuyển Rate Limiter của VIP Inline Complete từ RAM sang Upstash Redis token bucket; thiết lập hạn mức bảo vệ API upstream chống cạn kiệt key khi server restart | | Thật |
 
+## SP018 Bằng chứng Thực thi Kế hoạch cho AI Mentor (Execution Plan Evidence & Upfront Feeding)
+
+| Story | Hành vi khi xong | GD | Nhãn |
+|---|---|---|---|
+| STR086 Bộ nén Plan AST & Hook PGlite an toàn | Chạy `EXPLAIN (ANALYZE, BUFFERS)` trong PGlite bọc `BEGIN...ROLLBACK` (timeout 1.5s), bóc tách AST nén xuống dưới 40 tokens | | Thật |
+| STR087 Upfront Evidence & AI Live Verification | Gin Proxy tiếp nhận thẻ `<QUERY_PLAN_EVIDENCE>`, hướng dẫn AI phân nhánh giải thích; Reviewer bắt buộc chạy thử thật với model để nghiệm thu chất lượng câu trả lời | | Thật |
+| STR088 UI Smart Controls & Rào chắn MySQL | Pill Badge hiển thị trạng thái Plan kèm toggle bật/tắt, cụm 3 Quick-Action Chips trong Chat Drawer, chặn đứng trigger tự động ngầm trên MySQL Sandbox | Có | Thật |
+
 ## SP999 Việc phát sinh (Hậu phát hành & Bảo vệ hạ tầng)
 
 | Story | Hành vi khi xong | GD | Nhãn |
