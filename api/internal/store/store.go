@@ -258,6 +258,18 @@ func (s *Store) DeleteExpired(ctx context.Context) (int, error) {
 	return int(tag.RowsAffected()), nil
 }
 
+// DemoteExpiredVIP hạ role của user về "user" nếu vip_until < now().
+func (s *Store) DemoteExpiredVIP(ctx context.Context, userID string) error {
+	if s == nil || s.pool == nil {
+		return nil
+	}
+	_, err := s.pool.Exec(ctx, `UPDATE users SET role = 'user' WHERE id = $1 AND role = 'vip' AND vip_until IS NOT NULL AND vip_until < now()`, userID)
+	if err != nil {
+		return fmt.Errorf("store: hạ role vip hết hạn: %w", err)
+	}
+	return nil
+}
+
 // RedeemVipCode kiểm tra mã và kích hoạt/gia hạn gói VIP cho người dùng trong một transaction an toàn.
 func (s *Store) RedeemVipCode(ctx context.Context, userID, code string) (time.Time, error) {
 	cleanCode := strings.TrimSpace(code)

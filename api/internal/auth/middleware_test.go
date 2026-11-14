@@ -1,10 +1,12 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -22,6 +24,23 @@ func setupTestRouter(secret []byte, vipMiddleware gin.HandlerFunc) *gin.Engine {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "welcome vip"})
 	})
 	return r
+}
+
+type mockSessionFinder struct {
+	users   map[string]store.User
+	demoted atomic.Bool
+}
+
+func (m *mockSessionFinder) SessionUser(ctx context.Context, token string) (store.User, error) {
+	if u, ok := m.users[token]; ok {
+		return u, nil
+	}
+	return store.User{}, store.ErrNotFound
+}
+
+func (m *mockSessionFinder) DemoteExpiredVIP(ctx context.Context, userID string) error {
+	m.demoted.Store(true)
+	return nil
 }
 
 func TestRequireVip_ContextUser(t *testing.T) {
@@ -57,7 +76,7 @@ func TestRequireVip_ContextUser(t *testing.T) {
 			name:       "VIP đã hết hạn",
 			user:       &store.User{ID: "u3", Role: "vip", VipUntil: &past},
 			wantStatus: http.StatusForbidden,
-			wantCode:   "vip_required",
+			wantCode:   "vip_expired",
 		},
 		{
 			name:       "VIP còn hạn",
@@ -109,8 +128,8 @@ func TestRequireVip_ContextUser(t *testing.T) {
 				if body.Error.Code != tt.wantCode {
 					t.Errorf("error code = %q, want %q", body.Error.Code, tt.wantCode)
 				}
-				if tt.wantCode == "vip_required" && body.Message == "" {
-					t.Errorf("thiếu trường message trong lỗi vip_required: %s", w.Body.String())
+				if (tt.wantCode == "vip_required" || tt.wantCode == "vip_expired") && body.Message == "" {
+					t.Errorf("thiếu trường message trong lỗi %s: %s", tt.wantCode, w.Body.String())
 				}
 			}
 		})
@@ -188,6 +207,12 @@ func TestRequireVip_BearerToken(t *testing.T) {
 		if w.Code != http.StatusForbidden {
 			t.Fatalf("status = %d, want 403, body: %s", w.Code, w.Body.String())
 		}
+		var resp map[string]any
+		json.Unmarshal(w.Body.Bytes(), &resp)
+		errObj, _ := resp["error"].(map[string]any)
+		if errObj["code"] != "vip_expired" {
+			t.Fatalf("error code = %v, want vip_expired", errObj["code"])
+		}
 	})
 
 	t.Run("Bearer token sai chữ ký", func(t *testing.T) {
@@ -205,14 +230,139 @@ func TestRequireVip_BearerToken(t *testing.T) {
 	})
 }
 
+func TestRequireVip_SessionCookie(t *testing.T) {
+	secret := []byte("this-is-a-very-secure-32-byte-secret-key!")
+	past := time.Now().Add(-1 * time.Hour)
+	future := time.Now().Add(30 * 24 * time.Hour)
+
+	// Tạo các raw token 43 ký tự chuẩn (32 bytes base64url)
+	rawVipTok := randToken(32)
+	rawUserTok := randToken(32)
+	rawExpiredTok := randToken(32)
+	rawMissingTok := randToken(32)
+
+	mockStore := &mockSessionFinder{
+		users: map[string]store.User{
+			rawVipTok:     {ID: "u_vip", Role: "vip", VipUntil: &future},
+			rawUserTok:    {ID: "u_user", Role: "user"},
+			rawExpiredTok: {ID: "u_expired", Role: "vip", VipUntil: &past},
+		},
+	}
+
+	r := setupTestRouter(secret, RequireVipWithStore(secret, mockStore))
+
+	t.Run("Session Cookie sid VIP còn hạn", func(t *testing.T) {
+		signed := signToken(rawVipTok, secret)
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/protected/vip", nil)
+		req.AddCookie(&http.Cookie{Name: "sid", Value: signed})
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200, body: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("Session Cookie sqllens_session VIP còn hạn", func(t *testing.T) {
+		signed := signToken(rawVipTok, secret)
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/protected/vip", nil)
+		req.AddCookie(&http.Cookie{Name: "sqllens_session", Value: signed})
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200, body: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("Session Cookie user thường", func(t *testing.T) {
+		signed := signToken(rawUserTok, secret)
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/protected/vip", nil)
+		req.AddCookie(&http.Cookie{Name: "sid", Value: signed})
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("status = %d, want 403, body: %s", w.Code, w.Body.String())
+		}
+		var resp map[string]any
+		json.Unmarshal(w.Body.Bytes(), &resp)
+		errObj, _ := resp["error"].(map[string]any)
+		if errObj["code"] != "vip_required" {
+			t.Fatalf("error code = %v, want vip_required", errObj["code"])
+		}
+	})
+
+	t.Run("Session Cookie VIP hết hạn trả về vip_expired và kích hoạt demote", func(t *testing.T) {
+		signed := signToken(rawExpiredTok, secret)
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/protected/vip", nil)
+		req.AddCookie(&http.Cookie{Name: "sid", Value: signed})
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("status = %d, want 403, body: %s", w.Code, w.Body.String())
+		}
+		var resp map[string]any
+		json.Unmarshal(w.Body.Bytes(), &resp)
+		errObj, _ := resp["error"].(map[string]any)
+		if errObj["code"] != "vip_expired" {
+			t.Fatalf("error code = %v, want vip_expired", errObj["code"])
+		}
+		if !mockStore.demoted.Load() {
+			t.Errorf("expected DemoteExpiredVIP to be triggered for expired vip")
+		}
+	})
+
+	t.Run("Session Cookie không tìm thấy trong store", func(t *testing.T) {
+		signed := signToken(rawMissingTok, secret)
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/protected/vip", nil)
+		req.AddCookie(&http.Cookie{Name: "sid", Value: signed})
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want 401, body: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("Session Cookie sai chữ ký HMAC", func(t *testing.T) {
+		tampered := rawVipTok + ".invalidsignaturecharacterslongenough1234567"
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/protected/vip", nil)
+		req.AddCookie(&http.Cookie{Name: "sid", Value: tampered})
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want 401, body: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("Request không có auth", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/protected/vip", nil)
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want 401, body: %s", w.Code, w.Body.String())
+		}
+	})
+}
+
 func TestRequireRole(t *testing.T) {
 	secret := []byte("this-is-a-very-secure-32-byte-secret-key!")
+	past := time.Now().Add(-1 * time.Hour)
+	future := time.Now().Add(30 * 24 * time.Hour)
+
 	r := gin.New()
 	r.GET("/admin", RequireRoleWithSecret(secret, "admin"), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "admin_granted"})
 	})
+	r.GET("/vip-role", RequireRoleWithSecret(secret, "vip"), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "vip_granted"})
+	})
 
-	t.Run("User không đủ quyền (role=user)", func(t *testing.T) {
+	t.Run("User không đủ quyền (role=user) vào admin", func(t *testing.T) {
 		tok, _ := GenerateUserToken(store.User{ID: "u1", Role: "user"}, secret, time.Hour)
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest(http.MethodGet, "/admin", nil)
@@ -233,6 +383,54 @@ func TestRequireRole(t *testing.T) {
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200, body: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("RequireRole(vip) với VIP còn hạn", func(t *testing.T) {
+		tok, _ := GenerateUserToken(store.User{ID: "vip_ok", Role: "vip", VipUntil: &future}, secret, time.Hour)
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/vip-role", nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200, body: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("RequireRole(vip) với VIP đã hết hạn -> trả về vip_expired", func(t *testing.T) {
+		tok, _ := GenerateUserToken(store.User{ID: "vip_dead", Role: "vip", VipUntil: &past}, secret, time.Hour)
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/vip-role", nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("status = %d, want 403, body: %s", w.Code, w.Body.String())
+		}
+		var resp map[string]any
+		json.Unmarshal(w.Body.Bytes(), &resp)
+		errObj, _ := resp["error"].(map[string]any)
+		if errObj["code"] != "vip_expired" {
+			t.Fatalf("error code = %v, want vip_expired", errObj["code"])
+		}
+	})
+
+	t.Run("RequireRole(vip) với user thường -> trả về vip_required", func(t *testing.T) {
+		tok, _ := GenerateUserToken(store.User{ID: "u_norm", Role: "user"}, secret, time.Hour)
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/vip-role", nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("status = %d, want 403, body: %s", w.Code, w.Body.String())
+		}
+		var resp map[string]any
+		json.Unmarshal(w.Body.Bytes(), &resp)
+		errObj, _ := resp["error"].(map[string]any)
+		if errObj["code"] != "vip_required" {
+			t.Fatalf("error code = %v, want vip_required", errObj["code"])
 		}
 	})
 }
