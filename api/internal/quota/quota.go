@@ -29,8 +29,10 @@ type Rule struct {
 // Defaults: a MySQL session costs real CPU/RAM on a 1 GB VM and AI calls cost provider quota.
 // 20 sandbox sessions/day and 30 AI messages/day fit a learning session; change the numbers here.
 var (
-	MySQLSession = Rule{Name: "mysql_session", Limit: 20, Window: 24 * time.Hour}
-	AIMessage    = Rule{Name: "ai_message", Limit: 30, Window: 24 * time.Hour}
+	MySQLSession    = Rule{Name: "mysql_session", Limit: 20, Window: 24 * time.Hour}
+	AIMessage       = Rule{Name: "ai_message", Limit: 30, Window: 24 * time.Hour}
+	VipInlineMinute = Rule{Name: "vip_inline_min", Limit: 60, Window: time.Minute}
+	VipInlineDay    = Rule{Name: "vip_inline_day", Limit: 1000, Window: 24 * time.Hour}
 )
 
 const callTimeout = 2 * time.Second
@@ -60,8 +62,8 @@ func key(rule Rule, uid string) string {
 	return "quota:" + hex.EncodeToString(h[:])
 }
 
-// hit returns the new count and the remaining window in ms. Any anomaly is an error.
-func (l *Limiter) hit(ctx context.Context, rule Rule, uid string) (count, ttlMs int64, err error) {
+// Hit returns the new count and the remaining window in ms. Any anomaly is an error.
+func (l *Limiter) Hit(ctx context.Context, rule Rule, uid string) (count, ttlMs int64, err error) {
 	ctx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
 	body, _ := json.Marshal([]any{"EVAL", script, "1", key(rule, uid), strconv.FormatInt(rule.Window.Milliseconds(), 10)})
@@ -88,6 +90,10 @@ func (l *Limiter) hit(ctx context.Context, rule Rule, uid string) (count, ttlMs 
 		return 0, 0, errors.New("upstash bad reply")
 	}
 	return out.Result[0], out.Result[1], nil
+}
+
+func (l *Limiter) hit(ctx context.Context, rule Rule, uid string) (count, ttlMs int64, err error) {
+	return l.Hit(ctx, rule, uid)
 }
 
 func abort(c *gin.Context, status int, code, messageKey string) {
