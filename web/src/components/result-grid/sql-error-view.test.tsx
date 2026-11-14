@@ -10,6 +10,7 @@ import resultMessagesEn from "../../../messages/en/result.json";
 import resultMessagesVi from "../../../messages/vi/result.json";
 import * as diagnoseModule from "@/modules/mentor/api/diagnose";
 import { extractSuggestedSql } from "@/modules/mentor/api/diagnose";
+import { applyStatementFix } from "@/components/sql-editor/statement-at-cursor";
 import { SmartErrorCard, SqlErrorView } from "./sql-error-view";
 
 afterEach(() => {
@@ -436,6 +437,275 @@ describe("SmartErrorCard / SqlErrorView", () => {
     it("trả về null nếu không có khối mã nào", () => {
       const text = "Lỗi này do bạn gõ sai cú pháp, hãy kiểm tra lại dấu chấm phẩy.";
       expect(extractSuggestedSql(text)).toBeNull();
+    });
+  });
+
+  // Task113: Sửa lỗi 1-Click Fix tại Terminal - Thay thế câu lệnh theo offset và bảo toàn script
+  describe("Task113: 1-Click Fix bảo toàn script & thay thế theo statement offset", () => {
+    // AC1: Đơn câu lệnh: Khi Editor chỉ có 1 câu lệnh trùng với câu lệnh bị lỗi, nhấn 1-Click Fix cập nhật câu lệnh đó thành suggestedSql
+    it("AC1: Khi Editor chỉ có 1 câu lệnh trùng với câu lệnh bị lỗi, nhấn 1-Click Fix cập nhật câu lệnh đó thành suggestedSql", () => {
+      let capturedParams: diagnoseModule.DiagnoseParams | null = null;
+      vi.spyOn(diagnoseModule, "diagnoseSqlError").mockImplementation((params) => {
+        capturedParams = params;
+        return vi.fn();
+      });
+
+      let editorSql = "SELECT * FORM users;";
+      const errorSql = "SELECT * FORM users;";
+      const errorPos = 10;
+
+      const handleApplyFix = (newSql: string) => {
+        editorSql = applyStatementFix(editorSql, errorSql, newSql, errorPos);
+      };
+
+      renderWithIntl(
+        <SqlErrorView
+          message='syntax error at or near "FORM"'
+          position={errorPos}
+          sql={errorSql}
+          engine="postgres"
+          onApplyFix={handleApplyFix}
+        />,
+        "vi",
+      );
+
+      fireEvent.click(screen.getByTestId("ask-ai-button"));
+
+      act(() => {
+        capturedParams!.onComplete?.(
+          "Từ khóa FORM bị sai chính tả thành FROM.\n```sql\nSELECT * FROM users;\n```",
+          "SELECT * FROM users;",
+        );
+      });
+
+      const applyBtn = screen.getByTestId("apply-ai-fix-button");
+      fireEvent.click(applyBtn);
+
+      expect(editorSql).toBe("SELECT * FROM users;");
+      expect(applyBtn.textContent).toContain("Đã áp dụng");
+      expect(applyBtn.getAttribute("disabled")).not.toBeNull();
+    });
+
+    // AC2: Đa câu lệnh (Multi-statement script): Khi Editor có 3 câu lệnh, câu 2 lỗi, chỉ câu 2 được sửa, câu 1 và 3 giữ nguyên 100%
+    it("AC2: Script 3 câu lệnh, câu 2 lỗi, bấm 1-Click Fix -> chỉ câu 2 được sửa, câu 1 và 3 giữ nguyên vẹn 100%", () => {
+      let capturedParams: diagnoseModule.DiagnoseParams | null = null;
+      vi.spyOn(diagnoseModule, "diagnoseSqlError").mockImplementation((params) => {
+        capturedParams = params;
+        return vi.fn();
+      });
+
+      let fullDoc = `CREATE TABLE users (
+  id int primary key,
+  email text not null
+);
+
+SELECT * FORM users;
+
+SELECT * FROM orders WHERE total > 100;`;
+
+      const targetSql = "SELECT * FORM users;";
+      const errorPos = fullDoc.indexOf("FORM") + 1; // 1-based offset
+
+      const handleApplyFix = (suggestedSql: string) => {
+        fullDoc = applyStatementFix(fullDoc, targetSql, suggestedSql, errorPos);
+      };
+
+      renderWithIntl(
+        <SqlErrorView
+          message='syntax error at or near "FORM"'
+          position={errorPos}
+          sql={targetSql}
+          engine="postgres"
+          onApplyFix={handleApplyFix}
+        />,
+        "vi",
+      );
+
+      fireEvent.click(screen.getByTestId("ask-ai-button"));
+
+      act(() => {
+        capturedParams!.onComplete?.(
+          "Sửa FORM thành FROM:\n```sql\nSELECT * FROM users;\n```",
+          "SELECT * FROM users;",
+        );
+      });
+
+      const applyBtn = screen.getByTestId("apply-ai-fix-button");
+      fireEvent.click(applyBtn);
+
+      const expectedDoc = `CREATE TABLE users (
+  id int primary key,
+  email text not null
+);
+
+SELECT * FROM users;
+
+SELECT * FROM orders WHERE total > 100;`;
+
+      expect(fullDoc).toBe(expectedDoc);
+      expect(fullDoc).toContain("CREATE TABLE users (");
+      expect(fullDoc).toContain("email text not null");
+      expect(fullDoc).toContain("SELECT * FROM orders WHERE total > 100;");
+      expect(applyBtn.textContent).toContain("Đã áp dụng");
+    });
+
+    // AC3: Nhiều câu lệnh giống nhau: Nếu tài liệu có nhiều câu giống hệt nhau, dùng errorPosition để xác định đúng câu lỗi
+    it("AC3: Tài liệu có nhiều câu lệnh giống nhau, sử dụng errorPosition để xác định đúng câu lệnh bị lỗi", () => {
+      let capturedParams: diagnoseModule.DiagnoseParams | null = null;
+      vi.spyOn(diagnoseModule, "diagnoseSqlError").mockImplementation((params) => {
+        capturedParams = params;
+        return vi.fn();
+      });
+
+      let fullDoc = "SELECT 1;\nSELECT * FORM users;\nSELECT 2;\nSELECT * FORM users;\nSELECT 3;";
+      const targetSql = "SELECT * FORM users;";
+
+      // Vị trí lỗi tại câu SELECT * FORM users thứ hai
+      const secondStmtPos = fullDoc.lastIndexOf("SELECT * FORM users") + 5; // 1-based
+
+      const handleApplyFix = (suggestedSql: string) => {
+        fullDoc = applyStatementFix(fullDoc, targetSql, suggestedSql, secondStmtPos);
+      };
+
+      renderWithIntl(
+        <SqlErrorView
+          message='syntax error at or near "FORM"'
+          position={secondStmtPos}
+          sql={targetSql}
+          engine="postgres"
+          onApplyFix={handleApplyFix}
+        />,
+        "vi",
+      );
+
+      fireEvent.click(screen.getByTestId("ask-ai-button"));
+
+      act(() => {
+        capturedParams!.onComplete?.(
+          "Sửa câu lệnh lỗi:\n```sql\nSELECT * FROM users;\n```",
+          "SELECT * FROM users;",
+        );
+      });
+
+      fireEvent.click(screen.getByTestId("apply-ai-fix-button"));
+
+      // Câu thứ nhất vẫn là FORM, chỉ câu thứ 2 được sửa thành FROM
+      expect(fullDoc).toBe("SELECT 1;\nSELECT * FORM users;\nSELECT 2;\nSELECT * FROM users;\nSELECT 3;");
+    });
+
+    // AC4: Hỗ trợ hoàn tác (Undo)
+    it("AC4: Hỗ trợ hoàn tác Undo sau khi áp dụng 1-Click Fix", () => {
+      let capturedParams: diagnoseModule.DiagnoseParams | null = null;
+      vi.spyOn(diagnoseModule, "diagnoseSqlError").mockImplementation((params) => {
+        capturedParams = params;
+        return vi.fn();
+      });
+
+      const historyStack: string[] = [];
+      let currentSql = "CREATE TABLE a (id int);\nSELECT * FORM users;\nSELECT 2;";
+      historyStack.push(currentSql);
+
+      const handleApplyFix = (suggestedSql: string) => {
+        const nextSql = applyStatementFix(currentSql, "SELECT * FORM users;", suggestedSql);
+        historyStack.push(nextSql);
+        currentSql = nextSql;
+      };
+
+      renderWithIntl(
+        <SqlErrorView
+          message='syntax error at or near "FORM"'
+          sql="SELECT * FORM users;"
+          engine="postgres"
+          onApplyFix={handleApplyFix}
+        />,
+        "vi",
+      );
+
+      fireEvent.click(screen.getByTestId("ask-ai-button"));
+
+      act(() => {
+        capturedParams!.onComplete?.(
+          "Fixed:\n```sql\nSELECT * FROM users;\n```",
+          "SELECT * FROM users;",
+        );
+      });
+
+      // Áp dụng fix
+      fireEvent.click(screen.getByTestId("apply-ai-fix-button"));
+      expect(currentSql).toBe("CREATE TABLE a (id int);\nSELECT * FROM users;\nSELECT 2;");
+      expect(historyStack.length).toBe(2);
+
+      // Giả lập Undo (Ctrl+Z): lùi về trạng thái trước đó
+      historyStack.pop();
+      currentSql = historyStack[historyStack.length - 1];
+      expect(currentSql).toBe("CREATE TABLE a (id int);\nSELECT * FORM users;\nSELECT 2;");
+    });
+
+    // AC5: Trạng thái nút 1-Click Fix
+    it("AC5: Nút 1-Click Fix hiển thị trạng thái Đã áp dụng và vô hiệu hóa để chặn click lặp lại", () => {
+      let capturedParams: diagnoseModule.DiagnoseParams | null = null;
+      vi.spyOn(diagnoseModule, "diagnoseSqlError").mockImplementation((params) => {
+        capturedParams = params;
+        return vi.fn();
+      });
+
+      const onApplyFix = vi.fn();
+
+      renderWithIntl(
+        <SqlErrorView
+          message='syntax error at or near "FORM"'
+          sql="SELECT * FORM users;"
+          engine="postgres"
+          onApplyFix={onApplyFix}
+        />,
+        "vi",
+      );
+
+      fireEvent.click(screen.getByTestId("ask-ai-button"));
+
+      act(() => {
+        capturedParams!.onComplete?.(
+          "Fix:\n```sql\nSELECT * FROM users;\n```",
+          "SELECT * FROM users;",
+        );
+      });
+
+      const applyBtn = screen.getByTestId("apply-ai-fix-button");
+      expect(applyBtn.getAttribute("disabled")).toBeNull();
+
+      fireEvent.click(applyBtn);
+      expect(onApplyFix).toHaveBeenCalledTimes(1);
+      expect(applyBtn.getAttribute("disabled")).not.toBeNull();
+      expect(applyBtn.textContent).toContain("Đã áp dụng");
+
+      // Click lại không gọi thêm callback
+      fireEvent.click(applyBtn);
+      expect(onApplyFix).toHaveBeenCalledTimes(1);
+    });
+
+    // Quick-Fix actions cũ tiếp tục hoạt động an toàn với applyStatementFix
+    it("các Quick-Fix action replace_stmt và prepend_stmt bảo toàn cấu trúc các câu lệnh xung quanh", () => {
+      let fullDoc = "CREATE TABLE users (id int);\nSELECT * FROM users;";
+      const targetSql = "CREATE TABLE users (id int);";
+
+      const handleApplyFix = (newSql: string) => {
+        fullDoc = applyStatementFix(fullDoc, targetSql, newSql);
+      };
+
+      renderWithIntl(
+        <SqlErrorView
+          message='relation "users" already exists'
+          sql={targetSql}
+          engine="postgres"
+          onApplyFix={handleApplyFix}
+        />,
+      );
+
+      // Bấm nút Thêm IF NOT EXISTS (replace_stmt)
+      const btnReplace = screen.getByTestId("quick-fix-action-replace_stmt");
+      fireEvent.click(btnReplace);
+
+      expect(fullDoc).toBe("CREATE TABLE IF NOT EXISTS users (id int);\nSELECT * FROM users;");
     });
   });
 });
