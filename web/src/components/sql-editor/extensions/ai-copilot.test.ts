@@ -7,6 +7,12 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
+  autocompletion,
+  closeCompletion,
+  completionStatus,
+  startCompletion,
+} from "@codemirror/autocomplete";
+import {
   acceptAiGhostText,
   aiGhostTextDecorations,
   aiGhostTextField,
@@ -21,6 +27,11 @@ import {
   triggerManualAiCopilot,
   type AiCopilotOptions,
 } from "./ai-copilot";
+import {
+  createInlineGhostTextExtension,
+  ghostTextField,
+  setGhostTextEffect,
+} from "./inline-ghost-text";
 
 function createTestView(
   doc: string,
@@ -386,6 +397,268 @@ describe("AI Copilot Extension (Task 112)", () => {
       });
 
       expect(capturedSignal?.aborted).toBe(true);
+    });
+  });
+
+  describe("Task 117: Precedence Dispatcher & Mutual Exclusion", () => {
+    it("AC1: acceptAiGhostText nhường quyền cho Dropdown Popup (trả về false khi completionStatus === 'active')", async () => {
+      const doc = "SELECT * FROM";
+      const state = EditorState.create({
+        doc,
+        selection: { anchor: doc.length },
+        extensions: [
+          autocompletion({
+            override: [
+              () => ({
+                from: doc.length,
+                options: [{ label: "users" }],
+              }),
+            ],
+          }),
+          createAiCopilotExtension({
+            enabled: true,
+            isVip: true,
+          }),
+        ],
+      });
+      const view = new EditorView({ state });
+
+      // Đặt AI Ghost Text
+      view.dispatch({
+        effects: setAiGhostTextEffect.of({
+          text: " users",
+          from: doc.length,
+        }),
+      });
+      expect(view.state.field(aiGhostTextField)).not.toBeNull();
+
+      // Kích hoạt autocomplete dropdown
+      startCompletion(view);
+      await vi.advanceTimersByTimeAsync(50);
+      expect(completionStatus(view.state)).toBe("active");
+
+      // Khi dropdown active, acceptAiGhostText trả về false và không chèn text
+      const handled = acceptAiGhostText(view);
+      expect(handled).toBe(false);
+      expect(view.state.doc.toString()).toBe(doc);
+
+      // Đóng completion popup
+      closeCompletion(view);
+      expect(completionStatus(view.state)).toBeNull();
+
+      // Khi dropdown đóng lại, phím Tab chấp nhận AI Ghost Text
+      const handledAfterClose = acceptAiGhostText(view);
+      expect(handledAfterClose).toBe(true);
+      expect(view.state.doc.toString()).toBe("SELECT * FROM users");
+    });
+
+    it("AC2 & AC3: acceptAiGhostText nhường quyền cho Local Ghost Text nếu Local có gợi ý", () => {
+      const state = EditorState.create({
+        doc: "SELECT * FROM ",
+        selection: { anchor: 14 },
+        extensions: [
+          createInlineGhostTextExtension({ enabled: true }),
+          createAiCopilotExtension({ enabled: true, isVip: true }),
+        ],
+      });
+      const view = new EditorView({ state });
+
+      // Đặt cả AI Ghost Text và Local Ghost Text
+      view.dispatch({
+        effects: [
+          setAiGhostTextEffect.of({ text: "orders", from: 14 }),
+          setGhostTextEffect.of({ text: "users", from: 14 }),
+        ],
+      });
+
+      expect(view.state.field(ghostTextField)?.text).toBe("users");
+      expect(view.state.field(aiGhostTextField)?.text).toBe("orders");
+
+      // Gọi acceptAiGhostText: phải nhường cho local -> trả về false
+      const aiHandled = acceptAiGhostText(view);
+      expect(aiHandled).toBe(false);
+      expect(view.state.doc.toString()).toBe("SELECT * FROM ");
+
+      // Xóa Local Ghost Text
+      view.dispatch({
+        effects: setGhostTextEffect.of(null),
+      });
+
+      // Bây giờ chỉ còn AI Ghost Text: acceptAiGhostText trả về true và chèn text
+      const aiHandledAlone = acceptAiGhostText(view);
+      expect(aiHandledAlone).toBe(true);
+      expect(view.state.doc.toString()).toBe("SELECT * FROM orders");
+    });
+
+    it("AC4: AI Copilot hủy timer và không gọi API khi Local Heuristics có gợi ý (0ms Mutual Exclusion)", async () => {
+      const fetchCompletion = vi.fn().mockResolvedValue({
+        completion: " orders",
+        finishReason: "stop",
+      });
+
+      const doc = "SELECT u.id, COUNT(o.id) FROM users u ";
+      const state = EditorState.create({
+        doc,
+        selection: { anchor: doc.length },
+        extensions: [
+          createInlineGhostTextExtension({
+            enabled: true,
+            tables: { users: ["id", "name"] },
+          }),
+          createAiCopilotExtension({
+            enabled: true,
+            isVip: true,
+            debounceMs: 600,
+            fetchCompletion,
+          }),
+        ],
+      });
+      const view = new EditorView({ state });
+
+      // Gõ "GROUP BY " để kích hoạt Local Heuristics
+      view.dispatch({
+        changes: { from: doc.length, insert: "GROUP BY " },
+        selection: { anchor: doc.length + 9 },
+      });
+
+      // Local Heuristics đã sinh ra gợi ý "u.id" trong 0ms
+      expect(view.state.field(ghostTextField)?.text).toBe("u.id");
+
+      // Chạy hết 600ms debounce
+      await vi.advanceTimersByTimeAsync(700);
+
+      // fetchCompletion KHÔNG ĐƯỢC PHÉP gọi vì Local đã giải quyết xong
+      expect(fetchCompletion).not.toHaveBeenCalled();
+    });
+
+    it("AC4: Hủy request in-flight của AI Copilot khi gõ phím làm phát sinh Local Ghost Text", async () => {
+      let capturedSignal: AbortSignal | undefined;
+      const fetchCompletion = vi.fn().mockImplementation((params) => {
+        capturedSignal = params.signal;
+        return new Promise(() => {}); // request treo đang bay
+      });
+
+      const initialDoc = "SELECT name FROM users WHERE active = true";
+      const state = EditorState.create({
+        doc: initialDoc,
+        selection: { anchor: initialDoc.length },
+        extensions: [
+          createInlineGhostTextExtension({
+            enabled: true,
+            tables: { users: ["id", "name"], orders: ["id", "user_id"] },
+            foreignKeys: [
+              {
+                fromTable: "orders",
+                fromColumn: "user_id",
+                toTable: "users",
+                toColumn: "id",
+              },
+            ],
+          }),
+          createAiCopilotExtension({
+            enabled: true,
+            isVip: true,
+            debounceMs: 200,
+            fetchCompletion,
+          }),
+        ],
+      });
+      const view = new EditorView({ state });
+
+      // Gõ khoảng trắng kích hoạt AI debounce (chưa có local ghost text)
+      view.dispatch({
+        changes: { from: initialDoc.length, insert: " " },
+        selection: { anchor: initialDoc.length + 1 },
+      });
+      await vi.advanceTimersByTimeAsync(200);
+
+      expect(fetchCompletion).toHaveBeenCalledTimes(1);
+      expect(capturedSignal?.aborted).toBe(false);
+
+      // Gõ tiếp "JOIN " -> sinh ra Local Ghost Text "orders o ON o.user_id = users.id"
+      view.dispatch({
+        changes: { from: initialDoc.length + 1, insert: "JOIN " },
+        selection: { anchor: initialDoc.length + 6 },
+      });
+
+      // Request đang bay của AI phải bị abort ngay lập tức!
+      expect(capturedSignal?.aborted).toBe(true);
+    });
+
+    it("AC5: aiGhostTextDecorations không render widget khi Local Ghost Text đang hiển thị (chống đè)", () => {
+      const state = EditorState.create({
+        doc: "SELECT * FROM ",
+        selection: { anchor: 14 },
+        extensions: [
+          createInlineGhostTextExtension({ enabled: true }),
+          createAiCopilotExtension({ enabled: true, isVip: true }),
+        ],
+      });
+      const view = new EditorView({ state });
+
+      // Khi chỉ có AI Ghost Text
+      view.dispatch({
+        effects: setAiGhostTextEffect.of({ text: "orders", from: 14 }),
+      });
+
+      let aiDecoCount = 0;
+      view.state.field(aiGhostTextDecorations).between(0, 14, () => {
+        aiDecoCount++;
+      });
+      expect(aiDecoCount).toBe(1);
+
+      // Khi xuất hiện Local Ghost Text -> AI decorations phải trả về Decoration.none
+      view.dispatch({
+        effects: setGhostTextEffect.of({ text: "users", from: 14 }),
+      });
+
+      let aiDecoCountWhileLocalActive = 0;
+      view.state.field(aiGhostTextDecorations).between(0, 14, () => {
+        aiDecoCountWhileLocalActive++;
+      });
+      expect(aiDecoCountWhileLocalActive).toBe(0);
+
+      // Khi Local Ghost Text biến mất -> AI decorations lại hiển thị bình thường
+      view.dispatch({
+        effects: setGhostTextEffect.of(null),
+      });
+
+      let aiDecoCountAfterLocalClear = 0;
+      view.state.field(aiGhostTextDecorations).between(0, 14, () => {
+        aiDecoCountAfterLocalClear++;
+      });
+      expect(aiDecoCountAfterLocalClear).toBe(1);
+    });
+
+    it("AC6: dismissAiGhostText hủy sạch cả AI và Local Ghost Text khi nhấn Escape", () => {
+      const state = EditorState.create({
+        doc: "SELECT * FROM ",
+        selection: { anchor: 14 },
+        extensions: [
+          createInlineGhostTextExtension({ enabled: true }),
+          createAiCopilotExtension({ enabled: true, isVip: true }),
+        ],
+      });
+      const view = new EditorView({ state });
+
+      // Đặt cả 2 ghost text
+      view.dispatch({
+        effects: [
+          setAiGhostTextEffect.of({ text: "orders", from: 14 }),
+          setGhostTextEffect.of({ text: "users", from: 14 }),
+        ],
+      });
+
+      expect(view.state.field(aiGhostTextField)).not.toBeNull();
+      expect(view.state.field(ghostTextField)).not.toBeNull();
+
+      // Gọi dismissAiGhostText (hành vi khi nhấn Escape)
+      const dismissed = dismissAiGhostText(view);
+      expect(dismissed).toBe(true);
+
+      // Cả 2 đều sạch sẽ
+      expect(view.state.field(aiGhostTextField)).toBeNull();
+      expect(view.state.field(ghostTextField)).toBeNull();
     });
   });
 });

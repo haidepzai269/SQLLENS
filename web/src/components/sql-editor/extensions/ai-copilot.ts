@@ -14,6 +14,7 @@ import {
   type Extension,
   type Text,
 } from "@codemirror/state";
+import { completionStatus } from "@codemirror/autocomplete";
 import {
   Decoration,
   EditorView,
@@ -30,6 +31,7 @@ import {
   type FetchAiInlineCompletionParams,
   type InlineCompletionResult,
 } from "@/modules/vip/api/copilot-client";
+import { clearGhostTextEffect, ghostTextField } from "./inline-ghost-text";
 
 export interface AiCopilotOptions {
   enabled?: boolean; // Mặc định false (đọc từ Settings)
@@ -124,6 +126,10 @@ export const aiGhostTextField = StateField.define<AiGhostText | null>({
  */
 export const aiGhostTextDecorations = StateField.define<DecorationSet>({
   create(state) {
+    // Triệt tiêu xung đột: nếu Local Ghost Text đang hiển thị, không render AI Ghost Text (chống đè widget)
+    const localGhost = state.field(ghostTextField, false);
+    if (localGhost && localGhost.text) return Decoration.none;
+
     const ghost = state.field(aiGhostTextField, false);
     if (!ghost || !ghost.text) return Decoration.none;
     return Decoration.set([
@@ -134,6 +140,10 @@ export const aiGhostTextDecorations = StateField.define<DecorationSet>({
     ]);
   },
   update(_deco, tr) {
+    // Triệt tiêu xung đột: nếu Local Ghost Text đang hiển thị, không render AI Ghost Text (chống đè widget)
+    const localGhost = tr.state.field(ghostTextField, false);
+    if (localGhost && localGhost.text) return Decoration.none;
+
     const ghost = tr.state.field(aiGhostTextField, false);
     if (!ghost || !ghost.text) return Decoration.none;
     return Decoration.set([
@@ -238,6 +248,12 @@ export class AiCopilotPluginValue {
     this.clearTimer();
     this.abortInFlight();
 
+    // Nếu Local Ghost Text đang có gợi ý (0ms Heuristics), không gọi AI Copilot
+    const localGhost = this.view.state.field(ghostTextField, false);
+    if (localGhost && localGhost.text) {
+      return;
+    }
+
     const config = this.view.state.facet(aiCopilotConfigFacet);
     if (config.enabled === false || !config.isVip) {
       return;
@@ -272,6 +288,12 @@ export class AiCopilotPluginValue {
         });
 
         if (controller.signal.aborted) return;
+
+        // Nếu tại thời điểm API trả về mà Local Ghost Text đã xuất hiện, hủy bỏ không set AI
+        const currentLocal = this.view.state.field(ghostTextField, false);
+        if (currentLocal && currentLocal.text) {
+          return;
+        }
 
         // Đảm bảo con trỏ của view vẫn ở đúng vị trí `pos` và không có vùng bôi đen
         if (
@@ -311,6 +333,15 @@ export class AiCopilotPluginValue {
     if (update.docChanged || update.selectionSet) {
       this.abortInFlight();
       this.clearTimer();
+    }
+
+    // 2. Cơ chế triệt tiêu: Nếu Local Ghost Text đang có gợi ý (0ms Heuristics)
+    // Hủy bỏ debounce timer và abort request in-flight ngay lập tức, không gửi API vô ích
+    const localGhost = update.state.field(ghostTextField, false);
+    if (localGhost && localGhost.text) {
+      this.abortInFlight();
+      this.clearTimer();
+      return;
     }
 
     // Không làm gì nếu tài liệu không thay đổi
@@ -356,6 +387,18 @@ export const aiCopilotPlugin = ViewPlugin.fromClass(AiCopilotPluginValue);
  */
 export function acceptAiGhostText(view: EditorView): boolean {
   try {
+    // 1. Nhường quyền cho Dropdown Popup khi popup autocomplete đang active
+    if (completionStatus(view.state) === "active") {
+      return false;
+    }
+
+    // 2. Thứ tự ưu tiên: Nhường quyền cho Local Ghost Text nếu Local đang có gợi ý
+    const localGhost = view.state.field(ghostTextField, false);
+    if (localGhost && localGhost.text) {
+      return false;
+    }
+
+    // 3. Xử lý AI Ghost Text
     const ghost = view.state.field(aiGhostTextField, false);
     if (!ghost || !ghost.text) {
       return false;
@@ -374,16 +417,29 @@ export function acceptAiGhostText(view: EditorView): boolean {
 
 /**
  * Hủy bỏ (Dismiss) gợi ý AI Ghost Text khi người dùng nhấn phím Escape.
+ * Đồng thời dọn dẹp sạch sẽ cả Local Ghost Text nếu có.
  */
 export function dismissAiGhostText(view: EditorView): boolean {
   try {
-    const ghost = view.state.field(aiGhostTextField, false);
-    if (!ghost || !ghost.text) {
+    const aiGhost = view.state.field(aiGhostTextField, false);
+    const localGhost = view.state.field(ghostTextField, false);
+
+    const hasAi = Boolean(aiGhost && aiGhost.text);
+    const hasLocal = Boolean(localGhost && localGhost.text);
+
+    if (!hasAi && !hasLocal) {
       return false;
     }
-    view.dispatch({
-      effects: clearAiGhostTextEffect.of(),
-    });
+
+    const effects = [];
+    if (hasAi) {
+      effects.push(clearAiGhostTextEffect.of());
+    }
+    if (hasLocal) {
+      effects.push(clearGhostTextEffect.of());
+    }
+
+    view.dispatch({ effects });
     return true;
   } catch {
     return false;

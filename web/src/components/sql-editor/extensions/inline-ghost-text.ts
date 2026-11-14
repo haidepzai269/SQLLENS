@@ -12,6 +12,7 @@ import {
   StateField,
   type Extension,
 } from "@codemirror/state";
+import { completionStatus } from "@codemirror/autocomplete";
 import {
   Decoration,
   EditorView,
@@ -217,6 +218,11 @@ export const ghostTextDecorations = StateField.define<DecorationSet>({
  */
 export function acceptGhostText(view: EditorView): boolean {
   try {
+    // 1. Nhường quyền cho Dropdown Popup khi popup autocomplete đang active
+    if (completionStatus(view.state) === "active") {
+      return false;
+    }
+
     const ghost = view.state.field(ghostTextField, false);
     if (!ghost || !ghost.text) {
       return false;
