@@ -22,6 +22,10 @@ export type SqlEditorProps = {
   onRun?: (options?: RunScopeOptions) => void;
   /** Kích hoạt khi vùng bôi đen (selection) thay đổi. */
   onSelectionChange?: (hasSelection: boolean, selectedText: string) => void;
+  /** Schema CSDL hiện tại dạng { [tableName]: string[] } dùng cho gợi ý dropdown autocomplete. */
+  schema?: Record<string, string[]>;
+  /** Bật/tắt gợi ý dropdown autocomplete. Nếu không truyền, đọc fallback từ useSettings(). */
+  dropdownAutocomplete?: boolean;
 };
 
 // Skeleton cùng chiều cao tối thiểu với ô thật để trang không nhảy khi tải xong.
