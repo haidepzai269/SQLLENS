@@ -55,7 +55,7 @@ func build(ctx context.Context) *gin.Engine {
 	r := httpapi.NewRouter()
 	a := auth.Mount(r, d)
 	mysql.Mount(r, a, mysql.Config{URL: os.Getenv("SANDBOX_URL"), Token: os.Getenv("SANDBOX_TOKEN"), CertSHA256: os.Getenv("SANDBOX_CERT_SHA256")}, budget)
-	ai.Mount(r, a.Gate(quota.AIMessage), ai.Config{GroqKey: os.Getenv("GROQ_API_KEY"), OpenRouterKey: os.Getenv("OPENROUTER_API_KEY")})
+	ai.Mount(r, a.Gate(quota.AIMessage), ai.Config{GroqKey: os.Getenv("GROQ_API_KEY"), OpenRouterKey: os.Getenv("OPENROUTER_API_KEY")}, a.RequireVip())
 	return r
 }
 

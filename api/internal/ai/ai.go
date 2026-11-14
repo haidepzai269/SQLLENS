@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/haidepzai269/SQLLENS/api/internal/auth"
 	"github.com/haidepzai269/SQLLENS/api/internal/httpapi"
 )
 
@@ -60,12 +61,14 @@ type Config struct {
 
 type chat struct {
 	Config
-	hc *http.Client
+	hc            *http.Client
+	inlineLimiter *inlineLimiter
 }
 
-// Mount adds POST /ai/chat and POST /ai/diagnose behind gate (a.Gate(quota.AIMessage) from auth.Mount).
-func Mount(r *gin.Engine, gate []gin.HandlerFunc, cfg Config) {
-	h := &chat{Config: cfg, hc: cfg.Client}
+// Mount adds POST /ai/chat and POST /ai/diagnose behind gate (a.Gate(quota.AIMessage) from auth.Mount),
+// and adds POST /ai/inline-complete protected by vipGate (or auth.RequireVip() by default).
+func Mount(r *gin.Engine, gate []gin.HandlerFunc, cfg Config, vipGate ...gin.HandlerFunc) {
+	h := &chat{Config: cfg, hc: cfg.Client, inlineLimiter: newInlineLimiter(30, time.Minute)}
 	if h.hc == nil {
 		h.hc = &http.Client{}
 	}
@@ -82,6 +85,16 @@ func Mount(r *gin.Engine, gate []gin.HandlerFunc, cfg Config) {
 	g := r.Group("/ai", gate...)
 	g.POST("/chat", h.serve)
 	g.POST("/diagnose", h.serveDiagnose)
+
+	vipHandlers := []gin.HandlerFunc{auth.RequireVip()}
+	if len(vipGate) > 0 && vipGate[0] != nil {
+		vipHandlers = vipGate
+	}
+	gVip := r.Group("/ai", vipHandlers...)
+	gVip.POST("/inline-complete", h.serveInlineComplete)
+
+	gVipApi := r.Group("/api/ai", vipHandlers...)
+	gVipApi.POST("/inline-complete", h.serveInlineComplete)
 }
 
 func bad(c *gin.Context) {
