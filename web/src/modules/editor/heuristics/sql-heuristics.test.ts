@@ -234,6 +234,44 @@ describe('SQL Heuristics Engine', () => {
       expect(suggestion).toBe('ON o.user_id = u.id');
     });
 
+    it('bỏ qua bảng nằm trong subquery của WHERE kể cả khi bảng đó có FK với bảng JOIN', () => {
+      // Trong câu lệnh này, outer table là order_items oi.
+      // Subquery trong WHERE chứa FROM users u.
+      // orders có FK với cả users (user_id -> id) và order_items (id <- order_id).
+      // Heuristics phải bỏ qua users u trong subquery và JOIN với order_items oi của outer query.
+      const sql =
+        'SELECT * FROM order_items oi WHERE oi.id IN (SELECT u.id FROM users u) JOIN orders o ';
+      const suggestion = predictFkJoin({
+        textBeforeCursor: sql,
+        tables: sampleSchema,
+        foreignKeys: sampleForeignKeys,
+      });
+
+      expect(suggestion).toBe('ON o.id = oi.order_id');
+    });
+
+    it('bỏ qua comment chứa từ khóa FROM giả lập trước khi JOIN', () => {
+      const sqlLineComment =
+        'SELECT * FROM users u -- FROM order_items oi\n JOIN orders o ';
+      expect(
+        predictFkJoin({
+          textBeforeCursor: sqlLineComment,
+          tables: sampleSchema,
+          foreignKeys: sampleForeignKeys,
+        })
+      ).toBe('ON o.user_id = u.id');
+
+      const sqlBlockComment =
+        'SELECT * FROM users u /* FROM order_items oi */ JOIN orders o ';
+      expect(
+        predictFkJoin({
+          textBeforeCursor: sqlBlockComment,
+          tables: sampleSchema,
+          foreignKeys: sampleForeignKeys,
+        })
+      ).toBe('ON o.user_id = u.id');
+    });
+
     it('trả về null nếu người dùng đã tự tay gõ ON sau tên bảng hoặc alias', () => {
       const sqlWithOnAfterAlias = 'SELECT * FROM users u JOIN orders o ON ';
       expect(

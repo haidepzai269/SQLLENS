@@ -24,7 +24,8 @@ interface TableOccurrence {
 }
 
 /**
- * Che giấu (mask) các ký tự nằm trong string literal, comment, hoặc bên trong cặp ngoặc (depth > 0).
+ * Che giấu (mask) các ký tự nằm trong string literal ('...'), comment, hoặc bên trong cặp ngoặc (depth > 0).
+ * Giữ nguyên các identifier (kể cả double quotes "..." và MySQL backticks `...`) ở cấp độ ngoài cùng.
  * Chuỗi trả về có cùng độ dài 1:1 với chuỗi gốc, giúp regex và vị trí index bảo toàn tuyệt đối.
  */
 function maskNonTopLevel(text: string): string {
@@ -32,8 +33,6 @@ function maskNonTopLevel(text: string): string {
   const result: string[] = new Array(len);
   let depth = 0;
   let inSingleQuote = false;
-  let inDoubleQuote = false;
-  let inBacktick = false;
   let inLineComment = false;
   let inBlockComment = false;
 
@@ -53,35 +52,6 @@ function maskNonTopLevel(text: string): string {
       } else if (ch === '\\' && next === "'") {
         i++;
         result[i] = ' ';
-      }
-      continue;
-    }
-
-    if (inDoubleQuote) {
-      result[i] = ' ';
-      if (ch === '"') {
-        if (next === '"') {
-          i++;
-          result[i] = ' ';
-        } else {
-          inDoubleQuote = false;
-        }
-      } else if (ch === '\\' && next === '"') {
-        i++;
-        result[i] = ' ';
-      }
-      continue;
-    }
-
-    if (inBacktick) {
-      result[i] = ' ';
-      if (ch === '`') {
-        if (next === '`') {
-          i++;
-          result[i] = ' ';
-        } else {
-          inBacktick = false;
-        }
       }
       continue;
     }
@@ -106,18 +76,6 @@ function maskNonTopLevel(text: string): string {
 
     if (ch === "'") {
       inSingleQuote = true;
-      result[i] = ' ';
-      continue;
-    }
-
-    if (ch === '"') {
-      inDoubleQuote = true;
-      result[i] = ' ';
-      continue;
-    }
-
-    if (ch === '`') {
-      inBacktick = true;
       result[i] = ' ';
       continue;
     }
@@ -211,21 +169,21 @@ function extractExistingTables(text: string): TableOccurrence[] {
   const lastSemicolon = masked.lastIndexOf(';');
   const stmtStart = lastSemicolon >= 0 ? lastSemicolon + 1 : 0;
   const stmtMasked = masked.slice(stmtStart);
-  const stmtRaw = text.slice(stmtStart);
 
   // Tìm vị trí FROM cuối cùng ở depth 0 để giới hạn phạm vi câu lệnh hiện tại
   const fromMatches = Array.from(stmtMasked.matchAll(/\bFROM\b/gi));
   if (fromMatches.length === 0) return tables;
   
   const lastFromIdx = fromMatches[fromMatches.length - 1].index ?? 0;
-  const clauseRaw = stmtRaw.slice(lastFromIdx);
+  const clauseMasked = stmtMasked.slice(lastFromIdx);
 
   // Regex nhận diện các bảng sau FROM hoặc JOIN (hỗ trợ cả identifier thường, double-quotes và MySQL backticks):
   // FROM / JOIN <table> [[AS] <alias>]
+  // Quét trên clauseMasked để loại bỏ triệt để các bảng trong subquery (depth > 0) và comment
   const tableRegex = /\b(?:FROM|JOIN)\s+([a-zA-Z0-9_".`]+)(?:\s+(?:AS\s+)?([a-zA-Z0-9_"`]+))?/gi;
   let match: RegExpExecArray | null;
 
-  while ((match = tableRegex.exec(clauseRaw)) !== null) {
+  while ((match = tableRegex.exec(clauseMasked)) !== null) {
     const rawTableName = match[1]?.replace(/["`]/g, '').trim();
     if (!rawTableName) continue;
 

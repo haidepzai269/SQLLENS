@@ -13,7 +13,8 @@ export interface PredictGroupByInput {
 const AGGREGATE_FUNCTIONS_REGEX = /\b(?:COUNT|SUM|AVG|MIN|MAX|STRING_AGG|GROUP_CONCAT|ARRAY_AGG)\s*\(/i;
 
 /**
- * Che giấu (mask) các ký tự nằm trong string literal, comment, hoặc bên trong cặp ngoặc (depth > 0).
+ * Che giấu (mask) các ký tự nằm trong string literal ('...'), comment, hoặc bên trong cặp ngoặc (depth > 0).
+ * Giữ nguyên các identifier (kể cả double quotes "..." và MySQL backticks `...`) ở cấp độ ngoài cùng.
  * Chuỗi trả về có cùng độ dài 1:1 với chuỗi gốc, giúp regex và vị trí index bảo toàn tuyệt đối.
  */
 function maskNonTopLevel(text: string): string {
@@ -21,8 +22,6 @@ function maskNonTopLevel(text: string): string {
   const result: string[] = new Array(len);
   let depth = 0;
   let inSingleQuote = false;
-  let inDoubleQuote = false;
-  let inBacktick = false;
   let inLineComment = false;
   let inBlockComment = false;
 
@@ -30,7 +29,6 @@ function maskNonTopLevel(text: string): string {
     const ch = text[i];
     const next = i + 1 < len ? text[i + 1] : '';
 
-    // 1. Đang trong single quote
     if (inSingleQuote) {
       result[i] = ' ';
       if (ch === "'") {
@@ -47,38 +45,6 @@ function maskNonTopLevel(text: string): string {
       continue;
     }
 
-    // 2. Đang trong double quote
-    if (inDoubleQuote) {
-      result[i] = ' ';
-      if (ch === '"') {
-        if (next === '"') {
-          i++;
-          result[i] = ' ';
-        } else {
-          inDoubleQuote = false;
-        }
-      } else if (ch === '\\' && next === '"') {
-        i++;
-        result[i] = ' ';
-      }
-      continue;
-    }
-
-    // 3. Đang trong backtick
-    if (inBacktick) {
-      result[i] = ' ';
-      if (ch === '`') {
-        if (next === '`') {
-          i++;
-          result[i] = ' ';
-        } else {
-          inBacktick = false;
-        }
-      }
-      continue;
-    }
-
-    // 4. Đang trong line comment (-- ...)
     if (inLineComment) {
       result[i] = ch === '\n' ? '\n' : ' ';
       if (ch === '\n') {
@@ -87,7 +53,6 @@ function maskNonTopLevel(text: string): string {
       continue;
     }
 
-    // 5. Đang trong block comment (/* ... */)
     if (inBlockComment) {
       result[i] = ch === '\n' ? '\n' : ' ';
       if (ch === '*' && next === '/') {
@@ -98,21 +63,8 @@ function maskNonTopLevel(text: string): string {
       continue;
     }
 
-    // 6. Bắt đầu string, comment hoặc ngoặc
     if (ch === "'") {
       inSingleQuote = true;
-      result[i] = ' ';
-      continue;
-    }
-
-    if (ch === '"') {
-      inDoubleQuote = true;
-      result[i] = ' ';
-      continue;
-    }
-
-    if (ch === '`') {
-      inBacktick = true;
       result[i] = ' ';
       continue;
     }
@@ -145,7 +97,6 @@ function maskNonTopLevel(text: string): string {
       continue;
     }
 
-    // 7. Ký tự ở depth > 0 hay depth === 0
     if (depth > 0) {
       result[i] = ' ';
     } else {
