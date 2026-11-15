@@ -4,7 +4,7 @@
 Chi tiết số đo kiểm chứng thực nghiệm đầy đủ xem tại [CLAUDE.md](file:///c:/SQLLens/CLAUDE.md).
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
-- **Giai đoạn hiện tại:** Đã chốt 18 Epic và 84 Story (`_bmad-output/BAN_DO_STORY.md`). **SP001 - SP018 ĐÃ HOÀN THÀNH 100%!**
+- **Giai đoạn hiện tại:** Đã chốt 18 Epic và 87 Story (`_bmad-output/BAN_DO_STORY.md`). **SP001 - SP018 ĐÃ HOÀN THÀNH 100%!**
   + *Task113 (STR080):* ĐÃ HOÀN THÀNH 100%! Khắc phục triệt để lỗi 1-Click Fix xóa sạch editor bằng thuật toán bóc tách statement boundary và offset locator `applyStatementFix`, bảo toàn 100% các câu lệnh trước/sau và hỗ trợ hoàn tác Undo `Ctrl+Z`, đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
   + *Task114 (STR081):* ĐÃ HOÀN THÀNH 100%! Hiện thực hóa 6 tùy chọn Settings vào CodeMirror (theme cỡ chữ động 13/14/16px, ngắt dòng động, số dòng, highlight dòng) và đồng bộ Theme/Contrast Boost vào DOM `<html>`, đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
   + *Task115 (STR082):* ĐÃ HOÀN THÀNH 100%! Chuẩn hóa phân quyền RBAC Backend Gin (tự động nhận diện session cookie độc lập, bắt buộc kiểm tra `u.IsVIP()` kèm hạn `vip_until`, tự động demote VIP hết hạn về `user` trong DB), bảo vệ tuyệt đối `/ai/inline-complete`, đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
