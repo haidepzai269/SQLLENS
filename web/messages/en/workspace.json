@@ -1,4 +1,11 @@
 {
   "storageUnavailable": "Browser is in private mode or blocking storage. SQL content is only kept for this session.",
-  "dismiss": "Dismiss"
+  "dismiss": "Dismiss",
+  "tab": {
+    "add": "New tab",
+    "close": "Close tab",
+    "rename": "Rename tab",
+    "untitled": "Untitled",
+    "lastTabLocked": "Cannot close the last tab"
+  }
 }

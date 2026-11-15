@@ -1,4 +1,11 @@
 {
   "storageUnavailable": "Trình duyệt đang ở chế độ riêng tư hoặc chặn lưu trữ. Nội dung SQL chỉ lưu tạm trong phiên này.",
-  "dismiss": "Đóng"
+  "dismiss": "Đóng",
+  "tab": {
+    "add": "Thêm tab mới",
+    "close": "Đóng tab",
+    "rename": "Đổi tên tab",
+    "untitled": "Chưa đặt tên",
+    "lastTabLocked": "Không thể đóng tab cuối cùng"
+  }
 }
