@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { isApiError } from "@/contracts/api-error";
 import type { EngineAdapter } from "@/contracts/engine";
 import type { EvidencePack, MentorRequest } from "@/contracts/mentor";
+import { PlanEvidencePill, PLAN_EVIDENCE_STORAGE_KEY } from "@/components/mentor/plan-evidence-pill";
+import { QuickActionChips } from "@/components/mentor/quick-action-chips";
+import { canRunExplain } from "@/engines/mysql/guard";
+import { minifyPlanJson } from "@/modules/plan-runner/minifier/plan-minifier";
 import { useAuth } from "@/modules/auth/auth-provider";
 import { LoginDialog } from "@/modules/auth/login-dialog";
 import { takeSql } from "@/modules/auth/sql-stash";
@@ -66,9 +70,10 @@ export interface MentorPanelProps {
   evidence: EvidencePack;
   probe?: string;
   planEvidence?: string | null;
+  isMeasuring?: boolean;
 }
 
-export function MentorPanel({ adapter, evidence, probe, planEvidence }: MentorPanelProps) {
+export function MentorPanel({ adapter, evidence, probe, planEvidence, isMeasuring }: MentorPanelProps) {
   const t = useTranslations("mentor");
   const tr = useTranslations() as unknown as Tr; // khóa mentorVerify.* do verifyAnswer trả về
   const locale = useLocale() === "en" ? "en" : "vi";
@@ -77,6 +82,32 @@ export function MentorPanel({ adapter, evidence, probe, planEvidence }: MentorPa
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loginOpen, setLoginOpen] = useState(false);
   const [applied, setApplied] = useState<Applied | null>(null);
+
+  // Preference bật/tắt Plan evidence lưu trong localStorage
+  const [planEnabled, setPlanEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      const val = window.localStorage.getItem(PLAN_EVIDENCE_STORAGE_KEY);
+      return val !== null ? val === "true" : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const effectivePlanEvidence = useMemo(() => {
+    if (planEvidence && planEvidence.trim().length > 0) return planEvidence.trim();
+    if (adapter.engine === "postgres" && evidence.plan) {
+      try {
+        return minifyPlanJson(evidence.plan);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, [planEvidence, adapter.engine, evidence.plan]);
+
+  const isAttached = planEnabled && Boolean(effectivePlanEvidence);
+
   const seq = useRef(0);
   const ctl = useRef<AbortController | null>(null);
   const adapterRef = useRef(adapter);
@@ -143,8 +174,8 @@ export function MentorPanel({ adapter, evidence, probe, planEvidence }: MentorPa
     [abortTurn],
   );
 
-  async function send() {
-    const q = question.trim();
+  async function send(overrideQuestion?: string) {
+    const q = (overrideQuestion ?? question).trim();
     if (!q || len(q) > MAX_QUESTION || turns.length >= MAX_TURNS) return;
     if (status === "anon") return setLoginOpen(true);
 
@@ -173,12 +204,16 @@ export function MentorPanel({ adapter, evidence, probe, planEvidence }: MentorPa
 
       // Trích xuất Rolling Summary từ các turns trước đó (AC2)
       const contextSummary = buildContextSummary(turns);
+      const isExplicit = Boolean(overrideQuestion);
+      const allowPlan = canRunExplain(adapter.engine, isExplicit);
+      const shouldAttachPlan = planEnabled && effectivePlanEvidence && allowPlan;
+
       const req: MentorRequest = {
         question: q,
         evidence,
         locale,
         ...(contextSummary ? { contextSummary } : {}),
-        ...(planEvidence && planEvidence.trim() ? { evidence_plan: planEvidence.trim() } : {}),
+        ...(shouldAttachPlan ? { evidence_plan: effectivePlanEvidence } : {}),
       };
 
       const res = await sendMentorChat({ request: req, signal: ac.signal });
@@ -304,9 +339,9 @@ export function MentorPanel({ adapter, evidence, probe, planEvidence }: MentorPa
         </Alert>
       )}
 
-      {/* Form nhập câu hỏi */}
+      {/* Form nhập câu hỏi & Smart Controls */}
       <div
-        className="flex min-w-0 flex-col gap-2 border-t border-line pt-3"
+        className="flex min-w-0 flex-col gap-2.5 border-t border-line pt-3"
         onKeyDownCapture={(e) => {
           if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
@@ -314,9 +349,29 @@ export function MentorPanel({ adapter, evidence, probe, planEvidence }: MentorPa
           }
         }}
       >
-        <label htmlFor="mentor-question" className="text-sm font-semibold">
-          {t("questionLabel")}
-        </label>
+        {/* Cụm Quick-Action Chips khi có câu SQL */}
+        {Boolean(evidence.sql?.trim()) && (
+          <div className="pb-1">
+            <QuickActionChips
+              onTrigger={(prompt) => void send(prompt)}
+              isPlanReady={Boolean(effectivePlanEvidence)}
+              disabled={busy || reachedMax}
+              isBusy={busy}
+            />
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <label htmlFor="mentor-question" className="text-sm font-semibold">
+            {t("questionLabel")}
+          </label>
+          <PlanEvidencePill
+            engine={adapter.engine}
+            isAttached={isAttached}
+            isMeasuring={isMeasuring}
+            onToggle={setPlanEnabled}
+          />
+        </div>
         <Textarea
           id="mentor-question"
           data-testid="mentor-question"

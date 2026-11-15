@@ -53,5 +53,21 @@
     "interrupted": "The answer was cut off",
     "stream": "The AI reported an error while answering",
     "tooLong": "The answer is too long"
+  },
+  "planPill": {
+    "attached": "⚡ Plan Attached (~40 tokens)",
+    "off": "Plan: Off",
+    "measuring": "Measuring...",
+    "mysqlPrompt": "MySQL: Click button to analyze",
+    "toggleAria": "Toggle query plan attachment"
+  },
+  "quickChips": {
+    "slow": "⚡ Why is this query slow?",
+    "index": "🔍 Is the optimizer using an Index?",
+    "buffers": "📊 How many memory buffers are read?"
+  },
+  "chatDrawer": {
+    "title": "AI Mentor Analysis",
+    "close": "Close"
   }
 }

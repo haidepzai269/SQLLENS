@@ -53,5 +53,21 @@
     "interrupted": "Câu trả lời bị đứt giữa chừng",
     "stream": "AI báo lỗi khi đang trả lời",
     "tooLong": "Câu trả lời quá dài"
+  },
+  "planPill": {
+    "attached": "⚡ Kèm Plan (~40 tokens)",
+    "off": "Plan: Tắt",
+    "measuring": "Đang đo lường...",
+    "mysqlPrompt": "MySQL: Bấm nút để phân tích",
+    "toggleAria": "Bật hoặc tắt đính kèm kế hoạch thực thi"
+  },
+  "quickChips": {
+    "slow": "⚡ Vì sao câu này chạy chậm?",
+    "index": "🔍 Optimizer có dùng Index không?",
+    "buffers": "📊 Đọc bao nhiêu trang bộ nhớ?"
+  },
+  "chatDrawer": {
+    "title": "AI Mentor Phân Tích",
+    "close": "Đóng"
   }
 }
