@@ -975,3 +975,149 @@ func TestReasoningWithoutContentFallbacks(t *testing.T) { // Task098 AC3
 	}
 }
 
+func TestEvidencePlanValidation(t *testing.T) { // Task120 AC1
+	g := newFake(okStream)
+	defer g.Close()
+	r := setup(t, cfgFor(g, nil))
+
+	// 1. evidence_plan hợp lệ
+	validPlan := "[PLAN_EVIDENCE: Seq Scan on users | Actual Rows: 5 (Est: 5) | Buffers: 3 hit, 0 read | Filter: (age > 20)]"
+	bodyValid, _ := json.Marshal(map[string]any{
+		"question":      "tại sao truy vấn này chạy chậm?",
+		"evidence":      map[string]any{"sql": "SELECT * FROM users WHERE age > 20"},
+		"locale":        "vi",
+		"evidence_plan": validPlan,
+	})
+	resp1 := r.post(string(bodyValid))
+	if resp1.StatusCode != 200 {
+		t.Fatalf("valid evidence_plan: expected 200, got %d", resp1.StatusCode)
+	}
+	events(t, resp1)
+
+	// 2. evidence_plan quá 300 runes -> 400 Bad Request
+	longPlan := strings.Repeat("x", 301)
+	bodyLong, _ := json.Marshal(map[string]any{
+		"question":      "tại sao truy vấn này chạy chậm?",
+		"evidence":      map[string]any{"sql": "SELECT 1"},
+		"locale":        "vi",
+		"evidence_plan": longPlan,
+	})
+	resp2 := r.post(string(bodyLong))
+	resp2.Body.Close()
+	if resp2.StatusCode != 400 {
+		t.Fatalf("overlong evidence_plan: expected 400, got %d", resp2.StatusCode)
+	}
+
+	// 3. evidence_plan không có trường này -> 200 OK bình thường
+	bodyNoPlan, _ := json.Marshal(map[string]any{
+		"question": "tại sao truy vấn này chạy chậm?",
+		"evidence": map[string]any{"sql": "SELECT 1"},
+		"locale":   "vi",
+	})
+	resp3 := r.post(string(bodyNoPlan))
+	if resp3.StatusCode != 200 {
+		t.Fatalf("missing evidence_plan: expected 200, got %d", resp3.StatusCode)
+	}
+	events(t, resp3)
+
+	// 4. diagnose với evidence_plan hợp lệ
+	diagnoseValid, _ := json.Marshal(map[string]any{
+		"sql":           "SELECT * FROM users",
+		"error":         "syntax error at end of input",
+		"engine":        "postgres",
+		"locale":        "vi",
+		"evidence_plan": validPlan,
+	})
+	resp4 := r.postDiagnose(string(diagnoseValid))
+	if resp4.StatusCode != 200 {
+		t.Fatalf("diagnose valid evidence_plan: expected 200, got %d", resp4.StatusCode)
+	}
+	events(t, resp4)
+
+	// 5. diagnose với evidence_plan quá 300 runes -> 400 Bad Request
+	diagnoseLong, _ := json.Marshal(map[string]any{
+		"sql":           "SELECT * FROM users",
+		"error":         "syntax error",
+		"engine":        "postgres",
+		"locale":        "vi",
+		"evidence_plan": longPlan,
+	})
+	resp5 := r.postDiagnose(string(diagnoseLong))
+	resp5.Body.Close()
+	if resp5.StatusCode != 400 {
+		t.Fatalf("diagnose overlong evidence_plan: expected 400, got %d", resp5.StatusCode)
+	}
+}
+
+func TestEvidencePlanPromptFormatting(t *testing.T) { // Task120 AC2, AC3
+	g := newFake(okStream)
+	defer g.Close()
+	r := setup(t, cfgFor(g, nil))
+
+	planStr := "[PLAN_EVIDENCE: Seq Scan on users | Actual Rows: 5 | Buffers: 3 hit]"
+	bodyWithPlan, _ := json.Marshal(map[string]any{
+		"question":      "Vì sao câu lệnh này không dùng Index?",
+		"evidence":      map[string]any{"engine": "postgres", "sql": "SELECT * FROM users WHERE age > 20"},
+		"locale":        "vi",
+		"evidence_plan": planStr,
+	})
+
+	resp := r.post(string(bodyWithPlan))
+	if resp.StatusCode != 200 {
+		t.Fatalf("post with plan: status %d", resp.StatusCode)
+	}
+	events(t, resp)
+
+	type m struct {
+		Messages []struct{ Role, Content string }
+	}
+	var req m
+	if err := json.Unmarshal(g.bodies[0], &req); err != nil {
+		t.Fatalf("unmarshal provider body: %v", err)
+	}
+	if len(req.Messages) != 2 {
+		t.Fatalf("expected 2 messages, got %d", len(req.Messages))
+	}
+
+	// Kiểm tra System Prompt
+	sysPrompt := req.Messages[0].Content
+	if !strings.Contains(sysPrompt, "<QUERY_PLAN_EVIDENCE>") {
+		t.Fatalf("system prompt missing QUERY_PLAN_EVIDENCE rule: %q", sysPrompt)
+	}
+	if !strings.Contains(sysPrompt, "Nhãn THẬT") {
+		t.Fatalf("system prompt missing Nhãn THẬT rule: %q", sysPrompt)
+	}
+
+	// Kiểm tra User Prompt có thẻ <QUERY_PLAN_EVIDENCE> và nội dung plan
+	userPrompt := req.Messages[1].Content
+	if !strings.Contains(userPrompt, "<QUERY_PLAN_EVIDENCE>\n"+planStr+"\n</QUERY_PLAN_EVIDENCE>") {
+		t.Fatalf("user prompt missing formatted QUERY_PLAN_EVIDENCE: %q", userPrompt)
+	}
+	if !strings.Contains(userPrompt, "QUY TẮC XỬ LÝ KẾ HOẠCH THỰC THI (QUERY PLAN):") {
+		t.Fatalf("user prompt missing plan rules: %q", userPrompt)
+	}
+
+	// Khi evidence_plan rỗng -> không có thẻ <QUERY_PLAN_EVIDENCE> và không có placeholder thừa
+	g.bodies = nil
+	bodyEmptyPlan, _ := json.Marshal(map[string]any{
+		"question": "Vì sao câu lệnh này chạy chậm?",
+		"evidence": map[string]any{"engine": "postgres", "sql": "SELECT 1"},
+		"locale":   "vi",
+	})
+	resp2 := r.post(string(bodyEmptyPlan))
+	if resp2.StatusCode != 200 {
+		t.Fatalf("post without plan: status %d", resp2.StatusCode)
+	}
+	events(t, resp2)
+
+	var req2 m
+	if err := json.Unmarshal(g.bodies[0], &req2); err != nil {
+		t.Fatalf("unmarshal provider body 2: %v", err)
+	}
+	userPrompt2 := req2.Messages[1].Content
+	if strings.Contains(userPrompt2, "<QUERY_PLAN_EVIDENCE>") {
+		t.Fatalf("user prompt should NOT contain QUERY_PLAN_EVIDENCE when empty: %q", userPrompt2)
+	}
+}
+
+

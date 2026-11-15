@@ -219,6 +219,29 @@ describe("MentorPanel integration", () => {
     expect(body2.contextSummary).toContain("AI first answer");
   });
 
+  test("AC4: truyền evidence_plan vào payload khi planEvidence có giá trị", async () => {
+    await mockSuccessfulStream("AI answer with plan evidence");
+
+    const planStr = "[PLAN_EVIDENCE: Seq Scan on users | Actual Rows: 5 | Buffers: 3 hit]";
+    wrap(<MentorPanel adapter={dummyAdapter} evidence={dummyEvidence} planEvidence={planStr} />);
+
+    const input = screen.getByTestId("mentor-question");
+    fireEvent.change(input, { target: { value: "Vì sao câu này chạy chậm?" } });
+    fireEvent.click(screen.getByTestId("mentor-send"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mentor-turn")).toBeDefined();
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const mockFetch = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(String(init?.body)) as MentorRequest;
+
+    expect(body.question).toBe("Vì sao câu này chạy chậm?");
+    expect(body.evidence_plan).toBe(planStr);
+  });
+
   test("AC4: nút 'Hội thoại mới' reset thread và xóa sạch danh sách", async () => {
     await mockSuccessfulStream("Some answer");
 

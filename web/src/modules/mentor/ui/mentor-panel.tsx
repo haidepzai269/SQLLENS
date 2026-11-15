@@ -12,6 +12,7 @@ import { useAuth } from "@/modules/auth/auth-provider";
 import { LoginDialog } from "@/modules/auth/login-dialog";
 import { takeSql } from "@/modules/auth/sql-stash";
 import { WhatIfCompare } from "@/modules/what-if/compare-ui/what-if-compare";
+import { sendMentorChat } from "../api/chat";
 import { checkAnswer } from "../evidence";
 import { verifyAnswer } from "../verify";
 import {
@@ -60,7 +61,14 @@ async function failureOf(res: Response): Promise<Fail> {
   return { kind: "unavailable", key, waitSeconds };
 }
 
-export function MentorPanel({ adapter, evidence, probe }: { adapter: Adapter; evidence: EvidencePack; probe?: string }) {
+export interface MentorPanelProps {
+  adapter: Adapter;
+  evidence: EvidencePack;
+  probe?: string;
+  planEvidence?: string | null;
+}
+
+export function MentorPanel({ adapter, evidence, probe, planEvidence }: MentorPanelProps) {
   const t = useTranslations("mentor");
   const tr = useTranslations() as unknown as Tr; // khóa mentorVerify.* do verifyAnswer trả về
   const locale = useLocale() === "en" ? "en" : "vi";
@@ -170,15 +178,10 @@ export function MentorPanel({ adapter, evidence, probe }: { adapter: Adapter; ev
         evidence,
         locale,
         ...(contextSummary ? { contextSummary } : {}),
+        ...(planEvidence && planEvidence.trim() ? { evidence_plan: planEvidence.trim() } : {}),
       };
 
-      const res = await fetch("/api/ai/chat", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(req),
-        signal: ac.signal,
-      });
+      const res = await sendMentorChat({ request: req, signal: ac.signal });
 
       if (!res.ok) {
         const f = await failureOf(res);
