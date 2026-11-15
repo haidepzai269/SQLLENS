@@ -22,6 +22,7 @@ export type MentorRequest = {
   evidence: EvidencePack;
   locale: "vi" | "en";
   contextSummary?: string;
+  evidence_plan?: string;
 };
 
 // Đại diện một lượt hỏi đáp trong phiên hội thoại đa lượt
