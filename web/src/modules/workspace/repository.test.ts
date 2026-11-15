@@ -1,7 +1,7 @@
 import { IDBFactory } from "fake-indexeddb";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CURRENT_DB_VERSION, INDEX_BY_PROJECT, INDEX_BY_SCOPE, openWorkspaceDb, STORE_META, STORE_PROJECTS, STORE_TABS } from "./db";
 import { getRepository, toWorkspaceError, WorkspaceQuotaError } from "./repository";
 import { scopeKey, type WorkspaceProject, type WorkspaceTab } from "./types";
@@ -33,7 +33,12 @@ let db: IDBDatabase;
 beforeEach(async () => {
   factory = new IDBFactory(); // mỗi test một IndexedDB thật, riêng biệt
   db = await openWorkspaceDb(factory);
-  return () => db.close();
+});
+
+// Đóng bằng afterEach: hook của vitest không chạy hàm trả về từ beforeEach,
+// nên kết nối sẽ bị bỏ mở qua các test.
+afterEach(() => {
+  db.close();
 });
 
 describe("openWorkspaceDb", () => {
@@ -155,6 +160,24 @@ describe("hết quota", () => {
     const fakeDb = { transaction: () => fakeTx } as unknown as IDBDatabase;
 
     await expect(getRepository(fakeDb).upsertProject(project({ id: "p1" }))).rejects.toBeInstanceOf(WorkspaceQuotaError);
+  });
+
+  // Cùng một lỗi quota nhưng chạy qua transaction thật của fake-indexeddb:
+  // vừa kiểm nhánh dịch lỗi, vừa kiểm không có bản ghi nào được ghi lén.
+  it("lỗi quota trong transaction thật không ghi được gì và vẫn ném WorkspaceQuotaError", async () => {
+    const store = db.transaction(STORE_PROJECTS, "readwrite").objectStore(STORE_PROJECTS);
+    const proto = Object.getPrototypeOf(store) as { put: unknown };
+    const original = proto.put;
+    proto.put = () => {
+      throw new DOMException("đầy", "QuotaExceededError");
+    };
+    try {
+      const repo = getRepository(db);
+      await expect(repo.upsertProject(project({ id: "p1" }))).rejects.toBeInstanceOf(WorkspaceQuotaError);
+      expect(await repo.getProject("p1")).toBeUndefined();
+    } finally {
+      proto.put = original;
+    }
   });
 });
 
