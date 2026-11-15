@@ -9,10 +9,12 @@ import { PredictContext, TableSchema } from './types';
 import { predictFkJoin } from './fk-join-predictor';
 import { predictGroupBy } from './group-by-predictor';
 import { predictInsertColumns } from './insert-columns-predictor';
+import { predictStatementStart } from './statement-predictor';
 
 export { predictFkJoin } from './fk-join-predictor';
 export { predictGroupBy } from './group-by-predictor';
 export { predictInsertColumns } from './insert-columns-predictor';
+export { predictStatementStart } from './statement-predictor';
 export * from './types';
 
 const SQL_CLAUSE_KEYWORDS = new Set([
@@ -102,7 +104,13 @@ export function predictNextSqlSnippet(ctx: PredictContext): string | null {
       return insertSuggestion;
     }
 
-    // 4. Dự đoán mệnh đề tiếp theo theo vòng đời (Lifecycle Next Clause)
+    // 4. Dự đoán từ khóa khởi đầu câu lệnh (Statement Start: CREATE TABLE, SELECT, etc.)
+    const statementSuggestion = predictStatementStart({ textBeforeCursor, tables });
+    if (statementSuggestion) {
+      return statementSuggestion;
+    }
+
+    // 5. Dự đoán mệnh đề tiếp theo theo vòng đời (Lifecycle Next Clause)
     const lifecycleSuggestion = predictLifecycleNextClause(textBeforeCursor, tables);
     if (lifecycleSuggestion) {
       return lifecycleSuggestion;

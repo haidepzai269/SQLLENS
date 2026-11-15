@@ -10,6 +10,7 @@ import {
   predictGroupBy,
   predictInsertColumns,
   predictLifecycleNextClause,
+  predictStatementStart,
   ForeignKeyRelation,
   TableSchema,
 } from './sql-heuristics';
@@ -645,6 +646,73 @@ describe('SQL Heuristics Engine', () => {
 
       // Kỳ vọng trung bình < 0.1ms (dưới xa giới hạn 1ms)
       expect(avgMs).toBeLessThan(1.0);
+    });
+  });
+
+  // =========================================================================
+  // AC6: Dự đoán từ khóa khởi đầu câu lệnh (Statement Start Predictor)
+  // =========================================================================
+  describe('AC6: predictStatementStart & Statement Ghost Text', () => {
+    it('gợi ý CREATE TABLE mẫu khi gõ "create "', () => {
+      const result = predictStatementStart({ textBeforeCursor: 'create ' });
+      expect(result).toBe('TABLE table_name (\n  id SERIAL PRIMARY KEY,\n  name TEXT NOT NULL\n);');
+    });
+
+    it('gợi ý CREATE TABLE mẫu kèm space đầu khi gõ "create" không space', () => {
+      const result = predictStatementStart({ textBeforeCursor: 'create' });
+      expect(result).toBe(' TABLE table_name (\n  id SERIAL PRIMARY KEY,\n  name TEXT NOT NULL\n);');
+    });
+
+    it('gợi ý cấu trúc bảng khi gõ "create table "', () => {
+      const result = predictStatementStart({ textBeforeCursor: 'create table ' });
+      expect(result).toBe('table_name (\n  id SERIAL PRIMARY KEY,\n  name TEXT NOT NULL\n);');
+    });
+
+    it('gợi ý SELECT * FROM <bảng> khi gõ "select "', () => {
+      const result = predictStatementStart({ textBeforeCursor: 'select ', tables: sampleSchema });
+      expect(result).toBe('* FROM users;');
+    });
+
+    it('gợi ý SELECT * FROM table_name khi không có schema', () => {
+      const result = predictStatementStart({ textBeforeCursor: 'select ' });
+      expect(result).toBe('* FROM table_name;');
+    });
+
+    it('gợi ý INSERT INTO khi gõ "insert "', () => {
+      const result = predictStatementStart({ textBeforeCursor: 'insert ', tables: sampleSchema });
+      expect(result).toBe('INTO users VALUES (...);');
+    });
+
+    it('gợi ý ALTER TABLE khi gõ "alter "', () => {
+      const result = predictStatementStart({ textBeforeCursor: 'alter ', tables: sampleSchema });
+      expect(result).toBe('TABLE users ADD COLUMN column_name TEXT;');
+    });
+
+    it('gợi ý DROP TABLE khi gõ "drop "', () => {
+      const result = predictStatementStart({ textBeforeCursor: 'drop ', tables: sampleSchema });
+      expect(result).toBe('TABLE IF EXISTS users;');
+    });
+
+    it('tích hợp mượt mà trong predictNextSqlSnippet khi người dùng gõ "create"', () => {
+      const doc = 'create';
+      const snippet = predictNextSqlSnippet({
+        docText: doc,
+        cursorOffset: doc.length,
+        tables: sampleSchema,
+        foreignKeys: sampleForeignKeys,
+      });
+      expect(snippet).toBe(' TABLE table_name (\n  id SERIAL PRIMARY KEY,\n  name TEXT NOT NULL\n);');
+    });
+
+    it('tích hợp mượt mà trong predictNextSqlSnippet sau dấu chấm phẩy của câu trước', () => {
+      const doc = 'SELECT 1;\ncreate ';
+      const snippet = predictNextSqlSnippet({
+        docText: doc,
+        cursorOffset: doc.length,
+        tables: sampleSchema,
+        foreignKeys: sampleForeignKeys,
+      });
+      expect(snippet).toBe('TABLE table_name (\n  id SERIAL PRIMARY KEY,\n  name TEXT NOT NULL\n);');
     });
   });
 });

@@ -47,11 +47,14 @@ export const CustomSwitch: React.FC<SwitchProps> = ({
   };
 
   return (
-    <div className={`${styles.wrapper} ${className ?? ""}`.trim()}>
+    <div className={`inline-flex items-center align-middle ${styles.wrapper} ${className ?? ""}`.trim()}>
       <label
         htmlFor={id}
-        className={`${styles.switch} ${disabled ? styles.disabled : ""}`}
+        tabIndex={disabled ? -1 : 0}
         onKeyDown={handleKeyDown}
+        className={`inline-block relative select-none cursor-pointer outline-none w-[46px] h-[24px] ${
+          disabled ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
+        } ${styles.switch} ${disabled ? styles.disabled : ""}`.trim()}
       >
         <input
           id={id}
@@ -64,19 +67,51 @@ export const CustomSwitch: React.FC<SwitchProps> = ({
           checked={isChecked}
           disabled={disabled}
           onChange={(e) => handleToggle(e.target.checked)}
+          className="sr-only"
         />
-        <div className={styles.slider} aria-hidden="true">
-          <div className={styles.circle}>
+        <div
+          className={`relative flex items-center box-border w-[46px] h-[24px] rounded-full transition-all duration-200 ease-[cubic-bezier(0.27,0.2,0.25,1.51)] ${styles.slider}`}
+          style={{
+            backgroundColor: isChecked ? "rgb(0, 218, 80)" : "rgb(131, 131, 131)",
+          }}
+          aria-hidden="true"
+        >
+          {/* Effect line */}
+          <div
+            className="absolute rounded-[1px] transition-all duration-200 ease-in-out"
+            style={{
+              width: "9px",
+              height: "3.5px",
+              backgroundColor: "#fff",
+              left: isChecked ? "29.5px" : "7.5px",
+            }}
+          />
+          {/* Circle knob */}
+          <div
+            className={`absolute flex items-center justify-center rounded-full bg-white z-10 transition-all duration-200 ease-[cubic-bezier(0.27,0.2,0.25,1.51)] ${styles.circle}`}
+            style={{
+              width: "18px",
+              height: "18px",
+              left: isChecked ? "25px" : "3px",
+              boxShadow: isChecked
+                ? "-1px 1px 2px rgba(163, 163, 163, 0.45)"
+                : "1px 1px 2px rgba(146, 146, 146, 0.45)",
+            }}
+          >
             <svg
               data-testid="cross-icon"
-              className={styles.cross}
+              className={`absolute transition-transform duration-200 ease-[cubic-bezier(0.27,0.2,0.25,1.51)] ${styles.cross}`}
               xmlSpace="preserve"
-              style={{ enableBackground: "new 0 0 512 512" } as React.CSSProperties}
+              style={{
+                width: "6px",
+                height: "6px",
+                color: "rgb(131, 131, 131)",
+                transform: isChecked ? "scale(0)" : "scale(1)",
+                enableBackground: "new 0 0 512 512",
+              } as React.CSSProperties}
               viewBox="0 0 365.696 365.696"
               y={0}
               x={0}
-              height={6}
-              width={6}
               xmlnsXlink="http://www.w3.org/1999/xlink"
               version="1.1"
               xmlns="http://www.w3.org/2000/svg"
@@ -92,14 +127,18 @@ export const CustomSwitch: React.FC<SwitchProps> = ({
             </svg>
             <svg
               data-testid="checkmark-icon"
-              className={styles.checkmark}
+              className={`absolute transition-transform duration-200 ease-[cubic-bezier(0.27,0.2,0.25,1.51)] ${styles.checkmark}`}
               xmlSpace="preserve"
-              style={{ enableBackground: "new 0 0 512 512" } as React.CSSProperties}
+              style={{
+                width: "10px",
+                height: "10px",
+                color: "rgb(0, 218, 80)",
+                transform: isChecked ? "scale(1)" : "scale(0)",
+                enableBackground: "new 0 0 512 512",
+              } as React.CSSProperties}
               viewBox="0 0 24 24"
               y={0}
               x={0}
-              height={10}
-              width={10}
               xmlnsXlink="http://www.w3.org/1999/xlink"
               version="1.1"
               xmlns="http://www.w3.org/2000/svg"

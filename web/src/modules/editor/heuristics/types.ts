@@ -32,7 +32,7 @@ export interface PredictContext {
 /**
  * Phân loại loại gợi ý ngữ cảnh SQL.
  */
-export type PredictResultType = 'fk_join' | 'group_by' | 'insert_columns' | 'lifecycle';
+export type PredictResultType = 'fk_join' | 'group_by' | 'insert_columns' | 'lifecycle' | 'statement_start';
 
 /**
  * Kết quả phân tích chi tiết của động cơ gợi ý.

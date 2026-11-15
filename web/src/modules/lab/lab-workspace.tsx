@@ -509,14 +509,12 @@ export function LabWorkspace() {
   const statements = outcome?.ok ? outcome.statements : [];
   const dialogOn = Boolean(draft && draft.sql === sql && draft.engine === engine);
   const effSql = parsed && outcome ? parsed.eff : sql;
-  const removedAny = Boolean(parsed && outcome && (parsed.removed.copyBlocks || parsed.removed.lockStatements));
-  // Dấu lỗi gắn với đúng nội dung đã sinh ra nó: sửa chữ là dấu tự biến mất.
+  // Dấu lỗi chỉ xuất hiện khi người dùng chạy lệnh và DB báo lỗi (state.phase === "sql_error").
+  // Không gán lỗi parse ngầm khi đang gõ dở để tránh viền đỏ/vàng làm phiền việc soạn thảo.
   const editorError =
     state.phase === "sql_error" && state.sql === sql && state.position !== undefined
       ? { position: engineToEditorPos(sql, state.position), message: state.message }
-      : outcome && !outcome.ok && outcome.error.position !== undefined && !removedAny // vị trí tính trên SQL đã bỏ khối COPY, không khớp ô soạn
-        ? { position: outcome.error.position, message: outcome.error.message }
-        : undefined;
+      : undefined;
   // Lỗi parse không vị trí là parser không chạy được (tải hỏng, worker chết), không phải SQL sai.
   const parserDown = Boolean(outcome && !outcome.ok && outcome.error.position === undefined);
   const frun = useMemo(
