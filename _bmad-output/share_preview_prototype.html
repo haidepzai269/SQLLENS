@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SQLLens - Prototype Chia Sẻ & Fork (Chuẩn Design System)</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Font chữ chuẩn SQLLens: Public Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Public Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            // Hệ màu Lab Dark Theme thực tế của SQLLens (globals.css)
+            stage: '#0e0e10',
+            ground: '#171719',
+            surface: '#131217',
+            raised: '#212023',
+            rule: '#1f1e23',
+            line: '#2a2a2e',
+            control: '#3a3a3e',
+            
+            // Màu chữ
+            text: '#ffffff',
+            ink2: '#c4c5c9',
+            dim: '#92949a',
+            
+            // Màu đèn thương hiệu (Lamp Amber)
+            lamp: '#f2b84b',
+            'lamp-ink': '#17130a',
+            negative: '#ef6b82',
+            
+            // Trạng thái & Rủi ro
+            'sev-broken': '#ef6b82',
+            'sev-broken-bg': '#2a161c',
+            'sev-broken-fg': '#ff9fae',
+            'sev-passed': '#4fb08e',
+            'sev-passed-bg': '#12261f',
+            'sev-passed-fg': '#86dcbd',
+            'sev-uncertain': '#d8dc52',
+            'sev-uncertain-bg': '#24260e',
+            'sev-uncertain-fg': '#e6ea78',
+          },
+          borderRadius: {
+            DEFAULT: '4px',
+            sm: '2px',
+            md: '4px',
+            lg: '4px',
+            xl: '4px',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Reset & Chuẩn SQLLens: Border radius cố định 4px, không bo tròn kiểu SaaS */
+    * { border-radius: 0px; }
+    .rounded { border-radius: 4px !important; }
+    .rounded-sm { border-radius: 2px !important; }
+    .rounded-full { border-radius: 9999px !important; }
+
+    /* Scrollbar phòng lab siêu mảnh */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #0e0e10; }
+    ::-webkit-scrollbar-thumb { background: #2a2a2e; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a3a3e; }
+  </style>
+</head>
+
+<body class="bg-ground text-text font-sans min-h-screen flex flex-col antialiased select-none text-[13px]">
+
+  <!-- ========================================================================= -->
+  <!-- TOP BANNER ĐIỀU KHIỂN XEM THỬ PROTOTYPE (DÀNH CHO CHỦ DỰ ÁN) -->
+  <!-- ========================================================================= -->
+  <aside aria-label="Bộ điều khiển prototype" class="bg-surface border-b border-line px-4 py-1.5 flex items-center justify-between z-50 text-[11px] font-mono">
+    <div class="flex items-center gap-2">
+      <span class="px-1.5 py-0.5 rounded bg-lamp/15 text-lamp font-semibold border border-lamp/30">
+        SQLLENS LAB PROTOTYPE
+      </span>
+      <span class="text-dim">Giao diện bám 100% Design System: Font Public Sans + JetBrains Mono, Bề mặt Stage/Ground, Màu Lamp #f2b84b</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <button onclick="switchView('editor')" id="btn-view-editor" class="px-2.5 py-1 rounded bg-lamp text-lamp-ink font-semibold transition hover:opacity-90">
+        1. Editor Gốc & Popup Share
+      </button>
+      <button onclick="switchView('share')" id="btn-view-share" class="px-2.5 py-1 rounded bg-raised text-ink2 font-medium hover:text-text border border-line">
+        2. Trang Người Nhận Xem (/share/:id)
+      </button>
+    </div>
+  </aside>
+
+  <!-- ========================================================================= -->
+  <!-- MÀN HÌNH 1: GIAO DIỆN CHÍNH CỦA APP (EDITOR & MODAL SHARE) -->
+  <!-- ========================================================================= -->
+  <div id="view-editor" class="flex-1 flex flex-col relative">
+    
+    <!-- APP HEADER THẬT CỦA SQLLENS (h-[44px], logo B-Tree SVG) -->
+    <header class="h-[44px] border-b border-line bg-ground px-4 flex items-center justify-between flex-none">
+      <div class="flex items-center gap-4">
+        
+        <!-- Logo SVG chuẩn SQLLens -->
+        <div class="flex items-center gap-2 text-sm font-semibold">
+          <svg viewBox="0 0 20 20" aria-hidden="true" class="w-5 h-5">
+            <circle cx="10" cy="10" r="8.5" fill="none" stroke-width="1.5" stroke="#ffffff" />
+            <path d="M10 6v3M10 9H6.5v2.5M10 9h3.5v2.5" fill="none" stroke-width="1.2" stroke="#ffffff" />
+            <rect x="8.5" y="4" width="3" height="3" fill="#f2b84b" />
+            <rect x="5" y="11.5" width="3" height="3" fill="#ffffff" />
+            <rect x="12" y="11.5" width="3" height="3" fill="#ffffff" />
+          </svg>
+          <span class="tracking-tight text-white font-bold">SQLLens</span>
+        </div>
+
+        <div class="h-4 w-px bg-line"></div>
+
+        <!-- Engine Tabs chuẩn SQLLens -->
+        <nav class="flex h-[44px] items-center gap-1">
+          <button class="relative h-full px-2.5 text-text font-medium flex items-center gap-1.5 text-xs after:absolute after:inset-x-2 after:bottom-0 after:h-[2px] after:bg-lamp">
+            PostgreSQL
+          </button>
+          <button class="relative h-full px-2.5 text-dim hover:text-ink2 flex items-center gap-1.5 text-xs">
+            MySQL
+          </button>
+          <button class="relative h-full px-2.5 text-lamp hover:text-text flex items-center gap-1 text-xs">
+            SQLite <span class="text-[9px] px-1 py-0.2 rounded bg-lamp/15 text-lamp border border-lamp/30">Mới</span>
+          </button>
+          <button class="relative h-full px-2 text-dim/50 flex items-center gap-1 text-xs cursor-not-allowed">
+            <svg class="w-3 h-3 text-dim/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            NoSQL
+          </button>
+        </nav>
+      </div>
+
+      <!-- Action Buttons trên Header -->
+      <div class="flex items-center gap-2">
+        <!-- Nút Share Project -->
+        <button onclick="openShareModal()" class="h-7 px-3 rounded bg-lamp text-lamp-ink font-semibold hover:bg-lamp/90 text-xs flex items-center gap-1.5 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+          Share
+        </button>
+
+        <!-- Nút Export -->
+        <button class="h-7 px-3 rounded bg-raised hover:bg-control text-ink2 hover:text-text border border-line text-xs font-medium flex items-center gap-1.5 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Export
+        </button>
+
+        <div class="h-4 w-px bg-line mx-1"></div>
+
+        <div class="w-6 h-6 rounded bg-raised border border-line text-xs font-bold text-lamp flex items-center justify-center">
+          V
+        </div>
+      </div>
+    </header>
+
+    <!-- WORKSPACE TABS & CODE AREA -->
+    <div class="flex-1 flex flex-col min-h-0">
+      
+      <!-- Tab Bar (Quản lý các trang SQL) -->
+      <div class="h-[36px] bg-ground border-b border-line flex items-center justify-between px-3">
+        <div class="flex items-center gap-1">
+          <!-- Tab 1 Active -->
+          <div class="h-[28px] px-3 rounded bg-surface border border-line text-lamp text-xs font-mono flex items-center gap-2">
+            <span>01_schema.sql</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-sev-passed"></span>
+          </div>
+          <!-- Tab 2 Inactive -->
+          <div class="h-[28px] px-3 text-dim hover:text-ink2 text-xs font-mono flex items-center gap-2 cursor-pointer">
+            <span>02_deadlock_sim.sql</span>
+          </div>
+          <!-- Tab 3 Inactive -->
+          <div class="h-[28px] px-3 text-dim hover:text-ink2 text-xs font-mono flex items-center gap-2 cursor-pointer">
+            <span>03_analytics.sql</span>
+          </div>
+          <!-- Add Tab Button -->
+          <button class="w-6 h-6 rounded flex items-center justify-center text-dim hover:text-text hover:bg-raised text-xs" title="Tạo Tab mới">
+            +
+          </button>
+        </div>
+
+        <div class="text-[11px] text-dim font-mono">
+          PostgreSQL 16 (PGlite in-browser) • 0 byte server
+        </div>
+      </div>
+
+      <!-- Editor Content (CodeMirror 6 Lab Theme) -->
+      <div class="flex-1 bg-surface p-3 font-mono text-xs leading-[20px] text-text flex overflow-auto">
+        <!-- Line Numbers Gutter -->
+        <div class="text-dim/60 select-none pr-3 text-right border-r border-line/60 mr-3">
+          1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10<br>11<br>12
+        </div>
+        <!-- SQL Content với syntax highlighting chuẩn globals.css -->
+        <div class="flex-1">
+          <span class="text-dim italic">-- SQLLens Lab: Thiết kế Schema giao dịch ngân hàng</span><br>
+          <span class="text-lamp font-semibold">CREATE TABLE</span> accounts (<br>
+          &nbsp;&nbsp;id <span class="text-ink2 font-bold">SERIAL PRIMARY KEY</span>,<br>
+          &nbsp;&nbsp;owner_name <span class="text-ink2 font-bold">VARCHAR(100) NOT NULL</span>,<br>
+          &nbsp;&nbsp;balance <span class="text-ink2 font-bold">NUMERIC(15, 2) DEFAULT</span> <span class="text-sev-uncertain">0.00</span><br>
+          );<br><br>
+          <span class="text-lamp font-semibold">CREATE TABLE</span> transfers (<br>
+          &nbsp;&nbsp;id <span class="text-ink2 font-bold">SERIAL PRIMARY KEY</span>,<br>
+          &nbsp;&nbsp;from_account_id <span class="text-ink2 font-bold">INT REFERENCES</span> accounts(id),<br>
+          &nbsp;&nbsp;to_account_id <span class="text-ink2 font-bold">INT REFERENCES</span> accounts(id),<br>
+          &nbsp;&nbsp;amount <span class="text-ink2 font-bold">NUMERIC(15, 2) NOT NULL</span><br>
+          );
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- SHARE MODAL / DIALOG (CHUẨN THIẾT KẾ SHADCN/UI & SQLLENS) -->
+    <!-- ========================================================================= -->
+    <div id="share-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 transition-opacity">
+      <div class="bg-surface border border-line w-full max-w-md rounded p-5 shadow-2xl relative animate-in fade-in zoom-in-95 duration-100">
+        
+        <!-- Nút Close góc phải -->
+        <button onclick="closeShareModal()" class="absolute top-3.5 right-3.5 text-dim hover:text-text p-1 rounded hover:bg-raised">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+
+        <!-- Tiêu đề Dialog -->
+        <div class="flex items-center gap-2.5 mb-3">
+          <div class="w-7 h-7 rounded bg-lamp/15 border border-lamp/30 text-lamp flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-text">Chia Sẻ Snapshot Dự Án</h2>
+            <p class="text-[11px] text-dim">Tạo liên kết chỉ đọc lưu tại Edge Cache để đồng nghiệp xem và fork</p>
+          </div>
+        </div>
+
+        <!-- Hộp Thông tin Snapshot -->
+        <div class="bg-ground border border-line rounded p-2.5 mb-3 flex items-center justify-between text-xs">
+          <div>
+            <div class="text-text font-medium">E-Commerce Deadlock Test</div>
+            <div class="text-[10px] text-dim font-mono">3 Tabs SQL • PostgreSQL (PGlite)</div>
+          </div>
+          <span class="px-2 py-0.5 rounded bg-raised text-ink2 border border-line text-[10px] font-mono">
+            Immutable
+          </span>
+        </div>
+
+        <!-- Input Link & Copy Button -->
+        <div class="mb-3.5">
+          <label class="block text-[11px] font-medium text-ink2 mb-1.5">Liên kết chia sẻ (Route Param):</label>
+          <div class="flex items-center gap-1.5">
+            <input type="text" readonly value="https://sqllens.com/share/k9Zx2LmQ" id="share-link-input"
+              class="flex-1 bg-ground border border-control rounded px-3 py-1.5 text-xs font-mono text-lamp focus:outline-none focus:border-lamp select-all">
+            <button onclick="copyShareLink()" id="btn-copy"
+              class="h-8 px-3 rounded bg-lamp hover:bg-lamp/90 text-lamp-ink text-xs font-semibold flex items-center gap-1.5 transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              <span id="copy-text">Sao chép</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- AMBER WARNING: CẢNH BÁO RỦI RO DỮ LIỆU NHẠY CẢM (Chuẩn --severity-uncertain) -->
+        <div class="rounded bg-sev-uncertain-bg border border-sev-uncertain/40 p-3 mb-4 flex items-start gap-2.5">
+          <svg class="w-4 h-4 text-sev-uncertain shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <div class="text-[11px] leading-relaxed text-sev-uncertain-fg">
+            <strong class="font-semibold text-sev-uncertain">Lưu ý an toàn dữ liệu:</strong> 
+            Bất kỳ ai có liên kết này đều xem được toàn bộ các bảng và câu lệnh SQL. Vui lòng đảm bảo không chia sẻ dữ liệu nhạy cảm, mật khẩu hoặc khóa bảo mật (API keys).
+          </div>
+        </div>
+
+        <!-- Footer Modal -->
+        <div class="flex items-center justify-between pt-2.5 border-t border-line text-xs">
+          <span class="text-[10px] text-dim font-mono">Edge Cache: TTL 30 ngày</span>
+          <button onclick="switchView('share')" class="text-lamp hover:underline font-medium text-xs flex items-center gap-1">
+            Xem trước giao diện người nhận &rarr;
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MÀN HÌNH 2: TRANG NGƯỜI NHẬN XEM CHỈ ĐỌC (/share/k9Zx2LmQ) -->
+  <!-- ========================================================================= -->
+  <div id="view-share" class="flex-1 flex flex-col hidden relative">
+    
+    <!-- STICKY TOP BAR: CHẾ ĐỘ CHỈ ĐỌC (h-[44px], chuẩn Design System) -->
+    <header class="h-[44px] bg-ground border-b border-line px-4 flex items-center justify-between shadow-sm flex-none">
+      <div class="flex items-center gap-3">
+        
+        <!-- Logo SQLLens -->
+        <div class="flex items-center gap-2 text-sm font-semibold">
+          <svg viewBox="0 0 20 20" aria-hidden="true" class="w-5 h-5">
+            <circle cx="10" cy="10" r="8.5" fill="none" stroke-width="1.5" stroke="#ffffff" />
+            <path d="M10 6v3M10 9H6.5v2.5M10 9h3.5v2.5" fill="none" stroke-width="1.2" stroke="#ffffff" />
+            <rect x="8.5" y="4" width="3" height="3" fill="#f2b84b" />
+            <rect x="5" y="11.5" width="3" height="3" fill="#ffffff" />
+            <rect x="12" y="11.5" width="3" height="3" fill="#ffffff" />
+          </svg>
+          <span class="tracking-tight text-white font-bold">SQLLens</span>
+        </div>
+
+        <div class="h-4 w-px bg-line"></div>
+
+        <!-- Read-Only Badge theo phong cách Conclusion Badge của SQLLens -->
+        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-sev-uncertain-bg text-sev-uncertain-fg text-[11px] font-mono border border-sev-uncertain/40">
+          <span class="w-1.5 h-1.5 rounded-full bg-sev-uncertain animate-pulse"></span>
+          Snapshot Chỉ Đọc
+        </span>
+
+        <!-- Tên Dự án & Tác giả -->
+        <div class="flex items-center gap-2 text-xs">
+          <h1 class="font-semibold text-text">E-Commerce Deadlock Test</h1>
+          <span class="text-dim">•</span>
+          <span class="text-dim text-[11px]">bởi <span class="text-ink2 font-medium">hoang_dev</span> (15/11/2026)</span>
+          <span class="px-1.5 py-0.2 rounded bg-raised text-dim text-[10px] border border-line font-mono">PostgreSQL</span>
+        </div>
+      </div>
+
+      <!-- Actions bên phải của Trang Share -->
+      <div class="flex items-center gap-2">
+        <!-- Nút Chạy Thử Sandbox Cục Bộ -->
+        <button onclick="triggerRunSandbox()" class="h-7 px-3 rounded bg-raised hover:bg-control text-ink2 hover:text-text border border-line text-xs font-medium flex items-center gap-1.5 transition">
+          <svg class="w-3.5 h-3.5 text-sev-passed" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>
+          Chạy thử Sandbox
+        </button>
+
+        <!-- NÚT FORK TRỌNG TÂM (PRIMARY CTA - Màu Lamp #f2b84b) -->
+        <button onclick="triggerFork()" class="h-7 px-3.5 rounded bg-lamp hover:bg-lamp/90 text-lamp-ink text-xs font-semibold flex items-center gap-1.5 transition shadow-sm active:translate-y-px">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
+          Fork vào Workspace
+        </button>
+      </div>
+    </header>
+
+    <!-- WORKSPACE CHỈ ĐỌC (Desktop Layout 3 Phân Vùng của SQLLens) -->
+    <div class="flex-1 flex flex-col min-h-0 bg-stage">
+      
+      <!-- Read-Only Tab Bar -->
+      <div class="h-[36px] bg-ground border-b border-line flex items-center justify-between px-3">
+        <div class="flex items-center gap-1">
+          <button onclick="selectShareTab(1)" id="tab-btn-1" class="h-[28px] px-3 rounded bg-surface border border-line text-lamp text-xs font-mono flex items-center gap-1.5">
+            <svg class="w-3 h-3 text-dim" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            01_schema.sql
+          </button>
+          <button onclick="selectShareTab(2)" id="tab-btn-2" class="h-[28px] px-3 text-dim hover:text-ink2 text-xs font-mono flex items-center gap-1.5">
+            <svg class="w-3 h-3 text-dim" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            02_deadlock_sim.sql
+          </button>
+          <button onclick="selectShareTab(3)" id="tab-btn-3" class="h-[28px] px-3 text-dim hover:text-ink2 text-xs font-mono flex items-center gap-1.5">
+            <svg class="w-3 h-3 text-dim" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            03_analytics.sql
+          </button>
+        </div>
+
+        <button onclick="copyCurrentCode()" class="text-xs text-dim hover:text-lamp flex items-center gap-1 px-2 py-1 rounded hover:bg-raised">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+          Sao chép Code
+        </button>
+      </div>
+
+      <!-- Main Layout Body: Left Editor & Right ERD Preview -->
+      <div class="flex-1 flex min-h-0 overflow-hidden">
+        
+        <!-- Cột Trái: CodeMirror Read-Only + Terminal Output -->
+        <div class="flex-1 flex flex-col border-r border-line">
+          
+          <!-- Code View -->
+          <div class="flex-1 bg-surface p-3 font-mono text-xs leading-[20px] text-text flex overflow-auto relative">
+            
+            <!-- Watermark mờ Read-Only -->
+            <div class="absolute right-6 bottom-4 text-line/80 text-3xl font-bold select-none pointer-events-none font-mono tracking-widest">
+              READ_ONLY
+            </div>
+
+            <!-- Line Gutter -->
+            <div class="text-dim/60 select-none pr-3 text-right border-r border-line/60 mr-3">
+              1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10<br>11<br>12<br>13
+            </div>
+
+            <!-- Code Content -->
+            <div id="code-content" class="flex-1">
+              <span class="text-dim italic">-- [Chỉ Đọc] Nhấn [Fork vào Workspace] để chỉnh sửa tự do</span><br>
+              <span class="text-lamp font-semibold">CREATE TABLE</span> accounts (<br>
+              &nbsp;&nbsp;id <span class="text-ink2 font-bold">SERIAL PRIMARY KEY</span>,<br>
+              &nbsp;&nbsp;owner_name <span class="text-ink2 font-bold">VARCHAR(100) NOT NULL</span>,<br>
+              &nbsp;&nbsp;balance <span class="text-ink2 font-bold">NUMERIC(15, 2) DEFAULT</span> <span class="text-sev-uncertain">0.00</span><br>
+              );<br><br>
+              <span class="text-lamp font-semibold">CREATE TABLE</span> transfers (<br>
+              &nbsp;&nbsp;id <span class="text-ink2 font-bold">SERIAL PRIMARY KEY</span>,<br>
+              &nbsp;&nbsp;from_account_id <span class="text-ink2 font-bold">INT REFERENCES</span> accounts(id),<br>
+              &nbsp;&nbsp;to_account_id <span class="text-ink2 font-bold">INT REFERENCES</span> accounts(id),<br>
+              &nbsp;&nbsp;amount <span class="text-ink2 font-bold">NUMERIC(15, 2) NOT NULL</span><br>
+              );<br><br>
+              <span class="text-lamp font-semibold">CREATE INDEX</span> idx_transfers_from <span class="text-lamp font-semibold">ON</span> transfers(from_account_id);
+            </div>
+          </div>
+
+          <!-- Bottom Console/Terminal: Chiều cao 100px chuẩn SQLLens -->
+          <div class="h-[100px] bg-stage border-t border-line p-2.5 font-mono text-[11px] overflow-auto">
+            <div class="text-dim mb-1 flex items-center justify-between text-[10px]">
+              <span class="flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-sev-passed"></span>
+                Console Sandbox PGlite (Web Worker)
+              </span>
+              <span class="text-dim">Môi trường cục bộ cách ly</span>
+            </div>
+            <div id="sandbox-log" class="text-ink2">
+              [Info] Đã nạp thành công Snapshot từ Edge CDN (0ms server load). Bạn có thể nhấn "Chạy thử Sandbox" để kiểm tra kịch bản ngay tại trình duyệt.
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Cột Phải: Sơ Đồ ERD Preview (Bề mặt Stage) -->
+        <div class="w-72 bg-stage flex flex-col">
+          <div class="h-[36px] border-b border-line px-3 flex items-center justify-between text-xs font-medium text-ink2 bg-ground">
+            <span>Sơ Đồ Bảng (ERD)</span>
+            <span class="text-[10px] text-dim font-mono">2 bảng</span>
+          </div>
+
+          <div class="flex-1 p-3 flex flex-col gap-2.5 overflow-auto">
+            
+            <!-- Table Card 1: accounts -->
+            <div class="bg-surface rounded border border-line p-2 font-mono text-xs shadow-sm">
+              <div class="text-lamp font-semibold border-b border-line pb-1 mb-1.5 flex justify-between items-center">
+                <span>accounts</span>
+                <span class="text-[9px] px-1 py-0.2 rounded bg-raised text-dim">TABLE</span>
+              </div>
+              <div class="text-dim space-y-0.5 text-[11px]">
+                <div><span class="text-sev-uncertain">PK</span> id : serial</div>
+                <div>owner_name : varchar</div>
+                <div>balance : numeric</div>
+              </div>
+            </div>
+
+            <!-- Table Card 2: transfers -->
+            <div class="bg-surface rounded border border-line p-2 font-mono text-xs shadow-sm">
+              <div class="text-lamp font-semibold border-b border-line pb-1 mb-1.5 flex justify-between items-center">
+                <span>transfers</span>
+                <span class="text-[9px] px-1 py-0.2 rounded bg-raised text-dim">TABLE</span>
+              </div>
+              <div class="text-dim space-y-0.5 text-[11px]">
+                <div><span class="text-sev-uncertain">PK</span> id : serial</div>
+                <div><span class="text-lamp">FK</span> from_account_id &rarr; accounts.id</div>
+                <div><span class="text-lamp">FK</span> to_account_id &rarr; accounts.id</div>
+                <div>amount : numeric</div>
+              </div>
+            </div>
+
+            <!-- Findings Card Chuẩn SQLLens -->
+            <div class="mt-auto bg-surface border border-line rounded p-2.5">
+              <div class="flex items-center gap-1.5 text-xs text-sev-uncertain font-semibold mb-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Phân tích thiết kế:
+              </div>
+              <p class="text-[11px] text-dim leading-snug">
+                Đã có Index cho <code class="text-ink2">from_account_id</code>. Đề xuất thêm index cho <code class="text-ink2">to_account_id</code> nếu kịch bản có nhiều truy vấn nhận tiền.
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CHUẨN SQLLENS (Góc dưới phải) -->
+  <div id="toast" class="fixed bottom-4 right-4 bg-surface border border-line text-text px-3.5 py-2 rounded shadow-2xl text-xs font-mono transform translate-y-16 opacity-0 transition-all duration-200 flex items-center gap-2 z-50">
+    <span class="w-2 h-2 rounded-full bg-lamp"></span>
+    <span id="toast-message">Thông báo</span>
+  </div>
+
+  <script>
+    // Điều hướng giữa 2 View
+    function switchView(viewName) {
+      const viewEditor = document.getElementById('view-editor');
+      const viewShare = document.getElementById('view-share');
+      const btnEditor = document.getElementById('btn-view-editor');
+      const btnShare = document.getElementById('btn-view-share');
+
+      if (viewName === 'editor') {
+        viewEditor.classList.remove('hidden');
+        viewShare.classList.add('hidden');
+        btnEditor.className = "px-2.5 py-1 rounded bg-lamp text-lamp-ink font-semibold transition hover:opacity-90";
+        btnShare.className = "px-2.5 py-1 rounded bg-raised text-ink2 font-medium hover:text-text border border-line";
+        openShareModal();
+      } else {
+        viewEditor.classList.add('hidden');
+        viewShare.classList.remove('hidden');
+        btnShare.className = "px-2.5 py-1 rounded bg-lamp text-lamp-ink font-semibold transition hover:opacity-90";
+        btnEditor.className = "px-2.5 py-1 rounded bg-raised text-ink2 font-medium hover:text-text border border-line";
+        closeShareModal();
+      }
+    }
+
+    // Modal Control
+    function openShareModal() {
+      document.getElementById('share-modal').classList.remove('hidden');
+    }
+    function closeShareModal() {
+      document.getElementById('share-modal').classList.add('hidden');
+    }
+
+    // Copy Link
+    function copyShareLink() {
+      const input = document.getElementById('share-link-input');
+      input.select();
+      navigator.clipboard.writeText(input.value);
+
+      const copyText = document.getElementById('copy-text');
+      copyText.innerText = "Đã chép! ✓";
+
+      showToast("Đã sao chép link chia sẻ vào clipboard!");
+
+      setTimeout(() => {
+        copyText.innerText = "Sao chép";
+      }, 2000);
+    }
+
+    // Fork Action
+    function triggerFork() {
+      showToast("Đang clone 3 tabs vào IndexedDB...");
+      setTimeout(() => {
+        showToast("✓ Fork thành công! Chuyển vào Workspace cá nhân.");
+        setTimeout(() => {
+          switchView('editor');
+          closeShareModal();
+        }, 1000);
+      }, 600);
+    }
+
+    // Run Sandbox
+    function triggerRunSandbox() {
+      const log = document.getElementById('sandbox-log');
+      log.innerHTML = `
+        <span class="text-lamp">[PGlite]</span> Bắt đầu thực thi trong Web Worker...<br>
+        <span class="text-sev-passed">[OK]</span> CREATE TABLE accounts (18ms)<br>
+        <span class="text-sev-passed">[OK]</span> CREATE TABLE transfers (12ms)<br>
+        <span class="text-sev-passed">[OK]</span> CREATE INDEX idx_transfers_from (6ms)<br>
+        <span class="text-dim">[Xong] Thực thi an toàn 100% trong sandbox trình duyệt.</span>
+      `;
+      showToast("Thực thi thành công trong Sandbox!");
+    }
+
+    // Chuyển Tab ở Read-Only View
+    const tabContents = {
+      1: `<span class="text-dim italic">-- [Chỉ Đọc] 01_schema.sql</span><br>
+          <span class="text-lamp font-semibold">CREATE TABLE</span> accounts (<br>
+          &nbsp;&nbsp;id <span class="text-ink2 font-bold">SERIAL PRIMARY KEY</span>,<br>
+          &nbsp;&nbsp;owner_name <span class="text-ink2 font-bold">VARCHAR(100) NOT NULL</span>,<br>
+          &nbsp;&nbsp;balance <span class="text-ink2 font-bold">NUMERIC(15, 2) DEFAULT</span> <span class="text-sev-uncertain">0.00</span><br>
+          );<br><br>
+          <span class="text-lamp font-semibold">CREATE TABLE</span> transfers (<br>
+          &nbsp;&nbsp;id <span class="text-ink2 font-bold">SERIAL PRIMARY KEY</span>,<br>
+          &nbsp;&nbsp;from_account_id <span class="text-ink2 font-bold">INT REFERENCES</span> accounts(id),<br>
+          &nbsp;&nbsp;to_account_id <span class="text-ink2 font-bold">INT REFERENCES</span> accounts(id),<br>
+          &nbsp;&nbsp;amount <span class="text-ink2 font-bold">NUMERIC(15, 2) NOT NULL</span><br>
+          );<br><br>
+          <span class="text-lamp font-semibold">CREATE INDEX</span> idx_transfers_from <span class="text-lamp font-semibold">ON</span> transfers(from_account_id);`,
+      2: `<span class="text-dim italic">-- [Chỉ Đọc] 02_deadlock_sim.sql (Tranh chấp 2 phiên)</span><br>
+          <span class="text-dim italic">-- Session 1:</span><br>
+          <span class="text-lamp font-semibold">BEGIN TRANSACTION;</span><br>
+          <span class="text-lamp font-semibold">UPDATE</span> accounts <span class="text-lamp font-semibold">SET</span> balance = balance - 100 <span class="text-lamp font-semibold">WHERE</span> id = 1;<br>
+          <span class="text-dim italic">-- Đang giữ khóa RowLock(id=1)... Chờ Session 2 khóa id=2</span>`,
+      3: `<span class="text-dim italic">-- [Chỉ Đọc] 03_analytics.sql</span><br>
+          <span class="text-lamp font-semibold">EXPLAIN (ANALYZE, BUFFERS)</span><br>
+          <span class="text-lamp font-semibold">SELECT</span> a.owner_name, <span class="text-ink2 font-bold">COUNT</span>(t.id) <span class="text-lamp font-semibold">AS</span> total_transfers<br>
+          <span class="text-lamp font-semibold">FROM</span> accounts a<br>
+          <span class="text-lamp font-semibold">LEFT JOIN</span> transfers t <span class="text-lamp font-semibold">ON</span> a.id = t.from_account_id<br>
+          <span class="text-lamp font-semibold">GROUP BY</span> a.owner_name;`
+    };
+
+    function selectShareTab(tabIndex) {
+      for (let i = 1; i <= 3; i++) {
+        const btn = document.getElementById('tab-btn-' + i);
+        if (i === tabIndex) {
+          btn.className = "h-[28px] px-3 rounded bg-surface border border-line text-lamp text-xs font-mono flex items-center gap-1.5";
+        } else {
+          btn.className = "h-[28px] px-3 text-dim hover:text-ink2 text-xs font-mono flex items-center gap-1.5";
+        }
+      }
+      document.getElementById('code-content').innerHTML = tabContents[tabIndex];
+    }
+
+    function copyCurrentCode() {
+      navigator.clipboard.writeText(document.getElementById('code-content').innerText);
+      showToast("Đã chép toàn bộ mã SQL!");
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-message').innerText = msg;
+      toast.classList.remove('translate-y-16', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-16', 'opacity-0');
+      }, 2500);
+    }
+  </script>
+</body>
+</html>
