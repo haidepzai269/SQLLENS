@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getStatementAtOffset } from "@/components/sql-editor/statement-at-cursor";
 import type { EngineId } from "@/contracts/engine";
+import { canRunExplain } from "@/engines/mysql/guard";
 import { canExplainSql, runSafeExplainAnalyze } from "@/engines/postgres/safe-explain";
 import type { Run } from "@/engines/postgres/try-rollback";
 
@@ -63,9 +64,10 @@ export function useActiveQueryPlan(options: UseActiveQueryPlanOptions): UseActiv
     activeSql = getStatementAtOffset(editorContent, cursorOffset);
   }
 
-  // 2. Kiểm tra điều kiện thực thi
+  // 2. Kiểm tra điều kiện thực thi (có rào chắn Engine Guard chặn MySQL chạy ngầm)
   const isEligible =
     isFeatureEnabled &&
+    canRunExplain(engine, false) &&
     engine === "postgres" &&
     !!run &&
     !!activeSql &&

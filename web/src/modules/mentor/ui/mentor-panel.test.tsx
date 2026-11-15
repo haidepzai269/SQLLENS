@@ -163,6 +163,7 @@ describe("ConversationThread component", () => {
 describe("MentorPanel integration", () => {
   afterEach(cleanup);
   beforeEach(() => {
+    window.localStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -320,5 +321,128 @@ describe("MentorPanel integration", () => {
       expect(screen.queryByTestId("mentor-turn")).toBeNull();
       expect(screen.getByTestId("mentor-empty")).toBeDefined();
     });
+  });
+
+  test("AC1: click toggle PlanEvidencePill tắt đính kèm plan trong MentorRequest", async () => {
+    await mockSuccessfulStream("Answer without plan");
+
+    const planStr = "[PLAN_EVIDENCE: Seq Scan on users | Rows: 5]";
+    wrap(<MentorPanel adapter={dummyAdapter} evidence={dummyEvidence} planEvidence={planStr} />);
+
+    // Kiểm tra Pill hiển thị trạng thái Kèm Plan
+    const pill = screen.getByTestId("plan-evidence-pill");
+    expect(pill.getAttribute("aria-checked")).toBe("true");
+
+    // Click toggle để tắt Plan
+    fireEvent.click(pill);
+    expect(pill.getAttribute("aria-checked")).toBe("false");
+
+    // Gửi câu hỏi
+    const input = screen.getByTestId("mentor-question");
+    fireEvent.change(input, { target: { value: "Why slow?" } });
+    fireEvent.click(screen.getByTestId("mentor-send"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mentor-turn")).toBeDefined();
+    });
+
+    const mockFetch = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(String(init?.body)) as MentorRequest;
+
+    expect(body.question).toBe("Why slow?");
+    expect(body.evidence_plan).toBeUndefined();
+  });
+
+  test("AC2: click QuickActionChips lập tức gửi câu hỏi vào khung chat kèm evidence_plan", async () => {
+    await mockSuccessfulStream("Plan analysis response");
+
+    const planStr = "[PLAN_EVIDENCE: Index Scan on orders_pkey | Rows: 1]";
+    wrap(<MentorPanel adapter={dummyAdapter} evidence={dummyEvidence} planEvidence={planStr} />);
+
+    // QuickActionChips xuất hiện
+    expect(screen.getByTestId("quick-action-chips")).toBeDefined();
+    const slowChip = screen.getByTestId("chip-slow");
+
+    // Click chip slow query
+    fireEvent.click(slowChip);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mentor-turn")).toBeDefined();
+    });
+
+    const mockFetch = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(String(init?.body)) as MentorRequest;
+
+    expect(body.question).toBe("⚡ Why is this query slow?");
+    expect(body.evidence_plan).toBe(planStr);
+  });
+
+  test("AC3: MySQL Engine Guard chặn đính kèm plan tự động khi gõ chat tự do", async () => {
+    await mockSuccessfulStream("MySQL answer");
+
+    const mysqlAdapter: typeof dummyAdapter = {
+      ...dummyAdapter,
+      engine: "mysql",
+    };
+    const mysqlEvidence: EvidencePack = {
+      engine: "mysql",
+      sql: "SELECT * FROM customers WHERE id = 10;",
+    };
+    const planStr = "[PLAN_EVIDENCE: Table scan on customers]";
+
+    wrap(<MentorPanel adapter={mysqlAdapter} evidence={mysqlEvidence} planEvidence={planStr} />);
+
+    // Kiểm tra Pill hiển thị hướng dẫn bấm nút cho MySQL
+    const pill = screen.getByTestId("plan-evidence-pill");
+    expect(pill.textContent).toContain("MySQL: Click button to analyze");
+
+    // Gõ chat tự do vào input và bấm Send
+    const input = screen.getByTestId("mentor-question");
+    fireEvent.change(input, { target: { value: "Tell me about this query" } });
+    fireEvent.click(screen.getByTestId("mentor-send"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mentor-turn")).toBeDefined();
+    });
+
+    const mockFetch = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(String(init?.body)) as MentorRequest;
+
+    expect(body.question).toBe("Tell me about this query");
+    // Tuyệt đối không gửi evidence_plan khi gõ tự do trên MySQL
+    expect(body.evidence_plan).toBeUndefined();
+  });
+
+  test("AC3: MySQL Engine Guard cho phép đính kèm plan khi bấm Quick-Action Chip tường minh", async () => {
+    await mockSuccessfulStream("MySQL plan answer");
+
+    const mysqlAdapter: typeof dummyAdapter = {
+      ...dummyAdapter,
+      engine: "mysql",
+    };
+    const mysqlEvidence: EvidencePack = {
+      engine: "mysql",
+      sql: "SELECT * FROM customers WHERE id = 10;",
+    };
+    const planStr = "[PLAN_EVIDENCE: Table scan on customers]";
+
+    wrap(<MentorPanel adapter={mysqlAdapter} evidence={mysqlEvidence} planEvidence={planStr} />);
+
+    // Bấm chip Index
+    fireEvent.click(screen.getByTestId("chip-index"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mentor-turn")).toBeDefined();
+    });
+
+    const mockFetch = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(String(init?.body)) as MentorRequest;
+
+    expect(body.question).toBe("🔍 Is the optimizer using an Index?");
+    expect(body.evidence_plan).toBe(planStr);
   });
 });
