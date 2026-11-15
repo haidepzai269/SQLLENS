@@ -4,7 +4,7 @@
 Chi tiết số đo kiểm chứng thực nghiệm đầy đủ xem tại [CLAUDE.md](file:///c:/SQLLens/CLAUDE.md).
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
-- **Giai đoạn hiện tại:** Đã chốt 18 Epic và 84 Story (`_bmad-output/BAN_DO_STORY.md`). **SP001 - SP017 ĐÃ HOÀN THÀNH 100%!**
+- **Giai đoạn hiện tại:** Đã chốt 18 Epic và 84 Story (`_bmad-output/BAN_DO_STORY.md`). **SP001 - SP018 ĐÃ HOÀN THÀNH 100%!**
   + *Task113 (STR080):* ĐÃ HOÀN THÀNH 100%! Khắc phục triệt để lỗi 1-Click Fix xóa sạch editor bằng thuật toán bóc tách statement boundary và offset locator `applyStatementFix`, bảo toàn 100% các câu lệnh trước/sau và hỗ trợ hoàn tác Undo `Ctrl+Z`, đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
   + *Task114 (STR081):* ĐÃ HOÀN THÀNH 100%! Hiện thực hóa 6 tùy chọn Settings vào CodeMirror (theme cỡ chữ động 13/14/16px, ngắt dòng động, số dòng, highlight dòng) và đồng bộ Theme/Contrast Boost vào DOM `<html>`, đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
   + *Task115 (STR082):* ĐÃ HOÀN THÀNH 100%! Chuẩn hóa phân quyền RBAC Backend Gin (tự động nhận diện session cookie độc lập, bắt buộc kiểm tra `u.IsVIP()` kèm hạn `vip_until`, tự động demote VIP hết hạn về `user` trong DB), bảo vệ tuyệt đối `/ai/inline-complete`, đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
@@ -13,7 +13,8 @@ Chi tiết số đo kiểm chứng thực nghiệm đầy đủ xem tại [CLAUD
   + *Task118 (STR085):* ĐÃ HOÀN THÀNH 100%! Bảo vệ hạ tầng AI Copilot bằng Upstash Redis Token Bucket (2 tầng rate limit 60 req/phút và daily ceiling 1000 req/ngày, cơ chế graceful degradation fallback an toàn in-memory khi Redis lỗi, tuân thủ tuyệt đối Core Rule 7), đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
   + *Task119 (STR086):* ĐÃ HOÀN THÀNH 100%! Client-Side Safe EXPLAIN & 40-Token AST Plan Minifier (chạy `EXPLAIN (ANALYZE, BUFFERS)` an toàn trong PGlite bọc `BEGIN...ROLLBACK` với timeout 1.5s bảo toàn dữ liệu 100%, bộ nén `minifyPlanJson` khống chế dưới 40 tokens cho câu đơn và dưới 80 tokens cho JOIN, React Hook `useActiveQueryPlan` có rào chắn MySQL và debounce 300ms), đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
   + *Task120 (STR087):* ĐÃ HOÀN THÀNH 100%! Upfront Evidence Injection, System Prompt Engineering & Live AI Verification (Gin Proxy tiếp nhận `evidence_plan`, định dạng thẻ `<QUERY_PLAN_EVIDENCE>`, hướng dẫn phân nhánh ngữ cảnh cho AI Mentor, Reviewer độc lập đã chạy thử trực tiếp với model AI Groq Qwen 3.8-27B nghiệm thu đạt chuẩn cả 2 kịch bản hiệu năng vs cú pháp), đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
-- **Mục tiêu tiếp theo:** Triển khai **Task121 (STR088)**: UI Smart Controls, Action Chips & Rào Chắn MySQL Sandbox (Pill Badge hiển thị trạng thái Plan kèm toggle bật/tắt, cụm 3 Quick-Action Chips trong Chat Drawer, chặn đứng trigger tự động ngầm trên MySQL Sandbox, tích hợp mượt mà với `lab-workspace.tsx`).
+  + *Task121 (STR088):* ĐÃ HOÀN THÀNH 100%! UI Smart Controls, Action Chips & Rào Chắn MySQL Sandbox (Pill Badge hiển thị trạng thái Plan kèm toggle bật/tắt lưu `localStorage` an toàn, cụm 3 Quick-Action Chips trong Chat Drawer, chặn đứng trigger tự động ngầm trên MySQL Sandbox với `canRunExplain`, song ngữ vi/en đầy đủ), đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
+- **Mục tiêu tiếp theo:** Dự án đã hoàn tất 18 Epic cốt lõi (SP001 - SP018). Sẵn sàng cho khâu tổng nghiệm thu phát hành hoặc xử lý các việc phát sinh trong SP999.
 - **Key bên thứ 3:** Danh sách ở `KEY_CAN_LAY.md` (gitignored). Không bao giờ commit secret lên git.
 
 ---

@@ -178,7 +178,7 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 |---|---|---|---|
 | STR086 Bộ nén Plan AST & Hook PGlite an toàn | Chạy `EXPLAIN (ANALYZE, BUFFERS)` trong PGlite bọc `BEGIN...ROLLBACK` (timeout 1.5s), bóc tách AST nén xuống dưới 40 tokens (Đã xong - Task119) | | Thật |
 | STR087 Upfront Evidence & AI Live Verification | Gin Proxy tiếp nhận thẻ `<QUERY_PLAN_EVIDENCE>`, hướng dẫn AI phân nhánh giải thích; Reviewer bắt buộc chạy thử thật với model để nghiệm thu chất lượng câu trả lời (Đã xong - Task120) | | Thật |
-| STR088 UI Smart Controls & Rào chắn MySQL | Pill Badge hiển thị trạng thái Plan kèm toggle bật/tắt, cụm 3 Quick-Action Chips trong Chat Drawer, chặn đứng trigger tự động ngầm trên MySQL Sandbox | Có | Thật |
+| STR088 UI Smart Controls & Rào chắn MySQL | Pill Badge hiển thị trạng thái Plan kèm toggle bật/tắt, cụm 3 Quick-Action Chips trong Chat Drawer, chặn đứng trigger tự động ngầm trên MySQL Sandbox (Đã xong - Task121) | Có | Thật |
 
 ## SP999 Việc phát sinh (Hậu phát hành & Bảo vệ hạ tầng)
 
