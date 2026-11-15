@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { ChevronDown, ChevronUp, Lock, Play, Terminal as TerminalIcon, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
@@ -45,6 +45,9 @@ import { packStash, unpackStash } from "./stage/stash";
 import { lastSelect, memoExplain, MYSQL_SCHEMA_QUERY, mysqlSchema, STAGE_SCHEMA_QUERY } from "./stage/stage-data";
 import { StatementList } from "./statement-list";
 import type { ForeignKeyRelation } from "@/modules/editor/heuristics/types";
+import { useWorkspaceStore } from "@/modules/workspace/store";
+import { bootWorkspace } from "@/modules/workspace/hydrate";
+import type { WorkspaceScope } from "@/modules/workspace/types";
 
 type RunData = { statements: number; rows: number };
 type Stop = "cancelled" | "timeout" | "worker_crashed";
@@ -84,10 +87,36 @@ export function LabWorkspace() {
   const ts = useTranslations("shell");
   const { setMobileTab, state: shell, toggle } = useShell();
   const engine = parseEngine(useSearchParams().get("engine"));
-  // Toàn bộ trạng thái phiên nằm ở đây, trên WorkspaceLayout, nên đổi qua mốc 900 px không mất gì.
-  const [sql, setSql] = useState("");
-  const [selection, setSelection] = useState<{ hasSelection: boolean; text: string }>({ hasSelection: false, text: "" });
   const { sqlRef, markAnon, status: authStatus, user } = useAuth();
+  const workspaceScope = useMemo<WorkspaceScope>(
+    () => (user?.id ? { kind: "user", userId: user.id } : { kind: "guest" }),
+    [user],
+  );
+
+  const activeTab = useWorkspaceStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
+  const sql = activeTab?.sql ?? "";
+  const updateTabSql = useWorkspaceStore((s) => s.updateTabSql);
+  const saveState = useWorkspaceStore((s) => s.saveState);
+  const [warnStorageDismissed, setWarnStorageDismissed] = useState(false);
+  const tw = useTranslations("workspace");
+
+  const setSql = useCallback(
+    (next: string | ((prev: string) => string)) => {
+      const curActiveId = useWorkspaceStore.getState().activeTabId;
+      if (!curActiveId) return;
+      const tab = useWorkspaceStore.getState().tabs.find((t) => t.id === curActiveId);
+      const currentSql = tab?.sql ?? "";
+      const val = typeof next === "function" ? next(currentSql) : next;
+      updateTabSql(curActiveId, val);
+    },
+    [updateTabSql],
+  );
+
+  useEffect(() => {
+    void bootWorkspace(workspaceScope).catch(() => {});
+  }, [workspaceScope]);
+
+  const [selection, setSelection] = useState<{ hasSelection: boolean; text: string }>({ hasSelection: false, text: "" });
   const isVip = Boolean(user?.isVip || user?.role === "vip");
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const tm = useTranslations("mysql");
@@ -119,9 +148,9 @@ export function LabWorkspace() {
     const saved = takeSql();
     if (!saved) return;
     const { sql: back, ask } = unpackStash(saved);
-    if (back) setSql((cur) => (cur === "" ? back : cur)); // eslint-disable-line react-hooks/set-state-in-effect -- đọc sessionStorage một lần sau mount
+    if (back) setSql((cur) => (cur === "" ? back : cur));
     if (ask) stashSql(ask); // trả lại cho ô hỏi của Mentor, nó tự đọc khi tab được mở
-  }, []);
+  }, [setSql]);
   // eff: SQL đã bỏ khối COPY và LOCK (prepareDump), là chuỗi thật sự được parse và chạy; vị trí trong outcome tính trên eff.
   const [parsed, setParsed] = useState<{ sql: string; engine: typeof engine; outcome: ParseOutcome; eff: string; removed: { copyBlocks: number; lockStatements: number } } | null>(null);
   // Bản nháp schema suy từ query, gắn với đúng sql và engine đã sinh ra nó: query đổi thì bỏ.
@@ -593,6 +622,19 @@ export function LabWorkspace() {
           onRequireUpgrade={() => setIsUpgradeModalOpen(true)}
         />
       </div>
+      {saveState === "error" && !warnStorageDismissed && (
+        <Alert variant="destructive" className="flex items-center justify-between py-2 text-xs">
+          <AlertDescription>{tw("storageUnavailable")}</AlertDescription>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs"
+            onClick={() => setWarnStorageDismissed(true)}
+          >
+            {tw("dismiss")}
+          </Button>
+        </Alert>
+      )}
       {sql.trim() === "" && (
         <div className="flex flex-col items-start gap-2">
           <p className="text-sm text-muted-foreground">{t("editorEmpty")}</p>
