@@ -40,5 +40,11 @@
     "deleteHint": "Khuyên dùng trên máy tính công cộng hoặc máy dùng chung để tránh lộ thông tin.",
     "keep": "Giữ nháp lại",
     "cancel": "Hủy"
+  },
+  "guestImport": {
+    "title": "Bạn có câu lệnh và dự án nháp từ phiên trước khi đăng nhập trên máy này.",
+    "action": "Nhập vào tài khoản",
+    "dismiss": "Bỏ qua",
+    "done": "Đã nhập thành công {projects} dự án và {tabs} tab vào tài khoản."
   }
 }

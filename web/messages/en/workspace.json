@@ -40,5 +40,11 @@
     "deleteHint": "Recommended on public or shared computers to prevent data leakage.",
     "keep": "Keep local drafts",
     "cancel": "Cancel"
+  },
+  "guestImport": {
+    "title": "You have draft queries and projects saved before signing in on this device.",
+    "action": "Import to account",
+    "dismiss": "Dismiss",
+    "done": "Successfully imported {projects} projects and {tabs} tabs to your account."
   }
 }
