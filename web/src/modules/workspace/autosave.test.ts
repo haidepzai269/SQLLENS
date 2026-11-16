@@ -15,6 +15,21 @@ describe("Workspace Autosave & Store (Task123)", () => {
   });
 
   describe("createAutosave (Debounce & Flush)", () => {
+    it("cancel(key) bỏ phần đang chờ, không ghi đè bản ghi vừa xóa", async () => {
+      const saveMock = vi.fn().mockResolvedValue(undefined);
+      const autosave = createAutosave<string>({ save: saveMock, delayMs: 300 });
+
+      autosave.schedule("tab-1", "SELECT 'vua dong';");
+      autosave.schedule("tab-2", "SELECT 'con mo';");
+      autosave.cancel("tab-1");
+
+      await vi.advanceTimersByTimeAsync(400);
+
+      expect(saveMock).toHaveBeenCalledTimes(1);
+      expect(saveMock).toHaveBeenCalledWith("tab-2", "SELECT 'con mo';");
+      expect(autosave.isPending()).toBe(false);
+    });
+
     it("AC1: Gọi schedule 5 lần trong 200ms cho cùng một key chỉ ghi đúng 1 lần với payload cuối", async () => {
       const saveMock = vi.fn().mockResolvedValue(undefined);
       const autosave = createAutosave<string>({

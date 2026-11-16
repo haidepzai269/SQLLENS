@@ -148,7 +148,7 @@ export function TabBar({ className }: TabBarProps) {
       <div
         ref={scrollRef}
         role="tablist"
-        aria-label={t("tab.untitled")}
+        aria-label={t("tab.list")}
         onWheel={handleWheel}
         className="flex h-full min-w-0 flex-1 items-end gap-1 overflow-x-auto scrollbar-none"
       >
@@ -173,6 +173,9 @@ export function TabBar({ className }: TabBarProps) {
               onDoubleClick={(e) => handleStartRename(e, tab)}
               onKeyDown={(e) => {
                 if (isEditing) return;
+                // Nút đóng nằm trong tab: phím của nút không được bị tab "nuốt",
+                // nếu không Space/Enter trên nút đóng lại chọn tab thay vì đóng.
+                if (e.target !== e.currentTarget) return;
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   handleSelectTab(tab.id);

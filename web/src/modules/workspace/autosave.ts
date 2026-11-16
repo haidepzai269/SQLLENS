@@ -12,6 +12,8 @@ export interface AutosaveOptions<T = unknown> {
 export interface Autosave<T = unknown> {
   schedule: (key: string, payload: T) => void;
   flush: () => Promise<void>;
+  /** Bỏ phần đang chờ của một key (hoặc tất cả) mà không ghi, dùng khi bản ghi đã bị xóa. */
+  cancel: (key?: string) => void;
   dispose: () => Promise<void>;
   isPending: (key?: string) => boolean;
 }
@@ -67,6 +69,22 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
     pending.set(key, { payload, timer });
   }
 
+  // Bản ghi vừa bị xóa (tab/project) phải bỏ luôn phần đang chờ, nếu không lần ghi
+  // debounce sẽ chạy sau lệnh xóa và làm bản ghi sống lại trong IndexedDB.
+  function cancel(key?: string): void {
+    if (key === undefined) {
+      for (const [pendingKey, item] of pending.entries()) {
+        clearTimeout(item.timer);
+        pending.delete(pendingKey);
+      }
+      return;
+    }
+    const item = pending.get(key);
+    if (!item) return;
+    clearTimeout(item.timer);
+    pending.delete(key);
+  }
+
   async function flush(): Promise<void> {
     if (pending.size === 0 && inFlight.size === 0) {
       return;
@@ -117,6 +135,7 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
   return {
     schedule,
     flush,
+    cancel,
     dispose,
     isPending,
   };
