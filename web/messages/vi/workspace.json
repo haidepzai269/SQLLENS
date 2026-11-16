@@ -29,6 +29,8 @@
     "cancel": "Hủy",
     "save": "Lưu",
     "untitled": "Dự án chưa đặt tên",
-    "updatedAt": "Sửa {time}"
+    "updatedAt": "Sửa {time}",
+    "releaseFailed": "Không thể nhả phiên MySQL ngay lúc này do lỗi mạng.",
+    "releaseFailedDesc": "Phiên container sẽ tự động kết thúc khi hết hạn (15 phút)."
   }
 }

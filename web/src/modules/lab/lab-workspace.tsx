@@ -50,6 +50,8 @@ import { bootWorkspace, disposeWorkspace } from "@/modules/workspace/hydrate";
 import type { WorkspaceScope } from "@/modules/workspace/types";
 import { TabBar } from "@/modules/workspace/components/tab-bar";
 import { changesSchema, notifySchemaChanged, useSchemaChangedNotice, useTabRuntime } from "@/modules/workspace/tab-runtime";
+import { onProjectSwitch } from "@/modules/workspace/engine-binding";
+import { EngineReleaseToast } from "@/modules/workspace/components/engine-release-toast";
 import { ConclusionBadge } from "@/components/ui/conclusion-badge";
 
 type RunData = { statements: number; rows: number };
@@ -134,6 +136,30 @@ export function LabWorkspace() {
   const tm = useTranslations("mysql");
   const router = useRouter();
   const pathname = usePathname();
+
+  // AC2, AC3: Khi activeProjectId thay đổi, đồng bộ engine của dự án đó:
+  // nếu project.engine khác URL engine hiện tại, chuyển engine trên URL và kích hoạt onProjectSwitch nhả container.
+  const activeProjectId = useWorkspaceStore((s) => s.activeProjectId);
+  const projects = useWorkspaceStore((s) => s.projects);
+  const prevProjectIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!activeProjectId) return;
+    const prevId = prevProjectIdRef.current;
+    if (prevId === activeProjectId) return;
+    prevProjectIdRef.current = activeProjectId;
+
+    const currentProj = projects.find((p) => p.id === activeProjectId);
+    if (!currentProj) return;
+
+    if (prevId !== null && prevId !== activeProjectId) {
+      void onProjectSwitch(prevId, activeProjectId);
+    }
+
+    if (currentProj.engine !== engine) {
+      router.replace(`${pathname}?engine=${currentProj.engine}`);
+    }
+  }, [activeProjectId, projects, engine, pathname, router]);
   const [gate, setGate] = useState<GuestGate | null>(null); // lý do khách bị chặn ở lần bấm Chạy gần nhất
   const guestRun = useRef(false); // lần chạy này của khách, tính lượt khi chạy xong
   // Câu hỏi của Mentor đi chung bản lưu tạm: lab giữ sqlRef, Mentor ghi câu hỏi qua askRef, đọc ra là bản ghép (stash.ts).
@@ -1018,6 +1044,7 @@ export function LabWorkspace() {
         onStopped={onStopped}
       />
       <UpgradeModal open={isUpgradeModalOpen} onOpenChange={setIsUpgradeModalOpen} />
+      <EngineReleaseToast />
     </>
   );
 }

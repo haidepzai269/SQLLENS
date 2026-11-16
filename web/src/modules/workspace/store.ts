@@ -37,6 +37,7 @@ export interface WorkspaceStoreState {
   hydrate: (payload: HydratePayload) => void;
   createProject: (input: CreateProjectInput) => WorkspaceProject;
   renameProject: (id: string, name: string) => void;
+  updateProjectEngine: (id: string, engine: WorkspaceEngine) => void;
   duplicateProject: (id: string, copySuffix?: string) => WorkspaceProject | null;
   deleteProject: (id: string) => void;
   setActiveProject: (id: string | null) => void;
@@ -126,6 +127,22 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()((set, get) => ({
         if (p.id === id) {
           found = true;
           return { ...p, name: trimmed, updatedAt: Date.now() };
+        }
+        return p;
+      });
+      if (!found) return state;
+      return { projects };
+    });
+  },
+
+  updateProjectEngine: (id, engine) => {
+    set((state) => {
+      let found = false;
+      const projects = state.projects.map((p) => {
+        if (p.id === id) {
+          if (p.engine === engine) return p;
+          found = true;
+          return { ...p, engine, updatedAt: Date.now() };
         }
         return p;
       });
