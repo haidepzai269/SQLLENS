@@ -239,6 +239,9 @@ async function main() {
     await measureAt("100k", 90000);
     await measureAt("500k", 400000);
 
+    // Chụp ảnh màn hình giao diện harness có đầy đủ số đo thực tế
+    await page.screenshot({ path: join(ROOT, "screenshot-harness.png"), fullPage: true });
+
     // ---------- 5. OPFS còn dữ liệu sau khi tải lại? ----------
     step("reload persistence");
     await page.reload({ waitUntil: "load" });

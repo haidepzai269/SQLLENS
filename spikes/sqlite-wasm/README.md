@@ -1,241 +1,118 @@
-# SQLite Wasm
+# Spike Đo Lường SQLite WASM (Task 131 / STR093)
 
-SQLite Wasm conveniently wrapped as an ES Module.
+Thư mục này chứa mã nguồn harness và công cụ đo lường thực nghiệm độc lập cho WebAssembly SQLite (`@sqlite.org/sqlite-wasm`), phục vụ cổng chặn quyết định **go / no-go** trước khi phát triển Engine SQLite thứ 3 cho SQLLens (STR094 & STR095 thuộc Epic SP020).
 
-## Installation
+> **Lưu ý:** Toàn bộ mã nguồn trong thư mục này là công cụ kiểm chứng thực nghiệm (spike), hoàn toàn độc lập và **không phải code sản phẩm**, không làm thay đổi bundle hay thêm dependency vào `web/package.json`.
+
+---
+
+## 1. Mục Đích & Bối Cảnh Đo Lường
+
+Theo quy trình phát triển của SQLLens và đặc tả kiến trúc `SPEC-WORKSPACE-EXPORT-SHARE`, SQLLens cần bổ sung SQLite làm engine CSDL thứ ba (sau PostgreSQL PGlite và MySQL Container Sandbox). 
+
+Trước khi code tính năng, Task 131 đặt ra cổng chặn kỹ thuật bắt buộc phải có số liệu đo đạc thực tế trên trình duyệt Chrome thật:
+1. **Bundle size:** Kích thước tải về JS + WASM sau nén gzip; xác nhận tải động qua Web Worker mà không làm tăng bundle ban đầu của SQL Editor.
+2. **Mức tiêu thụ RAM & Tốc độ:** Đo qua `performance.measureUserAgentSpecificMemory()` tại các mốc 10.000, 100.000 và 500.000 dòng dữ liệu, đối chiếu trực tiếp với PGlite.
+3. **Thời gian khởi động:** Độ trễ sẵn sàng khi nạp lạnh (Cold), nạp nóng từ cache (Warm) và qua mạng di động Slow 3G.
+4. **Độ bền vững OPFS (Persistence):** Kiểm tra khả năng lưu trữ qua Origin Private File System (`opfs-sahpool`) có bảo toàn 100% dữ liệu sau khi reload trang hay không.
+5. **Quyết định Go / No-Go:** Đưa ra kết luận có căn cứ số liệu khoa học.
+
+---
+
+## 2. Cấu Trúc Thư Mục
+
+```text
+spikes/sqlite-wasm/
+├── index.html                  # Giao diện harness trực quan để đo đạc và thao tác thủ công
+├── harness.mjs                 # Controller điều phối harness trên luồng giao diện chính (Main Thread)
+├── harness-worker.mjs          # Web Worker chạy SQLite WASM độc lập (nạp VFS OPFS SAHPool/In-memory)
+├── measure.mjs                 # Script tự động hóa toàn diện qua Playwright (kèm mini HTTP server COOP/COEP)
+├── last-run.json               # Kết quả số đo mới nhất dạng JSON máy đọc được
+├── last-run.log                # Nhật ký console chi tiết thời gian chạy từng bước
+├── screenshot-harness.png      # Ảnh chụp màn hình giao diện harness với kết quả đo thực tế
+├── vendor/                     # Bản phân phối module SQLite WASM chính thức (@sqlite.org/sqlite-wasm v3.47.2)
+│   ├── index.mjs               # ES module wrapper & API bindings
+│   ├── sqlite3.wasm            # Binary WebAssembly của SQLite core
+│   ├── sqlite3.mjs             # Runtime helper
+│   ├── sqlite3-worker1.mjs     # Worker1 API wrapper
+│   └── sqlite3-opfs-async-proxy.js # Proxy cho OPFS cổ điển
+└── README.md                   # Tài liệu hướng dẫn này
+```
+
+---
+
+## 3. Hướng Dẫn Chạy Đo Tự Động (Automated Benchmark)
+
+Script `measure.mjs` khởi tạo một HTTP server cục bộ với cấu hình nén gzip (giống CDN thật), thiết lập đầy đủ headers bảo mật `COOP`/`COEP` và điều khiển Google Chrome thật thông qua Playwright để tự động chạy qua toàn bộ 8 kịch bản đo đạc.
+
+### Yêu cầu tiên quyết:
+- Đã cài đặt dependencies của dự án tại thư mục `web/` (đã có sẵn `playwright`).
+- Hệ thống đã cài Google Chrome thật hoặc Chromium browser của Playwright.
+
+### Lệnh thực thi:
+Từ thư mục gốc của repository (hoặc trong worktree `Task131`), chạy lệnh:
 
 ```bash
-npm install @sqlite.org/sqlite-wasm
+node spikes/sqlite-wasm/measure.mjs
 ```
 
-## Bug reports
+Sau khi chạy xong:
+- Toàn bộ kết quả số đo chi tiết sẽ được in ra console dạng JSON.
+- Tệp `spikes/sqlite-wasm/last-run.json` và `spikes/sqlite-wasm/last-run.log` sẽ ghi lại dữ liệu đo đạc mới nhất.
+- Tệp `spikes/sqlite-wasm/screenshot-harness.png` sẽ được tự động chụp lại từ giao diện harness.
 
-> [!Warning]
->
-> This project wraps the code of [SQLite Wasm](https://sqlite.org/wasm/doc/trunk/index.md) with _no_
-> changes, apart from added TypeScript types. Please do _not_ file issues or feature requests
-> regarding the underlying SQLite Wasm code here. Instead, please follow the
-> [SQLite bug filing instructions](https://www.sqlite.org/src/wiki?name=Bug+Reports). Filing
-> TypeScript type related issues and feature requests is fine.
+---
 
-## Node.js support
+## 4. Hướng Dẫn Chạy & Đo Thủ Công Trên Trình Duyệt Thật
 
-> [!Warning]
->
-> Node.js is currently only supported for in-memory databases without persistence.
+Bạn có thể mở giao diện `index.html` trực tiếp trên bất kỳ trình duyệt nào để kiểm tra tương tác và số đo thủ công.
 
-## Usage
+### Yêu cầu bắt buộc về HTTP Headers:
+SQLite WASM với VFS `opfs-sahpool` (SyncAccessHandle Pool) và API `performance.measureUserAgentSpecificMemory()` **bắt buộc** browsing context phải ở trạng thái `crossOriginIsolated = true`. Máy chủ HTTP phục vụ file phải trả về các headers:
 
-There are two ways to use SQLite Wasm:
-
-- [in a worker](#in-a-worker-with-opfs-if-available)
-- [in the main thread](#in-the-main-thread-without-opfs)
-
-Only the worker versions allow you to use the origin private file system (OPFS) storage back-end.
-
-### In a worker (with OPFS if available):
-
-> [!Warning]
->
-> For this to work, you need to set the following headers on your server:
->
-> `Cross-Origin-Opener-Policy: same-origin`
->
-> `Cross-Origin-Embedder-Policy: require-corp`
-
-```js
-// In `main.js`.
-const worker = new Worker('worker.js', { type: 'module' });
+```http
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+Cross-Origin-Resource-Policy: same-origin
 ```
 
-```js
-// In `worker.js`.
-import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
+### Các cách khởi động server thủ công:
 
-const start = (sqlite3) => {
-  console.log('Running SQLite3 version', sqlite3.version.libVersion);
-  const db =
-    'opfs' in sqlite3
-      ? new sqlite3.oo1.OpfsDb('/mydb.sqlite3')
-      : new sqlite3.oo1.DB('/mydb.sqlite3', 'ct');
-  console.log(
-    'opfs' in sqlite3
-      ? `OPFS is available, created persisted database at ${db.filename}`
-      : `OPFS is not available, created transient database ${db.filename}`,
-  );
-  // Your SQLite code here.
-};
-
-const initializeSQLite = async () => {
-  try {
-    console.log('Loading and initializing SQLite3 module...');
-    const sqlite3 = await sqlite3InitModule();
-    console.log('Done initializing. Running demo...');
-    start(sqlite3);
-  } catch (err) {
-    console.error('Initialization error:', err.name, err.message);
-  }
-};
-
-initializeSQLite();
+#### Cách 1: Sử dụng server tích hợp sẵn trong `measure.mjs`
+Chạy server Node.js phục vụ thư mục spikes với COOP/COEP headers:
+```bash
+node -e "import('./spikes/sqlite-wasm/measure.mjs')"
 ```
 
-The `db` object above implements the
-[Object-Oriented API #1](https://sqlite.org/wasm/doc/trunk/api-oo1.md).
+#### Cách 2: Sử dụng công cụ `serve` / `http-server` hoặc Python có custom headers
+Nếu sử dụng công cụ phục vụ tĩnh bất kỳ, hãy đảm bảo inject đủ 2 headers `Cross-Origin-Opener-Policy: same-origin` và `Cross-Origin-Embedder-Policy: require-corp`.
 
-### In the main thread (without OPFS):
-
-```js
-import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
-
-const start = (sqlite3) => {
-  log('Running SQLite3 version', sqlite3.version.libVersion);
-  const db = new sqlite3.oo1.DB('/mydb.sqlite3', 'ct');
-  // Your SQLite code here.
-};
-const initializeSQLite = async () => {
-  try {
-    console.log('Loading and initializing SQLite3 module...');
-    const sqlite3 = await sqlite3InitModule();
-    console.log('Done initializing. Running demo...');
-    start(sqlite3);
-  } catch (err) {
-    console.error('Initialization error:', err.name, err.message);
-  }
-};
-
-initializeSQLite();
+Sau đó truy cập vào địa chỉ:
+```text
+http://127.0.0.1:4173/?autostart=1
 ```
+*(Thêm `&memory=1` nếu muốn ép buộc sử dụng In-Memory VFS thay vì OPFS)*.
 
-The `db` object above implements the
-[Object-Oriented API #1](https://sqlite.org/wasm/doc/trunk/api-oo1.md).
+---
 
-## Usage with vite
+## 5. Giải Thích Giao Diện & Các Nút Bấm Trên Harness
 
-If you are using [vite](https://vitejs.dev/), you need to add the following config option in
-`vite.config.js`:
+Giao diện `index.html` được thiết kế tối giản, trực quan phục vụ việc đo đạc:
 
-```js
-import { defineConfig } from 'vite';
+### 5.1. Khối "Trạng thái" (Status Panel)
+- **VFS:** Hiển thị loại File System đang hoạt động (`opfs-sahpool (OPFS có sẵn)` hoặc `memory (không có OPFS)`).
+- **Số dòng:** Tổng số bản ghi hiện có trong bảng CSDL `metrics`.
+- **Status text:** Thông báo tiến trình thực thi (ví dụ: `Đang chèn 500.000 dòng...`).
 
-export default defineConfig({
-  server: {
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp',
-    },
-  },
-  optimizeDeps: {
-    exclude: ['@sqlite.org/sqlite-wasm'],
-  },
-});
-```
+### 5.2. Khối "Thao tác" (Action Controls)
+- **Nạp DB (`#btn-init`):** Khởi tạo Web Worker, tải WebAssembly binary và thiết lập kết nối CSDL SQLite với VFS phù hợp.
+- **Tạo bảng (`#btn-reset`):** Thực thi DDL tạo bảng `metrics` (`id INTEGER PRIMARY KEY, k INT, v TEXT, payload TEXT, created_at TEXT`).
+- **Chèn 10k (`#btn-10k`):** Chèn 10.000 bản ghi bằng transaction theo lô (batch insert), đo thời gian hoàn thành tính bằng milliseconds.
+- **Chèn 100k (`#btn-100k`):** Chèn 100.000 bản ghi, kiểm tra độ ổn định bộ nhớ.
+- **Chèn 500k (`#btn-500k`):** Chèn 500.000 bản ghi (ngưỡng cực đại trong quy ước của SQLLens).
+- **SELECT đếm (`#btn-count`):** Chạy truy vấn `SELECT COUNT(*) FROM metrics` để xác thực toàn vẹn dữ liệu.
+- **Xuất file (`#btn-export`):** Trích xuất toàn bộ CSDL nhị phân SQLite dưới dạng `Uint8Array` và tính toán dung lượng MB của tệp `.sqlite`.
+- **Đo RAM (`#btn-memory`):** Kích hoạt đo lường đồng thời cả bộ nhớ WebAssembly Heap trong Worker và Page Agent RAM qua `performance.measureUserAgentSpecificMemory()`.
 
-Check out a [sample project](https://stackblitz.com/edit/vitejs-vite-ttrbwh?file=main.js) that shows
-this in action.
-
-## Demo
-
-See the [demo](https://github.com/sqlite/sqlite-wasm/tree/main/demo) folder for examples of how to
-use this in the main thread and in a worker. (Note that the worker variant requires special HTTP
-headers, so it can't be hosted on GitHub Pages.) An example that shows how to use this with vite is
-available on [StackBlitz](https://stackblitz.com/edit/vitejs-vite-ttrbwh?file=main.js).
-
-## Projects using this package
-
-See the list of [npm dependents](https://www.npmjs.com/browse/depended/@sqlite.org/sqlite-wasm) for
-this package.
-
-## Deploying a new version
-
-(These steps can only be executed by maintainers.)
-
-1. Manually trigger the [GitHub Actions workflow](../../actions/workflows/build-wasm.yml). By
-   default, it uses the latest SQLite tag. This pull request will contain the latest `sqlite3.wasm`
-   and related bindings.
-
-2. Once the above pull request is validated and merged, update the version number in `package.json`,
-   reflecting the current [SQLite version number](https://sqlite.org/download.html) and add a build
-   identifier suffix like `-build1`. The complete version number should read something like
-   `3.41.2-build1`.
-
-## Building the SQLite Wasm locally
-
-1. Build the Docker image:
-
-   ```bash
-   docker build -t sqlite-wasm-builder:env .
-   ```
-
-2. Run the build:
-
-   **Unix (Linux/macOS):**
-
-   ```bash
-   docker run --rm \
-     -e SQLITE_REF="master" \
-     -v "$(pwd)/out":/out \
-     -v "$(pwd)/src/bin":/src/bin \
-     sqlite-wasm-builder:env build
-   ```
-
-   **Windows (PowerShell):**
-
-   ```powershell
-   docker run --rm `
-     -e SQLITE_REF="master" `
-     -v "${PWD}/out:/out" `
-     -v "${PWD}/src/bin:/src/bin" `
-     sqlite-wasm-builder:env build
-   ```
-
-   **Windows (Command Prompt):**
-
-   ```cmd
-   docker run --rm ^
-     -e SQLITE_REF="master" ^
-     -v "%cd%/out:/out" ^
-     -v "%cd%/src/bin:/src/bin" ^
-     sqlite-wasm-builder:env build
-   ```
-
-## Running tests
-
-The test suite consists of Node.js tests and browser-based tests (using Vitest Browser Mode). Tests
-aim to sanity-check the exported scripts. We test for correct exports and **very** basic
-functionality.
-
-1. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-2. Install Playwright browsers (required for browser tests):
-
-   ```bash
-   npx playwright install chromium --with-deps --no-shell
-   ```
-
-3. Run all tests:
-
-   ```bash
-   npm test
-   ```
-
-## Deprecations
-
-The Worker1 and Promiser1 APIs are, as of 2026-04-15, deprecated. They _will not be removed_, but
-they also will not be extended further. It is their author's considered opinion that they are too
-fragile, too imperformant, and too limited for any non-toy software, and their use is _actively
-discouraged_. The "correct" way to use this library is documented in [Usage](#usage) section above.
-
-## License
-
-Apache 2.0.
-
-## Acknowledgements
-
-This project is based on [SQLite Wasm](https://sqlite.org/wasm), which it conveniently wraps as an
-ES Module and publishes to npm as
-[`@sqlite.org/sqlite-wasm`](https://www.npmjs.com/package/@sqlite.org/sqlite-wasm).
+### 5.3. Khối "Nhật ký" (Console Log)
+Hiển thị timestamp chi tiết từng thao tác, thời gian tải module, thời gian chèn từng đợt, dung lượng file xuất và chi tiết bộ nhớ RAM.

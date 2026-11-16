@@ -74,6 +74,11 @@
   - Tổng dung lượng RAM chiếm dụng của SQLite WASM thấp hơn PGlite **gần 25 lần**!
   - Tốc độ chèn dữ liệu rất ổn định: 500k dòng mất ~11.3 giây trên OPFS và ~8.5 giây trên in-memory VFS.
 
+### 3.4. Ảnh chụp màn hình kết quả đo thực tế từ Harness (Tiêu chí AC2)
+Ảnh chụp giao diện harness trên Google Chrome 157 thật ghi nhận trực quan toàn bộ các mốc đo (VFS `opfs-sahpool`, số dòng `500.000`, nhật ký chèn 10k/100k/500k, truy vấn SELECT đếm, kích thước export DB và các chỉ số RAM tương ứng):
+- File ảnh: `spikes/sqlite-wasm/screenshot-harness.png`
+- Liên kết: [screenshot-harness.png](file:///c:/SQLLens/.worktrees/Task131/spikes/sqlite-wasm/screenshot-harness.png)
+
 ---
 
 ## 4. Tiêu Chí AC3: Thời Gian Khởi Động (Startup Latency)
