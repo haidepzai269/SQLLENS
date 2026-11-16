@@ -315,4 +315,36 @@ describe("Engine Binding & Container Lifecycle (Task128)", () => {
 
     expect(screen.queryByTestId("engine-release-toast")).toBeNull();
   });
+
+  // ========================================================
+  // Đổi engine trên cùng một dự án: nhả container & bindEngine
+  // ========================================================
+  test("Đổi engine trên cùng một dự án từ mysql sang postgres kích hoạt nhả phiên container và cập nhật bindEngine", async () => {
+    const fakeSid = "0123456789abcdef0123456789abcd";
+    sessionStorage.setItem(MYSQL_SID_KEY, fakeSid);
+
+    const projMysql = useWorkspaceStore.getState().createProject({
+      name: "Dynamic Engine Project",
+      engine: "mysql",
+    });
+
+    const mockFetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    global.fetch = mockFetch;
+
+    expect(currentEngine(projMysql.id)).toBe("mysql");
+
+    // Người dùng đổi Engine trên header từ MySQL sang Postgres:
+    // 1. Nhả tài nguyên phiên MySQL
+    await releaseProjectResources(projMysql.id);
+    // 2. Gắn engine mới cho dự án
+    bindEngine(projMysql.id, "postgres");
+
+    // Kiểm tra đã gọi DELETE tới endpoint session của MySQL đúng 1 lần
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch.mock.calls[0][0]).toBe(`/api/mysql/sessions/${fakeSid}`);
+
+    // Engine của dự án đã đổi thành postgres và session id đã bị xóa
+    expect(currentEngine(projMysql.id)).toBe("postgres");
+    expect(sessionStorage.getItem(MYSQL_SID_KEY)).toBeNull();
+  });
 });

@@ -18,13 +18,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/modules/workspace/store";
-import type { WorkspaceProject } from "@/modules/workspace/types";
+import type { WorkspaceEngine, WorkspaceProject } from "@/modules/workspace/types";
 
 interface ProjectSwitcherProps {
   className?: string;
+  defaultEngine?: WorkspaceEngine;
 }
 
-export function ProjectSwitcher({ className }: ProjectSwitcherProps) {
+export function ProjectSwitcher({ className, defaultEngine }: ProjectSwitcherProps) {
   const t = useTranslations("workspace");
   const locale = useLocale();
   const titleId = useId();
@@ -183,7 +184,8 @@ export function ProjectSwitcher({ className }: ProjectSwitcherProps) {
   const handleSaveCreate = () => {
     const trimmed = newProjectName.trim();
     const finalName = trimmed || t("project.untitled");
-    const newProj = createProject({ name: finalName, engine: "postgres" });
+    const engineToUse = defaultEngine ?? currentProject?.engine ?? "postgres";
+    const newProj = createProject({ name: finalName, engine: engineToUse });
     createTab(newProj.id);
     closeMenu();
     triggerRef.current?.focus();

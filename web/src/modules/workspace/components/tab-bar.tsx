@@ -25,6 +25,7 @@ export function TabBar({ className }: TabBarProps) {
   const reorderTab = useWorkspaceStore((s) => s.reorderTab);
 
   const currentProjectId = activeProjectId ?? (projects.length > 0 ? projects[0].id : null);
+  const currentProject = projects.find((p) => p.id === currentProjectId);
 
   const tabs = useMemo(() => {
     if (!currentProjectId) return [];
@@ -147,7 +148,7 @@ export function TabBar({ className }: TabBarProps) {
       )}
     >
       <div className="flex h-full items-center border-r border-line pr-1.5 mr-1 shrink-0">
-        <ProjectSwitcher className="shrink-0" />
+        <ProjectSwitcher className="shrink-0" defaultEngine={currentProject?.engine} />
       </div>
 
       <div

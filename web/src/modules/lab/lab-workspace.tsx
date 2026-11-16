@@ -50,7 +50,7 @@ import { bootWorkspace, disposeWorkspace } from "@/modules/workspace/hydrate";
 import type { WorkspaceScope } from "@/modules/workspace/types";
 import { TabBar } from "@/modules/workspace/components/tab-bar";
 import { changesSchema, notifySchemaChanged, useSchemaChangedNotice, useTabRuntime } from "@/modules/workspace/tab-runtime";
-import { onProjectSwitch } from "@/modules/workspace/engine-binding";
+import { bindEngine, onProjectSwitch, releaseProjectResources } from "@/modules/workspace/engine-binding";
 import { EngineReleaseToast } from "@/modules/workspace/components/engine-release-toast";
 import { ConclusionBadge } from "@/components/ui/conclusion-badge";
 
@@ -137,26 +137,45 @@ export function LabWorkspace() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // AC2, AC3: Khi activeProjectId thay đổi, đồng bộ engine của dự án đó:
-  // nếu project.engine khác URL engine hiện tại, chuyển engine trên URL và kích hoạt onProjectSwitch nhả container.
+  // AC2, AC3: Đồng bộ engine hai chiều giữa dự án và URL, nhả tài nguyên container khi rời MySQL
   const activeProjectId = useWorkspaceStore((s) => s.activeProjectId);
   const projects = useWorkspaceStore((s) => s.projects);
   const prevProjectIdRef = useRef<string | null>(null);
+  const prevEngineRef = useRef(engine);
 
   useEffect(() => {
     if (!activeProjectId) return;
     const prevId = prevProjectIdRef.current;
-    if (prevId === activeProjectId) return;
+    const prevEng = prevEngineRef.current;
     prevProjectIdRef.current = activeProjectId;
+    prevEngineRef.current = engine;
 
     const currentProj = projects.find((p) => p.id === activeProjectId);
     if (!currentProj) return;
 
+    // Trường hợp 1: Chuyển dự án (activeProjectId thay đổi)
     if (prevId !== null && prevId !== activeProjectId) {
       void onProjectSwitch(prevId, activeProjectId);
+      if (currentProj.engine !== engine) {
+        router.replace(`${pathname}?engine=${currentProj.engine}`);
+      }
+      return;
     }
 
-    if (currentProj.engine !== engine) {
+    // Trường hợp 2: Người dùng đổi Engine trên header (URL engine thay đổi trên cùng một dự án)
+    if (prevEng !== engine) {
+      if (currentProj.engine !== engine) {
+        // Nếu rời MySQL (từ mysql sang postgres/sqlite), nhả container
+        if (currentProj.engine === "mysql") {
+          void releaseProjectResources(activeProjectId);
+        }
+        bindEngine(activeProjectId, engine);
+      }
+      return;
+    }
+
+    // Trường hợp 3: Khi mới mount/F5 mà URL không khớp engine của project
+    if (prevId === null && currentProj.engine !== engine) {
       router.replace(`${pathname}?engine=${currentProj.engine}`);
     }
   }, [activeProjectId, projects, engine, pathname, router]);
