@@ -187,13 +187,13 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | STR089 Workspace Store & nháp IndexedDB          | Tạo tab/dự án khi chưa đăng nhập, F5 không mất nội dung, dữ liệu tách namespace `guest` và `user_<uuid>`, không request nào mang nội dung nháp (Đã xong 100% - Task122, Task123, Task124)     | Có  |      |
 | STR090 Tab Bar đa tab & phiên sandbox dùng chung | Thêm/đóng/đổi tên/kéo sắp xếp tab; chuyển tab đổi nội dung CodeMirror nhưng schema và dữ liệu giữ nguyên; DDL ở tab khác hiện "Schema đã cập nhật từ Tab X" (Đã xong 100% - Task125, Task126) | Có  | Thật |
 | STR091 Đa dự án & engine ghim theo dự án         | Switcher tạo/đổi tên/nhân bản/xóa dự án; mỗi dự án ghim 1 engine và giữ sandbox riêng; rời dự án MySQL nhả phiên container (Đã xong 100% - Task127, Task128)                                  | Có  | Thật |
-| STR092 Chính sách máy dùng chung                 | Modal khi đăng xuất hỏi xóa hay giữ nháp cục bộ; đăng nhập lần đầu có nháp `guest` thì có banner 1-Click nhập vào tài khoản (Đã xong Task129; Chờ Task130)                                    | Có  |      |
+| STR092 Chính sách máy dùng chung                 | Modal khi đăng xuất hỏi xóa hay giữ nháp cục bộ; đăng nhập lần đầu có nháp `guest` thì có banner 1-Click nhập vào tài khoản (ĐÃ XONG 100% - Task129, Task130)                                    | Có  |      |
 
 ## SP020 Đo lường & Engine SQLite thứ ba
 
 | Story                                   | Hành vi khi xong                                                                                                                                                   | GD  | Nhãn |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ---- |
-| STR093 Đo bundle & RAM SQLite WASM      | Có số thật về bundle, RAM ở 10k/100k/500k dòng, thời gian khởi động; có quyết định go/no-go ghi vào `CLAUDE.md` và là cổng chặn của Epic (Chờ thực hiện - Task131) |     | Thật |
+| STR093 Đo bundle & RAM SQLite WASM      | Có số thật về bundle, RAM ở 10k/100k/500k dòng, thời gian khởi động; có quyết định go/no-go ghi vào `CLAUDE.md` và là cổng chặn của Epic (ĐÃ XONG 100% - Task131: Go có điều kiện) |     | Thật |
 | STR094 SQLite chạy trong trình duyệt    | Chọn engine SQLite, chạy DDL/DML/SELECT trong máy, 0 request server; tab Plan/B-Tree hiện `chưa mô phỏng được` kèm lý do (Chờ thực hiện - Task132, Task133)        | Có  | Thật |
 | STR095 Nhập/xuất file `.sqlite` / `.db` | Nạp file từ máy vào sandbox SQLite, chạy query, xuất lại file; file hỏng hoặc quá lớn báo lỗi rõ, file không rời máy (Chờ thực hiện - Task134, Task135)            | Có  | Thật |
 
