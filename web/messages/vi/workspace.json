@@ -13,5 +13,22 @@
     "rename": "Đổi tên tab",
     "untitled": "Chưa đặt tên",
     "lastTabLocked": "Không thể đóng tab cuối cùng"
+  },
+  "project": {
+    "switcher": "Dự án",
+    "current": "Dự án hiện tại",
+    "new": "Dự án mới",
+    "rename": "Đổi tên dự án",
+    "duplicate": "Nhân bản dự án",
+    "delete": "Xóa dự án",
+    "deleteConfirm": "Bạn có chắc chắn muốn xóa dự án này? Thao tác này không thể hoàn tác.",
+    "empty": "Chưa có dự án nào",
+    "copySuffix": " (bản sao)",
+    "namePlaceholder": "Tên dự án...",
+    "create": "Tạo dự án",
+    "cancel": "Hủy",
+    "save": "Lưu",
+    "untitled": "Dự án chưa đặt tên",
+    "updatedAt": "Sửa {time}"
   }
 }

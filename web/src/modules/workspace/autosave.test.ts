@@ -478,6 +478,83 @@ describe("Workspace Autosave & Store (Task123)", () => {
       expect(() => store.closeTab("invalid-t-id")).not.toThrow();
       expect(() => store.reorderTab("invalid-t-id", 1)).not.toThrow();
       expect(() => store.updateTabSql("invalid-t-id", "SELECT 1;")).not.toThrow();
+      expect(() => store.duplicateProject("invalid-p-id")).not.toThrow();
+      expect(store.duplicateProject("invalid-p-id")).toBeNull();
+    });
+
+    describe("duplicateProject (Task127 AC3)", () => {
+      it("nhân bản chép đủ tabs và nội dung, id mới toàn bộ, không chia sẻ bản ghi", () => {
+        const store = useWorkspaceStore.getState();
+        const p1 = store.createProject({ name: "Original Project", engine: "postgres" });
+        const t1 = store.createTab(p1.id, "Query 1");
+        store.updateTabSql(t1.id, "SELECT * FROM users;");
+        const t2 = store.createTab(p1.id, "Query 2");
+        store.updateTabSql(t2.id, "SELECT * FROM orders;");
+
+        const duplicated = store.duplicateProject(p1.id);
+        expect(duplicated).not.toBeNull();
+        expect(duplicated?.id).not.toBe(p1.id);
+        expect(duplicated?.name).toBe("Original Project (copy)");
+        expect(duplicated?.engine).toBe("postgres");
+        expect(duplicated?.scopeKey).toBe(p1.scopeKey);
+
+        const state = useWorkspaceStore.getState();
+        expect(state.projects).toHaveLength(2);
+        expect(state.activeProjectId).toBe(duplicated?.id);
+
+        const dupTabs = state.tabs.filter((t) => t.projectId === duplicated?.id);
+        expect(dupTabs).toHaveLength(2);
+        expect(dupTabs[0].id).not.toBe(t1.id);
+        expect(dupTabs[0].name).toBe("Query 1");
+        expect(dupTabs[0].sql).toBe("SELECT * FROM users;");
+        expect(dupTabs[0].position).toBe(0);
+
+        expect(dupTabs[1].id).not.toBe(t2.id);
+        expect(dupTabs[1].name).toBe("Query 2");
+        expect(dupTabs[1].sql).toBe("SELECT * FROM orders;");
+        expect(dupTabs[1].position).toBe(1);
+
+        // activeTabId là tab đầu tiên của project mới
+        expect(state.activeTabId).toBe(dupTabs[0].id);
+
+        // Độc lập: sửa tab mới không ảnh hưởng tab gốc
+        store.updateTabSql(dupTabs[0].id, "SELECT 123;");
+        const origT1 = useWorkspaceStore.getState().tabs.find((t) => t.id === t1.id);
+        expect(origT1?.sql).toBe("SELECT * FROM users;");
+      });
+
+      it("hỗ trợ custom copySuffix theo i18n", () => {
+        const store = useWorkspaceStore.getState();
+        const p = store.createProject({ name: "Kế hoạch Q4", engine: "mysql" });
+        store.createTab(p.id, "Tab 1");
+
+        const duplicated = store.duplicateProject(p.id, " (bản sao)");
+        expect(duplicated?.name).toBe("Kế hoạch Q4 (bản sao)");
+        expect(duplicated?.engine).toBe("mysql");
+      });
+
+      it("nhân bản project không có tab vẫn thành công với activeTabId = null", () => {
+        const store = useWorkspaceStore.getState();
+        const p = store.createProject({ name: "Empty Project", engine: "postgres" });
+        // Xóa sạch tab nếu có
+        useWorkspaceStore.setState({ tabs: [] });
+
+        const duplicated = store.duplicateProject(p.id);
+        expect(duplicated).not.toBeNull();
+        expect(duplicated?.name).toBe("Empty Project (copy)");
+        expect(useWorkspaceStore.getState().activeTabId).toBeNull();
+      });
+
+      it("trả về null nếu project không tồn tại và không thay đổi state", () => {
+        const store = useWorkspaceStore.getState();
+        store.createProject({ name: "P1", engine: "postgres" });
+        const beforeState = useWorkspaceStore.getState();
+
+        const result = store.duplicateProject("non-existent-id");
+        expect(result).toBeNull();
+        expect(useWorkspaceStore.getState().projects).toEqual(beforeState.projects);
+        expect(useWorkspaceStore.getState().tabs).toEqual(beforeState.tabs);
+      });
     });
   });
 });
