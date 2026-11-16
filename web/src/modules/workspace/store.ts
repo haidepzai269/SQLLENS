@@ -37,6 +37,7 @@ export interface WorkspaceStoreState {
   hydrate: (payload: HydratePayload) => void;
   createProject: (input: CreateProjectInput) => WorkspaceProject;
   renameProject: (id: string, name: string) => void;
+  duplicateProject: (id: string, copySuffix?: string) => WorkspaceProject | null;
   deleteProject: (id: string) => void;
   setActiveProject: (id: string | null) => void;
   createTab: (projectId: string, name?: string) => WorkspaceTab;
@@ -131,6 +132,48 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()((set, get) => ({
       if (!found) return state;
       return { projects };
     });
+  },
+
+  duplicateProject: (id, copySuffix) => {
+    const state = get();
+    const original = state.projects.find((p) => p.id === id);
+    if (!original) return null;
+
+    const now = Date.now();
+    const newProjectId = crypto.randomUUID();
+    const suffix = copySuffix ?? " (copy)";
+    const newProject: WorkspaceProject = {
+      id: newProjectId,
+      scopeKey: original.scopeKey,
+      name: `${original.name}${suffix}`,
+      engine: original.engine,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const originalTabs = state.tabs
+      .filter((t) => t.projectId === id)
+      .sort((a, b) => a.position - b.position);
+
+    const newTabs: WorkspaceTab[] = originalTabs.map((t) => ({
+      id: crypto.randomUUID(),
+      projectId: newProjectId,
+      name: t.name,
+      sql: t.sql,
+      position: t.position,
+      updatedAt: now,
+    }));
+
+    const nextActiveTabId = newTabs.length > 0 ? newTabs[0].id : null;
+
+    set((s) => ({
+      projects: [...s.projects, newProject],
+      tabs: [...s.tabs, ...newTabs],
+      activeProjectId: newProjectId,
+      activeTabId: nextActiveTabId,
+    }));
+
+    return newProject;
   },
 
   deleteProject: (id) => {

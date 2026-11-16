@@ -13,5 +13,22 @@
     "rename": "Rename tab",
     "untitled": "Untitled",
     "lastTabLocked": "Cannot close the last tab"
+  },
+  "project": {
+    "switcher": "Project",
+    "current": "Current project",
+    "new": "New project",
+    "rename": "Rename project",
+    "duplicate": "Duplicate project",
+    "delete": "Delete project",
+    "deleteConfirm": "Are you sure you want to delete this project? This action cannot be undone.",
+    "empty": "No projects yet",
+    "copySuffix": " (copy)",
+    "namePlaceholder": "Project name...",
+    "create": "Create project",
+    "cancel": "Cancel",
+    "save": "Save",
+    "untitled": "Untitled project",
+    "updatedAt": "Updated {time}"
   }
 }
