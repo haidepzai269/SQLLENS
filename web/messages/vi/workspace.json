@@ -32,5 +32,13 @@
     "updatedAt": "Sửa {time}",
     "releaseFailed": "Không thể nhả phiên MySQL ngay lúc này do lỗi mạng.",
     "releaseFailedDesc": "Phiên container sẽ tự động kết thúc khi hết hạn (15 phút)."
+  },
+  "logout": {
+    "title": "Đăng xuất khỏi thiết bị",
+    "description": "Bạn có các câu lệnh và dự án nháp đang được lưu trên trình duyệt của máy này. Nếu đây là máy tính dùng chung (ở trường, thư viện hoặc cơ quan), bạn nên xóa nháp để bảo mật.",
+    "delete": "Xóa nháp cục bộ",
+    "deleteHint": "Khuyên dùng trên máy tính công cộng hoặc máy dùng chung để tránh lộ thông tin.",
+    "keep": "Giữ nháp lại",
+    "cancel": "Hủy"
   }
 }

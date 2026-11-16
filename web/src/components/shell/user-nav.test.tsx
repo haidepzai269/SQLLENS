@@ -5,9 +5,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import authMessagesVi from "../../../messages/vi/auth.json";
 import shellMessagesVi from "../../../messages/vi/shell.json";
 import vipMessagesVi from "../../../messages/vi/vip.json";
+import workspaceMessagesVi from "../../../messages/vi/workspace.json";
 import { AuthContext, type Auth } from "@/modules/auth/auth-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { UserNav } from "./user-nav";
+import * as logoutFlow from "@/modules/workspace/logout-flow";
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
@@ -61,6 +63,7 @@ function renderUserNav(auth: Auth) {
         auth: authMessagesVi,
         shell: shellMessagesVi,
         vip: vipMessagesVi,
+        workspace: workspaceMessagesVi,
       }}
     >
       <TooltipProvider>
@@ -118,5 +121,128 @@ describe("UserNav Component (Task107)", () => {
 
     // Modal tiêu đề xuất hiện
     expect(screen.getByText("Nâng Cấp Gói VIP Hoàng Gia")).toBeTruthy();
+  });
+
+  describe("Luồng Đăng xuất & Dọn nháp (Task129)", () => {
+    it("Ca biên: Người dùng không có nháp -> gọi thẳng logout() không mở modal", async () => {
+      vi.spyOn(logoutFlow, "hasUserLocalDrafts").mockResolvedValue(false);
+      const auth = makeAuth({ role: "user" });
+      renderUserNav(auth);
+
+      // Mở dropdown avatar
+      const trigger = screen.getByLabelText("Tài khoản của Dev User");
+      await act(async () => {
+        fireEvent.click(trigger);
+      });
+
+      // Bấm Đăng xuất
+      const signOutItem = screen.getByText("Đăng xuất");
+      await act(async () => {
+        fireEvent.click(signOutItem);
+      });
+
+      expect(auth.logout).toHaveBeenCalledTimes(1);
+      expect(auth.markAnon).toHaveBeenCalledTimes(1);
+      expect(screen.queryByTestId("logout-delete-button")).toBeNull();
+    });
+
+    it("AC1: Có nháp cục bộ -> hiển thị LogoutDialog với lựa chọn xóa là mặc định", async () => {
+      vi.spyOn(logoutFlow, "hasUserLocalDrafts").mockResolvedValue(true);
+      const auth = makeAuth({ role: "user" });
+      renderUserNav(auth);
+
+      const trigger = screen.getByLabelText("Tài khoản của Dev User");
+      await act(async () => {
+        fireEvent.click(trigger);
+      });
+
+      const signOutItem = screen.getByText("Đăng xuất");
+      await act(async () => {
+        fireEvent.click(signOutItem);
+      });
+
+      expect(auth.logout).not.toHaveBeenCalled();
+      expect(screen.getByText("Đăng xuất khỏi thiết bị")).toBeTruthy();
+      expect(screen.getByTestId("logout-delete-button")).toBeTruthy();
+      expect(screen.getByTestId("logout-keep-button")).toBeTruthy();
+      expect(screen.getByTestId("logout-cancel-button")).toBeTruthy();
+    });
+
+    it("AC4: Trong dialog chọn Hủy -> không đăng xuất, không xóa gì", async () => {
+      vi.spyOn(logoutFlow, "hasUserLocalDrafts").mockResolvedValue(true);
+      const purgeSpy = vi.spyOn(logoutFlow, "purgeUserScope").mockResolvedValue(0);
+      const auth = makeAuth({ role: "user" });
+      renderUserNav(auth);
+
+      const trigger = screen.getByLabelText("Tài khoản của Dev User");
+      await act(async () => {
+        fireEvent.click(trigger);
+      });
+
+      const signOutItem = screen.getByText("Đăng xuất");
+      await act(async () => {
+        fireEvent.click(signOutItem);
+      });
+
+      const cancelBtn = screen.getByTestId("logout-cancel-button");
+      await act(async () => {
+        fireEvent.click(cancelBtn);
+      });
+
+      expect(purgeSpy).not.toHaveBeenCalled();
+      expect(auth.logout).not.toHaveBeenCalled();
+    });
+
+    it("AC3: Trong dialog chọn Giữ nháp -> gọi logout(), không gọi purgeUserScope", async () => {
+      vi.spyOn(logoutFlow, "hasUserLocalDrafts").mockResolvedValue(true);
+      const purgeSpy = vi.spyOn(logoutFlow, "purgeUserScope").mockResolvedValue(0);
+      const auth = makeAuth({ role: "user" });
+      renderUserNav(auth);
+
+      const trigger = screen.getByLabelText("Tài khoản của Dev User");
+      await act(async () => {
+        fireEvent.click(trigger);
+      });
+
+      const signOutItem = screen.getByText("Đăng xuất");
+      await act(async () => {
+        fireEvent.click(signOutItem);
+      });
+
+      const keepBtn = screen.getByTestId("logout-keep-button");
+      await act(async () => {
+        fireEvent.click(keepBtn);
+      });
+
+      expect(purgeSpy).not.toHaveBeenCalled();
+      expect(auth.logout).toHaveBeenCalledTimes(1);
+      expect(auth.markAnon).toHaveBeenCalledTimes(1);
+    });
+
+    it("AC2: Trong dialog chọn Xóa nháp -> gọi purgeUserScope('usr_1') rồi logout()", async () => {
+      vi.spyOn(logoutFlow, "hasUserLocalDrafts").mockResolvedValue(true);
+      const purgeSpy = vi.spyOn(logoutFlow, "purgeUserScope").mockResolvedValue(3);
+      const auth = makeAuth({ role: "user" });
+      renderUserNav(auth);
+
+      const trigger = screen.getByLabelText("Tài khoản của Dev User");
+      await act(async () => {
+        fireEvent.click(trigger);
+      });
+
+      const signOutItem = screen.getByText("Đăng xuất");
+      await act(async () => {
+        fireEvent.click(signOutItem);
+      });
+
+      const deleteBtn = screen.getByTestId("logout-delete-button");
+      await act(async () => {
+        fireEvent.click(deleteBtn);
+      });
+
+      expect(purgeSpy).toHaveBeenCalledWith("usr_1");
+      expect(auth.logout).toHaveBeenCalledTimes(1);
+      expect(auth.markAnon).toHaveBeenCalledTimes(1);
+    });
   });
 });

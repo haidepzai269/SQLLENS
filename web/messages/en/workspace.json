@@ -32,5 +32,13 @@
     "updatedAt": "Updated {time}",
     "releaseFailed": "Could not release MySQL session right now due to a network error.",
     "releaseFailedDesc": "The container session will automatically terminate upon expiry (15 minutes)."
+  },
+  "logout": {
+    "title": "Sign out of device",
+    "description": "You have draft queries and projects saved in this browser. If this is a shared computer (school, library, or workplace), you should clear local drafts for privacy.",
+    "delete": "Clear local drafts",
+    "deleteHint": "Recommended on public or shared computers to prevent data leakage.",
+    "keep": "Keep local drafts",
+    "cancel": "Cancel"
   }
 }
