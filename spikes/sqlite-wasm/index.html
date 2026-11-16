@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SQLite WASM — harness đo (Task131)</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --line: #d4d4d8;
+        --dim: #71717a;
+      }
+      body {
+        margin: 0 auto;
+        max-width: 880px;
+        padding: 24px 16px 48px;
+        font: 14px/1.5 ui-sans-serif, system-ui, sans-serif;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 4px;
+      }
+      p.lead {
+        margin: 0 0 20px;
+        color: var(--dim);
+        font-size: 13px;
+      }
+      fieldset {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+        margin: 0 0 14px;
+      }
+      legend {
+        padding: 0 6px;
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      button {
+        font: inherit;
+        padding: 6px 12px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: Canvas;
+        color: CanvasText;
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: #a1a1aa;
+      }
+      dl {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 4px 12px;
+        margin: 0;
+        font-size: 13px;
+      }
+      dt {
+        color: var(--dim);
+      }
+      dd {
+        margin: 0;
+        font-variant-numeric: tabular-nums;
+      }
+      pre {
+        margin: 0;
+        max-height: 260px;
+        overflow: auto;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font-size: 12px;
+        white-space: pre-wrap;
+      }
+      #status {
+        min-height: 20px;
+        color: #b45309;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>SQLite WASM — cổng đo (Task131)</h1>
+    <p class="lead">
+      Harness đo bundle, RAM, thời gian khởi động và OPFS. Không phải code sản phẩm. Cần
+      <code>Cross-Origin-Opener-Policy: same-origin</code> +
+      <code>Cross-Origin-Embedder-Policy: require-corp</code> để có OPFS và
+      <code>measureUserAgentSpecificMemory()</code>. Chạy <code>node measure.mjs</code> để đo tự động.
+    </p>
+
+    <fieldset>
+      <legend>Trạng thái</legend>
+      <dl>
+        <dt>VFS</dt>
+        <dd id="vfs">chưa nạp</dd>
+        <dt>Số dòng</dt>
+        <dd id="rows">0</dd>
+      </dl>
+      <p id="status"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Thao tác</legend>
+      <div class="row">
+        <button id="btn-init" type="button">Nạp DB</button>
+        <button id="btn-reset" type="button">Tạo bảng</button>
+        <button id="btn-10k" type="button">Chèn 10k</button>
+        <button id="btn-100k" type="button">Chèn 100k</button>
+        <button id="btn-500k" type="button">Chèn 500k</button>
+        <button id="btn-count" type="button">SELECT đếm</button>
+        <button id="btn-export" type="button">Xuất file</button>
+        <button id="btn-memory" type="button">Đo RAM</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Nhật ký</legend>
+      <pre id="log"></pre>
+    </fieldset>
+
+    <script type="module" src="./harness.mjs"></script>
+  </body>
+</html>
