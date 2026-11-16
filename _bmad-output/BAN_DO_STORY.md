@@ -186,7 +186,7 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | ----- | ---------------- | -- | ---- |
 | STR089 Workspace Store & nháp IndexedDB | Tạo tab/dự án khi chưa đăng nhập, F5 không mất nội dung, dữ liệu tách namespace `guest` và `user_<uuid>`, không request nào mang nội dung nháp (Đã xong 100% - Task122, Task123, Task124) | Có | |
 | STR090 Tab Bar đa tab & phiên sandbox dùng chung | Thêm/đóng/đổi tên/kéo sắp xếp tab; chuyển tab đổi nội dung CodeMirror nhưng schema và dữ liệu giữ nguyên; DDL ở tab khác hiện "Schema đã cập nhật từ Tab X" (Đã xong 100% - Task125, Task126) | Có | Thật |
-| STR091 Đa dự án & engine ghim theo dự án | Switcher tạo/đổi tên/nhân bản/xóa dự án; mỗi dự án ghim 1 engine và giữ sandbox riêng; rời dự án MySQL nhả phiên container (Đã xong Task127; Chờ Task128) | Có | Thật |
+| STR091 Đa dự án & engine ghim theo dự án | Switcher tạo/đổi tên/nhân bản/xóa dự án; mỗi dự án ghim 1 engine và giữ sandbox riêng; rời dự án MySQL nhả phiên container (Đã xong 100% - Task127, Task128) | Có | Thật |
 | STR092 Chính sách máy dùng chung | Modal khi đăng xuất hỏi xóa hay giữ nháp cục bộ; đăng nhập lần đầu có nháp `guest` thì có banner 1-Click nhập vào tài khoản (Chờ thực hiện - Task129, Task130) | Có | |
 
 ## SP020 Đo lường & Engine SQLite thứ ba
