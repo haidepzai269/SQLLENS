@@ -10,7 +10,19 @@ import { runMysqlWhatif } from "./whatif-shadow";
 // Gin chuyển tiếp tới sandbox agent (Task074). Phiên nằm ở agent; adapter chỉ giữ id.
 const BASE = "/api/mysql/sessions";
 const SID_KEY = "sqllens.mysql.sid";
+export const MYSQL_SID_KEY = SID_KEY;
 const ID_RE = /^[0-9a-f]{30}$/;
+
+export async function deleteMysqlSession(id: string): Promise<void> {
+  const res = await fetch(`${BASE}/${id}`, {
+    method: "DELETE",
+    credentials: "same-origin",
+    keepalive: true,
+  });
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`Failed to delete session: ${res.status}`);
+  }
+}
 
 /** Lỗi của đường sandbox, không phải lỗi SQL. `code` theo hợp đồng Task074; thêm `session_expired` và `network` do client tạo. */
 export class SandboxError extends Error {
@@ -51,14 +63,20 @@ const stored = () => {
   }
 };
 // keepalive để yêu cầu hủy vẫn đi khi trang đang đóng. Lỗi bị bỏ qua: không còn gì để làm.
-const del = (id: string) => fetch(`${BASE}/${id}`, { method: "DELETE", credentials: "same-origin", keepalive: true }).then(() => undefined, () => undefined);
+const del = (id: string) => deleteMysqlSession(id).catch(() => undefined);
 
 const no = <T>(reason: string): Outcome<T> => ({ kind: "not_simulated", reasonKey: `mysql.notSimulated.${reason}` });
 const EXPLAINABLE = /^\s*(select|insert|update|delete|replace|with)\b/i;
 
 // Một cổng đang sống mỗi lúc, để đăng xuất hủy được phiên trước khi cookie mất.
 let live: (() => Promise<void>) | null = null;
-export const endMysqlSession = () => live?.() ?? Promise.resolve();
+export const endMysqlSession = async (): Promise<boolean> => {
+  if (live) {
+    await live();
+    return true;
+  }
+  return false;
+};
 
 export function createMysqlAdapter(o: Options = {}): MysqlAdapter {
   let sess: Promise<string> | null = null;
@@ -110,7 +128,7 @@ export function createMysqlAdapter(o: Options = {}): MysqlAdapter {
     sid = null;
     store(null);
     status("ended");
-    if (id) await del(id);
+    if (id) await deleteMysqlSession(id);
   }
 
   function session(signal?: AbortSignal): Promise<string> {
@@ -226,7 +244,7 @@ export function createMysqlAdapter(o: Options = {}): MysqlAdapter {
       disposed = true;
       window.removeEventListener("pagehide", onHide);
       live = null;
-      await end();
+      await end().catch(() => {});
     },
   };
   // Đóng tab: trang còn đúng một nhịp để gửi yêu cầu hủy.

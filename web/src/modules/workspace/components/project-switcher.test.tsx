@@ -5,16 +5,17 @@ import messagesVi from "../../../../messages/vi/workspace.json";
 import { NextIntlClientProvider } from "next-intl";
 import { ProjectSwitcher } from "./project-switcher";
 import { useWorkspaceStore } from "../store";
+import type { WorkspaceEngine } from "../types";
 
 afterEach(cleanup);
 
-function renderSwitcher(locale: "vi" | "en" = "vi") {
+function renderSwitcher(locale: "vi" | "en" = "vi", defaultEngine?: WorkspaceEngine) {
   const messages = {
     workspace: locale === "vi" ? messagesVi : messagesEn,
   };
   return render(
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <ProjectSwitcher />
+      <ProjectSwitcher defaultEngine={defaultEngine} />
     </NextIntlClientProvider>
   );
 }
@@ -177,6 +178,23 @@ describe("ProjectSwitcher Component (Task127)", () => {
       expect(newTabs).toHaveLength(1);
       expect(state.activeTabId).toBe(newTabs[0].id);
       expect(state.activeTabId).not.toBe(oldTab.id);
+    });
+
+    it("tạo dự án mới kế thừa engine của dự án đang mở hoặc defaultEngine", () => {
+      const store = useWorkspaceStore.getState();
+      store.createProject({ name: "MySQL Project", engine: "mysql" });
+
+      renderSwitcher("vi", "mysql");
+
+      fireEvent.click(screen.getByTestId("project-switcher-trigger"));
+      fireEvent.click(screen.getByTestId("project-new-button"));
+      fireEvent.change(screen.getByTestId("project-name-input"), { target: { value: "New MySQL Project" } });
+      fireEvent.click(screen.getByTestId("project-save-create"));
+
+      const state = useWorkspaceStore.getState();
+      const newProj = state.projects.find((p) => p.name === "New MySQL Project");
+      expect(newProj).toBeTruthy();
+      expect(newProj?.engine).toBe("mysql");
     });
 
     it("tạo dự án mới bằng phím Enter và fallback tên mặc định khi để trống", () => {
