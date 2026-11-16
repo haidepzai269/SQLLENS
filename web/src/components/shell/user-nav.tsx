@@ -21,6 +21,8 @@ import { useAuth } from "@/modules/auth/auth-provider";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { parseEngine } from "@/components/shell/engine-tabs";
 import { useSearchParams } from "next/navigation";
+import { LogoutDialog } from "@/modules/workspace/components/logout-dialog";
+import { hasUserLocalDrafts, purgeUserScope } from "@/modules/workspace/logout-flow";
 
 const toPostgres = (router: ReturnType<typeof useRouter>, pathname: string) => {
   const q = new URLSearchParams(window.location.search);
@@ -39,6 +41,7 @@ export function UserNav({ className }: UserNavProps) {
   const { user, logout, markAnon, setBanner } = useAuth();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
 
   const searchParams = useSearchParams();
   const engine = parseEngine(searchParams ? searchParams.get("engine") : null);
@@ -46,6 +49,28 @@ export function UserNav({ className }: UserNavProps) {
   const pathname = usePathname();
 
   const isVip = Boolean(user?.isVip || user?.role === "vip");
+
+  const performLogout = async (choice?: "delete" | "keep") => {
+    setLeaving(true);
+    try {
+      if (choice === "delete" && user?.id) {
+        try {
+          await purgeUserScope(user.id);
+        } catch {
+          // Xóa lỗi giữa đường vẫn ghi nhận và cho phép logout tiếp tục để người dùng không bị kẹt
+        }
+      }
+      const ok = await logout();
+      if (!ok) {
+        setBanner("logoutFailed");
+        return;
+      }
+      if (engine === "mysql") toPostgres(router, pathname);
+      markAnon();
+    } finally {
+      setLeaving(false);
+    }
+  };
 
   return (
     <>
@@ -163,14 +188,21 @@ export function UserNav({ className }: UserNavProps) {
               <DropdownMenuItem
                 disabled={leaving}
                 onClick={async () => {
-                  setLeaving(true);
-                  if (!(await logout())) {
-                    setLeaving(false);
-                    setBanner("logoutFailed");
+                  if (leaving) return;
+                  if (!user) {
+                    await performLogout();
                     return;
                   }
-                  if (engine === "mysql") toPostgres(router, pathname);
-                  markAnon();
+                  try {
+                    const hasDrafts = await hasUserLocalDrafts(user.id);
+                    if (hasDrafts) {
+                      setLogoutDialogOpen(true);
+                    } else {
+                      await performLogout();
+                    }
+                  } catch {
+                    await performLogout();
+                  }
                 }}
                 className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer"
               >
@@ -184,6 +216,20 @@ export function UserNav({ className }: UserNavProps) {
 
       {/* Modal Nâng cấp VIP */}
       <UpgradeModal open={upgradeOpen} onOpenChange={setUpgradeOpen} />
+
+      {/* Modal Đăng xuất & Xóa nháp máy dùng chung */}
+      <LogoutDialog
+        open={logoutDialogOpen}
+        onOpenChange={setLogoutDialogOpen}
+        loading={leaving}
+        onConfirm={async (choice) => {
+          setLogoutDialogOpen(false);
+          await performLogout(choice);
+        }}
+        onCancel={() => {
+          setLogoutDialogOpen(false);
+        }}
+      />
     </>
   );
 }
