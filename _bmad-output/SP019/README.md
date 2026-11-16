@@ -9,15 +9,17 @@ Nguyên tắc của Epic: nội dung nháp thuộc về máy người dùng. Kh�
 
 | Story | Task | Tên Task | Phân công | Trạng thái |
 |---|---|---|---|---|
-| **STR089** | `Task122` | Nền IndexedDB & repository workspace 2 tầng scope | Amelia | Chờ thực hiện |
-| **STR089** | `Task123` | Store workspace & autosave debounce | Amelia | Chờ thực hiện |
-| **STR089** | `Task124` | Nối workspace vào Lab, bỏ state cục bộ | Amelia | Chờ thực hiện |
-| **STR090** | `Task125` | Tab Bar: thêm, đóng, đổi tên, kéo sắp xếp | Amelia | Chờ thực hiện |
-| **STR090** | `Task126` | Chuyển tab không dựng lại sandbox & thông báo schema đổi | Amelia | Chờ thực hiện |
-| **STR091** | `Task127` | Project switcher: tạo, đổi tên, nhân bản, xóa | Amelia | Chờ thực hiện |
-| **STR091** | `Task128` | Engine ghim theo dự án & nhả phiên MySQL khi rời | Amelia | Chờ thực hiện |
-| **STR092** | `Task129` | Modal đăng xuất & xóa nháp cục bộ | Amelia | Chờ thực hiện |
-| **STR092** | `Task130` | Nhập nháp khách vào tài khoản khi đăng nhập | Amelia | Chờ thực hiện |
+| **STR089** | `Task122` | Nền IndexedDB & repository workspace 2 tầng scope | Amelia | Đã hoàn thành (100%) |
+| **STR089** | `Task123` | Store workspace & autosave debounce | Amelia | Đã hoàn thành (100%) |
+| **STR089** | `Task124` | Nối workspace vào Lab, bỏ state cục bộ | Amelia | Đã hoàn thành (100%) |
+| **STR090** | `Task125` | Tab Bar: thêm, đóng, đổi tên, kéo sắp xếp | Amelia | Đã hoàn thành (100%) |
+| **STR090** | `Task126` | Chuyển tab không dựng lại sandbox & thông báo schema đổi | Amelia | Đã hoàn thành (100%) |
+| **STR091** | `Task127` | Project switcher: tạo, đổi tên, nhân bản, xóa | Amelia | Đã hoàn thành (100%) |
+| **STR091** | `Task128` | Engine ghim theo dự án & nhả phiên MySQL khi rời | Amelia | Đã hoàn thành (100%) |
+| **STR092** | `Task129` | Modal đăng xuất & xóa nháp cục bộ | Amelia | Đã hoàn thành (100%) |
+| **STR092** | `Task130` | Nhập nháp khách vào tài khoản khi đăng nhập | Amelia | Đã hoàn thành (100%) |
+
+**Toàn bộ Epic SP019 ĐÃ HOÀN THÀNH 100%!**
 
 ## Điều kiện vào Epic
 
