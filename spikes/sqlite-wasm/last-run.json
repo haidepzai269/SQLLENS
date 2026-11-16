@@ -1,0 +1,154 @@
+{
+  "measuredAt": "2026-11-16T09:22:28.862Z",
+  "machine": {
+    "platform": "Windows_NT 10.0.26200 x64",
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12450H",
+    "cores": 12,
+    "totalRamGB": 15.7,
+    "freeRamGB": 0.5
+  },
+  "browser": "157.0.8103.52",
+  "bundle": {
+    "files": [
+      {
+        "name": "index.mjs",
+        "durationMs": 57,
+        "transferSize": 179733,
+        "encodedBodySize": 179433,
+        "decodedBodySize": 656872
+      },
+      {
+        "name": "sqlite3.wasm",
+        "durationMs": 70,
+        "transferSize": 407755,
+        "encodedBodySize": 407455,
+        "decodedBodySize": 879084
+      }
+    ],
+    "decodedKB": 1500,
+    "gzipKB": 573.1
+  },
+  "load": {
+    "coldFast": {
+      "note": "Chrome thật, mạng local, cache tắt, server gzip như CDN",
+      "readyPerformanceNowMs": 557,
+      "wallClockMs": 831,
+      "resources": [
+        {
+          "name": "harness-worker.mjs",
+          "durationMs": -20,
+          "transferSize": 2749,
+          "encodedBodySize": 2449,
+          "decodedBodySize": 5983
+        },
+        {
+          "name": "index.mjs",
+          "durationMs": 57,
+          "transferSize": 179733,
+          "encodedBodySize": 179433,
+          "decodedBodySize": 656872
+        },
+        {
+          "name": "sqlite3.wasm",
+          "durationMs": 70,
+          "transferSize": 407755,
+          "encodedBodySize": 407455,
+          "decodedBodySize": 879084
+        },
+        {
+          "name": "sqlite3-opfs-async-proxy.js?vfs=opfs",
+          "durationMs": -17,
+          "transferSize": 10824,
+          "encodedBodySize": 10524,
+          "decodedBodySize": 32462
+        },
+        {
+          "name": "sqlite3-opfs-async-proxy.js?vfs=opfs-wl",
+          "durationMs": -7,
+          "transferSize": 10824,
+          "encodedBodySize": 10524,
+          "decodedBodySize": 32462
+        }
+      ]
+    },
+    "warm": {
+      "note": "Chrome thật, cache bật, mạng local",
+      "readyPerformanceNowMs": 229
+    },
+    "coldSlow3G": {
+      "note": "Chrome thật, cache tắt, Slow 3G (400ms latency, 400kbps), server gzip như CDN",
+      "readyPerformanceNowMs": 13905,
+      "wallClockMs": 13920
+    }
+  },
+  "rows": {
+    "10k": {
+      "rows": 10000,
+      "insertMs": 567,
+      "wasmHeapMB": 8,
+      "pageAgentMB": 4.3,
+      "pageMethod": "measureUserAgentSpecificMemory",
+      "pageError": null,
+      "exportMB": 0.44
+    },
+    "100k": {
+      "rows": 100000,
+      "insertMs": 3057,
+      "wasmHeapMB": 8,
+      "pageAgentMB": 4.35,
+      "pageMethod": "measureUserAgentSpecificMemory",
+      "pageError": null,
+      "exportMB": 4.34
+    },
+    "500k": {
+      "rows": 500000,
+      "insertMs": 11301,
+      "wasmHeapMB": 20.06,
+      "pageAgentMB": 4.39,
+      "pageMethod": "measureUserAgentSpecificMemory",
+      "pageError": null,
+      "exportMB": 21.82
+    }
+  },
+  "twentyColumns": {
+    "rows": 100000,
+    "insertMs": 13845,
+    "wasmHeapMB": 20.06,
+    "pageAgentMB": 4.77
+  },
+  "memoryVfs500k": {
+    "vfs": "memory",
+    "insertMs": 8565,
+    "wasmHeapMB": 24.13,
+    "pageAgentMB": 4.24,
+    "exportMB": 21.82
+  },
+  "opfs": {
+    "available": true,
+    "vfs": "opfs-sahpool",
+    "crossOriginIsolated": true,
+    "persistenceAfterReload": {
+      "rows": 500000,
+      "vfs": "opfs-sahpool"
+    }
+  },
+  "storage": {
+    "estimate": {
+      "quota": 10737444152,
+      "usage": 25912,
+      "usageDetails": {
+        "fileSystem": 25912
+      }
+    },
+    "persisted": false
+  },
+  "baseline": {
+    "wasmHeapMB": 8,
+    "pageAgentMB": 4.08,
+    "pageMethod": "measureUserAgentSpecificMemory"
+  },
+  "webkit": {
+    "note": "Playwright WebKit (KHÔNG phải Safari thật) — chỉ để tham chiếu OPFS/khởi động",
+    "error": "Error: browserType.launch: Executable doesn't exist at C:\\Users\\admin\\AppData\\Local\\ms-playwright\\webkit-2370\\Playwright.exe"
+  }
+}

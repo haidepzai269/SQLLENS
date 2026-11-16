@@ -1,0 +1,1 @@
+Couldn't find the requested file /sqlite-wasm/jswasm/sqlite3.mjs in @sqlite.org/sqlite-wasm.
