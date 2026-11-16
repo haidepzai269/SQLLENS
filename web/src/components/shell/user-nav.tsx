@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useState } from "react";
-import { Crown, LogOut, Settings as SettingsIcon, Sparkles } from "lucide-react";
+import { AlertTriangle, Crown, LogOut, Settings as SettingsIcon, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { VipBadge } from "@/components/ui/vip-badge";
 import { UpgradeModal } from "@/modules/vip/upgrade-modal";
@@ -22,7 +22,8 @@ import { usePathname, useRouter } from "@/i18n/navigation";
 import { parseEngine } from "@/components/shell/engine-tabs";
 import { useSearchParams } from "next/navigation";
 import { LogoutDialog } from "@/modules/workspace/components/logout-dialog";
-import { hasUserLocalDrafts, purgeUserScope } from "@/modules/workspace/logout-flow";
+import { hasUserLocalDrafts, purgeUserScope, WorkspacePurgeError } from "@/modules/workspace/logout-flow";
+import { flushWorkspace } from "@/modules/workspace/hydrate";
 
 const toPostgres = (router: ReturnType<typeof useRouter>, pathname: string) => {
   const q = new URLSearchParams(window.location.search);
@@ -42,6 +43,9 @@ export function UserNav({ className }: UserNavProps) {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  // Số tab nháp chưa xóa được khi đăng xuất. -1 = không rõ số lượng.
+  const [purgeNotice, setPurgeNotice] = useState<number | null>(null);
+  const tw = useTranslations("workspace");
 
   const searchParams = useSearchParams();
   const engine = parseEngine(searchParams ? searchParams.get("engine") : null);
@@ -55,9 +59,14 @@ export function UserNav({ className }: UserNavProps) {
     try {
       if (choice === "delete" && user?.id) {
         try {
+          // Ghi nốt phần autosave đang chờ TRƯỚC khi xóa: nếu flush chạy sau purge
+          // (lúc đổi scope), đúng những tab vừa xóa sẽ được ghi lại.
+          await flushWorkspace();
           await purgeUserScope(user.id);
-        } catch {
-          // Xóa lỗi giữa đường vẫn ghi nhận và cho phép logout tiếp tục để người dùng không bị kẹt
+        } catch (err) {
+          // Xóa lỗi giữa đường vẫn cho đăng xuất để người dùng không bị kẹt,
+          // nhưng phải báo phần còn lại (Task129 ca biên).
+          setPurgeNotice(err instanceof WorkspacePurgeError ? err.remainingTabs : -1);
         }
       }
       const ok = await logout();
@@ -216,6 +225,35 @@ export function UserNav({ className }: UserNavProps) {
 
       {/* Modal Nâng cấp VIP */}
       <UpgradeModal open={upgradeOpen} onOpenChange={setUpgradeOpen} />
+
+      {/* Còn nháp chưa xóa được: cảnh báo sau khi đã đăng xuất, không chặn thao tác */}
+      {purgeNotice !== null && (
+        <div
+          role="alert"
+          data-testid="logout-purge-warning"
+          className="fixed bottom-4 right-4 z-50 flex max-w-md animate-in fade-in slide-in-from-bottom-2 duration-200"
+        >
+          <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-surface p-3.5 shadow-lg">
+            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-500" aria-hidden="true" />
+            <p className="pr-2 text-xs text-text leading-relaxed">
+              {purgeNotice >= 0
+                ? tw("logout.partialDelete", { remaining: purgeNotice })
+                : tw("logout.partialDeleteUnknown")}
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setPurgeNotice(null)}
+              aria-label={tw("dismiss")}
+              data-testid="logout-purge-warning-dismiss"
+              className="size-6 shrink-0 text-dim hover:text-text"
+            >
+              <X className="size-3.5" aria-hidden="true" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Modal Đăng xuất & Xóa nháp máy dùng chung */}
       <LogoutDialog

@@ -37,6 +37,7 @@ export function ImportGuestBanner({
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
   const [isImported, setIsImported] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [hasError, setHasError] = useState<boolean>(false);
   const [toast, setToast] = useState<{ projects: number; tabs: number } | null>(null);
 
   const userId = user?.id;
@@ -91,6 +92,7 @@ export function ImportGuestBanner({
     if (!userId || isSubmitting) return;
 
     setIsSubmitting(true);
+    setHasError(false);
     try {
       const result = await importGuestDrafts(userId, options);
       // Nạp lại workspace của user để giao diện thấy ngay projects và tabs mới
@@ -103,7 +105,9 @@ export function ImportGuestBanner({
       setToast(result);
       onImportSuccess?.(result);
     } catch {
-      // Giữ nguyên trạng thái để người dùng có thể thử lại
+      // Giữ banner lại để người dùng thử lại, nhưng phải nói rõ là chưa nhập được:
+      // bản guest không mất, chỉ không ghi được sang scope tài khoản.
+      setHasError(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -123,11 +127,18 @@ export function ImportGuestBanner({
             className,
           )}
         >
-          <div className="flex items-center gap-2">
-            <Sparkles className="size-4 shrink-0 text-primary" aria-hidden="true" />
-            <span className="font-medium text-text leading-tight" data-testid="import-guest-banner-title">
-              {t("guestImport.title")}
-            </span>
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <Sparkles className="size-4 shrink-0 text-primary" aria-hidden="true" />
+              <span className="font-medium text-text leading-tight" data-testid="import-guest-banner-title">
+                {t("guestImport.title")}
+              </span>
+            </div>
+            {hasError && (
+              <p role="alert" data-testid="import-guest-error" className="pl-6 text-[11px] leading-tight text-negative">
+                {t("guestImport.error")}
+              </p>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
             <Button

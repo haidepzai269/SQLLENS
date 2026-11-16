@@ -168,7 +168,7 @@ export async function importGuestDrafts(
 
       const guestProjects = await repo.listProjects({ kind: "guest" });
       if (guestProjects.length === 0) {
-        markGuestImportedForUser(userId, options);
+        // Không có gì để nhập thì KHÔNG ghi cờ: nháp guest tạo sau này vẫn phải nhập được.
         return { projects: 0, tabs: 0 };
       }
 
@@ -176,38 +176,53 @@ export async function importGuestDrafts(
       const targetScopeKey = scopeKey({ kind: "user", userId });
       let importedProjectsCount = 0;
       let importedTabsCount = 0;
+      // Project đã ghi trong lượt này, để dọn lại nếu giữa đường lỗi (quota).
+      const createdProjectIds: string[] = [];
 
-      for (const guestProject of guestProjects) {
-        const guestTabs = await repo.listTabs(guestProject.id);
+      try {
+        for (const [index, guestProject] of guestProjects.entries()) {
+          const guestTabs = await repo.listTabs(guestProject.id);
+          // Mỗi project lệch một mili-giây để `listProjects` (sort theo createdAt) giữ đúng
+          // thứ tự guest; cùng một mốc thì thứ tự rơi vào id ngẫu nhiên.
+          const stamp = now + index;
 
-        const newProjectId = crypto.randomUUID();
-        const newProject: WorkspaceProject = {
-          id: newProjectId,
-          scopeKey: targetScopeKey,
-          name: guestProject.name,
-          engine: guestProject.engine,
-          createdAt: now,
-          updatedAt: now,
-        };
-
-        // Lưu project mới vào scope user
-        await repo.upsertProject(newProject);
-        importedProjectsCount++;
-
-        // Nhân bản từng tab của project đó
-        for (const guestTab of guestTabs) {
-          const newTabId = crypto.randomUUID();
-          const newTab: WorkspaceTab = {
-            id: newTabId,
-            projectId: newProjectId,
-            name: guestTab.name,
-            sql: guestTab.sql,
-            position: guestTab.position,
-            updatedAt: now,
+          const newProjectId = crypto.randomUUID();
+          const newProject: WorkspaceProject = {
+            id: newProjectId,
+            scopeKey: targetScopeKey,
+            name: guestProject.name,
+            engine: guestProject.engine,
+            createdAt: stamp,
+            updatedAt: stamp,
           };
-          await repo.upsertTab(newTab);
-          importedTabsCount++;
+
+          // Lưu project mới vào scope user
+          await repo.upsertProject(newProject);
+          createdProjectIds.push(newProjectId);
+          importedProjectsCount++;
+
+          // Nhân bản từng tab của project đó
+          for (const guestTab of guestTabs) {
+            const newTabId = crypto.randomUUID();
+            const newTab: WorkspaceTab = {
+              id: newTabId,
+              projectId: newProjectId,
+              name: guestTab.name,
+              sql: guestTab.sql,
+              position: guestTab.position,
+              updatedAt: stamp,
+            };
+            await repo.upsertTab(newTab);
+            importedTabsCount++;
+          }
         }
+      } catch (err) {
+        // Ghi dở dang thì dọn những gì đã ghi ở lượt này, nếu không lần thử lại sẽ
+        // nhân đôi đúng những project đã vào trước khi lỗi.
+        for (const projectId of createdProjectIds) {
+          await repo.deleteProjectCascade(projectId).catch(() => undefined);
+        }
+        throw toWorkspaceError(err);
       }
 
       // Đánh dấu đã nhập thành công vào cờ lưu trữ

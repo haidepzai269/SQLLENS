@@ -5,7 +5,7 @@
 // không dựng lại view, không đụng tới worker PGlite/MySQL đang chạy.
 // Không gửi gì lên server (Core Rule 7).
 
-import { EditorState, Transaction, type Extension } from "@codemirror/state";
+import { EditorState, StateEffect, Transaction, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
@@ -34,6 +34,10 @@ export interface TabRuntime {
  */
 export function createTabRuntime({ view, getExtensions }: TabRuntimeOptions): TabRuntime {
   const states = new Map<string, EditorState>();
+  // Bộ extension mà state đã cache của từng tab đang dùng. Khi settings (cỡ chữ, số dòng,
+  // ngắt dòng) hay engine đổi, uiw chỉ cấu hình lại view đang mở; state cache của tab khác
+  // vẫn là bộ cũ. Quay về tab đó phải cấu hình lại, nếu không editor sống dậy với cấu hình cũ.
+  const tabExtensions = new Map<string, Extension[]>();
   let activeId = useWorkspaceStore.getState().activeTabId;
 
   const syncDoc = (sql: string) => {
@@ -45,8 +49,18 @@ export function createTabRuntime({ view, getExtensions }: TabRuntimeOptions): Ta
     });
   };
 
+  // Cấu hình lại view bằng bộ extension hiện tại nếu state của tab đang mang bộ cũ.
+  const ensureExtensions = (tabId: string) => {
+    const current = getExtensions();
+    if (tabExtensions.get(tabId) === current) return;
+    view.dispatch({ effects: StateEffect.reconfigure.of(current) });
+    tabExtensions.set(tabId, current);
+    states.set(tabId, view.state);
+  };
+
   if (activeId) {
     states.set(activeId, view.state);
+    tabExtensions.set(activeId, getExtensions());
     // View vừa dựng có thể mang tài liệu khác tab đang mở: đưa về đúng nội dung của tab đó.
     const initial = useWorkspaceStore.getState().tabs.find((t) => t.id === activeId);
     if (initial) syncDoc(initial.sql);
@@ -55,20 +69,26 @@ export function createTabRuntime({ view, getExtensions }: TabRuntimeOptions): Ta
   const switchTab = (tabId: string) => {
     if (!view.dom.isConnected) return;
     const tab = useWorkspaceStore.getState().tabs.find((t) => t.id === tabId);
-    if (!tab || tabId === activeId) {
+    if (!tab) return;
+    if (tabId === activeId) {
       // Tab đang mở vẫn có thể bị ghi đè từ ngoài (nạp mẫu, 1-Click Fix).
-      if (tab) syncDoc(tab.sql);
+      syncDoc(tab.sql);
+      ensureExtensions(tabId);
+      states.set(tabId, view.state);
       return;
     }
 
     // Chỉ lưu lại state của tab còn tồn tại: tab vừa bị đóng thì bỏ hẳn.
     if (activeId && states.has(activeId)) states.set(activeId, view.state);
 
-    const next = states.get(tabId) ?? EditorState.create({ doc: tab.sql, extensions: getExtensions() });
+    const cached = states.get(tabId);
+    const next = cached ?? EditorState.create({ doc: tab.sql, extensions: getExtensions() });
+    if (!cached) tabExtensions.set(tabId, getExtensions());
     view.setState(next);
     syncDoc(tab.sql);
 
     activeId = tabId;
+    ensureExtensions(tabId);
     states.set(tabId, view.state);
   };
 
@@ -94,6 +114,7 @@ export function createTabRuntime({ view, getExtensions }: TabRuntimeOptions): Ta
     dispose: () => {
       unsubscribe();
       states.clear();
+      tabExtensions.clear();
       activeId = null;
     },
   };
@@ -122,6 +143,15 @@ export function useTabRuntime(): {
     runtime.current?.dispose();
     runtime.current = createTabRuntime({ view, getExtensions });
   }, []);
+
+  // Rời Lab: gỡ subscription của runtime, không để listener sống tiếp cùng view đã destroy.
+  useEffect(
+    () => () => {
+      runtime.current?.dispose();
+      runtime.current = null;
+    },
+    [],
+  );
 
   return { onEditorReady };
 }

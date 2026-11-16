@@ -273,6 +273,8 @@ describe("ProjectSwitcher Component (Task127)", () => {
 
       expect(useWorkspaceStore.getState().projects.find((item) => item.id === p.id)?.name).toBe("Tên chuẩn");
       expect(screen.queryByTestId(`project-rename-form-${p.id}`)).toBeNull();
+      // Esc chỉ hủy đổi tên: danh sách dự án vẫn mở, không bị listener toàn cục đóng luôn.
+      expect(screen.getByTestId("project-switcher-panel")).toBeTruthy();
     });
 
     it("tên rỗng hoặc toàn khoảng trắng thì giữ nguyên tên cũ", () => {
@@ -289,6 +291,22 @@ describe("ProjectSwitcher Component (Task127)", () => {
       fireEvent.keyDown(input, { key: "Enter" });
 
       expect(useWorkspaceStore.getState().projects.find((item) => item.id === p.id)?.name).toBe("Tên gốc");
+    });
+
+    it("Esc trong ô tạo dự án chỉ hủy form, không đóng danh sách dự án", () => {
+      const store = useWorkspaceStore.getState();
+      store.createProject({ name: "P1", engine: "postgres" });
+
+      renderSwitcher();
+      fireEvent.click(screen.getByTestId("project-switcher-trigger"));
+      fireEvent.click(screen.getByTestId("project-new-button"));
+
+      const input = screen.getByTestId("project-name-input");
+      fireEvent.change(input, { target: { value: "Dở dang" } });
+      fireEvent.keyDown(input, { key: "Escape" });
+
+      expect(screen.queryByTestId("project-create-form")).toBeNull();
+      expect(screen.getByTestId("project-switcher-panel")).toBeTruthy();
     });
   });
 

@@ -96,6 +96,28 @@ describe("logout-flow (Task129)", () => {
       const result = await hasUserLocalDrafts(ALICE_ID, { factory: brokenFactory });
       expect(result).toBe(false);
     });
+
+    it("Dự án Mặc định + đúng một tab rỗng do lần đầu mở Lab tự tạo KHÔNG phải nháp", async () => {
+      const repo = getRepository(db);
+      await repo.upsertProject(makeProject({ id: "p_default", scopeKey: `user_${ALICE_ID}`, name: "Mặc định" }));
+      await repo.upsertTab(makeTab({ id: "t_default", projectId: "p_default", name: "Query 1", sql: "" }));
+
+      // Nếu tính bản mặc định là nháp thì ai đăng xuất cũng bị hỏi xóa nháp.
+      expect(await hasUserLocalDrafts(ALICE_ID, { db })).toBe(false);
+    });
+
+    it("Có tab thật hoặc nhiều tab/dự án thì tính là nháp", async () => {
+      const repo = getRepository(db);
+      await repo.upsertProject(makeProject({ id: "p1", scopeKey: `user_${ALICE_ID}` }));
+      await repo.upsertProject(makeProject({ id: "p2", scopeKey: `user_${ALICE_ID}` }));
+      expect(await hasUserLocalDrafts(ALICE_ID, { db })).toBe(true);
+
+      const repoBob = getRepository(db);
+      await repoBob.upsertProject(makeProject({ id: "p_bob", scopeKey: `user_${BOB_ID}` }));
+      await repoBob.upsertTab(makeTab({ id: "t_bob_1", projectId: "p_bob", sql: "" }));
+      await repoBob.upsertTab(makeTab({ id: "t_bob_2", projectId: "p_bob", sql: "" }));
+      expect(await hasUserLocalDrafts(BOB_ID, { db })).toBe(true);
+    });
   });
 
   describe("purgeUserScope (AC2)", () => {

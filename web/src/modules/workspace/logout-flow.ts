@@ -36,7 +36,10 @@ export class WorkspacePurgeError extends Error {
 const inFlightPurges = new Map<string, Promise<number>>();
 
 /**
- * Kiểm tra xem người dùng có dự án hoặc tab nháp nào lưu trên máy không.
+ * Kiểm tra xem người dùng có nháp thực sự lưu trên máy không.
+ * Dự án "Mặc định" + tab rỗng do lần đầu mở Lab tự tạo KHÔNG phải nháp — nếu tính,
+ * mọi người dùng đều bị hỏi xóa nháp khi đăng xuất. Dùng cùng định nghĩa với
+ * `hasGuestDrafts` để hai luồng không hiểu "nháp" theo hai kiểu khác nhau.
  * Nếu không có IndexedDB (Private mode) hoặc không có nháp, trả về false.
  */
 export async function hasUserLocalDrafts(
@@ -55,15 +58,14 @@ export async function hasUserLocalDrafts(
     const projects = await repo.listProjects(scope);
 
     if (projects.length === 0) return false;
+    // Nhiều dự án: chắc chắn người dùng đã tạo thêm, không phải bản mặc định.
+    if (projects.length > 1) return true;
 
-    // Kiểm tra xem có ít nhất 1 tab nào không
-    for (const project of projects) {
-      const tabCount = await repo.countTabs(project.id);
-      if (tabCount > 0) return true;
-    }
-
-    // Nếu có project record nhưng tabCount === 0 (ca hiếm), bản thân project vẫn là nháp cục bộ
-    return projects.length > 0;
+    // Chỉ có một dự án: tính là nháp khi có tab thật hoặc nhiều hơn một tab.
+    const tabs = await repo.listTabs(projects[0].id);
+    if (tabs.length === 0) return false;
+    if (tabs.length > 1) return true;
+    return tabs[0].sql.trim().length > 0;
   } catch {
     // IndexedDB bị chặn trong private browsing hoặc lỗi mở DB -> coi như không có nháp
     return false;

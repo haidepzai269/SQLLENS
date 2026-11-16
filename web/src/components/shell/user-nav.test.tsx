@@ -244,5 +244,35 @@ describe("UserNav Component (Task107)", () => {
       expect(auth.logout).toHaveBeenCalledTimes(1);
       expect(auth.markAnon).toHaveBeenCalledTimes(1);
     });
+
+    it("Ca biên: Xóa lỗi giữa đường vẫn đăng xuất nhưng báo số tab nháp còn lại", async () => {
+      vi.spyOn(logoutFlow, "hasUserLocalDrafts").mockResolvedValue(true);
+      vi.spyOn(logoutFlow, "purgeUserScope").mockRejectedValue(
+        new logoutFlow.WorkspacePurgeError("Xóa lỗi giữa đường", 2, 3),
+      );
+      const auth = makeAuth({ role: "user" });
+      renderUserNav(auth);
+
+      const trigger = screen.getByLabelText("Tài khoản của Dev User");
+      await act(async () => {
+        fireEvent.click(trigger);
+      });
+
+      const signOutItem = screen.getByText("Đăng xuất");
+      await act(async () => {
+        fireEvent.click(signOutItem);
+      });
+
+      const deleteBtn = screen.getByTestId("logout-delete-button");
+      await act(async () => {
+        fireEvent.click(deleteBtn);
+      });
+
+      // Người dùng không bị kẹt: vẫn đăng xuất, nhưng phải thấy phần nháp còn lại.
+      expect(auth.logout).toHaveBeenCalledTimes(1);
+      expect(auth.markAnon).toHaveBeenCalledTimes(1);
+      const warning = screen.getByTestId("logout-purge-warning");
+      expect(warning.textContent).toContain("3 tab nháp");
+    });
   });
 });

@@ -352,11 +352,15 @@ export function ProjectSwitcher({ className, defaultEngine }: ProjectSwitcherPro
                   onChange={(e) => setNewProjectName(e.target.value)}
                   placeholder={t("project.namePlaceholder")}
                   onKeyDown={(e) => {
+                    // Chặn bubble để Esc/Enter trong ô nhập không bị listener toàn cục
+                    // hiểu thành đóng cả danh sách dự án (Esc chỉ hủy thao tác đang mở).
                     if (e.key === "Enter") {
                       e.preventDefault();
+                      e.stopPropagation();
                       handleSaveCreate();
                     } else if (e.key === "Escape") {
                       e.preventDefault();
+                      e.stopPropagation();
                       handleCancelCreate();
                     }
                   }}
@@ -459,11 +463,14 @@ export function ProjectSwitcher({ className, defaultEngine }: ProjectSwitcherPro
                           value={editingName}
                           onChange={(e) => setEditingName(e.target.value)}
                           onKeyDown={(e) => {
+                            // Esc ở đây chỉ hủy đổi tên, không đóng luôn danh sách dự án.
                             if (e.key === "Enter") {
                               e.preventDefault();
+                              e.stopPropagation();
                               handleSaveRename(p.id, p.name);
                             } else if (e.key === "Escape") {
                               e.preventDefault();
+                              e.stopPropagation();
                               handleCancelRename();
                             }
                           }}

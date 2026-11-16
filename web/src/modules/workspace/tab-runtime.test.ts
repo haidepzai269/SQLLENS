@@ -14,6 +14,7 @@ import {
   dismissSchemaChangedNotice,
   notifySchemaChanged,
   useSchemaChangedNotice,
+  useTabRuntime,
   type TabRuntime,
 } from "./tab-runtime";
 import type { WorkspaceTab } from "./types";
@@ -157,6 +158,54 @@ describe("Tab Runtime (Task126)", () => {
     expect(runtime!.activeTabId()).toBe(tabA.id);
     expect(runtime!.cachedTabCount()).toBe(1);
     expect(view!.state.doc.toString()).toBe("");
+  });
+
+  it("Settings/engine đổi thì tab đã từng mở được cấu hình lại, không sống dậy với cấu hình cũ", () => {
+    const project = makeProject();
+    const tabA = useWorkspaceStore.getState().createTab(project.id, "Tab A");
+    const tabB = useWorkspaceStore.getState().createTab(project.id, "Tab B");
+
+    extensions = [
+      history(),
+      view_bridge(),
+      EditorView.contentAttributes.of({ "data-editor-config": "old" }),
+    ];
+    view = new EditorView({ state: EditorState.create({ doc: tabA.sql, extensions }), parent: document.body });
+    runtime = createTabRuntime({ view, getExtensions: () => extensions });
+
+    // Tab B mở lần đầu: state của nó được dựng bằng cấu hình cũ, rồi quay về Tab A.
+    act(() => runtime!.switchTab(tabB.id));
+    act(() => runtime!.switchTab(tabA.id));
+
+    // Người dùng đổi settings (cỡ chữ/số dòng/ngắt dòng) hoặc engine: uiw cấu hình lại
+    // view đang mở, nhưng state đã cache của Tab B vẫn mang bộ extension cũ.
+    extensions = [
+      history(),
+      view_bridge(),
+      EditorView.contentAttributes.of({ "data-editor-config": "new" }),
+    ];
+
+    act(() => runtime!.switchTab(tabB.id));
+    expect(view!.contentDOM.getAttribute("data-editor-config")).toBe("new");
+
+    act(() => runtime!.switchTab(tabA.id));
+    expect(view!.contentDOM.getAttribute("data-editor-config")).toBe("new");
+  });
+
+  it("Rời Lab thì runtime gỡ subscription: không còn chuyển tab ngầm sau unmount", () => {
+    const project = makeProject();
+    const tabA = useWorkspaceStore.getState().createTab(project.id, "Tab A");
+    const tabB = useWorkspaceStore.getState().createTab(project.id, "Tab B");
+    extensions = [history(), view_bridge()];
+    view = new EditorView({ state: EditorState.create({ doc: tabA.sql, extensions }), parent: document.body });
+
+    const { result, unmount } = renderHook(() => useTabRuntime());
+    act(() => result.current.onEditorReady(view!, () => extensions));
+    unmount();
+
+    const spy = vi.spyOn(view!, "setState");
+    act(() => useWorkspaceStore.setState({ activeTabId: tabB.id }));
+    expect(spy).not.toHaveBeenCalled();
   });
 
   describe("changesSchema", () => {

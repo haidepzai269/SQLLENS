@@ -39,12 +39,15 @@
     "delete": "Clear local drafts",
     "deleteHint": "Recommended on public or shared computers to prevent data leakage.",
     "keep": "Keep local drafts",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "partialDelete": "Signed out, but {remaining} draft tabs could not be deleted. Clear this site's data in your browser for privacy.",
+    "partialDeleteUnknown": "Signed out, but some local drafts could not be deleted. Clear this site's data in your browser for privacy."
   },
   "guestImport": {
     "title": "You have draft queries and projects saved before signing in on this device.",
     "action": "Import to account",
     "dismiss": "Dismiss",
-    "done": "Successfully imported {projects} projects and {tabs} tabs to your account."
+    "done": "Successfully imported {projects} projects and {tabs} tabs to your account.",
+    "error": "Could not import right now. Browser storage may be full; your guest drafts are still safe, please try again."
   }
 }

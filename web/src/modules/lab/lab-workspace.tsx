@@ -110,10 +110,19 @@ export function LabWorkspace() {
   const tabRuntime = useTabRuntime();
   const schemaNotice = useSchemaChangedNotice();
 
+  // Workspace nạp bất đồng bộ: gõ ngay sau khi editor hiện mà store chưa có tab thì chữ
+  // vẫn nằm trong CodeMirror nhưng không vào store, F5 là mất. Giữ lại rồi gán cho tab
+  // đầu tiên ngay khi boot xong.
+  const pendingSqlRef = useRef<string | null>(null);
+
   const setSql = useCallback(
     (next: string | ((prev: string) => string)) => {
       const curActiveId = useWorkspaceStore.getState().activeTabId;
-      if (!curActiveId) return;
+      if (!curActiveId) {
+        const cur = pendingSqlRef.current ?? "";
+        pendingSqlRef.current = typeof next === "function" ? next(cur) : next;
+        return;
+      }
       const tab = useWorkspaceStore.getState().tabs.find((t) => t.id === curActiveId);
       const currentSql = tab?.sql ?? "";
       const val = typeof next === "function" ? next(currentSql) : next;
@@ -125,11 +134,19 @@ export function LabWorkspace() {
   // Rời Lab hoặc đổi tài khoản: ghi nốt phần đang chờ rồi đóng kết nối IndexedDB
   // của phiên cũ, không để subscription sống tiếp sau khi component đã gỡ.
   useEffect(() => {
-    void bootWorkspace(workspaceScope).catch(() => {});
+    void bootWorkspace(workspaceScope)
+      .then(() => {
+        const pending = pendingSqlRef.current;
+        if (!pending) return;
+        pendingSqlRef.current = null;
+        // Tab đầu tiên đã có nháp thì không ghi đè; chỉ nhận phần gõ trước lúc boot xong.
+        setSql((cur) => (cur === "" ? pending : cur));
+      })
+      .catch(() => {});
     return () => {
       void disposeWorkspace();
     };
-  }, [workspaceScope]);
+  }, [workspaceScope, setSql]);
 
   const [selection, setSelection] = useState<{ hasSelection: boolean; text: string }>({ hasSelection: false, text: "" });
   const isVip = Boolean(user?.isVip || user?.role === "vip");

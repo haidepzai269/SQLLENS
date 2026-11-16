@@ -327,6 +327,61 @@ describe("import-guest (Task130)", () => {
       expect(isGuestImportedForUser(USER_ID, { storage: mockStorage })).toBe(false);
     });
 
+    it("Ca biên: Lỗi giữa đường thì dọn phần đã ghi, lần thử lại không nhân đôi", async () => {
+      const repo = getRepository(db);
+      await repo.upsertProject(makeProject({ id: "g_p1", scopeKey: "guest", name: "Project 1" }));
+      await repo.upsertTab(makeTab({ id: "g_t1", projectId: "g_p1", sql: "SELECT 1;" }));
+      await repo.upsertProject(makeProject({ id: "g_p2", scopeKey: "guest", name: "Project 2" }));
+      await repo.upsertTab(makeTab({ id: "g_t2", projectId: "g_p2", sql: "SELECT 2;" }));
+
+      const quotaErr = new Error("Quota exceeded");
+      quotaErr.name = "QuotaExceededError";
+      vi.spyOn(repo, "upsertTab").mockRejectedValueOnce(quotaErr);
+
+      await expect(importGuestDrafts(USER_ID, { db, repo, storage: mockStorage })).rejects.toThrow(
+        WorkspaceQuotaError,
+      );
+
+      // Project 1 đã vào trước khi lỗi phải được dọn, không để bản dở dang.
+      expect(await repo.listProjects({ kind: "user", userId: USER_ID })).toHaveLength(0);
+      expect(isGuestImportedForUser(USER_ID, { storage: mockStorage })).toBe(false);
+
+      // Thử lại: đúng một bản sao cho mỗi project, không nhân đôi bản đã ghi dở.
+      const retry = await importGuestDrafts(USER_ID, { db, repo, storage: mockStorage });
+      expect(retry).toEqual({ projects: 2, tabs: 2 });
+      const userProjects = await repo.listProjects({ kind: "user", userId: USER_ID });
+      expect(userProjects.map((p) => p.name)).toEqual(["Project 1", "Project 2"]);
+    });
+
+    it("Giữ nguyên thứ tự dự án guest sau khi nhập, không phụ thuộc id ngẫu nhiên", async () => {
+      const repo = getRepository(db);
+      const sameMoment = Date.now();
+      // Cùng một createdAt: nếu bản sao cũng dùng chung một mốc thì thứ tự rơi vào UUID.
+      const guestNames = ["Zeta", "Alpha", "Beta", "Delta", "Omega", "Gamma"];
+      for (const [i, name] of guestNames.entries()) {
+        const id = `g_order_${i}`;
+        await repo.upsertProject(
+          makeProject({ id, scopeKey: "guest", name, createdAt: sameMoment, updatedAt: sameMoment }),
+        );
+        await repo.upsertTab(makeTab({ id: `${id}_t`, projectId: id, sql: `SELECT ${i};` }));
+      }
+
+      const guestOrder = (await repo.listProjects({ kind: "guest" })).map((p) => p.name);
+      const res = await importGuestDrafts(USER_ID, { db, storage: mockStorage });
+      expect(res).toEqual({ projects: 6, tabs: 6 });
+
+      const userProjects = await repo.listProjects({ kind: "user", userId: USER_ID });
+      expect(userProjects.map((p) => p.name)).toEqual(guestOrder);
+    });
+
+    it("Không có nháp guest thì không ghi cờ đã nhập", async () => {
+      const res = await importGuestDrafts(USER_ID, { db, storage: mockStorage });
+      expect(res).toEqual({ projects: 0, tabs: 0 });
+
+      // Ghi cờ ở đây sẽ khóa vĩnh viễn quyền nhập nháp guest tạo sau này.
+      expect(isGuestImportedForUser(USER_ID, { storage: mockStorage })).toBe(false);
+    });
+
     it("Ca biên: Chống bấm đúp bằng in-flight deduplication", async () => {
       const repo = getRepository(db);
       await repo.upsertProject(makeProject({ id: "g_p1", scopeKey: "guest", name: "Concurrent Project" }));
@@ -540,6 +595,34 @@ describe("import-guest (Task130)", () => {
         fireEvent.click(closeToastBtn);
       });
       expect(screen.queryByTestId("guest-import-toast")).toBeNull();
+    });
+
+    it("Báo lỗi rõ khi nhập thất bại, banner vẫn còn để người dùng thử lại", async () => {
+      const repo = getRepository(db);
+      await repo.upsertProject(makeProject({ id: "g_p1", scopeKey: "guest" }));
+      await repo.upsertTab(makeTab({ id: "g_t1", projectId: "g_p1", sql: "SELECT 1;" }));
+
+      const quotaErr = new Error("Quota exceeded");
+      quotaErr.name = "QuotaExceededError";
+      vi.spyOn(repo, "upsertTab").mockRejectedValue(quotaErr);
+
+      renderBanner(makeAuthContext(), {
+        options: { db, repo, storage: mockStorage, sessionStorage: mockSessionStorage },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("import-guest-banner")).toBeTruthy();
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId("import-guest-action-btn"));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("import-guest-error")).toBeTruthy();
+      });
+      expect(screen.getByTestId("import-guest-error").textContent).toContain("Chưa nhập được");
+      expect(screen.getByTestId("import-guest-banner")).toBeTruthy();
     });
 
     it("AC6: Responsive layout chứa các class hỗ trợ màn hình 390px", async () => {
