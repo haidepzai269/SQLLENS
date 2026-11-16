@@ -49,6 +49,7 @@ import { useWorkspaceStore } from "@/modules/workspace/store";
 import { bootWorkspace, disposeWorkspace } from "@/modules/workspace/hydrate";
 import type { WorkspaceScope } from "@/modules/workspace/types";
 import { TabBar } from "@/modules/workspace/components/tab-bar";
+import { ImportGuestBanner } from "@/modules/workspace/components/import-guest-banner";
 import { changesSchema, notifySchemaChanged, useSchemaChangedNotice, useTabRuntime } from "@/modules/workspace/tab-runtime";
 import { bindEngine, onProjectSwitch, releaseProjectResources } from "@/modules/workspace/engine-binding";
 import { EngineReleaseToast } from "@/modules/workspace/components/engine-release-toast";
@@ -671,6 +672,7 @@ export function LabWorkspace() {
 
   const sqlZone = (
     <Pane title={ts("tab.sql")} headerRight={sqlHeaderRight} bar={<TabBar />}>
+      <ImportGuestBanner />
       <span className="text-sm font-medium">{sqlLabel}</span>
       {schemaNotice.message && (
         <div
