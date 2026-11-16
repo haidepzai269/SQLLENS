@@ -46,8 +46,11 @@ import { lastSelect, memoExplain, MYSQL_SCHEMA_QUERY, mysqlSchema, STAGE_SCHEMA_
 import { StatementList } from "./statement-list";
 import type { ForeignKeyRelation } from "@/modules/editor/heuristics/types";
 import { useWorkspaceStore } from "@/modules/workspace/store";
-import { bootWorkspace } from "@/modules/workspace/hydrate";
+import { bootWorkspace, disposeWorkspace } from "@/modules/workspace/hydrate";
 import type { WorkspaceScope } from "@/modules/workspace/types";
+import { TabBar } from "@/modules/workspace/components/tab-bar";
+import { changesSchema, notifySchemaChanged, useSchemaChangedNotice, useTabRuntime } from "@/modules/workspace/tab-runtime";
+import { ConclusionBadge } from "@/components/ui/conclusion-badge";
 
 type RunData = { statements: number; rows: number };
 type Stop = "cancelled" | "timeout" | "worker_crashed";
@@ -70,13 +73,14 @@ const mb = (b?: number) => (b === undefined ? undefined : (b / 1048576).toFixed(
 const stopCode = (e: unknown): Stop | null =>
   e instanceof EngineError && (e.code === "cancelled" || e.code === "timeout" || e.code === "worker_crashed") ? e.code : null;
 
-function Pane({ title, children, headerRight }: { title: ReactNode; children: ReactNode; headerRight?: ReactNode }) {
+function Pane({ title, children, headerRight, bar }: { title: ReactNode; children: ReactNode; headerRight?: ReactNode; bar?: ReactNode }) {
   return (
     <div className="flex min-h-full min-w-0 flex-col">
       <div className="sticky top-0 z-10 flex h-[var(--h-bar)] flex-none items-center justify-between border-b border-line bg-surface px-[var(--edge)] font-semibold">
         <span className="flex items-center gap-1.5">{title}</span>
         {headerRight && <div className="flex items-center gap-1.5">{headerRight}</div>}
       </div>
+      {bar}
       <div className="flex min-w-0 flex-1 flex-col gap-3 p-[var(--edge)]">{children}</div>
     </div>
   );
@@ -100,6 +104,9 @@ export function LabWorkspace() {
   const [warnStorageDismissed, setWarnStorageDismissed] = useState(false);
   const tw = useTranslations("workspace");
 
+  const tabRuntime = useTabRuntime();
+  const schemaNotice = useSchemaChangedNotice();
+
   const setSql = useCallback(
     (next: string | ((prev: string) => string)) => {
       const curActiveId = useWorkspaceStore.getState().activeTabId;
@@ -112,8 +119,13 @@ export function LabWorkspace() {
     [updateTabSql],
   );
 
+  // Rời Lab hoặc đổi tài khoản: ghi nốt phần đang chờ rồi đóng kết nối IndexedDB
+  // của phiên cũ, không để subscription sống tiếp sau khi component đã gỡ.
   useEffect(() => {
     void bootWorkspace(workspaceScope).catch(() => {});
+    return () => {
+      void disposeWorkspace();
+    };
   }, [workspaceScope]);
 
   const [selection, setSelection] = useState<{ hasSelection: boolean; text: string }>({ hasSelection: false, text: "" });
@@ -348,6 +360,8 @@ export function LabWorkspace() {
       const ctl = (abort.current = new AbortController());
       const activeSql = targetSql ?? sql;
       const toRun = prepareDump(activeSql, engine).sql;
+      // Tab phát lệnh, không phải tab đang mở lúc chạy xong: người dùng có thể đã chuyển tab.
+      const sourceTabId = useWorkspaceStore.getState().activeTabId;
       let step: "schema" | "query" = "query";
       try {
         if (schemaSql) {
@@ -368,15 +382,19 @@ export function LabWorkspace() {
         await refreshTables(db);
         let select: StageRun["select"];
         let statements: StageRun["statements"];
+        let schemaChanged = false;
         try {
           const po = await parseSql(toRun, engine);
           if (po.ok) {
             select = lastSelect(toRun, po.statements);
             statements = po.statements;
+            // Chỉ báo khi parser nhận ra DDL và câu lệnh đã chạy xong thật.
+            schemaChanged = changesSchema(po.statements);
           }
         } catch {
           /* không parse được thì không có câu SELECT để đo, các tab khác vẫn chạy */
         }
+        if (schemaChanged && sourceTabId) notifySchemaChanged(sourceTabId, "ddl");
         // Chạy xong mới tính lượt; lỗi hoặc bị hủy thì không.
         if (guestRun.current) {
           guestRun.current = false;
@@ -520,6 +538,9 @@ export function LabWorkspace() {
       applied.current = null;
       note({ kind: "rebuilt", n: 0 });
       afterRebuild(db);
+      // Sandbox sạch: schema vừa đổi với mọi tab khác.
+      const sourceTabId = useWorkspaceStore.getState().activeTabId;
+      if (sourceTabId) notifySchemaChanged(sourceTabId, "reset");
       setState(IDLE);
     } catch (e) {
       setState(
@@ -604,12 +625,32 @@ export function LabWorkspace() {
   );
 
   const sqlZone = (
-    <Pane title={ts("tab.sql")} headerRight={sqlHeaderRight}>
+    <Pane title={ts("tab.sql")} headerRight={sqlHeaderRight} bar={<TabBar />}>
       <span className="text-sm font-medium">{sqlLabel}</span>
+      {schemaNotice.message && (
+        <div
+          role="status"
+          data-testid="schema-changed-notice"
+          className="flex flex-wrap items-center gap-2 border border-line bg-raised px-2 py-1.5 text-xs"
+        >
+          {/* DDL vừa chạy xong thật trong sandbox: nhãn "Thật", không phải suy đoán. */}
+          <ConclusionBadge label="real" className="h-4 px-1.5 text-[10px]" />
+          <span className="min-w-0 flex-1 break-words">{schemaNotice.message}</span>
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={schemaNotice.showSource}>
+              {tw("schemaNotice.view")}
+            </Button>
+            <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={schemaNotice.dismiss}>
+              {tw("dismiss")}
+            </Button>
+          </div>
+        </div>
+      )}
       <div className="h-56 border border-line" id="sql-input">
         <SqlEditor
           value={sql}
           onChange={setSql}
+          onEditorReady={tabRuntime.onEditorReady}
           engine={engine}
           error={editorError}
           highlight={highlight}

@@ -1,6 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { Extension } from "@codemirror/state";
+import type { EditorView } from "@codemirror/view";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { EngineId } from "@/contracts/engine";
 import type { ForeignKeyRelation } from "@/modules/editor/heuristics/types";
@@ -37,6 +39,11 @@ export type SqlEditorProps = {
   aiCopilotEnabled?: boolean;
   /** Callback khi người dùng chưa nâng cấp VIP kích hoạt AI Copilot. */
   onRequireUpgrade?: () => void;
+  /**
+   * View CodeMirror vừa dựng xong, kèm hàm trả về danh sách extension hiện tại.
+   * Runtime tab dùng để dựng state riêng cho từng tab trên cùng một view.
+   */
+  onEditorReady?: (view: EditorView, getExtensions: () => Extension[]) => void;
 };
 
 // Skeleton cùng chiều cao tối thiểu với ô thật để trang không nhảy khi tải xong.

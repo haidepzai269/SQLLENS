@@ -1,7 +1,13 @@
 {
   "storageUnavailable": "Trình duyệt đang ở chế độ riêng tư hoặc chặn lưu trữ. Nội dung SQL chỉ lưu tạm trong phiên này.",
   "dismiss": "Đóng",
+  "schemaNotice": {
+    "ddl": "Schema đã cập nhật từ {tab}",
+    "reset": "Sandbox đã được tạo lại ở {tab}",
+    "view": "Xem tab"
+  },
   "tab": {
+    "list": "Danh sách tab",
     "add": "Thêm tab mới",
     "close": "Đóng tab",
     "rename": "Đổi tên tab",

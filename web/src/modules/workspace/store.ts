@@ -305,17 +305,20 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()((set, get) => ({
     });
   },
 
+  // Nội dung không đổi thì không tạo bản ghi mới: chuyển tab hay nạp lại cùng một
+  // văn bản sẽ không đẩy thêm một lượt autosave/rerender không cần thiết.
   updateTabSql: (id, sql) => {
     set((state) => {
       let found = false;
+      let changed = false;
       const tabs = state.tabs.map((t) => {
-        if (t.id === id) {
-          found = true;
-          return { ...t, sql, updatedAt: Date.now() };
-        }
-        return t;
+        if (t.id !== id) return t;
+        found = true;
+        if (t.sql === sql) return t;
+        changed = true;
+        return { ...t, sql, updatedAt: Date.now() };
       });
-      if (!found) return state;
+      if (!found || !changed) return state;
       return { tabs };
     });
   },

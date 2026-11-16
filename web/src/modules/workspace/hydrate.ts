@@ -214,6 +214,9 @@ export async function bootWorkspace(
       // Tabs: xóa tab nếu đã bị gỡ khỏi store
       for (const prev of lastTabs) {
         if (!state.tabs.some((t) => t.id === prev.id)) {
+          // Hủy phần đang chờ ghi của tab này trước, nếu không debounce sẽ ghi lại
+          // tab vừa đóng và sau F5 nó sống lại.
+          tabAutosave.cancel(prev.id);
           repo!.deleteTab(prev.id).catch((err) => {
             useWorkspaceStore.getState().setSaveState("error", err instanceof Error ? err.message : String(err));
           });
@@ -238,6 +241,10 @@ export async function bootWorkspace(
       // Projects: xóa project kéo theo xóa các tab
       for (const prev of lastProjects) {
         if (!state.projects.some((p) => p.id === prev.id)) {
+          // Tab của project vừa xóa cũng phải hủy phần đang chờ ghi, cùng lý do như trên.
+          for (const tab of lastTabs) {
+            if (tab.projectId === prev.id) tabAutosave.cancel(tab.id);
+          }
           repo!.deleteProjectCascade(prev.id).catch((err) => {
             useWorkspaceStore.getState().setSaveState("error", err instanceof Error ? err.message : String(err));
           });

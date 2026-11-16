@@ -158,6 +158,27 @@ describe("Workspace Hydrate & Persistence (Task124)", () => {
     await expect(flushWorkspace()).resolves.toBeUndefined();
   });
 
+  it("Ca biên: Đóng tab ngay sau khi gõ không để tab sống lại sau F5", async () => {
+    const { projectId } = await bootWorkspace(GUEST_SCOPE, { factory, delayMs: 30 });
+
+    // Tab mới vừa gõ vài ký tự rồi đóng trước khi debounce kịp ghi.
+    const second = useWorkspaceStore.getState().createTab(projectId, "Query 2");
+    useWorkspaceStore.getState().updateTabSql(second.id, "SELECT 'ghost';");
+    useWorkspaceStore.getState().closeTab(second.id);
+
+    await waitMs(80);
+    await flushWorkspace();
+
+    // Giả lập F5: nạp lại từ cùng IndexedDB.
+    await disposeWorkspace();
+    useWorkspaceStore.getState().reset();
+    await bootWorkspace(GUEST_SCOPE, { factory });
+
+    // Tab đã đóng không được ghi lại vào IndexedDB (không có tab "ma").
+    const tabs = useWorkspaceStore.getState().tabs;
+    expect(tabs.map((t) => t.name)).toEqual(["Query 1"]);
+  });
+
   it("Ca biên: Hai tab trình duyệt cùng mở một IndexedDB ghi tuần tự an toàn", async () => {
     // Giả lập Tab A và Tab B cùng mở DB qua cùng factory
     const sessionA = await bootWorkspace(GUEST_SCOPE, { factory });

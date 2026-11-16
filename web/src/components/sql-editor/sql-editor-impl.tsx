@@ -6,9 +6,11 @@ import { tags as t } from "@lezer/highlight";
 import CodeMirror, {
   Decoration,
   EditorView,
+  ExternalChange,
   GutterMarker,
   StateEffect,
   StateField,
+  basicSetup,
   gutter,
   type DecorationSet,
   type Extension,
@@ -140,6 +142,7 @@ export default function SqlEditorImpl({
   isVip,
   aiCopilotEnabled,
   onRequireUpgrade,
+  onEditorReady,
 }: SqlEditorProps) {
   const settings = useSafeSettings();
   const isAutocompleteEnabled = dropdownAutocomplete ?? settings.dropdownAutocomplete;
@@ -153,6 +156,18 @@ export default function SqlEditorImpl({
   useEffect(() => {
     onRunRef.current = onRun;
   });
+
+  // Một đường duy nhất đưa nội dung ra ngoài: gõ, dán, undo đều đi qua listener này.
+  // Giá trị do React đẩy vào (nạp mẫu, 1-Click Fix) mang nhãn ExternalChange nên không báo ngược ra ngoài.
+  const docBridge = useMemo(
+    () =>
+      EditorView.updateListener.of((update) => {
+        if (!update.docChanged) return;
+        if (update.transactions.some((tr) => tr.annotation(ExternalChange))) return;
+        onChange(update.state.doc.toString());
+      }),
+    [onChange],
+  );
 
   useEffect(() => {
     view?.dispatch({ effects: setError.of(offset) });
@@ -243,8 +258,22 @@ export default function SqlEditorImpl({
     [settings.fontSize]
   );
 
+  // basicSetup nằm trong danh sách extension (không truyền qua prop riêng) để runtime tab
+  // dựng state cho tab mới bằng đúng bộ extension này: vẫn có history, keymap, số dòng.
+  const editorSetup = useMemo(
+    () =>
+      basicSetup({
+        foldGutter: false,
+        lineNumbers: settings.lineNumbers,
+        highlightActiveLine: settings.highlightActiveLine,
+        autocompletion: false,
+      }),
+    [settings.lineNumbers, settings.highlightActiveLine]
+  );
+
   const extensions = useMemo<Extension[]>(
     () => [
+      editorSetup,
       sql({ dialect: DIALECT[engine], upperCaseKeywords: true }),
       autocompleteExt,
       ghostTextExt,
@@ -256,6 +285,7 @@ export default function SqlEditorImpl({
       errorField,
       hitField,
       errorGutter,
+      docBridge,
       EditorView.contentAttributes.of({
         "aria-label": ariaLabel,
         "aria-invalid": invalid ? "true" : "false",
@@ -272,21 +302,33 @@ export default function SqlEditorImpl({
       aiCopilotExt,
       settings.lineWrapping,
       fontSizeTheme,
+      editorSetup,
+      docBridge,
     ],
   );
+
+  // Runtime tab đọc danh sách mới nhất khi tạo state cho tab chưa từng mở.
+  const extensionsRef = useRef(extensions);
+  useEffect(() => {
+    extensionsRef.current = extensions;
+  }, [extensions]);
 
   // Viền focus kiểu ring của shadcn/ui vẽ bằng lớp phủ trong khung, nên đủ bốn cạnh, không bị gutter che và không bị khung cha cắt.
   return (
     <div className="relative flex h-full min-h-40 flex-col after:pointer-events-none after:absolute after:inset-0 after:z-10 after:border after:border-ring after:opacity-0 after:ring-3 after:ring-ring/50 after:transition-opacity after:duration-150 after:ring-inset focus-within:after:opacity-100">
       <div className="relative min-h-0 flex-1 [&_.cm-editor]:h-full">
+        {/* Bộ mặc định của uiw tắt hẳn: cấu hình nằm ở `editorSetup` trong danh sách extension. */}
         <CodeMirror
           value={doc}
-          onChange={onChange}
           extensions={extensions}
           theme="none"
           height="100%"
           className="absolute inset-0"
-          onCreateEditor={setView}
+          basicSetup={false}
+          onCreateEditor={(nextView) => {
+            setView(nextView);
+            onEditorReady?.(nextView, () => extensionsRef.current);
+          }}
           onUpdate={(update) => {
             if (update.selectionSet || update.docChanged) {
               const sel = update.state.selection.main;
@@ -294,12 +336,6 @@ export default function SqlEditorImpl({
               const txt = has ? update.state.sliceDoc(sel.from, sel.to) : "";
               onSelectionChange?.(has, txt);
             }
-          }}
-          basicSetup={{
-            foldGutter: false,
-            lineNumbers: settings.lineNumbers,
-            highlightActiveLine: settings.highlightActiveLine,
-            autocompletion: false,
           }}
         />
       </div>

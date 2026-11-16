@@ -1,7 +1,13 @@
 {
   "storageUnavailable": "Browser is in private mode or blocking storage. SQL content is only kept for this session.",
   "dismiss": "Dismiss",
+  "schemaNotice": {
+    "ddl": "Schema updated from {tab}",
+    "reset": "Sandbox was recreated in {tab}",
+    "view": "View tab"
+  },
   "tab": {
+    "list": "Tabs",
     "add": "New tab",
     "close": "Close tab",
     "rename": "Rename tab",
