@@ -78,6 +78,51 @@ describe("ProjectSwitcher Component (Task127)", () => {
       fireEvent.keyDown(trigger, { key: "Enter" });
       expect(screen.getByTestId("project-switcher-panel")).toBeTruthy();
     });
+
+    it("nhấn Space hoặc Enter trên các nút hành động con không bị phần tử cha nuốt", () => {
+      const store = useWorkspaceStore.getState();
+      const p1 = store.createProject({ name: "P1", engine: "postgres" });
+      const p2 = store.createProject({ name: "P2", engine: "postgres" });
+      store.setActiveProject(p1.id);
+
+      renderSwitcher();
+      fireEvent.click(screen.getByTestId("project-switcher-trigger"));
+
+      // Nhấn Space trên nút đổi tên của P2
+      const renameBtn = screen.getByTestId(`project-rename-btn-${p2.id}`);
+      fireEvent.keyDown(renameBtn, { key: " " });
+
+      // Menu vẫn mở, active project vẫn là P1 (không bị chọn P2 nhầm do nổi bọt sự kiện)
+      expect(useWorkspaceStore.getState().activeProjectId).toBe(p1.id);
+      expect(screen.getByTestId("project-switcher-panel")).toBeTruthy();
+    });
+
+    it("Focus trap: vòng phím Tab từ phần tử cuối về đầu và Shift+Tab từ đầu về cuối", () => {
+      const store = useWorkspaceStore.getState();
+      store.createProject({ name: "P1", engine: "postgres" });
+
+      renderSwitcher();
+      fireEvent.click(screen.getByTestId("project-switcher-trigger"));
+
+      const panel = screen.getByTestId("project-switcher-panel");
+      const focusables = panel.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      expect(focusables.length).toBeGreaterThan(1);
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      // Focus vào phần tử cuối và nhấn Tab -> focus vòng về phần tử đầu
+      last.focus();
+      fireEvent.keyDown(panel, { key: "Tab", shiftKey: false });
+      expect(document.activeElement).toBe(first);
+
+      // Focus vào phần tử đầu và nhấn Shift+Tab -> focus vòng về phần tử cuối
+      first.focus();
+      fireEvent.keyDown(panel, { key: "Tab", shiftKey: true });
+      expect(document.activeElement).toBe(last);
+    });
   });
 
   describe("AC1: Tạo dự án mới", () => {
@@ -111,6 +156,27 @@ describe("ProjectSwitcher Component (Task127)", () => {
 
       // Trigger hiển thị tên dự án mới
       expect(screen.getByTestId("project-switcher-trigger").textContent).toContain("Fintech App");
+    });
+
+    it("tạo dự án mới tự động tạo tab mặc định và activeTabId trỏ vào tab này", () => {
+      const store = useWorkspaceStore.getState();
+      const p1 = store.createProject({ name: "Dự án cũ", engine: "postgres" });
+      const oldTab = store.createTab(p1.id, "Tab Cũ");
+      expect(useWorkspaceStore.getState().activeTabId).toBe(oldTab.id);
+
+      renderSwitcher();
+      fireEvent.click(screen.getByTestId("project-switcher-trigger"));
+      fireEvent.click(screen.getByTestId("project-new-button"));
+      fireEvent.change(screen.getByTestId("project-name-input"), { target: { value: "Project Mới" } });
+      fireEvent.click(screen.getByTestId("project-save-create"));
+
+      const state = useWorkspaceStore.getState();
+      const newProj = state.projects.find((p) => p.name === "Project Mới");
+      expect(newProj).toBeTruthy();
+      const newTabs = state.tabs.filter((t) => t.projectId === newProj?.id);
+      expect(newTabs).toHaveLength(1);
+      expect(state.activeTabId).toBe(newTabs[0].id);
+      expect(state.activeTabId).not.toBe(oldTab.id);
     });
 
     it("tạo dự án mới bằng phím Enter và fallback tên mặc định khi để trống", () => {

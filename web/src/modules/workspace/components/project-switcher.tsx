@@ -33,6 +33,7 @@ export function ProjectSwitcher({ className }: ProjectSwitcherProps) {
   const activeProjectId = useWorkspaceStore((s) => s.activeProjectId);
   const setActiveProject = useWorkspaceStore((s) => s.setActiveProject);
   const createProject = useWorkspaceStore((s) => s.createProject);
+  const createTab = useWorkspaceStore((s) => s.createTab);
   const renameProject = useWorkspaceStore((s) => s.renameProject);
   const duplicateProject = useWorkspaceStore((s) => s.duplicateProject);
   const deleteProject = useWorkspaceStore((s) => s.deleteProject);
@@ -45,6 +46,7 @@ export function ProjectSwitcher({ className }: ProjectSwitcherProps) {
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const createInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -121,6 +123,22 @@ export function ProjectSwitcher({ className }: ProjectSwitcherProps) {
     }
   }, [isCreating]);
 
+  // Focus phần tử đầu tiên khi mở panel để hỗ trợ bàn phím & focus trap
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(() => {
+      if (panelRef.current) {
+        const focusables = panelRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusables.length > 0) {
+          focusables[0].focus();
+        }
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [isOpen]);
+
   // Auto focus khi mở form đổi tên
   useEffect(() => {
     if (editingProjectId) {
@@ -165,7 +183,8 @@ export function ProjectSwitcher({ className }: ProjectSwitcherProps) {
   const handleSaveCreate = () => {
     const trimmed = newProjectName.trim();
     const finalName = trimmed || t("project.untitled");
-    createProject({ name: finalName, engine: "postgres" });
+    const newProj = createProject({ name: finalName, engine: "postgres" });
+    createTab(newProj.id);
     closeMenu();
     triggerRef.current?.focus();
   };
@@ -215,6 +234,33 @@ export function ProjectSwitcher({ className }: ProjectSwitcherProps) {
     setDeletingProjectId(null);
   };
 
+  const handlePanelKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Tab") return;
+
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const focusables = panel.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusables.length === 0) return;
+
+    const firstElement = focusables[0];
+    const lastElement = focusables[focusables.length - 1];
+
+    if (e.shiftKey) {
+      if (document.activeElement === firstElement || document.activeElement === panel) {
+        e.preventDefault();
+        lastElement.focus();
+      }
+    } else {
+      if (document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
+      }
+    }
+  };
+
   return (
     <div ref={containerRef} className={cn("relative inline-block text-left", className)}>
       {/* Nút trigger */}
@@ -261,10 +307,12 @@ export function ProjectSwitcher({ className }: ProjectSwitcherProps) {
           />
 
           <div
+            ref={panelRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
             data-testid="project-switcher-panel"
+            onKeyDown={handlePanelKeyDown}
             className={cn(
               "z-50 flex flex-col bg-popover text-popover-foreground shadow-2xl ring-1 ring-foreground/10 outline-none",
               // Mobile: Bottom sheet
@@ -451,6 +499,7 @@ export function ProjectSwitcher({ className }: ProjectSwitcherProps) {
                       tabIndex={0}
                       onClick={() => handleSelectProject(p.id)}
                       onKeyDown={(e) => {
+                        if (e.target !== e.currentTarget) return;
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           handleSelectProject(p.id);
