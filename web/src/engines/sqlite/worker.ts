@@ -30,6 +30,21 @@ function toBase64(bytes: Uint8Array): string {
 const valueOut = (value: unknown): unknown => (value instanceof Uint8Array ? toBase64(value) : value);
 
 /**
+ * Bỏ qua comment (--..., /*...* /) và khoảng trắng/dấu chấm phẩy để nhận diện câu lệnh DML.
+ * Hỗ trợ cả câu DML có leading comments, leading semicolons hoặc CTE (WITH ... INSERT/UPDATE/DELETE).
+ */
+export function isDmlStatement(text: string): boolean {
+  const stripped = text
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/--.*$/gm, "")
+    .replace(/^[\s;]+/g, "");
+  return (
+    /^(?:insert|replace|update|delete)\b/i.test(stripped) ||
+    (/^with\b/i.test(stripped) && /\b(?:insert|replace|update|delete)\b/i.test(stripped))
+  );
+}
+
+/**
  * Tách câu bằng chính bộ phân tích của SQLite (pzTail), không tự viết splitter cho chuỗi/comment.
  * Chuẩn bị và chạy xen kẽ từng câu: `CREATE TABLE` phải xong trước khi prepare `INSERT` vào bảng đó.
  */
@@ -77,7 +92,7 @@ function runOne(db: Db, text: string, index: number): QueryResult {
     while (stmt.step()) rows.push((stmt.get([]) as unknown[]).map(valueOut));
     const result: QueryResult = { columns, rows };
     // sqlite3_changes() giữ nguyên số của câu DML trước đó với DDL/BEGIN/SELECT, nên chỉ đọc cho DML.
-    if (columns.length === 0 && /^\s*(?:insert|replace|update|delete)\b/i.test(text)) result.affectedRows = db.changes();
+    if (columns.length === 0 && isDmlStatement(text)) result.affectedRows = db.changes();
     return result;
   } catch (e) {
     throw new SqliteSqlError(withoutCode(messageOf(e)), index);

@@ -35,6 +35,24 @@ describe("SQLite session (WASM thật)", () => {
     ]);
   });
 
+  it("AC1: câu DML có comment hoặc dấu chấm phẩy thừa ở đầu vẫn trả đúng affectedRows", async () => {
+    const s = await session();
+    const results = s.run(`
+      CREATE TABLE t (id INT);
+      -- Chèn dữ liệu với line comment
+      INSERT INTO t VALUES (1);
+      /* Block comment */ UPDATE t SET id = 2 WHERE id = 1;
+      ; -- Semicolon và comment
+      DELETE FROM t WHERE id = 2;
+    `);
+
+    expect(results).toHaveLength(4);
+    expect(results[0].affectedRows).toBeUndefined();
+    expect(results[1].affectedRows).toBe(1);
+    expect(results[2].affectedRows).toBe(1);
+    expect(results[3].affectedRows).toBe(1);
+  });
+
   it("AC3: lỗi cú pháp có mã lỗi và chỉ số câu, sau đó chạy tiếp được", async () => {
     const s = await session();
     let caught: unknown;
