@@ -194,7 +194,7 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | Story                                   | Hành vi khi xong                                                                                                                                                   | GD  | Nhãn |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ---- |
 | STR093 Đo bundle & RAM SQLite WASM      | Có số thật về bundle, RAM ở 10k/100k/500k dòng, thời gian khởi động; có quyết định go/no-go ghi vào `CLAUDE.md` và là cổng chặn của Epic (ĐÃ XONG 100% - Task131: Go có điều kiện) |     | Thật |
-| STR094 SQLite chạy trong trình duyệt    | Chọn engine SQLite, chạy DDL/DML/SELECT trong máy, 0 request server; tab Plan/B-Tree hiện `chưa mô phỏng được` kèm lý do (Chờ thực hiện - Task132, Task133)        | Có  | Thật |
+| STR094 SQLite chạy trong trình duyệt    | Chọn engine SQLite, chạy DDL/DML/SELECT trong máy, 0 request server; tab Plan/B-Tree hiện `chưa mô phỏng được` kèm lý do (Task132 ĐÃ XONG 100% - còn Task133)        | Có  | Thật |
 | STR095 Nhập/xuất file `.sqlite` / `.db` | Nạp file từ máy vào sandbox SQLite, chạy query, xuất lại file; file hỏng hoặc quá lớn báo lỗi rõ, file không rời máy (Chờ thực hiện - Task134, Task135)            | Có  | Thật |
 
 ## SP021 Xuất báo cáo & sơ đồ (Export)

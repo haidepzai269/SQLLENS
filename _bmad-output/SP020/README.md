@@ -10,7 +10,7 @@ Theo `_bmad-output/BAN_NHAP_STORY_WORKSPACE_EXPORT_SHARE.md` mục 3.
 | Story | Task | Tên Task | Phân công | Trạng thái |
 |---|---|---|---|---|
 | **STR093** | `Task131` | Đo bundle, RAM, thời gian khởi động SQLite WASM (cổng go/no-go) | Amelia | Hoàn thành 100% (Go có điều kiện) |
-| **STR094** | `Task132` | Adapter SQLite trong worker theo hợp đồng `EngineAdapter` | Amelia | Chờ thực hiện |
+| **STR094** | `Task132` | Adapter SQLite trong worker theo hợp đồng `EngineAdapter` | Amelia | Hoàn thành 100% |
 | **STR094** | `Task133` | Rào chắn SQL SQLite & UI chọn engine, nhãn "chưa mô phỏng được" | Amelia | Chờ thực hiện |
 | **STR095** | `Task134` | Nhập file `.sqlite` / `.db` vào vùng nhớ WASM | Amelia | Chờ thực hiện |
 | **STR095** | `Task135` | Xuất file `.sqlite` từ sandbox | Amelia | Chờ thực hiện |
