@@ -81,6 +81,34 @@
     "noProbe": "Câu SELECT đang xem không đọc bảng {table}, nên chưa đo số trang đọc. Số tầng và dung lượng vẫn đo được.",
     "noSelect": "SQL vừa chạy không có câu SELECT, nên chưa đo số trang đọc. Số tầng và dung lượng vẫn đo được."
   },
+  "file": {
+    "import": "Nhập file",
+    "export": "Xuất file",
+    "importing": "Đang nhập {name}…",
+    "exporting": "Đang xuất file…",
+    "cancel": "Huỷ",
+    "imported": "Đã nhập {name}: {count} bảng, {size}.",
+    "importedEmpty": "Đã nhập {name}: file không có bảng nào ({size}).",
+    "exported": "Đã xuất {name} ({size}).",
+    "exportFailed": "Không xuất được: {message}",
+    "error": {
+      "FILE_TOO_LARGE": "File lớn hơn {limit} MB nên bị chặn trước khi đọc.",
+      "NOT_SQLITE": "Không phải file SQLite: {message}",
+      "IMPORT_FAILED": "Không nhập được file: {message}"
+    },
+    "tip": {
+      "import": "Nhập file .sqlite/.db từ máy. File không rời khỏi trình duyệt.",
+      "export": "Xuất database hiện tại thành file .sqlite về máy.",
+      "onlySqlite": "Chỉ áp dụng khi đang chọn engine SQLite.",
+      "busy": "Đang chạy câu SQL, đợi xong đã."
+    },
+    "replace": {
+      "title": "Thay database đang mở?",
+      "body": "Nhập {name} sẽ thay toàn bộ bảng và dữ liệu đang có trong sandbox.",
+      "confirm": "Nhập và thay thế",
+      "exportFirst": "Xuất bản hiện tại trước"
+    }
+  },
   "mentor": {
     "noSelect": "SQL vừa chạy không có câu SELECT nào để hỏi, nên Mentor chưa có bằng chứng.",
     "invite": "AI Mentor cần đăng nhập. SQL đang soạn và câu hỏi của bạn được giữ lại khi quay về.",

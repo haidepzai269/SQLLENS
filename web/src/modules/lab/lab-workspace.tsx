@@ -22,7 +22,7 @@ import { FindingsPanel, type Focus } from "@/modules/findings/ui/findings-panel"
 import { hitsOf, useFindings } from "@/modules/findings/ui/use-findings";
 import { EngineError, type EngineAdapter, type LoadProgress, type QueryResult } from "@/contracts/engine";
 import { createPostgresAdapter } from "@/engines/postgres/adapter";
-import { createSqliteAdapter } from "@/engines/sqlite/adapter";
+import { createSqliteAdapter, type SqliteAdapter } from "@/engines/sqlite/adapter";
 import { assertSqliteSafe, SQLITE_GUARD_MESSAGE_KEY } from "@/engines/sqlite/guard";
 import { GenerateDialog, type StopCode } from "@/modules/data-lab/ui/generate-dialog";
 import { parseSchema } from "@/modules/data-lab/generate/plan-data";
@@ -60,6 +60,7 @@ import { bootWorkspace, disposeWorkspace } from "@/modules/workspace/hydrate";
 import type { WorkspaceScope } from "@/modules/workspace/types";
 import { TabBar } from "@/modules/workspace/components/tab-bar";
 import { ImportGuestBanner } from "@/modules/workspace/components/import-guest-banner";
+import { SqliteFilePanel } from "@/modules/workspace/components/sqlite-file-panel";
 import { changesSchema, notifySchemaChanged, useSchemaChangedNotice, useTabRuntime } from "@/modules/workspace/tab-runtime";
 import { bindEngine, onProjectSwitch, releaseProjectResources } from "@/modules/workspace/engine-binding";
 import { EngineReleaseToast } from "@/modules/workspace/components/engine-release-toast";
@@ -344,11 +345,36 @@ export function LabWorkspace() {
     }
   }
 
+  // Một adapter SQLite duy nhất cho cả vùng chạy lẫn nhập/xuất file: file phải vào đúng database sẽ chạy.
+  const sqliteRef = useRef<Promise<SqliteAdapter> | null>(null);
+  function getSqliteAdapter(): Promise<SqliteAdapter> {
+    sqliteRef.current ??= createSqliteAdapter({ onProgress: setProgress });
+    return sqliteRef.current;
+  }
+
+  // Nhập xong thì database đã là của file: bỏ mọi thứ thuộc database cũ rồi đọc lại schema thật.
+  async function onSqliteImported(info: { tables: string[]; bytes: number; name: string }) {
+    const db = await getSqliteAdapter();
+    applied.current = null; // bảng đã đổi, lần Chạy sau phải kiểm schema lại chứ không dùng kết luận cũ
+    setOwner(engine);
+    setLog([]);
+    setStageRun(null);
+    setDurationMs(null);
+    setAllOpen(null);
+    setState({ phase: "idle" });
+    await refreshTables(db);
+    setHasTables(info.tables.length > 0);
+    const tabId = useWorkspaceStore.getState().activeTabId;
+    if (tabId) notifySchemaChanged(tabId, "ddl");
+  }
+
   // Rời trang thì dispose. Ref được xóa nên strict mode mount lại sẽ tạo instance mới.
   useEffect(
     () => () => {
       for (const p of Object.values(pool.current)) p?.then((a) => a.dispose(), () => {});
       pool.current = {};
+      sqliteRef.current?.then((a) => a.dispose(), () => {});
+      sqliteRef.current = null;
       disposeParser();
     },
     [],
@@ -431,7 +457,7 @@ export function LabWorkspace() {
                   }),
                 )
               : engine === "sqlite"
-                ? createSqliteAdapter({ onProgress: setProgress })
+                ? getSqliteAdapter()
                 : createPostgresAdapter({ onProgress: setProgress });
           db = await adapter.current;
           if (engine === "postgres") note({ kind: "loaded" });
@@ -680,8 +706,17 @@ export function LabWorkspace() {
   };
 
   const sqlLabel = mysql ? tm("sqlLabel") : t("sqlLabel");
+  const projectName = projects.find((p) => p.id === activeProjectId)?.name ?? "SQLLens";
   const sqlHeaderRight = (
     <div className="flex items-center gap-1.5">
+      <SqliteFilePanel
+        engine={engine}
+        projectName={projectName}
+        hasContent={hasTables || sql.trim() !== ""}
+        ensureAdapter={getSqliteAdapter}
+        onImported={onSqliteImported}
+        busy={working || state.phase === "stopped"}
+      />
       <Tip label={ts("tip.generate")} side="bottom">
         <Button
           variant="outline"

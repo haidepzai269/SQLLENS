@@ -81,6 +81,34 @@
     "noProbe": "The SELECT you are viewing does not read table {table}, so pages read are not measured. Levels and size are still measured.",
     "noSelect": "The SQL that just ran has no SELECT, so pages read are not measured. Levels and size are still measured."
   },
+  "file": {
+    "import": "Import file",
+    "export": "Export file",
+    "importing": "Importing {name}…",
+    "exporting": "Exporting file…",
+    "cancel": "Cancel",
+    "imported": "Imported {name}: {count, plural, one {# table} other {# tables}}, {size}.",
+    "importedEmpty": "Imported {name}: the file has no tables ({size}).",
+    "exported": "Exported {name} ({size}).",
+    "exportFailed": "Export failed: {message}",
+    "error": {
+      "FILE_TOO_LARGE": "The file is larger than {limit} MB, so it was blocked before reading.",
+      "NOT_SQLITE": "Not a SQLite file: {message}",
+      "IMPORT_FAILED": "Import failed: {message}"
+    },
+    "tip": {
+      "import": "Import a .sqlite/.db file from your machine. The file never leaves the browser.",
+      "export": "Download the current database as a .sqlite file.",
+      "onlySqlite": "Only available while the SQLite engine is selected.",
+      "busy": "A query is running, wait for it to finish."
+    },
+    "replace": {
+      "title": "Replace the open database?",
+      "body": "Importing {name} replaces every table and row currently in the sandbox.",
+      "confirm": "Import and replace",
+      "exportFirst": "Export the current one first"
+    }
+  },
   "mentor": {
     "noSelect": "The SQL that just ran has no SELECT to ask about, so Mentor has no evidence yet.",
     "invite": "AI Mentor needs you to sign in. The SQL you are editing and your question are kept when you come back.",

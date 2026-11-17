@@ -122,3 +122,71 @@ describe("SQLite adapter", () => {
     expect(source).not.toMatch(/\bfetch\s*\(/);
   });
 });
+
+// Nhập/xuất file chạy thẳng trên session WASM thật, cùng lý do đã ghi ở đầu file: vitest không có Worker.
+describe("SQLite session: nhập/xuất file (Task134/135)", () => {
+  const HEAD = [0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x20, 0x66, 0x6f, 0x72, 0x6d, 0x61, 0x74, 0x20, 0x33, 0x00];
+  const headOf = (bytes: Uint8Array) => Array.from(bytes.slice(0, 16));
+
+  it("AC1 + AC2: xuất ra rồi nạp vào session khác đọc đúng bảng và đúng số dòng", async () => {
+    const a = await session();
+    a.run("CREATE TABLE c (id INTEGER PRIMARY KEY, name TEXT); INSERT INTO c VALUES (1,'An'),(2,'Bình');");
+    const bytes = a.serialize();
+    expect(headOf(bytes)).toEqual(HEAD);
+
+    const b = await session();
+    await b.load({ bytes });
+    const [rows] = b.run("SELECT name FROM c ORDER BY id");
+    expect(rows.rows).toEqual([["An"], ["Bình"]]);
+  });
+
+  it("AC3: session rỗng vẫn xuất ra file hợp lệ, nạp lại được, không có bảng nào", async () => {
+    const a = await session();
+    const bytes = a.serialize();
+    expect(bytes.byteLength).toBeGreaterThan(0);
+    expect(headOf(bytes)).toEqual(HEAD);
+
+    const b = await session();
+    await b.load({ bytes });
+    expect(b.run("SELECT count(*) FROM sqlite_master")[0].rows).toEqual([[0]]);
+  });
+
+  it("ca biên: nạp hai lần liên tiếp trên cùng session thì database là của file sau", async () => {
+    const a = await session();
+    a.run("CREATE TABLE mot (x INT);");
+    const first = a.serialize();
+    a.run("CREATE TABLE hai (x INT);");
+    const second = a.serialize();
+
+    const b = await session();
+    await b.load({ bytes: first });
+    await b.load({ bytes: second });
+    expect(b.run("SELECT name FROM sqlite_master ORDER BY name")[0].rows).toEqual([["hai"], ["mot"]]);
+  });
+
+  it("ca biên: file rỗng, file rác và file trang bị xáo (mã hóa) bị từ chối, database đang mở còn nguyên", async () => {
+    const s = await session();
+    s.run("CREATE TABLE keep (x INT); INSERT INTO keep VALUES (7);");
+
+    await expect(s.load({ bytes: new Uint8Array(0) })).rejects.toThrow(/rỗng/i);
+    await expect(s.load({ bytes: new Uint8Array(4096) })).rejects.toThrow(/Không phải file SQLite/);
+
+    const good = s.serialize();
+    const scrambled = good.slice();
+    for (let i = 16; i < scrambled.length; i += 4096) scrambled[i] ^= 0x5a;
+    await expect(s.load({ bytes: scrambled })).rejects.toThrow(/Không đọc được nội dung database/);
+
+    // File hỏng không được làm mất bảng đang có.
+    expect(s.run("SELECT x FROM keep")[0].rows).toEqual([[7]]);
+  });
+
+  it("nhận cả File (dùng ở trình duyệt), không chỉ Uint8Array", async () => {
+    const a = await session();
+    a.run("CREATE TABLE f (x INT); INSERT INTO f VALUES (3);");
+    const bytes = a.serialize();
+
+    const b = await session();
+    await b.load({ file: new File([bytes as BlobPart], "f.sqlite") });
+    expect(b.run("SELECT x FROM f")[0].rows).toEqual([[3]]);
+  });
+});

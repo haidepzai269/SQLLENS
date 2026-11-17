@@ -2,7 +2,7 @@ import type { BTreeModel } from "@/contracts/btree";
 import type { Outcome } from "@/contracts/conclusion";
 import { EngineError, type EngineAdapter, type LoadProgress, type TryChangeResult } from "@/contracts/engine";
 import type { Plan } from "@/contracts/plan";
-import type { SqliteWorkerRequest, SqliteWorkerResponse } from "./protocol";
+import type { SqliteFileSource, SqliteWorkerRequest, SqliteWorkerResponse } from "./protocol";
 
 type Options = {
   onProgress?: (p: LoadProgress) => void;
@@ -14,19 +14,31 @@ type Options = {
 
 export const DEFAULT_TIMEOUT_MS = 1_500;
 const LOAD_TIMEOUT_MS = 30_000;
+/** Đọc/nạp/xuất cả một file 40MB lâu hơn hạn của một câu SQL, nên có hạn riêng. */
+const FILE_TIMEOUT_MS = 30_000;
 
 type Done = Extract<SqliteWorkerResponse, { type: "done" }>;
 type Pending = { resolve: (r: Done) => void; reject: (e: EngineError) => void };
-type Req = { type: "init" } | { type: "exec"; sql: string };
+type Req = { type: "init" } | { type: "exec"; sql: string } | { type: "load"; source: SqliteFileSource } | { type: "export" };
 
 /**
- * Cùng hợp đồng EngineAdapter, chỉ khác `engine` là "sqlite". `EngineId` chưa có giá trị này
- * (contracts/engine.ts thuộc phạm vi Task133), nên ở đây không tự nới hợp đồng.
+ * Cùng hợp đồng EngineAdapter, cộng hai đường của Task134/135.
+ *
+ * Chúng cố ý không nằm trong `EngineAdapter`: Postgres và MySQL không có câu trả lời cho "nạp file
+ * database của mày đâu", nên đưa vào hợp đồng chung sẽ bắt chúng phải nói dối. Đây là sai lệch có
+ * chủ đích so với "Không sửa adapter" của task132, đã được Admin chốt (xem ban_giao_task134.md).
  */
 export type SqliteAdapter = Omit<EngineAdapter, "engine"> & {
   readonly engine: "sqlite";
   /** Yêu cầu Task132: tạo DB mới trong bộ nhớ, quên history. Cùng nghĩa với `fresh()`. */
   reset(): Promise<void>;
+  /**
+   * Thay toàn bộ database bằng một file `.sqlite`. File chỉ được đọc trong worker; file hỏng thì
+   * database cũ còn nguyên. History được xoá vì các câu cũ thuộc database cũ.
+   */
+  loadDatabase(source: File | Uint8Array, options?: { signal?: AbortSignal }): Promise<void>;
+  /** Toàn bộ database dưới dạng file SQLite, kể cả khi chưa có bảng. Chỉ đọc. */
+  exportDatabase(): Promise<Uint8Array>;
 };
 
 // SQLite không có EXPLAIN ANALYZE/plan với số dòng thật và không có pageinspect: trả đúng nhãn
@@ -40,6 +52,8 @@ export async function createSqliteAdapter({ onProgress, timeoutMs = DEFAULT_TIME
   let disposed = false;
   let chain: Promise<unknown> = Promise.resolve();
   let activeExec: number | undefined;
+  // File đã nạp, để worker chết (timeout/huỷ) thì dựng lại vẫn còn database của người dùng.
+  let loadedSource: File | Uint8Array | undefined;
   const pending = new Map<number, Pending>();
   const ran: string[] = [];
 
@@ -69,18 +83,28 @@ export async function createSqliteAdapter({ onProgress, timeoutMs = DEFAULT_TIME
     worker = w;
   }
 
-  function call(req: Req) {
+  function call(req: Req, options: { signal?: AbortSignal; timeoutMs?: number } = {}) {
     const id = nextId++;
     return new Promise<Done>((resolve, reject) => {
       if (!worker) return reject(new EngineError("worker_crashed", "Engine stopped, call rebuild()"));
       // Nạp WASM lần đầu có thể lâu (Slow 3G ~14 giây), nên không dùng timeout của câu SQL cho init.
-      const ms = req.type === "init" ? LOAD_TIMEOUT_MS : timeoutMs;
+      const ms = options.timeoutMs ?? (req.type === "init" ? LOAD_TIMEOUT_MS : timeoutMs);
       const timer = setTimeout(() => kill(new EngineError("timeout", `No response after ${ms} ms`)), ms);
+      const onAbort = () => kill(new EngineError("cancelled", "Cancelled"));
+      options.signal?.addEventListener("abort", onAbort, { once: true });
       pending.set(id, {
-        resolve: (r) => (clearTimeout(timer), resolve(r)),
-        reject: (e) => (clearTimeout(timer), reject(e)),
+        resolve: (r) => {
+          clearTimeout(timer);
+          options.signal?.removeEventListener("abort", onAbort);
+          resolve(r);
+        },
+        reject: (e) => {
+          clearTimeout(timer);
+          options.signal?.removeEventListener("abort", onAbort);
+          reject(e);
+        },
       });
-      if (req.type !== "init") activeExec = id;
+      if (req.type === "exec") activeExec = id;
       worker.postMessage({ ...req, id } satisfies SqliteWorkerRequest);
     }).finally(() => {
       if (activeExec === id) activeExec = undefined;
@@ -115,6 +139,11 @@ export async function createSqliteAdapter({ onProgress, timeoutMs = DEFAULT_TIME
     worker = undefined;
     await startOnce();
     try {
+      // Database nhập từ file không dựng lại được bằng history: phải nạp lại chính file đó trước.
+      if (loadedSource) {
+        const bytes = loadedSource instanceof Uint8Array ? loadedSource : new Uint8Array(await loadedSource.arrayBuffer());
+        await call({ type: "load", source: { bytes } }, { timeoutMs: FILE_TIMEOUT_MS });
+      }
       for (const sql of ran) await call({ type: "exec", sql });
     } catch (err) {
       needsRebuild = true;
@@ -127,6 +156,7 @@ export async function createSqliteAdapter({ onProgress, timeoutMs = DEFAULT_TIME
     if (disposed) throw new EngineError("worker_crashed", "Engine disposed");
     worker?.terminate();
     worker = undefined;
+    loadedSource = undefined;
     ran.length = 0;
     await startOnce();
   }
@@ -170,6 +200,31 @@ export async function createSqliteAdapter({ onProgress, timeoutMs = DEFAULT_TIME
     fresh: () => enqueue(freshNow),
     // Tên `reset` theo yêu cầu Task132; cùng nghĩa với fresh(): DB mới trong bộ nhớ, history rỗng.
     reset: () => enqueue(freshNow),
+    loadDatabase: (source, options) =>
+      enqueue(async () => {
+        if (disposed) throw new EngineError("worker_crashed", "Engine disposed");
+        if (needsRebuild) throw new EngineError("worker_crashed", "Engine stopped, call rebuild() first");
+        try {
+          await call({ type: "load", source: source instanceof Uint8Array ? { bytes: source } : { file: source } }, {
+            signal: options?.signal,
+            timeoutMs: FILE_TIMEOUT_MS,
+          });
+          loadedSource = source;
+          ran.length = 0; // database đã bị thay: các câu cũ không còn dựng lại được
+        } catch (e) {
+          throw e instanceof EngineError
+            ? e
+            : new EngineError("load_failed", e instanceof Error ? e.message : String(e));
+        }
+      }),
+    exportDatabase: () =>
+      enqueue(async () => {
+        if (disposed) throw new EngineError("worker_crashed", "Engine disposed");
+        if (needsRebuild) throw new EngineError("worker_crashed", "Engine stopped, call rebuild() first");
+        const r = await call({ type: "export" }, { timeoutMs: FILE_TIMEOUT_MS });
+        if (!r.bytes) throw new EngineError("sql", "Không đọc được nội dung database");
+        return r.bytes;
+      }),
     async dispose() {
       disposed = true;
       kill(new EngineError("cancelled", "Engine disposed"));

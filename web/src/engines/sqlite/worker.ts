@@ -1,7 +1,8 @@
 /// <reference lib="webworker" />
 import type { Sqlite3Static } from "@sqlite.org/sqlite-wasm";
 import type { EngineErrorData, QueryResult } from "@/contracts/engine";
-import type { SqliteWorkerRequest, SqliteWorkerResponse } from "./protocol";
+import { looksLikeSqlite } from "./import-file";
+import type { SqliteFileSource, SqliteWorkerRequest, SqliteWorkerResponse } from "./protocol";
 
 type Db = InstanceType<Sqlite3Static["oo1"]["DB"]>;
 
@@ -105,24 +106,81 @@ export type SqliteSession = {
   readonly vfs: string;
   readonly libVersion: string;
   run(sql: string): QueryResult[];
+  /** Thay toàn bộ database bằng nội dung file. File hỏng thì **giữ nguyên** database cũ và ném lỗi. */
+  load(source: SqliteFileSource): Promise<void>;
+  /** Toàn bộ database dưới dạng file SQLite (kể cả khi chưa có bảng: vẫn là file hợp lệ). */
+  serialize(): Uint8Array;
   close(): void;
 };
 
+const bytesOf = async ({ bytes, file }: SqliteFileSource): Promise<Uint8Array> => {
+  if (bytes) return bytes;
+  if (!file) throw new Error("Thiếu dữ liệu file");
+  // Đọc file trong worker: file 40MB không làm đứng giao diện (Task134 AC5).
+  return new Uint8Array(await file.arrayBuffer());
+};
+
 /**
- * DB trong bộ nhớ. OPFS SAHPool để dành cho Task134/135 (nhập/xuất file), vì lưu bền vững
- * chỉ có nghĩa khi đã có đường đưa file của người dùng vào.
+ * DB trong bộ nhớ. Nhập/xuất file dùng `sqlite3_deserialize`/`sqlite3_serialize` trên chính handle
+ * đang chạy, nên không cần ATTACH (bị rào chắn Task133 chặn) và không cần ghi ra FS ảo.
  */
 export async function createSqliteSession(): Promise<SqliteSession> {
   // Nạp động: import tĩnh sẽ kéo WASM vào bundle chính dù người dùng không chọn SQLite (AC2).
   const { default: sqlite3InitModule } = await import("@sqlite.org/sqlite-wasm");
   const sqlite3 = await sqlite3InitModule();
-  const db = new sqlite3.oo1.DB(":memory:", "c");
+  const { capi, wasm } = sqlite3;
+  let db = new sqlite3.oo1.DB(":memory:", "c");
 
   return {
     vfs: "memory",
     libVersion: sqlite3.version.libVersion,
     run(sql) {
       return runScript(sqlite3, db, sql);
+    },
+    async load(source) {
+      const bytes = await bytesOf(source);
+      if (bytes.byteLength === 0) throw new Error("File rỗng, không phải database SQLite");
+      // sqlite3_deserialize trả 0 với cả file rác (đã đo), nên phải tự kiểm magic trước.
+      if (!looksLikeSqlite(bytes)) throw new Error("Không phải file SQLite (thiếu chữ ký SQLite format 3)");
+      if (db.pointer === undefined) throw new Error("DB SQLite đã đóng");
+      // Nạp vào DB mới rồi mới thay: file hỏng giữa đường không phá database đang mở.
+      const next = new sqlite3.oo1.DB(":memory:", "c");
+      const nextPtr = next.pointer;
+      if (nextPtr === undefined) throw new Error("Không mở được database để nạp file");
+      const buffer = wasm.allocFromTypedArray(bytes);
+      const rc = capi.sqlite3_deserialize(nextPtr, "main", buffer, bytes.byteLength, bytes.byteLength, capi.SQLITE_DESERIALIZE_FREEONCLOSE);
+      if (rc !== 0) {
+        const msg = withoutCode(capi.sqlite3_errmsg(nextPtr));
+        wasm.dealloc(buffer); // thất bại thì SQLite không nhận quyền sở hữu buffer
+        next.close();
+        throw new Error(msg);
+      }
+      try {
+        // File mã hóa đúng chuẩn SQLCipher vẫn có magic nhưng trang bị xáo: đọc thử mới biết.
+        next.selectValue("select count(*) from sqlite_master");
+      } catch (e) {
+        const msg = withoutCode(messageOf(e));
+        next.close();
+        throw new Error(`Không đọc được nội dung database: ${msg}`);
+      }
+      if (db.isOpen()) db.close();
+      db = next;
+    },
+    serialize() {
+      const ptr = db.pointer;
+      if (ptr === undefined) throw new Error("DB SQLite đã đóng");
+      const scope = wasm.scopedAllocPush();
+      try {
+        const pSize = wasm.scopedAlloc(4);
+        const p = capi.sqlite3_serialize(ptr, "main", pSize, 0);
+        const size = Number(wasm.peekPtr(pSize));
+        if (!p || !size) throw new Error("Không đọc được nội dung database");
+        const out = wasm.heap8u().slice(p, p + size); // copy ra ngoài heap WASM
+        capi.sqlite3_free(p);
+        return out;
+      } finally {
+        wasm.scopedAllocPop(scope);
+      }
     },
     close() {
       if (db.isOpen()) db.close();
@@ -150,9 +208,20 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
         return;
       }
       if (!session) throw new Error("SQLite chưa nạp");
+      if (m.type === "load") {
+        post({ id: m.id, type: "progress", progress: { phase: "init" } });
+        await session.load(m.source);
+        post({ id: m.id, type: "done", results: [] });
+        return;
+      }
+      if (m.type === "export") {
+        post({ id: m.id, type: "done", bytes: session.serialize() });
+        return;
+      }
       post({ id: m.id, type: "done", results: session.run(m.sql) });
     } catch (e) {
-      post({ id: m.id, type: "error", error: toError(e, m.type === "init" ? "load_failed" : "sql") });
+      const code = m.type === "exec" ? "sql" : m.type === "export" ? "sql" : "load_failed";
+      post({ id: m.id, type: "error", error: toError(e, code) });
     }
   };
 }
