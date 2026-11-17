@@ -1,0 +1,7 @@
+{
+  "notSimulated": {
+    "plan": "Không giải thích được: SQLite bản này không cho plan kèm số dòng và số trang thật. Chưa mô phỏng được.",
+    "btree": "Không đọc được B-Tree: SQLite bản này không có pageinspect và không có bộ đọc B-Tree. Chưa mô phỏng được.",
+    "tryChange": "Chưa mô phỏng được \"sửa rồi chạy lại\" trên SQLite ở bản này."
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "notSimulated": {
+    "plan": "Cannot explain: SQLite in this version cannot produce a plan with real row and page counts. Not simulated.",
+    "btree": "Cannot read the B-Tree: SQLite has no pageinspect and no B-Tree reader in this version. Not simulated.",
+    "tryChange": "Try a fix cannot be simulated on SQLite in this version. Not simulated."
+  }
+}
