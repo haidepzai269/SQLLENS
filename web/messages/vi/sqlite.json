@@ -1,7 +1,9 @@
 {
   "notSimulated": {
-    "plan": "Không giải thích được: SQLite bản này không cho plan kèm số dòng và số trang thật. Chưa mô phỏng được.",
-    "btree": "Không đọc được B-Tree: SQLite bản này không có pageinspect và không có bộ đọc B-Tree. Chưa mô phỏng được.",
-    "tryChange": "Chưa mô phỏng được \"sửa rồi chạy lại\" trên SQLite ở bản này."
+    "plan": "Không giải thích được: SQLite không có EXPLAIN (ANALYZE, BUFFERS) nên không lấy được số dòng và số trang thật. Chưa mô phỏng được.",
+    "btree": "Không đọc được B-Tree: SQLite không có pageinspect và bản này không có bộ đọc trang. Chưa mô phỏng được.",
+    "tryChange": "Chưa mô phỏng được \"sửa rồi chạy lại\" trên SQLite ở bản này.",
+    "capacity": "Chưa đo được số tầng, dung lượng và số trang đọc: SQLite không có pageinspect. Chưa mô phỏng được.",
+    "conflict": "Chưa mô phỏng được tranh chấp trên SQLite ở bản này. Dùng PostgreSQL hoặc MySQL để thử kịch bản tranh chấp."
   }
 }

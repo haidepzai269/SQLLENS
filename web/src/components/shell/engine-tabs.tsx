@@ -8,7 +8,7 @@ import type { EngineId } from "@/contracts/engine";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { Tip } from "./tip";
 
-export const SELECTABLE: readonly EngineId[] = ["postgres", "mysql"];
+export const SELECTABLE: readonly EngineId[] = ["postgres", "mysql", "sqlite"];
 // NoSQL và LSM-Tree chưa có trong V1: giữ tab khóa trên giao diện (CLAUDE.md).
 export const LOCKED = ["nosql", "lsm"] as const;
 export type LockedId = (typeof LOCKED)[number];

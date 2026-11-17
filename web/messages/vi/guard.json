@@ -6,5 +6,11 @@
   "copyProgram": "Câu thứ {index} bị chặn: COPY ... PROGRAM chạy lệnh ngoài nên không được phép.",
   "roleDdl": "Câu thứ {index} bị chặn: không được tạo, sửa hay xóa role.",
   "grant": "Câu thứ {index} bị chặn: không được dùng GRANT hay REVOKE.",
-  "escaped": "Một câu trong lần chạy vừa rồi đã đổi role của phiên. Kết quả bị bỏ và phiên được dựng lại từ các câu đã chạy thành công trước đó."
+  "escaped": "Một câu trong lần chạy vừa rồi đã đổi role của phiên. Kết quả bị bỏ và phiên được dựng lại từ các câu đã chạy thành công trước đó.",
+  "sqlite": {
+    "attach": "Lệnh bị chặn: không được dùng ATTACH hay DETACH trong phiên SQLite này, vì chúng mở được database từ file ngoài trình duyệt.",
+    "vacuumInto": "Lệnh bị chặn: không được dùng VACUUM INTO, vì nó ghi database ra một file ngoài trình duyệt.",
+    "loadExtension": "Lệnh bị chặn: không được gọi load_extension(), vì nó nạp thư viện động từ ngoài vào.",
+    "attachHidden": "Lệnh bị chặn: câu SQL không đọc hết được (chuỗi, comment hoặc tên bọc chưa đóng), nên không kiểm được phần còn lại. Đóng lại rồi chạy lại. Không câu nào được chạy."
+  }
 }

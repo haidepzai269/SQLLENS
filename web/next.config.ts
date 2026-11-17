@@ -32,6 +32,12 @@ const nextConfig: NextConfig = {
         loaders: ["@tailwindcss/turbopack"],
         as: "*.css",
       },
+      // @sqlite.org/sqlite-wasm tạo worker OPFS từ URL động, Turbopack dừng build ở đó ("Can't resolve <dynamic>").
+      // Ứng dụng dùng DB trong bộ nhớ, không dùng OPFS, nên worker đó được thay bằng module rỗng.
+      "**/@sqlite.org/sqlite-wasm/dist/sqlite3-worker1.mjs": {
+        loaders: [path.resolve(process.cwd(), "scripts/turbopack-sqlite-opfs-stub.cjs")],
+        as: "*.mjs",
+      },
     },
   },
 };

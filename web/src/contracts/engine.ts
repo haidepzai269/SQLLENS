@@ -2,7 +2,7 @@ import type { BTreeModel, BTreePath } from "./btree";
 import type { Outcome } from "./conclusion";
 import type { Plan } from "./plan";
 
-export type EngineId = "postgres" | "mysql";
+export type EngineId = "postgres" | "mysql" | "sqlite";
 /** `truncated`: engine đã cắt bớt dòng (MySQL qua sandbox: tối đa 10.000 dòng). */
 export type QueryResult = { columns: string[]; rows: unknown[][]; affectedRows?: number; truncated?: boolean };
 export type LoadProgress = { phase: "download" | "init"; loadedBytes?: number; totalBytes?: number };

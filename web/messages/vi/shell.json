@@ -5,6 +5,7 @@
     "label": "Chọn engine",
     "postgres": "PostgreSQL",
     "mysql": "MySQL",
+    "sqlite": "SQLite",
     "nosql": "NoSQL",
     "lsm": "LSM-Tree"
   },
@@ -44,7 +45,8 @@
     "layout": "Chọn vùng nào hiện trên màn hình. Cài đặt được nhớ cho lần sau.",
     "engine": {
       "postgres": "Chạy PostgreSQL ngay trong trình duyệt, không cần đăng nhập.",
-      "mysql": "Chạy MySQL thật trên máy chủ, cần đăng nhập."
+      "mysql": "Chạy MySQL thật trên máy chủ, cần đăng nhập.",
+      "sqlite": "Chạy SQLite trong trình duyệt, không cần đăng nhập. Plan và B-Tree chưa mô phỏng được."
     },
     "language": {
       "vi": "Chuyển giao diện sang tiếng Việt.",

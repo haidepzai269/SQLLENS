@@ -1,6 +1,7 @@
 import type { EngineId } from "@/contracts/engine";
 
-// Mỗi mẫu chỉ dùng cú pháp của engine đó: serial/timestamptz ở PostgreSQL, AUTO_INCREMENT/DATETIME ở MySQL.
+// Mỗi mẫu chỉ dùng cú pháp của engine đó: serial/timestamptz ở PostgreSQL, AUTO_INCREMENT/DATETIME ở MySQL,
+// INTEGER PRIMARY KEY/strftime ở SQLite.
 export const SAMPLE_SQL: Record<EngineId, string> = {
   postgres: `CREATE TABLE users (
   id serial PRIMARY KEY,
@@ -20,6 +21,27 @@ CREATE INDEX idx_orders_user ON orders (user_id);
 
 INSERT INTO users (email) SELECT 'user_' || g || '@example.com' FROM generate_series(1, 100) g;
 INSERT INTO orders (user_id, total) SELECT (g % 100) + 1, g * 10 FROM generate_series(1, 300) g;
+
+SELECT u.email, o.total FROM users u JOIN orders o ON o.user_id = u.id WHERE lower(u.email) = 'user_1@example.com';
+`,
+  sqlite: `CREATE TABLE users (
+  id INTEGER PRIMARY KEY,
+  email TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_users_email ON users (email);
+
+CREATE TABLE orders (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER REFERENCES users (id),
+  total INTEGER NOT NULL
+);
+
+CREATE INDEX idx_orders_user ON orders (user_id);
+
+INSERT INTO users (email) VALUES ('user_1@example.com'), ('user_2@example.com');
+INSERT INTO orders (user_id, total) VALUES (1, 100), (2, 200);
 
 SELECT u.email, o.total FROM users u JOIN orders o ON o.user_id = u.id WHERE lower(u.email) = 'user_1@example.com';
 `,

@@ -22,6 +22,8 @@ import { FindingsPanel, type Focus } from "@/modules/findings/ui/findings-panel"
 import { hitsOf, useFindings } from "@/modules/findings/ui/use-findings";
 import { EngineError, type EngineAdapter, type LoadProgress, type QueryResult } from "@/contracts/engine";
 import { createPostgresAdapter } from "@/engines/postgres/adapter";
+import { createSqliteAdapter } from "@/engines/sqlite/adapter";
+import { assertSqliteSafe, SQLITE_GUARD_MESSAGE_KEY } from "@/engines/sqlite/guard";
 import { GenerateDialog, type StopCode } from "@/modules/data-lab/ui/generate-dialog";
 import { parseSchema } from "@/modules/data-lab/generate/plan-data";
 import { classifyInput, prepareDump } from "@/modules/sql-intake/classify";
@@ -42,7 +44,15 @@ import { applyStatementFix } from "@/components/sql-editor/statement-at-cursor";
 import { UpgradeModal } from "@/modules/vip/upgrade-modal";
 import { Stage, type StageFocus, type StageRun } from "./stage/stage";
 import { packStash, unpackStash } from "./stage/stash";
-import { lastSelect, memoExplain, MYSQL_SCHEMA_QUERY, mysqlSchema, STAGE_SCHEMA_QUERY } from "./stage/stage-data";
+import {
+  lastSelect,
+  memoExplain,
+  MYSQL_SCHEMA_QUERY,
+  mysqlSchema,
+  SQLITE_SCHEMA_QUERY,
+  sqliteSchema,
+  STAGE_SCHEMA_QUERY,
+} from "./stage/stage-data";
 import { StatementList } from "./statement-list";
 import type { ForeignKeyRelation } from "@/modules/editor/heuristics/types";
 import { useWorkspaceStore } from "@/modules/workspace/store";
@@ -308,9 +318,9 @@ export function LabWorkspace() {
   async function refreshTables(db: EngineAdapter) {
     try {
       const my = db.engine === "mysql";
-      const q = my ? MYSQL_SCHEMA_QUERY : STAGE_SCHEMA_QUERY;
+      const q = my ? MYSQL_SCHEMA_QUERY : db.engine === "sqlite" ? SQLITE_SCHEMA_QUERY : STAGE_SCHEMA_QUERY;
       const res = (await db.execute(q, { internal: true }))[0] ?? { columns: [], rows: [] };
-      const tableInfos = parseSchema(my ? mysqlSchema(res) : res);
+      const tableInfos = parseSchema(my ? mysqlSchema(res) : db.engine === "sqlite" ? sqliteSchema(res) : res);
       const schemaDict: Record<string, string[]> = {};
       const fks: ForeignKeyRelation[] = [];
       for (const t of tableInfos) {
@@ -391,6 +401,18 @@ export function LabWorkspace() {
     setStageRun(null);
     setMobileTab("terminal");
     if (!shell.open.terminal) toggle("terminal"); // vùng terminal đang tắt thì mở lại để thấy kết quả
+    const activeSql = targetSql ?? sql;
+    const toRun = prepareDump(activeSql, engine).sql;
+    // Rào chắn của SQLite chạy trước khi có worker: ATTACH/DETACH/VACUUM INTO/load_extension bị chặn
+    // thì không câu nào trong chuỗi được chạy (Core Rule 8, AC1 và AC2 của Task133).
+    if (engine === "sqlite") {
+      const g = assertSqliteSafe(toRun);
+      if (!g.ok) {
+        busy.current = false; // chặn xong thì trả cờ, nếu không lần bấm Chạy sau bị bỏ qua
+        setState({ phase: "guard_error", reasonKey: SQLITE_GUARD_MESSAGE_KEY[g.reason] });
+        return;
+      }
+    }
     try {
       let db: EngineAdapter;
       try {
@@ -408,7 +430,9 @@ export function LabWorkspace() {
                     onAuthLost: markAnon,
                   }),
                 )
-              : createPostgresAdapter({ onProgress: setProgress });
+              : engine === "sqlite"
+                ? createSqliteAdapter({ onProgress: setProgress })
+                : createPostgresAdapter({ onProgress: setProgress });
           db = await adapter.current;
           if (engine === "postgres") note({ kind: "loaded" });
           if (db.engine === "postgres" && !db.guardActive) note({ kind: "guardOff" }); // parser của lớp bảo vệ một không tải được sau khi thử lại
@@ -421,8 +445,6 @@ export function LabWorkspace() {
       }
       setState({ phase: "running" });
       const ctl = (abort.current = new AbortController());
-      const activeSql = targetSql ?? sql;
-      const toRun = prepareDump(activeSql, engine).sql;
       // Tab phát lệnh, không phải tab đang mở lúc chạy xong: người dùng có thể đã chuyển tab.
       const sourceTabId = useWorkspaceStore.getState().activeTabId;
       let step: "schema" | "query" = "query";
@@ -786,7 +808,8 @@ export function LabWorkspace() {
     </div>
   );
 
-  const engineName = engine === "postgres" ? "PostgreSQL (PGlite)" : "MySQL (Sandbox)";
+  const engineName =
+    engine === "postgres" ? "PostgreSQL (PGlite)" : engine === "sqlite" ? "SQLite (WASM)" : "MySQL (Sandbox)";
   const engineDotColor =
     state.phase === "running" || state.phase === "loading" || state.phase === "rebuilding"
       ? "bg-amber-500 animate-pulse"
@@ -929,7 +952,8 @@ export function LabWorkspace() {
                 position={state.position}
                 sql={state.sql}
                 title={mysql ? tm("sqlErrorTitle") : undefined}
-                engine={engine}
+                // SQLite chưa có bộ gợi ý sửa lỗi riêng: không gán nhãn lỗi của PostgreSQL cho nó.
+                engine={engine === "sqlite" ? undefined : engine}
                 onApplyFix={(newSql) => {
                   const updated = applyStatementFix(sql, state.sql, newSql, state.position);
                   setSql(updated);

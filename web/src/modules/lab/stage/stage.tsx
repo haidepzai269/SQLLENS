@@ -29,7 +29,18 @@ import { PlanTree } from "@/modules/plan-runner/plan-tree";
 import { SchemaDiagram } from "@/modules/plan-runner/schema-diagram/schema-diagram";
 import { retarget } from "@/modules/what-if/capacity-ui/measure-level";
 import { WhatIfCompare } from "@/modules/what-if/compare-ui/what-if-compare";
-import { joinNodes, MYSQL_INDEX_QUERY, MYSQL_SCHEMA_QUERY, mysqlSchema, STAGE_INDEX_QUERY, STAGE_SCHEMA_QUERY, type IndexInfo } from "./stage-data";
+import {
+  joinNodes,
+  MYSQL_INDEX_QUERY,
+  MYSQL_SCHEMA_QUERY,
+  mysqlSchema,
+  SQLITE_INDEX_QUERY,
+  SQLITE_SCHEMA_QUERY,
+  sqliteSchema,
+  STAGE_INDEX_QUERY,
+  STAGE_SCHEMA_QUERY,
+  type IndexInfo,
+} from "./stage-data";
 import { BTreeRace, type BTreeRaceProps } from "@/modules/btree-reader/race/btree-race";
 
 // Capacity (GSAP, B-Tree) và Mentor (đọc stream) chỉ tải khi mở tab của chúng.
@@ -131,10 +142,10 @@ function OutcomeView<T>({ o, render }: { o: Outcome<T>; render: (c: Conclusion<T
 
 function SchemaTab({ run, on, focus }: { run: StageRun; on: boolean; focus?: { table: string; nonce: number } }) {
   const t = useTranslations("labStage");
-  const my = run.db.engine === "mysql";
+  const engine = run.db.engine;
   const r = useLoad(on, `${run.id}`, async () => {
-    const res = (await run.db.execute(my ? MYSQL_SCHEMA_QUERY : STAGE_SCHEMA_QUERY, { internal: true }))[0] ?? { columns: [], rows: [] };
-    return parseSchema(my ? mysqlSchema(res) : res);
+    const res = (await run.db.execute(schemaQuery(engine), { internal: true }))[0] ?? { columns: [], rows: [] };
+    return parseSchema(engine === "mysql" ? mysqlSchema(res) : engine === "sqlite" ? sqliteSchema(res) : res);
   });
   // Mảng phải ổn định, nếu không sơ đồ dựng lại và fit lại liên tục (Task047).
   const tables = useMemo(() => (r?.ok ? r.v : []), [r]);
@@ -332,10 +343,18 @@ function BTreeTab({
   );
 }
 
-// MySQL: B-Tree, Capacity, Mentor chưa mô phỏng được. Lý do lấy từ adapter (btree) hoặc khóa riêng.
-function MysqlNotSim({ run, which }: { run: StageRun; which: "btree" | "capacity" | "mentor" }) {
+// Câu đọc catalog của từng engine: cùng bộ cột với schema của PostgreSQL, nên parseSchema đọc được cả ba.
+const schemaQuery = (engine: EngineAdapter["engine"]) =>
+  engine === "mysql" ? MYSQL_SCHEMA_QUERY : engine === "sqlite" ? SQLITE_SCHEMA_QUERY : STAGE_SCHEMA_QUERY;
+const indexQuery = (engine: EngineAdapter["engine"]) =>
+  engine === "mysql" ? MYSQL_INDEX_QUERY : engine === "sqlite" ? SQLITE_INDEX_QUERY : STAGE_INDEX_QUERY;
+
+// Engine chưa mô phỏng được tab này (MySQL, SQLite): nói rõ lý do thay vì vẽ số liệu không đo được.
+// Lý do của B-Tree lấy từ adapter; các tab khác dùng khóa riêng của engine.
+function EngineNotSim({ run, which }: { run: StageRun; which: "btree" | "capacity" | "mentor" | "conflict" }) {
+  const reasonKey = `${run.db.engine}.notSimulated.${which}`;
   const r = useLoad<Outcome<never>>(true, `${run.id}:${which}`, async () =>
-    which === "btree" ? (await run.db.readBTree("")).model as Outcome<never> : { kind: "not_simulated", reasonKey: `mysql.notSimulated.${which}` },
+    which === "btree" ? (await run.db.readBTree("")).model as Outcome<never> : { kind: "not_simulated", reasonKey },
   );
   if (!r) return <Loading />;
   return r.ok ? <OutcomeView o={r.v} render={() => null} /> : <Note tone="error">{errText(r.e)}</Note>;
@@ -492,11 +511,13 @@ export function Stage({
     setTab(v as Tab);
   };
   // Plan và danh sách index dùng chung giữa các tab: tải một lần cho mỗi lần chạy, không tải lại khi đổi tab.
-  const my = run?.db.engine === "mysql";
+  const engine = run?.db.engine;
+  const my = engine === "mysql";
+  const sq = engine === "sqlite";
+  // SQLite: adapter trả "chưa mô phỏng được" cho explain, nên không cần chạy câu nào để biết.
   const plan = useLoad<Outcome<Plan>>(!!run?.select && (open("plan") || open("btree") || (!my && open("mentor"))), `${run?.id}`, () => run!.explain(run!.select!.sql));
-  const indexes = useLoad<IndexInfo[]>(!!run && (open("btree") || (!my && open("capacity"))), `${run?.id}`, async () => {
-    const q = my ? MYSQL_INDEX_QUERY : STAGE_INDEX_QUERY;
-    const res = (await run!.db.execute(q, { internal: true }))[0]?.rows ?? [];
+  const indexes = useLoad<IndexInfo[]>(!!run && !sq && (open("btree") || (!my && open("capacity"))), `${run?.id}`, async () => {
+    const res = (await run!.db.execute(indexQuery(run!.db.engine), { internal: true }))[0]?.rows ?? [];
     return res.map((x) => ({ name: String(x[0]), table: String(x[1]), method: String(x[2]) }));
   });
   // Bấm một rủi ro: mở tab tương ứng (chỉnh state ngay lúc render, không qua effect).
@@ -549,7 +570,7 @@ export function Stage({
               {gated(
                 "btree",
                 run ? (
-                  <BTreeTab run={run} on={open("btree")} list={indexes} plan={plan} />
+                  sq ? <EngineNotSim run={run} which="btree" /> : <BTreeTab run={run} on={open("btree")} list={indexes} plan={plan} />
                 ) : working ? (
                   <Note>{t("working")}</Note>
                 ) : (
@@ -577,7 +598,7 @@ export function Stage({
               {gated(
                 "capacity",
                 run ? (
-                  open("capacity") && (my ? <MysqlNotSim run={run} which="capacity" /> : <CapacityTab run={run} list={indexes} />)
+                  open("capacity") && (my || sq ? <EngineNotSim run={run} which="capacity" /> : <CapacityTab run={run} list={indexes} />)
                 ) : working ? (
                   <Note>{t("working")}</Note>
                 ) : (
@@ -591,7 +612,7 @@ export function Stage({
               {gated(
                 "mentor",
                 run ? (
-                  open("mentor") && (my ? <MysqlNotSim run={run} which="mentor" /> : <MentorTab run={run} plan={plan} askRef={askRef} findings={findings} />)
+                  open("mentor") && (my ? <EngineNotSim run={run} which="mentor" /> : <MentorTab run={run} plan={plan} askRef={askRef} findings={findings} />)
                 ) : working ? (
                   <Note>{t("working")}</Note>
                 ) : (
@@ -602,7 +623,12 @@ export function Stage({
           </TabsContent>
           <TabsContent value="conflict" className="min-w-0" keepMounted>
             <StageErrorBoundary>
-              {open("conflict") && <ConflictPanel adapter={run?.db} initialEngine={run?.db.engine} />}
+              {open("conflict") &&
+                (sq && run ? (
+                  <EngineNotSim run={run} which="conflict" />
+                ) : (
+                  <ConflictPanel adapter={run?.db} initialEngine={run?.db.engine === "mysql" ? "mysql" : run?.db.engine === "postgres" ? "postgres" : undefined} />
+                ))}
             </StageErrorBoundary>
           </TabsContent>
         </Tabs>

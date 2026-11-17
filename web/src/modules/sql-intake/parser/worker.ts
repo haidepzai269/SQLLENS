@@ -6,7 +6,7 @@ import type { ParseOutcome } from "./types";
 export type ParseRequest = { id: number; engine: EngineId; sql: string };
 export type ParseResponse = { id: number; outcome: ParseOutcome };
 
-const loaders: { postgres?: Promise<PgParser>; mysql?: Promise<MyParser> } = {};
+const loaders: Partial<Record<EngineId, Promise<PgParser | MyParser>>> = {};
 
 // libpg-query tìm file WASM cạnh script đang chạy, mà trong worker đó là thư mục chunk, nên chuyển hướng
 // đúng yêu cầu fetch của nó sang URL đã bundle (cùng cách guard.ts của Task021).
@@ -24,8 +24,8 @@ async function loadPostgres(): Promise<PgParser> {
   return parseSync as unknown as PgParser;
 }
 
-async function loadMysql(): Promise<MyParser> {
-  const mod = await import("node-sql-parser/build/mysql");
+async function loadMysql(dialect: "mysql" | "sqlite" = "mysql"): Promise<MyParser> {
+  const mod = dialect === "sqlite" ? await import("node-sql-parser/build/sqlite") : await import("node-sql-parser/build/mysql");
   const { Parser } = (mod as { Parser?: new () => MyParser; default?: { Parser: new () => MyParser } }).Parser
     ? (mod as unknown as { Parser: new () => MyParser })
     : (mod as unknown as { default: { Parser: new () => MyParser } }).default;
@@ -33,8 +33,8 @@ async function loadMysql(): Promise<MyParser> {
 }
 
 // Tải lỗi thì bỏ cache để lần gọi sau thử lại.
-function load<K extends EngineId>(engine: K) {
-  const make = engine === "postgres" ? loadPostgres : loadMysql;
+function load(engine: EngineId) {
+  const make = engine === "postgres" ? loadPostgres : () => loadMysql(engine === "sqlite" ? "sqlite" : "mysql");
   const p = (loaders[engine] ??= make() as never) as Promise<unknown>;
   p.catch(() => delete loaders[engine]);
   return p;
@@ -44,7 +44,10 @@ onmessage = async ({ data: { id, engine, sql } }: MessageEvent<ParseRequest>) =>
   let outcome: ParseOutcome;
   try {
     const parser = await load(engine);
-    outcome = engine === "postgres" ? parsePostgres(sql, parser as PgParser) : parseMysql(sql, parser as MyParser);
+    outcome =
+      engine === "postgres"
+        ? parsePostgres(sql, parser as PgParser)
+        : parseMysql(sql, parser as MyParser, engine === "sqlite" ? "sqlite" : "mysql");
   } catch (e) {
     outcome = failure(sql, `Parser failed to load: ${e instanceof Error ? e.message : String(e)}`);
   }

@@ -6,5 +6,11 @@
   "copyProgram": "Statement {index} was blocked: COPY ... PROGRAM runs external commands and is not allowed.",
   "roleDdl": "Statement {index} was blocked: roles cannot be created, altered or dropped.",
   "grant": "Statement {index} was blocked: GRANT and REVOKE are not allowed.",
-  "escaped": "A statement in the last run changed the session role. The result was discarded and the session was rebuilt from the statements that succeeded earlier."
+  "escaped": "A statement in the last run changed the session role. The result was discarded and the session was rebuilt from the statements that succeeded earlier.",
+  "sqlite": {
+    "attach": "Statement blocked: ATTACH and DETACH are not allowed in this SQLite session, because they can open a database file outside the browser.",
+    "vacuumInto": "Statement blocked: VACUUM INTO is not allowed, because it writes the database to a file outside the browser.",
+    "loadExtension": "Statement blocked: load_extension() is not allowed, because it loads a shared library from outside.",
+    "attachHidden": "Statement blocked: the SQL could not be read to the end (an unterminated string, comment or quoted name), so the rest cannot be checked. Close it and run again. No statement was run."
+  }
 }

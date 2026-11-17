@@ -229,11 +229,12 @@ function myTables(root: unknown): string[] {
 
 export type MyParser = { astify(sql: string, opt: { database: string }): unknown };
 
-export function parseMysql(sql: string, parser: MyParser): ParseOutcome {
+// `database` chọn bộ biến đổi của node-sql-parser: SQLite dùng chung phần tách câu và đọc AST như MySQL.
+export function parseMysql(sql: string, parser: MyParser, database: "mysql" | "sqlite" = "mysql"): ParseOutcome {
   const statements: ParsedStatement[] = [];
   for (const [start, end] of splitMysql(sql)) {
     try {
-      const r = parser.astify(sql.slice(start, end), { database: "mysql" });
+      const r = parser.astify(sql.slice(start, end), { database });
       const ast = Array.isArray(r) ? r[0] : r;
       statements.push({ index: statements.length, kind: myKind(ast), start, end, tables: myTables(ast), ast });
     } catch (e) {

@@ -40,11 +40,33 @@ JOIN information_schema.TABLES t ON t.TABLE_SCHEMA = s.TABLE_SCHEMA AND t.TABLE_
 WHERE s.TABLE_SCHEMA = DATABASE() AND s.TABLE_NAME NOT LIKE '__whatif_%'
 GROUP BY s.TABLE_NAME, s.INDEX_NAME, s.INDEX_TYPE
 ORDER BY s.TABLE_NAME, s.INDEX_NAME`;
+// SQLite: cùng các cột như PostgreSQL, đọc từ sqlite_master + pragma. Cờ 0/1 như MySQL. Giữ nguyên thứ tự cột.
+// `pragma_table_info`/`pragma_index_list`/`pragma_foreign_key_list` nhận tên bảng từ `m.name` của câu ngoài.
+export const SQLITE_SCHEMA_QUERY = `
+SELECT 'main' AS schema_name, m.name AS table_name, p.name AS column_name, p.type AS data_type,
+  p."notnull" = 0 AS nullable, p.pk > 0 AS is_pk,
+  EXISTS (SELECT 1 FROM pragma_index_list(m.name) il JOIN pragma_index_info(il.name) ii ON ii.seqno = 0
+    WHERE il."unique" = 1 AND ii.name = p.name AND (SELECT COUNT(*) FROM pragma_index_info(il.name)) = 1) AS is_unique,
+  (SELECT f."table" FROM pragma_foreign_key_list(m.name) f WHERE f."from" = p.name LIMIT 1) AS ref_table,
+  (SELECT f."to" FROM pragma_foreign_key_list(m.name) f WHERE f."from" = p.name LIMIT 1) AS ref_column
+FROM sqlite_master m JOIN pragma_table_info(m.name) p
+WHERE m.type = 'table' AND m.name NOT LIKE 'sqlite_%'
+ORDER BY m.name, p.cid`;
+
+export const SQLITE_INDEX_QUERY = `
+SELECT il.name AS index_name, m.name AS table_name, 'btree' AS method
+FROM sqlite_master m JOIN pragma_index_list(m.name) il
+WHERE m.type = 'table' AND m.name NOT LIKE 'sqlite_%'
+ORDER BY m.name, il.name`;
+
 const FLAGS = ["nullable", "is_pk", "is_unique"];
-export function mysqlSchema(r: QueryResult): QueryResult {
+const flipFlags = (r: QueryResult): QueryResult => {
   const at = FLAGS.map((n) => r.columns.indexOf(n));
   return { ...r, rows: r.rows.map((row) => row.map((v, i) => (at.includes(i) ? Number(v) === 1 : v))) };
-}
+};
+export const mysqlSchema = flipFlags;
+// SQLite trả cờ 0/1 giống MySQL, nên dùng chung bộ đổi; tên riêng để chỗ gọi đọc rõ engine.
+export const sqliteSchema = flipFlags;
 
 export type IndexInfo = { name: string; table: string; method: string };
 

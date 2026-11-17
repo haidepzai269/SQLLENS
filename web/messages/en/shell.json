@@ -5,6 +5,7 @@
     "label": "Choose engine",
     "postgres": "PostgreSQL",
     "mysql": "MySQL",
+    "sqlite": "SQLite",
     "nosql": "NoSQL",
     "lsm": "LSM-Tree"
   },
@@ -44,7 +45,8 @@
     "layout": "Choose which panels are visible. Your choice is remembered for next time.",
     "engine": {
       "postgres": "Runs PostgreSQL right in your browser, no sign-in needed.",
-      "mysql": "Runs real MySQL on a server, sign-in required."
+      "mysql": "Runs real MySQL on a server, sign-in required.",
+      "sqlite": "Runs SQLite in your browser, no sign-in needed. Plan and B-Tree are not simulated yet."
     },
     "language": {
       "vi": "Switch the interface to Vietnamese.",

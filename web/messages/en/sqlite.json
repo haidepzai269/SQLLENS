@@ -1,7 +1,9 @@
 {
   "notSimulated": {
-    "plan": "Cannot explain: SQLite in this version cannot produce a plan with real row and page counts. Not simulated.",
-    "btree": "Cannot read the B-Tree: SQLite has no pageinspect and no B-Tree reader in this version. Not simulated.",
-    "tryChange": "Try a fix cannot be simulated on SQLite in this version. Not simulated."
+    "plan": "Cannot explain: SQLite has no EXPLAIN (ANALYZE, BUFFERS), so real row and page counts are unavailable. Not simulated.",
+    "btree": "Cannot read the B-Tree: SQLite has no pageinspect and this build has no page reader. Not simulated.",
+    "tryChange": "Try a fix cannot be simulated on SQLite in this version. Not simulated.",
+    "capacity": "Cannot measure height, size or pages read: SQLite has no pageinspect. Not simulated.",
+    "conflict": "Conflict scenarios cannot be simulated on SQLite in this version. Use PostgreSQL or MySQL to try a conflict scenario."
   }
 }
