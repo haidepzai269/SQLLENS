@@ -1,0 +1,12 @@
+{
+  "title": "Xuất",
+  "sql": "Tải file .sql",
+  "disabledEmpty": "Chưa có bảng nào để xuất",
+  "done": "Đã xuất file .sql thành công",
+  "failed": "Xuất file thất bại",
+  "exporting": "Đang xuất...",
+  "menuAriaLabel": "Tùy chọn xuất dữ liệu",
+  "sheetTitle": "Tùy chọn xuất",
+  "close": "Đóng",
+  "sqlDescription": "Xuất định nghĩa DDL theo dialect hiện tại"
+}

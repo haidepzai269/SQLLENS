@@ -1,0 +1,12 @@
+{
+  "title": "Export",
+  "sql": "Download .sql",
+  "disabledEmpty": "No tables to export",
+  "done": "Successfully exported .sql file",
+  "failed": "Export failed",
+  "exporting": "Exporting...",
+  "menuAriaLabel": "Export data options",
+  "sheetTitle": "Export options",
+  "close": "Close",
+  "sqlDescription": "Export DDL definitions for the current dialect"
+}
