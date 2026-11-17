@@ -95,9 +95,21 @@ export function SqliteFilePanel({ engine, projectName, hasContent, ensureAdapter
     setPending(null);
     const ctl = (abort.current = new AbortController());
     setStatus({ kind: "importing", file });
+    let result: Awaited<ReturnType<typeof importSqliteFile>>;
     try {
       const adapter = await ensureAdapter();
-      const result = await importSqliteFile(file, adapter, { signal: ctl.signal });
+      result = await importSqliteFile(file, adapter, { signal: ctl.signal });
+    } catch (e) {
+      if (!alive.current) return;
+      // Huỷ thì về trạng thái nghỉ, không báo lỗi. Nhưng huỷ không miễn phí: database nằm trong
+      // worker nên dừng giữa chừng là worker bị giết, phải Dựng lại mới chạy tiếp (review 17/11).
+      setStatus(ctl.signal.aborted ? { kind: "done", text: t("file.cancelled") } : { kind: "error", text: errorText(e) });
+      if (abort.current === ctl) abort.current = null;
+      if (input.current) input.current.value = "";
+      return;
+    }
+    try {
+      // Database đã bị thay ở bước trên: lỗi ở đây (đọc lại schema) khác lỗi nhập file.
       await onImported({ ...result, name: file.name });
       if (!alive.current) return;
       setStatus({
@@ -109,8 +121,7 @@ export function SqliteFilePanel({ engine, projectName, hasContent, ensureAdapter
       });
     } catch (e) {
       if (!alive.current) return;
-      // Huỷ thì về trạng thái nghỉ, không báo lỗi.
-      setStatus(ctl.signal.aborted ? { kind: "idle" } : { kind: "error", text: errorText(e) });
+      setStatus({ kind: "error", text: t("file.error.afterImport", { name: file.name, message: (e as Error).message }) });
     } finally {
       if (abort.current === ctl) abort.current = null;
       if (input.current) input.current.value = ""; // chọn lại đúng file đó lần nữa vẫn phải chạy
@@ -166,7 +177,11 @@ export function SqliteFilePanel({ engine, projectName, hasContent, ensureAdapter
         </span>
       )}
 
-      {(importing || exporting) && (
+      {/*
+        Chỉ có nút Huỷ khi đang **nhập**: `sqlite3_serialize` chạy đồng bộ trong worker nên không có
+        điểm nào để cắt ngang lúc xuất — hiện nút ở đó chỉ là nút chết (review 17/11).
+      */}
+      {importing && (
         <Button size="sm" variant="ghost" onClick={() => abort.current?.abort()} aria-label={t("file.cancel")}>
           {t("file.cancel")}
         </Button>

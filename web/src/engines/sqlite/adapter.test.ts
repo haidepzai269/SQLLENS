@@ -92,6 +92,43 @@ class SilentWorker {
   }
 }
 
+type WorkerMsg = { id: number; type: string; sql?: string; source?: { bytes?: Uint8Array } };
+
+/**
+ * Worker giả ghi lại message: đủ để kiểm tra adapter gửi gì, khi nào, và sau khi worker chết thì
+ * dựng lại có gửi lại đúng dữ liệu không (đường mà E2E chỉ đi qua phía thuận).
+ */
+class ScriptWorker {
+  onmessage: ((e: MessageEvent) => void) | null = null;
+  onerror: ((e: ErrorEvent) => void) | null = null;
+  onmessageerror: (() => void) | null = null;
+  terminated = false;
+  readonly got: WorkerMsg[] = [];
+
+  constructor(private readonly ignore?: (m: WorkerMsg) => boolean) {}
+
+  postMessage(m: WorkerMsg) {
+    this.got.push(m);
+    if (this.ignore?.(m)) return;
+    queueMicrotask(() => {
+      if (this.terminated) return;
+      this.onmessage?.({ data: { id: m.id, type: "done", results: [] } } as MessageEvent);
+    });
+  }
+
+  terminate() {
+    this.terminated = true;
+  }
+
+  loads() {
+    return this.got.filter((m) => m.type === "load");
+  }
+
+  execs() {
+    return this.got.filter((m) => m.type === "exec").map((m) => m.sql);
+  }
+}
+
 describe("SQLite adapter", () => {
   it("AC4: timeout mặc định 1.500 ms và câu quá hạn bị ngắt, không treo", async () => {
     expect(DEFAULT_TIMEOUT_MS).toBe(1_500);
@@ -114,6 +151,87 @@ describe("SQLite adapter", () => {
       reasonKey: "sqlite.notSimulated.tryChange",
     });
     expect((await adapter.readBTree("i")).model).toEqual({ kind: "not_simulated", reasonKey: "sqlite.notSimulated.btree" });
+    await adapter.dispose();
+  });
+
+  // Ba test dưới đây bổ sung sau review 17/11: trước đó Task134 chỉ có test ở tầng session, còn
+  // `loadDatabase` của adapter (giữ byte, xoá history, dựng lại khi worker chết) không được kiểm.
+  it("Task134: nạp File thì đọc đúng một lần, Dựng lại vẫn dùng byte đã giữ (file trên đĩa đổi cũng không sao)", async () => {
+    const workers: ScriptWorker[] = [];
+    const adapter = await createSqliteAdapter({
+      workerFactory: () => {
+        const w = new ScriptWorker();
+        workers.push(w);
+        return w as unknown as Worker;
+      },
+    });
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    let reads = 0;
+    // File bị "xoá trên đĩa" sau lần đọc đầu: arrayBuffer thứ hai sẽ ném giống trình duyệt.
+    const file = {
+      name: "a.sqlite",
+      size: bytes.byteLength,
+      arrayBuffer: async () => {
+        if (reads++ > 0) throw new Error("NotReadableError: file moved or deleted");
+        return bytes.buffer.slice(0);
+      },
+    } as unknown as File;
+
+    await adapter.loadDatabase(file);
+    expect(workers[0].loads()).toHaveLength(1);
+    expect(Array.from(workers[0].loads()[0].source?.bytes ?? [])).toEqual([1, 2, 3, 4]);
+    await adapter.rebuild();
+
+    // Dựng lại dùng worker mới nhưng không đọc lại file: byte đã được giữ từ lần đầu.
+    expect(reads).toBe(1);
+    expect(workers).toHaveLength(2);
+    expect(workers[1].loads()).toHaveLength(1);
+    expect(Array.from(workers[1].loads()[0].source?.bytes ?? [])).toEqual([1, 2, 3, 4]);
+    await adapter.dispose();
+  });
+
+  it("Task134: nạp file xoá history cũ, và nạp được cả khi worker đã chết (tự dựng lại trước)", async () => {
+    const workers: ScriptWorker[] = [];
+    const adapter = await createSqliteAdapter({
+      timeoutMs: 20,
+      workerFactory: () => {
+        // Worker đầu câm ở "exec" để bị timeout và bị giết; worker sau trả lời bình thường.
+        const w = new ScriptWorker((m) => workers.length === 1 && m.type === "exec");
+        workers.push(w);
+        return w as unknown as Worker;
+      },
+    });
+
+    await expect(adapter.execute("SELECT 1")).rejects.toMatchObject({ code: "timeout" });
+    await expect(adapter.execute("SELECT 2")).rejects.toMatchObject({ code: "worker_crashed" });
+
+    // Không cần người dùng bấm Dựng lại: nhập file tự dựng lại rồi nạp.
+    await adapter.loadDatabase(new Uint8Array([9, 9]));
+    expect(workers).toHaveLength(2);
+    expect(workers[1].loads()).toHaveLength(1);
+    expect(adapter.history()).toEqual([]);
+    await adapter.dispose();
+  });
+
+  it("Task134: huỷ giữa lúc nạp ném cancelled và để sandbox ở trạng thái cần dựng lại (không giả vờ là không sao)", async () => {
+    const workers: ScriptWorker[] = [];
+    const adapter = await createSqliteAdapter({
+      workerFactory: () => {
+        const w = new ScriptWorker((m) => m.type === "load");
+        workers.push(w);
+        return w as unknown as Worker;
+      },
+    });
+    const ctl = new AbortController();
+    const p = adapter.loadDatabase(new Uint8Array([0, 1]), { signal: ctl.signal });
+    setTimeout(() => ctl.abort(), 5);
+
+    await expect(p).rejects.toMatchObject({ code: "cancelled" });
+    expect(workers[0].terminated).toBe(true);
+    await expect(adapter.execute("SELECT 1")).rejects.toMatchObject({ code: "worker_crashed" });
+    // Dựng lại được: đó là lời hứa duy nhất mà nút Huỷ được phép nói.
+    await adapter.rebuild();
+    expect(adapter.history()).toEqual([]);
     await adapter.dispose();
   });
 

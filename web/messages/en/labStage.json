@@ -91,10 +91,12 @@
     "importedEmpty": "Imported {name}: the file has no tables ({size}).",
     "exported": "Exported {name} ({size}).",
     "exportFailed": "Export failed: {message}",
+    "cancelled": "Import cancelled. Rebuild the sandbox before running again.",
     "error": {
       "FILE_TOO_LARGE": "The file is larger than {limit} MB, so it was blocked before reading.",
       "NOT_SQLITE": "Not a SQLite file: {message}",
-      "IMPORT_FAILED": "Import failed: {message}"
+      "IMPORT_FAILED": "Import failed: {message}",
+      "afterImport": "{name} was loaded into the sandbox, but the Lab could not read its tables: {message}. Rebuild to retry."
     },
     "tip": {
       "import": "Import a .sqlite/.db file from your machine. The file never leaves the browser.",

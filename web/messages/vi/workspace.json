@@ -4,6 +4,7 @@
   "schemaNotice": {
     "ddl": "Schema đã cập nhật từ {tab}",
     "reset": "Sandbox đã được tạo lại ở {tab}",
+    "imported": "Database ở {tab} đã được thay bằng file {file}: bảng và dữ liệu bên dưới đọc thẳng từ file đó",
     "view": "Xem tab"
   },
   "tab": {

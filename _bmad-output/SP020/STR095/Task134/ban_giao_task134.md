@@ -26,4 +26,17 @@ Chưa làm được: chưa đo trên Safari/Firefox thật; chưa có progress %
 
 Phát sinh cần đưa vào SP999: (1) import xong gọi `notifySchemaChanged(tabId, "ddl")` nên hiện thông báo "Schema đã cập nhật từ <tab>" — đúng nghĩa nhưng với file nhập thì nên có câu riêng; (2) `e2e/lab.spec.ts` hỏng 4 test (2 kịch bản × 2 ngôn ngữ) vì dấu lỗi cú pháp `.cm-sql-error` không hiện khi gõ `SELEC 1` — **đã xác nhận trên `main` sạch trước thay đổi này**, cùng họ với lỗi Task113/114 đã ghi trong AGENTS.
 
+## Sửa theo phiên review (17/11, cùng ngày)
+
+Review tại chỗ tìm ra 4 lỗi trong Task134/135 và đã sửa hết trong cùng ngày, trước khi gọi reviewer độc lập:
+
+1. **`loadedSource` giờ giữ byte, không giữ `File`.** Trước đó người dùng xoá/đổi file trên đĩa rồi bấm "Dựng lại" là mất database (đọc lại `File` ném `NotReadableError`). `loadDatabase` đọc `file.arrayBuffer()` **một lần** rồi giữ `Uint8Array`; từ chối đường nạp file vẫn không tốn thêm lần đọc nào. Có test chứng minh: `adapter.test.ts` cho `arrayBuffer` ném ở lần đọc thứ hai, `rebuild()` vẫn dựng lại đúng database và không đọc lại file.
+2. **Nạp file khi sandbox đang "stopped" (worker chết) tự dựng lại trước**, thay vì ném `worker_crashed`. Panel bỏ điều kiện `busy` theo `state.phase === "stopped"`, nên nút Nhập không còn bị khoá đúng lúc người dùng muốn thả file vào để lành lại.
+3. **Huỷ giữa lúc nạp không còn im lặng.** Nút Huỷ vẫn giết worker (database nằm trong worker, không có cách huỷ rẻ hơn), nhưng giao diện báo "Đã huỷ nhập. Sandbox cần Dựng lại trước khi chạy tiếp." thay vì về `idle` như chưa có gì xảy ra.
+4. **Lỗi sau khi database đã bị thay được báo đúng.** `onImported` lỗi (Lab chưa đọc lại được schema) giờ có câu riêng "Đã nạp <tên> vào sandbox, nhưng Lab chưa đọc lại được bảng…" — không còn nói "không nhập được file" trong khi sandbox đã là dữ liệu của file.
+
+Thêm 3 test tầng adapter (trước đó Task134 chỉ có test tầng session, đúng chỗ Winston chỉ ra): nạp `File` chỉ đọc một lần và `rebuild()` dùng byte đã giữ; nạp file xoá history cũ và nạp được khi worker đã chết; huỷ giữa lúc nạp ném `cancelled`, worker bị terminate và `rebuild()` phục hồi được.
+
+Đo lại sau khi sửa: `npm run check` PASS **1.163 test** / 18 skip, lint còn đúng 1 warning có sẵn; `next build` PASS; `e2e/sqlite.spec.ts` **6/6 PASS** trên Chrome thật.
+
 Việc tiếp theo cần biết: `sqlite3_deserialize` trả **0 với cả file rác** (đã đo), nên đừng bỏ bước kiểm magic + đọc thử `sqlite_master`. Nếu sau này dùng OPFS SAHPool thì đường nạp phải đổi sang `sqlite3_js_db_export`/attach, không dùng `deserialize` trên DB đang mở file.

@@ -52,8 +52,10 @@ export async function createSqliteAdapter({ onProgress, timeoutMs = DEFAULT_TIME
   let disposed = false;
   let chain: Promise<unknown> = Promise.resolve();
   let activeExec: number | undefined;
-  // File đã nạp, để worker chết (timeout/huỷ) thì dựng lại vẫn còn database của người dùng.
-  let loadedSource: File | Uint8Array | undefined;
+  // **Byte** của file đã nạp (không phải File), để worker chết (timeout/huỷ) thì dựng lại vẫn còn
+  // database của người dùng. Giữ File là giữ con trỏ tới đĩa: người dùng xoá/đổi file rồi bấm
+  // Dựng lại là mất database (review 17/11). Giá phải trả: tối đa MAX_IMPORT_BYTES trong RAM.
+  let loadedSource: Uint8Array | undefined;
   const pending = new Map<number, Pending>();
   const ran: string[] = [];
 
@@ -140,10 +142,7 @@ export async function createSqliteAdapter({ onProgress, timeoutMs = DEFAULT_TIME
     await startOnce();
     try {
       // Database nhập từ file không dựng lại được bằng history: phải nạp lại chính file đó trước.
-      if (loadedSource) {
-        const bytes = loadedSource instanceof Uint8Array ? loadedSource : new Uint8Array(await loadedSource.arrayBuffer());
-        await call({ type: "load", source: { bytes } }, { timeoutMs: FILE_TIMEOUT_MS });
-      }
+      if (loadedSource) await call({ type: "load", source: { bytes: loadedSource } }, { timeoutMs: FILE_TIMEOUT_MS });
       for (const sql of ran) await call({ type: "exec", sql });
     } catch (err) {
       needsRebuild = true;
@@ -203,13 +202,15 @@ export async function createSqliteAdapter({ onProgress, timeoutMs = DEFAULT_TIME
     loadDatabase: (source, options) =>
       enqueue(async () => {
         if (disposed) throw new EngineError("worker_crashed", "Engine disposed");
-        if (needsRebuild) throw new EngineError("worker_crashed", "Engine stopped, call rebuild() first");
         try {
-          await call({ type: "load", source: source instanceof Uint8Array ? { bytes: source } : { file: source } }, {
-            signal: options?.signal,
-            timeoutMs: FILE_TIMEOUT_MS,
-          });
-          loadedSource = source;
+          // Đọc byte một lần rồi giữ lại: file trên đĩa có thể bị xoá/đổi trước lần Dựng lại sau.
+          // `file.arrayBuffer()` là bất đồng bộ nên không chặn giao diện (Task134 AC5).
+          const bytes = source instanceof Uint8Array ? source : new Uint8Array(await source.arrayBuffer());
+          // Sandbox đang dừng (worker đã chết) không phải lý do để khoá nút nhập: nhập file là một
+          // cách thoát khỏi trạng thái hỏng, nên dựng lại trước rồi nạp (review 17/11).
+          if (needsRebuild) await rebuildNow();
+          await call({ type: "load", source: { bytes } }, { signal: options?.signal, timeoutMs: FILE_TIMEOUT_MS });
+          loadedSource = bytes;
           ran.length = 0; // database đã bị thay: các câu cũ không còn dựng lại được
         } catch (e) {
           throw e instanceof EngineError

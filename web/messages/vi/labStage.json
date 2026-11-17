@@ -91,10 +91,12 @@
     "importedEmpty": "Đã nhập {name}: file không có bảng nào ({size}).",
     "exported": "Đã xuất {name} ({size}).",
     "exportFailed": "Không xuất được: {message}",
+    "cancelled": "Đã huỷ nhập. Sandbox cần Dựng lại trước khi chạy tiếp.",
     "error": {
       "FILE_TOO_LARGE": "File lớn hơn {limit} MB nên bị chặn trước khi đọc.",
       "NOT_SQLITE": "Không phải file SQLite: {message}",
-      "IMPORT_FAILED": "Không nhập được file: {message}"
+      "IMPORT_FAILED": "Không nhập được file: {message}",
+      "afterImport": "Đã nạp {name} vào sandbox, nhưng Lab chưa đọc lại được bảng: {message}. Bấm Dựng lại để đọc lại."
     },
     "tip": {
       "import": "Nhập file .sqlite/.db từ máy. File không rời khỏi trình duyệt.",

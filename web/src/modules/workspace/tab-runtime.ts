@@ -167,6 +167,8 @@ export interface SchemaChangedEvent {
   sourceTabId: string;
   kind: SchemaChangeKind;
   seq: number;
+  /** Có khi schema đổi vì một file được nhập, không phải vì câu lệnh trong tab. */
+  file?: string;
 }
 
 export const SCHEMA_NOTICE_MS = 5000;
@@ -180,8 +182,8 @@ const emitSchema = () => {
 };
 
 /** Tab nguồn không nhận thông báo của chính nó; các tab còn lại sẽ thấy. */
-export function notifySchemaChanged(sourceTabId: string, kind: SchemaChangeKind): void {
-  schemaEvent = { sourceTabId, kind, seq: ++schemaSeq };
+export function notifySchemaChanged(sourceTabId: string, kind: SchemaChangeKind, file?: string): void {
+  schemaEvent = { sourceTabId, kind, seq: ++schemaSeq, ...(file ? { file } : {}) };
   emitSchema();
 }
 
@@ -242,7 +244,9 @@ export function useSchemaChangedNotice(): SchemaChangedNotice {
   }
 
   return {
-    message: t(event.kind === "ddl" ? "schemaNotice.ddl" : "schemaNotice.reset", { tab: source.name }),
+    message: event.file
+      ? t("schemaNotice.imported", { tab: source.name, file: event.file })
+      : t(event.kind === "ddl" ? "schemaNotice.ddl" : "schemaNotice.reset", { tab: source.name }),
     sourceTabId: source.id,
     dismiss: dismissSchemaChangedNotice,
     showSource,

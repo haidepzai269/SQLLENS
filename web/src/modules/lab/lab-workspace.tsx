@@ -364,8 +364,10 @@ export function LabWorkspace() {
     setState({ phase: "idle" });
     await refreshTables(db);
     setHasTables(info.tables.length > 0);
+    // Bảng và dữ liệu bên dưới là **Thật**, nhưng đọc từ file chứ không phải từ câu Người dùng vừa
+    // chạy: nói đúng nguồn thay vì "cập nhật từ <tab>" (Core Rule 1, review 17/11).
     const tabId = useWorkspaceStore.getState().activeTabId;
-    if (tabId) notifySchemaChanged(tabId, "ddl");
+    if (tabId) notifySchemaChanged(tabId, "ddl", info.name);
   }
 
   // Rời trang thì dispose. Ref được xóa nên strict mode mount lại sẽ tạo instance mới.
@@ -715,7 +717,8 @@ export function LabWorkspace() {
         hasContent={hasTables || sql.trim() !== ""}
         ensureAdapter={getSqliteAdapter}
         onImported={onSqliteImported}
-        busy={working || state.phase === "stopped"}
+        // Không khoá khi sandbox đang "stopped": nhập file là một cách lành lại, adapter tự dựng lại trước.
+        busy={working}
       />
       <Tip label={ts("tip.generate")} side="bottom">
         <Button

@@ -23,4 +23,11 @@ Chưa làm được: chưa đo xuất file 40MB trên trình duyệt thật (ch�
 
 Phát sinh cần đưa vào SP999: tên dự án trùng nhau sẽ ra tên file gần giống nhau, chỉ khác phút; nếu cần phân biệt thì thêm giây vào tên.
 
+## Sửa theo phiên review (17/11, cùng ngày)
+
+1. **Nút Huỷ lúc đang xuất đã bị bỏ.** `sqlite3_serialize` chạy đồng bộ trong worker nên không có điểm nào để cắt ngang; nút đó trước đây gọi `abort.current?.abort()` trên `null` — nút chết. Giờ chỉ hiện Huỷ khi đang **nhập**.
+2. **Nhãn nguồn sau khi nhập file** (`notifySchemaChanged(tabId, "ddl", fileName)` + chuỗi `schemaNotice.imported`): các tab khác thấy "The database in <tab> was replaced by <file>: the tables and rows below are read straight from that file" thay vì "Schema đã cập nhật từ <tab>" — đúng Core Rule 1, dữ liệu dưới đó là **Thật đọc từ file**, không phải kết quả câu vừa chạy.
+
+Đo lại sau khi sửa: `npm run check` PASS 1.163 test / 18 skip, `next build` PASS, `e2e/sqlite.spec.ts` 6/6 PASS (vòng tròn xuất → nhập lại vẫn đúng 2 dòng).
+
 Việc tiếp theo cần biết: `exportSqliteFile` trả `Blob & { name }` để chỗ tải về không phải chuẩn hoá tên lần hai. `sqlite3_serialize` trả con trỏ phải `sqlite3_free` sau khi copy, nếu quên là rò rỉ heap WASM mỗi lần xuất.
