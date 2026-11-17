@@ -23,10 +23,12 @@ import { AuthContext, useAuth } from "@/modules/auth/auth-provider";
 import { GUEST_LOCKED_TABS, LockedTab, useGuest } from "@/modules/auth/guest";
 import { LoginDialog } from "@/modules/auth/login-dialog";
 import { buildEvidencePack } from "@/modules/mentor/evidence";
-import { parseSchema } from "@/modules/data-lab/generate/plan-data";
+import { parseSchema, type TableInfo } from "@/modules/data-lab/generate/plan-data";
+import { ExportMenu } from "@/modules/export/components/export-menu";
 import { JoinAnimation } from "@/modules/plan-runner/join-anim/join-animation";
 import { PlanTree } from "@/modules/plan-runner/plan-tree";
 import { SchemaDiagram } from "@/modules/plan-runner/schema-diagram/schema-diagram";
+import { useWorkspaceStore } from "@/modules/workspace/store";
 import { retarget } from "@/modules/what-if/capacity-ui/measure-level";
 import { WhatIfCompare } from "@/modules/what-if/compare-ui/what-if-compare";
 import {
@@ -140,17 +142,20 @@ function OutcomeView<T>({ o, render }: { o: Outcome<T>; render: (c: Conclusion<T
   );
 }
 
-function SchemaTab({ run, on, focus }: { run: StageRun; on: boolean; focus?: { table: string; nonce: number } }) {
+function SchemaTab({
+  focus,
+  tables,
+  schemaLoad,
+}: {
+  run?: StageRun;
+  on?: boolean;
+  focus?: { table: string; nonce: number };
+  tables: TableInfo[];
+  schemaLoad: Load<TableInfo[]>;
+}) {
   const t = useTranslations("labStage");
-  const engine = run.db.engine;
-  const r = useLoad(on, `${run.id}`, async () => {
-    const res = (await run.db.execute(schemaQuery(engine), { internal: true }))[0] ?? { columns: [], rows: [] };
-    return parseSchema(engine === "mysql" ? mysqlSchema(res) : engine === "sqlite" ? sqliteSchema(res) : res);
-  });
-  // Mảng phải ổn định, nếu không sơ đồ dựng lại và fit lại liên tục (Task047).
-  const tables = useMemo(() => (r?.ok ? r.v : []), [r]);
-  if (!r) return <Loading />;
-  if (!r.ok) return <Note tone="error">{t("error", { message: r.e })}</Note>;
+  if (!schemaLoad) return <Loading />;
+  if (!schemaLoad.ok) return <Note tone="error">{t("error", { message: schemaLoad.e })}</Note>;
   if (!tables.length) return <Note>{t("schema.none")}</Note>;
   return (
     <div className="flex min-w-0 flex-col gap-2">
@@ -344,10 +349,12 @@ function BTreeTab({
 }
 
 // Câu đọc catalog của từng engine: cùng bộ cột với schema của PostgreSQL, nên parseSchema đọc được cả ba.
-const schemaQuery = (engine: EngineAdapter["engine"]) =>
-  engine === "mysql" ? MYSQL_SCHEMA_QUERY : engine === "sqlite" ? SQLITE_SCHEMA_QUERY : STAGE_SCHEMA_QUERY;
-const indexQuery = (engine: EngineAdapter["engine"]) =>
-  engine === "mysql" ? MYSQL_INDEX_QUERY : engine === "sqlite" ? SQLITE_INDEX_QUERY : STAGE_INDEX_QUERY;
+function schemaQuery(engine: EngineAdapter["engine"]) {
+  return engine === "mysql" ? MYSQL_SCHEMA_QUERY : engine === "sqlite" ? SQLITE_SCHEMA_QUERY : STAGE_SCHEMA_QUERY;
+}
+function indexQuery(engine: EngineAdapter["engine"]) {
+  return engine === "mysql" ? MYSQL_INDEX_QUERY : engine === "sqlite" ? SQLITE_INDEX_QUERY : STAGE_INDEX_QUERY;
+}
 
 // Engine chưa mô phỏng được tab này (MySQL, SQLite): nói rõ lý do thay vì vẽ số liệu không đo được.
 // Lý do của B-Tree lấy từ adapter; các tab khác dùng khóa riêng của engine.
@@ -514,6 +521,21 @@ export function Stage({
   const engine = run?.db.engine;
   const my = engine === "mysql";
   const sq = engine === "sqlite";
+  // Schema dùng chung giữa SchemaTab và ExportMenu (tải một lần cho mỗi lần chạy).
+  const schemaLoad = useLoad<TableInfo[]>(!!run, `${run?.id}:schema`, async () => {
+    const res = (await run!.db.execute(schemaQuery(run!.db.engine), { internal: true }))[0] ?? { columns: [], rows: [] };
+    return parseSchema(run!.db.engine === "mysql" ? mysqlSchema(res) : run!.db.engine === "sqlite" ? sqliteSchema(res) : res);
+  });
+  const tables = useMemo(() => (schemaLoad?.ok ? schemaLoad.v : []), [schemaLoad]);
+
+  const activeProjectId = useWorkspaceStore((s) => s.activeProjectId);
+  const projects = useWorkspaceStore((s) => s.projects);
+  const currentProject = useMemo(() => {
+    if (!activeProjectId) return projects[0];
+    return projects.find((p) => p.id === activeProjectId) ?? projects[0];
+  }, [projects, activeProjectId]);
+  const projectName = currentProject?.name;
+
   // SQLite: adapter trả "chưa mô phỏng được" cho explain, nên không cần chạy câu nào để biết.
   const plan = useLoad<Outcome<Plan>>(!!run?.select && (open("plan") || open("btree") || (!my && open("mentor"))), `${run?.id}`, () => run!.explain(run!.select!.sql));
   const indexes = useLoad<IndexInfo[]>(!!run && !sq && (open("btree") || (!my && open("capacity"))), `${run?.id}`, async () => {
@@ -530,7 +552,15 @@ export function Stage({
 
   return (
     <div className="flex min-h-full min-w-0 flex-col">
-      <div className="flex h-[var(--h-bar)] flex-none items-center border-b border-line px-[var(--edge)] font-semibold">{ts("tab.stage")}</div>
+      <div className="flex h-[var(--h-bar)] flex-none items-center justify-between border-b border-line px-[var(--edge)]">
+        <span className="font-semibold">{ts("tab.stage")}</span>
+        <ExportMenu
+          engine={run?.db.engine ?? "postgres"}
+          tables={tables}
+          projectName={projectName}
+          disabled={working}
+        />
+      </div>
       <div className="flex min-w-0 flex-col gap-3 p-[var(--edge)]">
         <Tabs value={tab} onValueChange={change}>
           <TabsList className="h-auto w-full flex-wrap" aria-label={t("tabsLabel")} activateOnFocus>
@@ -546,7 +576,13 @@ export function Stage({
           <TabsContent value="schema" className="min-w-0" keepMounted>
             <StageErrorBoundary>
               {run ? (
-                <SchemaTab run={run} on={open("schema")} focus={f?.table ? { table: f.table, nonce: f.nonce } : undefined} />
+                <SchemaTab
+                  run={run}
+                  on={open("schema")}
+                  focus={f?.table ? { table: f.table, nonce: f.nonce } : undefined}
+                  tables={tables}
+                  schemaLoad={schemaLoad}
+                />
               ) : working ? (
                 <Note>{t("working")}</Note>
               ) : (
