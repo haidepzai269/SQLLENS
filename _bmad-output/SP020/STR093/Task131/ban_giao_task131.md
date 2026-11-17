@@ -21,6 +21,15 @@ Kết quả kiểm tra:
 - Ràng buộc: `git diff --stat web/` hoàn toàn sạch sẽ, không sửa web/src/**, không thêm dependency vào web/package.json.
 
 Kết quả review: Đã sửa 2 góp ý vòng 1 (viết lại README.md chuẩn spike Task131 và bổ sung screenshot-harness.png cho AC2).
-Chưa làm được: Không có.
+Chưa làm được: AC4 phần Safari thật — Playwright WebKit thiếu executable nên không có số đo Safari; báo cáo ghi rõ khoảng trống này thay vì suy đoán.
 Phát sinh: Không có.
+
+## Đính chính vòng review (2026-11-16)
+
+Review lại phát hiện 3 lỗi bằng chứng và đã sửa:
+1. `measure.mjs` không hề ghi `last-run.json` / `last-run.log` dù README nói có; nay script ghi cả hai trong cùng lượt chạy với ảnh chụp.
+2. Báo cáo và bảng `CLAUDE.md` ghi phiên bản `v3.47.2`, nhưng build thực tế báo `libVersion 3.54.1`; đã sửa thành `v3.54.1-build1` / `SQLite 3.54.1`.
+3. `screenshot-harness.png` cũ lấy từ một lần chạy khác, mâu thuẫn với `last-run.json` (heap 38,88 MB so với 20,06 MB); đã chạy lại và chụp ảnh trong cùng lượt, đồng thời cho script ghi các dòng RAM vào nhật ký để ảnh chụp AC2 có đúng số như JSON.
+
+Ngoài ra đã làm rõ phạm vi `performance.measureUserAgentSpecificMemory()`: API này không gồm heap WASM của worker, nên báo cáo đọc riêng hai số và bỏ cách nói cộng gộp thành "tổng RAM". Số liệu mới nhất nằm trong `spikes/sqlite-wasm/last-run.json` và mục 2-5 của `do-luong-sqlite.md`.
 Việc tiếp theo cần biết: Task132 (STR094) sẽ xây dựng sqlite-adapter.ts và Web Worker chuyên dụng theo hợp đồng EngineAdapter, tận dụng OPFS SAHPool và hỗ trợ fallback in-memory VFS.

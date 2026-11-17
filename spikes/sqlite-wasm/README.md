@@ -1,6 +1,6 @@
 # Spike Đo Lường SQLite WASM (Task 131 / STR093)
 
-Thư mục này chứa mã nguồn harness và công cụ đo lường thực nghiệm độc lập cho WebAssembly SQLite (`@sqlite.org/sqlite-wasm`), phục vụ cổng chặn quyết định **go / no-go** trước khi phát triển Engine SQLite thứ 3 cho SQLLens (STR094 & STR095 thuộc Epic SP020).
+Thư mục này chứa mã nguồn harness và công cụ đo lường thực nghiệm độc lập cho WebAssembly SQLite (`@sqlite.org/sqlite-wasm` v3.54.1, build báo `SQLite 3.54.1`), phục vụ cổng chặn quyết định **go / no-go** trước khi phát triển Engine SQLite thứ 3 cho SQLLens (STR094 & STR095 thuộc Epic SP020).
 
 > **Lưu ý:** Toàn bộ mã nguồn trong thư mục này là công cụ kiểm chứng thực nghiệm (spike), hoàn toàn độc lập và **không phải code sản phẩm**, không làm thay đổi bundle hay thêm dependency vào `web/package.json`.
 
@@ -32,7 +32,7 @@ spikes/sqlite-wasm/
 ├── screenshot-harness.png      # Ảnh chụp màn hình giao diện harness với kết quả đo thực tế
 ├── vendor/                     # Bản phân phối module SQLite WASM chính thức (@sqlite.org/sqlite-wasm v3.47.2)
 │   ├── index.mjs               # ES module wrapper & API bindings
-│   ├── sqlite3.wasm            # Binary WebAssembly của SQLite core
+│   ├── sqlite3.wasm            # Binary WebAssembly của SQLite core (v3.54.1)
 │   ├── sqlite3.mjs             # Runtime helper
 │   ├── sqlite3-worker1.mjs     # Worker1 API wrapper
 │   └── sqlite3-opfs-async-proxy.js # Proxy cho OPFS cổ điển
@@ -57,7 +57,7 @@ node spikes/sqlite-wasm/measure.mjs
 ```
 
 Sau khi chạy xong:
-- Toàn bộ kết quả số đo chi tiết sẽ được in ra console dạng JSON.
+- Toàn bộ kết quả số đo chi tiết sẽ được in ra console dạng JSON và ghi vào `last-run.json`.
 - Tệp `spikes/sqlite-wasm/last-run.json` và `spikes/sqlite-wasm/last-run.log` sẽ ghi lại dữ liệu đo đạc mới nhất.
 - Tệp `spikes/sqlite-wasm/screenshot-harness.png` sẽ được tự động chụp lại từ giao diện harness.
 
@@ -79,10 +79,11 @@ Cross-Origin-Resource-Policy: same-origin
 ### Các cách khởi động server thủ công:
 
 #### Cách 1: Sử dụng server tích hợp sẵn trong `measure.mjs`
-Chạy server Node.js phục vụ thư mục spikes với COOP/COEP headers:
+Lệnh dưới đây chạy **toàn bộ phép đo tự động** (mở server COOP/COEP, chạy Chrome, rồi tự đóng):
 ```bash
-node -e "import('./spikes/sqlite-wasm/measure.mjs')"
+node spikes/sqlite-wasm/measure.mjs
 ```
+Muốn chỉ mở server để đo tay, xem Cách 2 bên dưới.
 
 #### Cách 2: Sử dụng công cụ `serve` / `http-server` hoặc Python có custom headers
 Nếu sử dụng công cụ phục vụ tĩnh bất kỳ, hãy đảm bảo inject đủ 2 headers `Cross-Origin-Opener-Policy: same-origin` và `Cross-Origin-Embedder-Policy: require-corp`.

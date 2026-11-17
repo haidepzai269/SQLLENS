@@ -89,7 +89,14 @@ async function pageMemory() {
   if (typeof performance.measureUserAgentSpecificMemory === "function") {
     try {
       const m = await performance.measureUserAgentSpecificMemory();
-      return { method: "measureUserAgentSpecificMemory", totalBytes: m.bytes, isolated: self.crossOriginIsolated };
+      // Chrome chỉ trả bộ nhớ của agent cluster trang; heap WASM của worker là số riêng (đọc trong worker).
+      // Không cộng hai số này thành "tổng RAM trang" khi chưa đối chiếu Task Manager.
+      return {
+        method: "measureUserAgentSpecificMemory",
+        scope: "page agent cluster only, không gồm heap WASM của worker",
+        totalBytes: m.bytes,
+        isolated: self.crossOriginIsolated,
+      };
     } catch (err) {
       return { method: "measureUserAgentSpecificMemory", error: String(err), isolated: self.crossOriginIsolated };
     }
@@ -152,6 +159,10 @@ window.__harness = {
   memory,
   storageInfo,
   resources,
+  // Để measure.mjs ghi số RAM vào nhật ký hiển thị trên trang, nhờ đó ảnh chụp AC2 có đúng số như JSON.
+  logLine(line) {
+    log(String(line));
+  },
   get libInfo() {
     return libInfo;
   },

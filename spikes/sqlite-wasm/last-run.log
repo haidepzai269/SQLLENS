@@ -1,18 +1,20 @@
 [0.0s] server http://127.0.0.1:4173
-[0.5s] browser 157.0.8103.52
-[1.0s] cold fast: wait ready
-[1.7s] warm reload
-[3.1s] cold 3G: wait ready
-[16.2s] scenario context
-[16.8s] scenario ready
-[34.9s] insert 10k
-[35.6s] inserted 10k in 567ms
-[53.6s] insert 100k
-[56.7s] inserted 100k in 3057ms
-[68.7s] insert 500k
-[80.0s] inserted 500k in 11301ms
-[99.2s] reload persistence
-[99.5s] persistence ready
-[100.9s] 20 columns / 100k
-[130.0s] memory VFS 500k
-[153.2s] webkit
+[0.4s] browser 157.0.8103.52
+[0.7s] cold fast: wait ready
+[1.2s] warm reload
+[2.6s] cold 3G: wait ready
+[15.5s] scenario context
+[15.9s] scenario ready
+[30.0s] insert 10k
+[30.4s] inserted 10k in 294ms
+[49.4s] insert 100k
+[51.2s] inserted 100k in 1809ms
+[70.3s] insert 500k
+[79.6s] inserted 500k in 9291ms
+[100.8s] screenshot written
+[100.8s] reload persistence
+[101.0s] persistence ready
+[102.3s] 20 columns / 100k
+[133.6s] memory VFS 500k
+[158.5s] webkit
+[158.8s] last-run.json written

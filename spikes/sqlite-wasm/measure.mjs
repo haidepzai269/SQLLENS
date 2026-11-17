@@ -4,7 +4,7 @@
 // Không phải code sản phẩm; không thêm dependency vào web/.
 
 import { createServer } from "node:http";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, stat, writeFile } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { createRequire } from "node:module";
@@ -30,7 +30,13 @@ const MIME = {
 };
 
 const STARTED = Date.now();
-const step = (msg) => console.error(`[${((Date.now() - STARTED) / 1000).toFixed(1)}s] ${msg}`);
+// README hứa last-run.log ghi lại nhật ký chạy; console.error một mình thì mất khi đóng terminal.
+const logLines = [];
+const step = (msg) => {
+  const line = `[${((Date.now() - STARTED) / 1000).toFixed(1)}s] ${msg}`;
+  logLines.push(line);
+  console.error(line);
+};
 const MB = (bytes) => (bytes == null ? null : Number((bytes / 1048576).toFixed(2)));
 const gzipCache = new Map();
 
@@ -209,10 +215,15 @@ async function main() {
     report.storage = await page.evaluate(() => window.__harness.storageInfo());
 
     const baseline = await page.evaluate(() => window.__harness.memory());
+    await page.evaluate(
+      (t) => window.__harness.logLine(t),
+      `RAM baseline: WASM Heap=${baseline.worker.wasmMemoryMB}MB, Page=${MB(baseline.page.totalBytes)}MB`,
+    );
     report.baseline = {
       wasmHeapMB: baseline.worker.wasmMemoryMB,
       pageAgentMB: MB(baseline.page.totalBytes),
       pageMethod: baseline.page.method,
+      pageScope: baseline.page.scope,
     };
 
     await page.evaluate(() => window.__harness.reset(0));
@@ -224,12 +235,17 @@ async function main() {
       const mem = await page.evaluate(() => window.__harness.memory());
       const count = await page.evaluate(() => window.__harness.count());
       const exported = await page.evaluate(() => window.__harness.exportDb());
+      await page.evaluate(
+        (t) => window.__harness.logLine(t),
+        `RAM @ ${label}: WASM Heap=${mem.worker.wasmMemoryMB}MB, Page=${MB(mem.page.totalBytes)}MB`,
+      );
       report.rows[label] = {
         rows: count.rows,
         insertMs: Math.round(res.ms),
         wasmHeapMB: mem.worker.wasmMemoryMB,
         pageAgentMB: MB(mem.page.totalBytes),
         pageMethod: mem.page.method,
+        pageScope: mem.page.scope,
         pageError: mem.page.error ?? null,
         exportMB: MB(exported.bytes),
       };
@@ -241,6 +257,7 @@ async function main() {
 
     // Chụp ảnh màn hình giao diện harness có đầy đủ số đo thực tế
     await page.screenshot({ path: join(ROOT, "screenshot-harness.png"), fullPage: true });
+    step("screenshot written");
 
     // ---------- 5. OPFS còn dữ liệu sau khi tải lại? ----------
     step("reload persistence");
@@ -326,6 +343,10 @@ async function main() {
 
   await browser.close();
   server.close();
+  // Ghi cùng một lần chạy với screenshot: nếu không, ảnh và JSON có thể lệch số (lỗi đã gặp ở Task131 vòng 1).
+  await writeFile(join(ROOT, "last-run.json"), JSON.stringify(report, null, 2) + "\n");
+  step("last-run.json written");
+  await writeFile(join(ROOT, "last-run.log"), logLines.join("\n") + "\n");
   console.log(JSON.stringify(report, null, 2));
   process.exit(0);
 }

@@ -3,8 +3,11 @@
 - **Mã Story:** `STR093` (Đo bundle & RAM SQLite WASM)
 - **Mã Task:** `Task131`
 - **Người thực hiện:** Amelia (Developer SQLLens)
-- **Ngày đo:** 2026-11-16T09:22:28.862Z
+- **Ngày đo:** 2026-11-16T13:31:57.212Z
 - **File số đo gốc:** `spikes/sqlite-wasm/last-run.json` và `spikes/sqlite-wasm/last-run.log`
+- **Ảnh chụp:** `spikes/sqlite-wasm/screenshot-harness.png` (cùng một lần chạy với JSON)
+
+> **Đính chính vòng review:** Bản trước ghi phiên bản thư viện là v3.47.2 trong khi build thực tế trong `spikes/sqlite-wasm/vendor/` báo `SQLite 3.54.1`; ảnh chụp AC2 lại lấy từ một lần chạy khác nên heap WASM trong ảnh (38,88 MB) lệch với JSON (20,06 MB). Nay `measure.mjs` ghi `last-run.json`, `last-run.log` và ảnh chụp trong cùng một lượt, và mọi số dưới đây lấy từ lượt chạy đó.
 
 ---
 
@@ -12,12 +15,13 @@
 
 - **Phần cứng máy đo:**
   - CPU: 12th Gen Intel(R) Core(TM) i5-12450H (12 vCPUs)
-  - Bộ nhớ RAM: 15.7 GB khả dụng (16 GB vật lý)
+  - Bộ nhớ RAM: 15,7 GB (16 GB vật lý; 0,6 GB trống tại thời điểm đo)
   - Hệ điều hành: Windows 11 Home 10.0.26200 x64
 - **Trình duyệt thực thi:**
   - Google Chrome 157.0.8103.52 (Official Build, 64-bit) chạy trực tiếp thông qua Playwright automation harness
 - **Phiên bản thư viện:**
-  - `@sqlite.org/sqlite-wasm` v3.47.2 (Module SQLite WebAssembly chính thức của SQLite.org)
+  - `@sqlite.org/sqlite-wasm` v3.54.1-build1 (Module SQLite WebAssembly chính thức của SQLite.org; `sqlite3.version.libVersion` báo `3.54.1`)
+  - Bản copy dùng cho spike: `spikes/sqlite-wasm/vendor/` (index.mjs 674.603 byte, sqlite3.wasm 879.084 byte)
 - **Cơ chế phục vụ & giả lập môi trường mạng (`measure.mjs`):**
   - Node.js HTTP Server cục bộ thiết lập đầy đủ headers bảo mật bắt buộc cho OPFS:
     - `Cross-Origin-Opener-Policy: same-origin` (COOP)
@@ -32,92 +36,90 @@
 ### 2.1. Số đo chi tiết từng tệp
 | Tên tệp | Decoded Size (Uncompressed) | Encoded Size (Gzip Transfer) | Thời gian tải (Local CDN) |
 |---|---:|---:|---:|
-| `index.mjs` (ES Module Wrapper & JS Bindings) | 656.87 KB | 179.43 KB | 57 ms |
-| `sqlite3.wasm` (WebAssembly Core Engine) | 879.08 KB | 407.46 KB | 70 ms |
-| **Tổng cộng SQLite WASM** | **1.50 MB (1.500 KB)** | **573.1 KB** | **127 ms** |
+| `index.mjs` (ES Module Wrapper & JS Bindings) | 658,8 KB | 176,1 KB | 29 ms |
+| `sqlite3.wasm` (WebAssembly Core Engine) | 858,5 KB | 397,9 KB | 70 ms |
+| **Tổng cộng SQLite WASM** | **1.517,3 KB (~1,48 MB)** | **574,0 KB** | **99 ms** |
 
-*(Ghi chú: Các tệp proxy phụ trợ như `sqlite3-opfs-async-proxy.js` chỉ khoảng 10.5 KB gzip nếu dùng kiến trúc worker proxy cổ điển).*
+*(Ghi chú: `sqlite3-opfs-async-proxy.js` ~10,3 KB gzip chỉ tải khi dùng VFS `opfs` cổ điển; harness đo dùng `opfs-sahpool` nên không tính vào tổng trên.)*
 
 ### 2.2. Đánh giá kiến trúc tách bundle
-- **Tách riêng hoàn toàn (Code Splitting):** SQLite WASM được thiết kế để nạp động (`dynamic import`) trong Web Worker độc lập (`new Worker(..., { type: 'module' })`), chỉ được tải khi người dùng chủ động chọn engine SQLite.
-- **Tác động tới bundle chính:** **0 KB** ảnh hưởng tới initial bundle của SQL editor / Next.js app. Người dùng chỉ thao tác với PostgreSQL hoặc MySQL không tốn thêm bất kỳ byte băng thông nào.
+- **Tách riêng hoàn toàn (Code Splitting):** SQLite WASM được thiết kế để nạp động trong Web Worker độc lập, chỉ được tải khi người dùng chủ động chọn engine SQLite.
+- **Tác động tới bundle chính:** **0 KB** ảnh hưởng tới initial bundle của SQL editor / Next.js app. Toàn bộ số đo trên là tài nguyên tải trong worker, không có entry nào của `web/src` import thư viện này.
+- Số 0 KB là kết luận từ kiến trúc (không có import tĩnh), không phải số đo `next build`; Task132/133 phải xác nhận lại bằng build thật khi nối UI.
 
 ### 2.3. Đối chiếu với PostgreSQL (PGlite 0.5.14)
-- **PGlite 0.5.14:** Tổng kích thước sau gzip là ~5.1 MB (theo kiểm chứng thực tế tại `CLAUDE.md`).
-- **SQLite WASM:** Tổng kích thước sau gzip là **573.1 KB**.
-- **Kết luận kích thước:** SQLite WASM nhẹ hơn PGlite **gần 9 lần** (8.9x). Đây là lợi thế cực kỳ lớn khi chạy trên mạng di động hoặc thiết bị có băng thông hạn chế.
+- **PGlite 0.5.14:** Tổng kích thước sau gzip là ~5,1 MB (theo kiểm chứng thực tế tại `CLAUDE.md`).
+- **SQLite WASM:** Tổng kích thước sau gzip là **574,0 KB**.
+- **Kết luận kích thước:** SQLite WASM nhẹ hơn PGlite **khoảng 8,9 lần**.
 
 ---
 
 ## 3. Tiêu Chí AC2: Mức Tiêu Thụ RAM & Tốc Độ Thực Thi (Memory & Performance)
 
 ### 3.1. Phương pháp đo
-- **RAM trang & Worker:** Đo lường chính xác bằng API chuẩn W3C `performance.measureUserAgentSpecificMemory()` trong ngữ cảnh `crossOriginIsolated` của Chrome thật.
-- **WASM Heap:** Đo trực tiếp từ `sqlite3.wasm.memory.buffer.byteLength`.
-- **Dung lượng file export:** File `.sqlite` / `.db` nhị phân trích xuất từ database engine.
+- **WASM Heap:** Đọc trực tiếp `sqlite3.wasm.memory.buffer.byteLength` **bên trong worker** — nơi SQLite thực sự giữ dữ liệu khi VFS là bộ nhớ.
+- **Page Agent RAM:** `performance.measureUserAgentSpecificMemory()` gọi ở trang. Lưu ý phạm vi: Chrome chỉ trả bộ nhớ của agent cluster trang và **không gồm heap WASM của worker** (đã kiểm chứng: page ổn định ~4,3 MB trong khi heap worker 20-38 MB). Vì vậy hai số phải đọc riêng, không cộng gộp thành "tổng RAM trang" khi chưa đối chiếu Chrome Task Manager.
+- **Dung lượng file export:** `sqlite3_js_db_export` của DB engine.
 
 ### 3.2. Bảng số đo thực nghiệm qua các mốc dữ liệu
 | Kịch bản kiểm thử | Số dòng | Thời gian Insert | Tốc độ chèn | WASM Heap | Page Agent RAM | Dung lượng file `.sqlite` |
 |---|---:|---:|---:|---:|---:|---:|
-| **Baseline (Trang & Worker sẵn sàng)** | 0 | - | - | 8.00 MB | 4.08 MB | - |
-| **Mốc 10.000 dòng** | 10.000 | 567 ms | 17.636 dòng/s | 8.00 MB | 4.30 MB | 0.44 MB |
-| **Mốc 100.000 dòng** | 100.000 | 3.057 s | 32.711 dòng/s | 8.00 MB | 4.35 MB | 4.34 MB |
-| **Mốc 500.000 dòng (OPFS SAHPool)** | 500.000 | 11.301 s | 44.243 dòng/s | 20.06 MB | 4.39 MB | 21.82 MB |
-| **Bảng rộng 20 cột × 100.000 dòng** | 100.000 | 13.845 s | 7.222 dòng/s | 20.06 MB | 4.77 MB | - |
-| **Mốc 500.000 dòng (In-Memory VFS)** | 500.000 | 8.565 s | 58.377 dòng/s | 24.13 MB | 4.24 MB | 21.82 MB |
+| **Baseline (Trang & Worker sẵn sàng)** | 0 | - | - | 8,00 MB | 4,11 MB | - |
+| **Mốc 10.000 dòng** | 10.000 | 294 ms | 34.014 dòng/s | 8,00 MB | 4,32 MB | 0,44 MB |
+| **Mốc 100.000 dòng** | 100.000 | 1.809 s | 55.279 dòng/s | 8,00 MB | 4,38 MB | 4,34 MB |
+| **Mốc 500.000 dòng (OPFS SAHPool)** | 500.000 | 9.291 s | 53.815 dòng/s | 20,06 MB | 4,42 MB | 21,82 MB |
+| **Bảng rộng 20 cột × 100.000 dòng** | 100.000 | 10,402 s | 9.614 dòng/s | 20,06 MB | 5,29 MB | - |
+| **Mốc 500.000 dòng (In-Memory VFS)** | 500.000 | 6,354 s | 78.690 dòng/s | 24,13 MB | 4,25 MB | 21,82 MB |
 
 ### 3.3. So sánh trực diện với PostgreSQL (PGlite)
-- **PGlite:** Đỉnh RAM (spike) đạt **1.1 GB** ngay khi khởi tạo, sau đó giảm về ~385 MB, và đạt **~600 MB** sau mốc 500.000 dòng (rủi ro OOM cao trên máy 4GB/8GB RAM).
+- **PGlite:** Đỉnh RAM (spike) đạt **1,1 GB** ngay khi khởi tạo, sau đó giảm về ~385 MB, và đạt **~600 MB** sau mốc 500.000 dòng (rủi ro OOM cao trên máy 4GB/8GB RAM).
 - **SQLite WASM:**
-  - Không hề có hiện tượng memory spike: Khởi tạo chỉ dùng **8.0 MB** WASM Heap và **4.08 MB** Page Agent RAM.
-  - Tại mốc cực đại 500.000 dòng: WASM Heap chỉ tăng lên **20.06 MB** (OPFS) hoặc **24.13 MB** (In-Memory), Page Agent chỉ **4.39 MB**.
-  - Tổng dung lượng RAM chiếm dụng của SQLite WASM thấp hơn PGlite **gần 25 lần**!
-  - Tốc độ chèn dữ liệu rất ổn định: 500k dòng mất ~11.3 giây trên OPFS và ~8.5 giây trên in-memory VFS.
+  - Không có memory spike khi khởi tạo: **8,0 MB** WASM Heap và **4,11 MB** Page Agent RAM.
+  - Tại mốc cực đại 500.000 dòng: WASM Heap **20,06 MB** (OPFS) hoặc **24,13 MB** (In-Memory); Page Agent 4,42 MB / 4,25 MB.
+  - Phần do SQLite chiếm thêm so với lúc rỗng là heap WASM (~12-16 MB ở 500k dòng), thấp hơn PGlite khoảng 25 lần theo cùng cách đo heap.
+- Tốc độ chèn ổn định: 500k dòng ~9,3 giây trên OPFS và ~6,4 giây trên in-memory VFS.
 
 ### 3.4. Ảnh chụp màn hình kết quả đo thực tế từ Harness (Tiêu chí AC2)
-Ảnh chụp giao diện harness trên Google Chrome 157 thật ghi nhận trực quan toàn bộ các mốc đo (VFS `opfs-sahpool`, số dòng `500.000`, nhật ký chèn 10k/100k/500k, truy vấn SELECT đếm, kích thước export DB và các chỉ số RAM tương ứng):
+Ảnh chụp được `measure.mjs` chụp trong cùng lượt chạy với `last-run.json`, ghi nhận trực quan VFS `opfs-sahpool`, 500.000 dòng, nhật ký chèn 10k/100k/500k, SELECT đếm, dung lượng export và các dòng RAM tương ứng:
 - File ảnh: `spikes/sqlite-wasm/screenshot-harness.png`
-- Liên kết: [screenshot-harness.png](file:///c:/SQLLens/.worktrees/Task131/spikes/sqlite-wasm/screenshot-harness.png)
+- Liên kết tương đối: [screenshot-harness.png](../../../spikes/sqlite-wasm/screenshot-harness.png)
 
 ---
 
 ## 4. Tiêu Chí AC3: Thời Gian Khởi Động (Startup Latency)
 
-Đo lường thời gian từ lúc phát lệnh nạp worker tới khi SQLite runtime báo sẵn sàng tiếp nhận truy vấn (`window.__harnessReady`):
+Đo thời gian từ lúc phát lệnh nạp worker tới khi SQLite runtime báo sẵn sàng (`window.__harnessReady`):
 
-- **Cold Fast (Khởi động lạnh, cache tắt, mạng nội bộ mô phỏng CDN gzip):**
-  - Thời gian sẵn sàng (`readyPerformanceNowMs`): **557 ms**
-  - Tổng thời gian thực tế (`wallClockMs`): **831 ms**
-- **Warm (Khởi động nóng, cache trình duyệt bật):**
-  - Thời gian sẵn sàng (`readyPerformanceNowMs`): **229 ms**
-  - Tải tức thì từ disk cache / memory cache, trải nghiệm phản hồi gần như 0 trễ đối với người dùng.
-- **Cold Slow 3G (Khởi động lạnh trên mạng chậm 400ms RTT latency, băng thông 400 kbps):**
-  - Thời gian sẵn sàng (`readyPerformanceNowMs`): **13.905 s**
-  - Tổng thời gian thực tế (`wallClockMs`): **13.920 s**
-  - Do SQLite WASM nằm trong worker độc lập tải ngầm, giao diện SQLLens vẫn hoàn toàn mượt mà và không bị block main-thread trong suốt 13.9s này.
+- **Cold Fast (cache tắt, mạng nội bộ mô phỏng CDN gzip):**
+  - Thời gian sẵn sàng (`readyPerformanceNowMs`): **365 ms**
+  - Tổng thời gian thực tế (`wallClockMs`): **599 ms**
+- **Warm (cache trình duyệt bật):**
+  - Thời gian sẵn sàng: **172 ms** (tải từ cache, gần như tức thì)
+- **Cold Slow 3G (400ms RTT, 400 kbps):**
+  - Thời gian sẵn sàng: **13.795 ms**, wall-clock **13.809 ms**
+  - Worker tải ngầm nên UI không bị block trong suốt thời gian này.
 
-*So sánh với PGlite:* PGlite mất trung bình 1.8 - 2.0s để khởi tạo ngay cả trong điều kiện mạng nội bộ/cache ấm. SQLite nhanh hơn PGlite từ 3 đến 8 lần.
+*So sánh với PGlite:* PGlite mất trung bình 1,8 - 2,0 s để khởi tạo ngay cả khi mạng nội bộ/cache ấm. SQLite nhanh hơn PGlite khoảng 3 đến 10 lần. Hai lần chạy liên tiếp cho cold 365-557 ms và warm 172-229 ms, nên coi đây là khoảng dao động, không phải một con số cố định.
 
 ---
 
 ## 5. Tiêu Chí AC4: Thử Nghiệm OPFS & Khả Năng Lưu Trữ Bền Vững (Persistence)
 
 ### 5.1. Kết quả trên Google Chrome thật
-- **Môi trường cách ly (`crossOriginIsolated`):** `true` (được kích hoạt chuẩn xác bởi headers COOP/COEP).
+- **Môi trường cách ly (`crossOriginIsolated`):** `true` (nhờ headers COOP/COEP).
 - **VFS được kích hoạt:** **`opfs-sahpool`** (Origin Private File System SyncAccessHandle Pool).
-- **Hạn mức lưu trữ (`storage.estimate()`):** Quota khả dụng đạt ~10.7 GB (`10.737.444.152` bytes), usage chi tiết 25.912 bytes trong hệ thống file OPFS.
-- **Kiểm thử bền vững (Persistence Test sau Reload):**
-  - Tiến hành chèn 500.000 dòng dữ liệu vào database qua `opfs-sahpool`.
-  - Thực hiện reload/F5 toàn bộ trang và khởi động lại SQLite worker kết nối vào cùng tệp database.
-  - **Kết quả:** Toàn bộ **500.000 dòng dữ liệu được bảo toàn nguyên vẹn 100%**, câu lệnh `SELECT COUNT(*)` trả về chính xác 500.000 dòng.
+- **Hạn mức lưu trữ (`storage.estimate()`):** quota ~10,7 GB (10.737.444.150 byte), usage 25.910 byte.
+- **Kiểm thử bền vững sau Reload:**
+  - Chèn 500.000 dòng qua `opfs-sahpool`, reload trang, khởi động lại worker trên cùng tệp DB.
+  - **Kết quả:** `SELECT count(*)` trả đúng **500.000** dòng, VFS sau reload vẫn là `opfs-sahpool`.
 
-### 5.2. Đánh giá Safari / WebKit & Rào cản kỹ thuật
-- Trong môi trường kiểm thử Playwright WebKit cục bộ thiếu executable binary (`browserType.launch: Executable doesn't exist`), tuy nhiên theo tài liệu kỹ thuật chuẩn của WebKit:
-  - Safari chính thức hỗ trợ OPFS SyncAccessHandle trong Web Worker từ Safari 15.2 (macOS Monterey / iOS 15.2).
+### 5.2. Safari / WebKit — chưa đo được trên Safari thật
+- Playwright WebKit cục bộ thiếu executable (`browserType.launch: Executable doesn't exist`), nên **không có số đo nào trên Safari thật**; AC4 phần Safari vẫn là khoảng trống, chỉ có tài liệu tham chiếu.
+- Theo tài liệu WebKit, Safari hỗ trợ OPFS SyncAccessHandle trong Web Worker từ Safari 15.2; SAH pool mà thư viện dùng cần kiểm chứng lại trên Safari thật trước khi hứa với người dùng.
 - **Rào cản cần chú ý:**
-  1. **Yêu cầu Headers:** OPFS SAHPool bắt buộc phải có `COOP: same-origin` và `COEP: require-corp`. Nếu người dùng truy cập SQLLens trong môi trường iframe nhúng bên thứ 3 hoặc preview không có headers này, OPFS sẽ không thể kích hoạt.
-  2. **Chế độ duyệt riêng tư (Private Browsing / Incognito):** Trên Safari và Chrome, chế độ ẩn danh có thể chặn hoặc dọn sạch OPFS khi đóng tab.
-- **Giải pháp:** Xây dựng cơ chế phát hiện linh hoạt trong Adapter SQLite (STR094): Nếu có OPFS SAHPool thì dùng để lưu trữ bền vững; nếu thiếu headers hoặc trong chế độ ẩn danh, tự động chuyển đổi êm ái sang `in-memory VFS` kèm thông báo nhẹ cho người dùng.
+  1. **Yêu cầu Headers:** OPFS SAHPool bắt buộc `COOP: same-origin` và `COEP: require-corp`. Thiếu headers (iframe nhúng, preview) thì OPFS không kích hoạt.
+  2. **Chế độ duyệt riêng tư:** Safari và Chrome có thể chặn hoặc dọn OPFS khi đóng tab.
+- **Giải pháp:** Adapter SQLite (STR094) phải phát hiện linh hoạt: có OPFS SAHPool thì dùng; thiếu headers hoặc bị chặn thì tự chuyển sang `in-memory VFS` kèm thông báo nhẹ.
 
 ---
 
@@ -126,26 +128,25 @@
 ### **QUYẾT ĐỊNH: `go có điều kiện` (Conditional Go)**
 
 ### **Lý do quyết định:**
-Tất cả các số đo thực nghiệm đều vượt trội so với các chỉ số an toàn của SQLLens:
-1. Bundle size 573 KB (nhẹ hơn PGlite gần 9 lần), tách rời hoàn toàn khỏi editor main bundle.
-2. Tiêu thụ RAM cực kỳ khiêm tốn (20 MB ở 500k dòng, nhẹ hơn PGlite ~25 lần), không có spike khi khởi động, an toàn tuyệt đối cho mọi cấu hình máy tính.
-3. Thời gian khởi động cực nhanh: 229 ms (warm) và 557 ms (cold).
-4. Khả năng bảo toàn dữ liệu qua OPFS SAHPool đạt 100% trên Chrome thật.
+1. Bundle 574 KB gzip (nhẹ hơn PGlite ~8,9 lần), tách rời hoàn toàn khỏi editor main bundle.
+2. Bộ nhớ khiêm tốn: heap WASM 20,06 MB ở 500k dòng, không có spike khởi tạo, an toàn cho máy 8 GB.
+3. Khởi động nhanh: 172 ms (warm) và 365 ms (cold).
+4. OPFS SAHPool bảo toàn 100% dữ liệu qua reload trên Chrome thật.
 
 ### **3 Điều kiện kỹ thuật bắt buộc khi triển khai:**
-- **Điều kiện 1 (Lazy Loading Web Worker):** Toàn bộ thư viện SQLite WASM và logic adapter chỉ được tải động khi người dùng chọn tab Engine "SQLite". Tuyệt đối không import vào bundle chính ban đầu của editor.
-- **Điều kiện 2 (Graceful VFS Fallback):** Kiểm tra môi trường lúc khởi tạo worker; nếu thiếu `crossOriginIsolated` hoặc OPFS bị chặn thì tự động fallback sang `in-memory VFS` mà không gây lỗi hoặc treo ứng dụng.
-- **Điều kiện 3 (Ngưỡng cảnh báo UX nhất quán):** Giữ nguyên quy ước bảo vệ UX của SQLLens: Mặc định tối đa 100.000 dòng; tùy chọn 500.000 dòng kèm cảnh báo thời gian thực thi (~11 giây); vượt trên 500.000 dòng chỉ tính toán và gắn nhãn `Ước lượng` theo Core Rule 1 & Core Rule 2 của `AGENTS.md`.
+- **Điều kiện 1 (Lazy Loading Web Worker):** Toàn bộ thư viện SQLite WASM và logic adapter chỉ được tải động khi người dùng chọn engine SQLite; không import vào bundle chính.
+- **Điều kiện 2 (Graceful VFS Fallback):** Kiểm tra môi trường lúc khởi tạo worker; thiếu `crossOriginIsolated` hoặc OPFS bị chặn thì tự chuyển sang `in-memory VFS`, không lỗi và không treo ứng dụng.
+- **Điều kiện 3 (Ngưỡng cảnh báo UX nhất quán):** Mặc định tối đa 100.000 dòng; tùy chọn 500.000 dòng kèm cảnh báo thời gian thực thi (~9-11 giây); vượt trên 500.000 dòng chỉ tính toán và gắn nhãn `Ước lượng` theo Core Rule 1 & Core Rule 2 của `AGENTS.md`.
 
 ---
 
 ## 7. Tiêu Chí AC6: Kế Hoạch Triển Khai Cho STR094 & STR095
 
-Vì kết luận là **`go có điều kiện`**, kế hoạch triển khai cho 2 story tiếp theo của Epic SP020 được ấn định như sau:
+Vì kết luận là **`go có điều kiện`**, kế hoạch triển khai cho 2 story tiếp theo:
 
 - **STR094 (SQLite chạy trong trình duyệt):**
-  - *Task132:* Xây dựng `sqlite-adapter.ts` và Web Worker chuyên dụng (`sqlite-worker.ts`), hiện thực hóa giao diện `EngineAdapter` (chạy query, lấy kết quả, ngắt query khi timeout, graceful fallback VFS).
-  - *Task133:* Tích hợp tùy chọn engine "SQLite" vào bộ chọn EngineSwitcher, bổ sung rào chắn parser SQL SQLite (`node-sql-parser` dialect sqlite), gắn nhãn **`chưa mô phỏng được`** một cách minh bạch cho các tab tính năng chưa hỗ trợ sâu cấu trúc SQLite (như B-Tree / Plan visualization chuyên biệt theo Core Rule 4).
+  - *Task132:* Adapter + Web Worker theo hợp đồng `EngineAdapter` (chạy query, trả kết quả cùng hình dạng PGlite, timeout, fallback VFS).
+  - *Task133:* Nối engine "SQLite" vào EngineTabs, rào chắn SQL, gắn nhãn **`chưa mô phỏng được`** cho Plan/B-Tree (Core Rule 4).
 - **STR095 (Nhập/Xuất file `.sqlite` / `.db`):**
-  - *Task134:* Hiện thực hóa chức năng nhập file `.sqlite` / `.db` kéo thả từ máy người dùng trực tiếp vào bộ nhớ WebAssembly của SQLite Worker, kiểm tra file signature và kích thước (giới hạn < 50MB), 100% xử lý tại trình duyệt không gửi lên server (Core Rule 7).
-  - *Task135:* Hiện thực hóa chức năng xuất file binary `.sqlite` từ OPFS / in-memory VFS ra máy người dùng thông qua Blob download.
+  - *Task134:* Nhập file từ máy vào vùng nhớ WASM, kiểm tra file signature và giới hạn kích thước, 100% tại trình duyệt (Core Rule 7).
+  - *Task135:* Xuất file binary từ OPFS / in-memory VFS qua Blob download.

@@ -203,18 +203,18 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 - CPU chậm 4 lần: cả lần chạy 500k mất khoảng 50 giây.
 - Từ số đo này, chủ dự án chốt giới hạn số dòng, xem dòng "Giới hạn số dòng PGlite" trong mục "Quyết định đã chốt".
 
-Đo SQLite WASM v3.47.2 trong Google Chrome 157.0.8103.52 thật ngày 2026-11-16 (Task131, cổng go/no-go STR093), máy i5-12450H, 15,7 GB RAM, Windows 11. Bundle tách riêng: JS gzip 179,4 KB, WASM gzip 407,5 KB, tổng 573,1 KB gzip (nhẹ hơn PGlite ~9 lần), 0 KB vào bundle chính ban đầu của editor. Khởi động: cold 557 ms ready (831 ms wall-clock), warm 229 ms ready, cold slow 3G 13,9 giây. OPFS SAHPool khả dụng, bảo toàn 100% sau reload. Đo bằng `performance.measureUserAgentSpecificMemory()`:
+Đo SQLite WASM v3.54.1-build1 (build báo `libVersion 3.54.1`) trong Google Chrome 157.0.8103.52 thật ngày 2026-11-16 (Task131, cổng go/no-go STR093), máy i5-12450H, 15,7 GB RAM, Windows 11. Bundle tách riêng: JS gzip 176,1 KB, WASM gzip 397,9 KB, tổng 574,0 KB gzip (nhẹ hơn PGlite ~8,9 lần), 0 KB vào bundle chính ban đầu của editor (kết luận từ kiến trúc, chưa phải số `next build`). Khởi động: cold 365 ms ready (599 ms wall-clock), warm 172 ms ready, cold slow 3G 13,8 giây. OPFS SAHPool khả dụng, bảo toàn 100% sau reload; Safari thật chưa đo được. Đo bằng `performance.measureUserAgentSpecificMemory()` cho trang (API này **không gồm heap WASM của worker**) và đọc riêng heap WASM trong worker:
 
 | Số dòng | Khởi tạo | Insert (OPFS) | WASM Heap | Page Agent RAM | Kích thước file (.sqlite) |
 |---:|---:|---:|---:|---:|---:|
-| Baseline (0) | 557 ms | - | 8,00 MB | 4,08 MB | - |
-| 10.000 | - | 567 ms | 8,00 MB | 4,30 MB | 0,44 MB |
-| 100.000 | - | 3,06 giây | 8,00 MB | 4,35 MB | 4,34 MB |
-| 500.000 | - | 11,30 giây | 20,06 MB | 4,39 MB | 21,82 MB |
-| 20 cột × 100k | - | 13,85 giây | 20,06 MB | 4,77 MB | - |
-| 500.000 (In-memory) | - | 8,57 giây | 24,13 MB | 4,24 MB | 21,82 MB |
+| Baseline (0) | 365 ms | - | 8,00 MB | 4,11 MB | - |
+| 10.000 | - | 294 ms | 8,00 MB | 4,32 MB | 0,44 MB |
+| 100.000 | - | 1,81 giây | 8,00 MB | 4,38 MB | 4,34 MB |
+| 500.000 | - | 9,29 giây | 20,06 MB | 4,42 MB | 21,82 MB |
+| 20 cột × 100k | - | 10,40 giây | 20,06 MB | 5,29 MB | - |
+| 500.000 (In-memory) | - | 6,35 giây | 24,13 MB | 4,25 MB | 21,82 MB |
 
-- So với PGlite (đỉnh 1,1 GB RAM lúc khởi tạo, ~600 MB sau 500k dòng), SQLite WASM chỉ dùng 20-24 MB WASM Heap + 4,4 MB Page Agent RAM (nhẹ hơn ~25 lần), an toàn tuyệt đối trên máy 4GB/8GB RAM.
+- So với PGlite (đỉnh 1,1 GB RAM lúc khởi tạo, ~600 MB sau 500k dòng), SQLite WASM dùng 20-24 MB WASM Heap cộng ~4,4 MB agent cluster của trang (heap thấp hơn ~25 lần), an toàn trên máy 4GB/8GB RAM. Hai số phải đọc riêng; không cộng gộp thành "tổng RAM" khi chưa đối chiếu Chrome Task Manager.
 - Quyết định: **`go có điều kiện`** (tải động Web Worker theo nhu cầu, graceful fallback sang memory VFS khi thiếu headers COOP/COEP, giữ ngưỡng cảnh báo UX 100k/500k dòng).
 - `pageinspect` đọc được root và item của index thật.
 - `node-sql-parser` đọc đúng 8/9 câu MySQL thử, lỗi ở `FORCE INDEX`.
