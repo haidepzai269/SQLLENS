@@ -10,7 +10,7 @@ Toàn bộ Epic chạy trong trình duyệt. Không có headless browser trên s
 | Story | Task | Tên Task | Phân công | Trạng thái |
 |---|---|---|---|---|
 | **STR096** | `Task136` | Đồ thị phụ thuộc khóa ngoại & sắp xếp tô-pô | Amelia | Hoàn thành 100% |
-| **STR096** | `Task137` | Serializer `.sql` theo dialect, tách `ALTER` cho vòng FK | Amelia | Chờ thực hiện |
+| **STR096** | `Task137` | Serializer `.sql` theo dialect, tách `ALTER` cho vòng FK | Amelia | Hoàn thành 100% |
 | **STR096** | `Task138` | Menu Export & tải file `.sql` | Amelia | Chờ thực hiện |
 | **STR097** | `Task139` | Xuất ERD thành PNG | Amelia | Chờ thực hiện |
 | **STR097** | `Task140` | Xuất cây B-Tree thành SVG vector | Amelia | Chờ thực hiện |

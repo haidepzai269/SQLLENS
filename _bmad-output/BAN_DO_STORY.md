@@ -201,7 +201,7 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 
 | Story                                | Hành vi khi xong                                                                                                                                | GD  | Nhãn       |
 | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---------- |
-| STR096 Xuất `.sql` chuẩn hóa         | File `.sql` tải về chạy được ngay, bảng cha trước bảng con, vòng khóa ngoại tách `ALTER` xuống cuối (Task136 ĐÃ XONG 100% - còn Task137, Task138) | Có  | Thật       |
+| STR096 Xuất `.sql` chuẩn hóa         | File `.sql` tải về chạy được ngay, bảng cha trước bảng con, vòng khóa ngoại tách `ALTER` xuống cuối (Task136, Task137 ĐÃ XONG 100% - còn Task138) | Có  | Thật       |
 | STR097 Xuất ảnh ERD PNG & B-Tree SVG | Tải PNG sơ đồ bảng đúng vùng có tiến trình; tải SVG cây B-Tree vector, phóng to không vỡ (Chờ thực hiện - Task139, Task140)                     | Có  | Thật       |
 | STR098 Báo cáo Audit PDF A4          | In ra PDF 3 trang, giữ đủ 3 nhãn, có disclaimer, không cắt đôi card (Chờ thực hiện - Task141, Task142)                                          | Có  | Theo nguồn |
 
