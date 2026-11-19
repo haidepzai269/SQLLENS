@@ -185,8 +185,9 @@
   .report-page {
     width: 182mm !important; /* 210mm - 2*14mm */
     max-width: 182mm !important;
-    height: 269mm !important; /* 297mm - 2*14mm */
-    max-height: 269mm !important;
+    min-height: 0 !important;
+    height: 268mm !important; /* 297mm - 2*14mm trừ 1mm an toàn chống tràn subpixel */
+    max-height: 268mm !important;
     padding: 0 !important;
     margin: 0 !important;
     border: none !important;
