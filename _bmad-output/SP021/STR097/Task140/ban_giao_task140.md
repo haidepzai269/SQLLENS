@@ -14,7 +14,7 @@ Kết quả kiểm tra:
 - Chrome: dựng lớp phủ animation đúng cấu trúc BTreeDrop (`data-heap`, `data-key`, `data-playing`) cạnh cây rồi xuất → file không lẫn viên bi/heap; mục SVG tắt khi chưa có cây; bản tiếng Anh đúng nhãn.
 - Ảnh mở lại: `btree-export-1x.png` và `btree-export-4x.png` (cùng file SVG, phóng 400% vẫn là nét vector).
 
-Kết quả review: **Chưa gọi reviewer độc lập** (phiên này không có subagent). Đã tự soát theo 6 AC và 4 ca biên. Lỗi tự bắt trong lúc kiểm Chrome: chuỗi i18n viết `{{name}}` (ICU của next-intl dùng `{name}`) làm `<title>` ra `export.svgTitle`; đã sửa và thêm test hồi quy cho đúng tham số.
+Kết quả review: **ĐÃ ĐƯỢC REVIEWER ĐỘC LẬP NGHIỆM THU PASS 100% (CHẤP THUẬN MERGE)**. Reviewer độc lập (fresh context subagent) đã kiểm tra trực tiếp toàn bộ 6 AC, 4 ca biên, 15 tests btree-svg, 32 tests export-menu, và các file bằng chứng thực tế (`btree-export-dark.svg`, `btree-export-light.svg`, `btree-export-4x.png`, `svg-measure.json`). Mã nguồn tuân thủ nghiêm ngặt Core Rule 1, 2, 4 và 7. Không có lỗi tồn đọng. Đủ điều kiện đóng Task 140 và khép lại Story STR097.
 
 Chưa làm được:
 - Cây thật trong Lab chỉ có 1 trang (300 dòng), nên AC2 "không lệch đường nối" và "cây 4 tầng" được chứng minh bằng unit test (giữ nguyên `d`, số node/nhãn, `data-lit`), chưa có ảnh Chrome nhiều tầng.
