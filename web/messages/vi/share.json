@@ -1,0 +1,12 @@
+{
+  "title": "Chia sẻ dự án",
+  "buttonLabel": "Chia sẻ",
+  "copy": "Sao chép liên kết",
+  "copied": "Đã sao chép!",
+  "warningPrivacy": "Bất kỳ ai có liên kết này đều có thể xem toàn bộ mã SQL và cấu trúc trong các tab.",
+  "warningLength": "Liên kết có độ dài lớn (~{size} KB). Một số ứng dụng chat (Slack, Discord, Zalo...) có thể cắt ngắn liên kết làm hỏng dữ liệu.",
+  "blocked": "Dữ liệu vượt quá giới hạn URL an toàn của trình duyệt (32 KB). Không thể tạo liên kết chia sẻ trực tiếp.",
+  "download": "Tải file .sqllens",
+  "downloadHint": "Bạn có thể gửi file snapshot này trực tiếp cho người khác.",
+  "close": "Đóng"
+}
