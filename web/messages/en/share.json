@@ -1,0 +1,12 @@
+{
+  "title": "Share project",
+  "buttonLabel": "Share",
+  "copy": "Copy link",
+  "copied": "Copied!",
+  "warningPrivacy": "Anyone with this link can view all SQL code and structure in these tabs.",
+  "warningLength": "This link is large (~{size} KB). Some chat apps (Slack, Discord, Zalo...) may truncate it.",
+  "blocked": "Data exceeds browser safe URL length (32 KB). Cannot create direct share link.",
+  "download": "Download .sqllens file",
+  "downloadHint": "You can send this snapshot file directly to others.",
+  "close": "Close"
+}

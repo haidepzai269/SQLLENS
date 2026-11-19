@@ -25,6 +25,7 @@ import { LoginDialog } from "@/modules/auth/login-dialog";
 import { buildEvidencePack } from "@/modules/mentor/evidence";
 import { parseSchema, type TableInfo } from "@/modules/data-lab/generate/plan-data";
 import { ExportMenu } from "@/modules/export/components/export-menu";
+import { ShareDialog } from "@/modules/share/components/share-dialog";
 import { JoinAnimation } from "@/modules/plan-runner/join-anim/join-animation";
 import { PlanTree } from "@/modules/plan-runner/plan-tree";
 import { SchemaDiagram } from "@/modules/plan-runner/schema-diagram/schema-diagram";
@@ -554,12 +555,15 @@ export function Stage({
     <div className="flex min-h-full min-w-0 flex-col">
       <div className="flex h-[var(--h-bar)] flex-none items-center justify-between border-b border-line px-[var(--edge)]">
         <span className="font-semibold">{ts("tab.stage")}</span>
-        <ExportMenu
-          engine={run?.db.engine ?? "postgres"}
-          tables={tables}
-          projectName={projectName}
-          disabled={working}
-        />
+        <div className="flex items-center gap-1.5">
+          <ShareDialog disabled={working} />
+          <ExportMenu
+            engine={run?.db.engine ?? "postgres"}
+            tables={tables}
+            projectName={projectName}
+            disabled={working}
+          />
+        </div>
       </div>
       <div className="flex min-w-0 flex-col gap-3 p-[var(--edge)]">
         <Tabs value={tab} onValueChange={change}>
