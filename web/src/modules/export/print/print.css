@@ -98,6 +98,45 @@
   color: #64748b;
 }
 
+/* Đảm bảo tương phản cao (High Contrast) cho các nhãn kết luận trên nền trang in trắng A4 (cả Preview và Print) */
+.report-page [data-testid="conclusion-badge"],
+.report-page [data-testid="finding-label"],
+.report-page [data-testid="health-score-badge"],
+.report-page [data-testid="plan-label-badge"] {
+  font-weight: 600 !important;
+  border-radius: 3px !important;
+  padding: 1px 7px !important;
+  font-size: 10.5px !important;
+  line-height: 1.4 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.report-page [data-label="real"] {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border: 1px solid #475569 !important;
+}
+
+.report-page [data-label="simulated"] {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border: 1px solid #334155 !important;
+}
+
+.report-page [data-label="estimated"] {
+  background-color: #fffbeb !important;
+  color: #92400e !important;
+  border: 1px dashed #d97706 !important;
+  font-style: italic !important;
+}
+
+.report-page [data-label="not_simulated"] {
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
 /* Khi in ấn thực tế bằng trình duyệt (@media print) */
 @media print {
   @page {

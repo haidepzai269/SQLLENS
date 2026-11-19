@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import {
   Printer,
@@ -23,6 +23,15 @@ import { attachEvidence } from "@/modules/findings/evidence";
 import { parseSql } from "@/modules/sql-intake/parser";
 import { lastSelect } from "@/modules/lab/stage/stage-data";
 import "./print.css";
+
+const emptySubscribe = () => () => {};
+let cachedClientDate: Date | null = null;
+function getClientDateSnapshot(): Date {
+  return (cachedClientDate ??= new Date());
+}
+function getServerDateSnapshot(): undefined {
+  return undefined;
+}
 
 export interface FindingItem {
   hit: RuleHit;
@@ -180,12 +189,8 @@ export function AuditReport({
   const rawSql = activeTab?.sql?.trim() ?? "";
   const activeEngine = activeProject?.engine ?? "postgres";
 
+  const clientNow = useSyncExternalStore(emptySubscribe, getClientDateSnapshot, getServerDateSnapshot);
   const [computedData, setComputedData] = useState<AuditReportData | null>(null);
-  const [clientNow, setClientNow] = useState<Date | undefined>(undefined);
-
-  useEffect(() => {
-    setClientNow(new Date());
-  }, []);
 
   useEffect(() => {
     if (propData || !rawSql) return;

@@ -310,12 +310,20 @@ describe("AuditReport Component", () => {
     const findingRows = screen.getAllByTestId("finding-row");
     expect(findingRows.length).toBe(3);
 
+    // Verify all conclusion badges have recognized data-label for high-contrast print styling
+    const container = screen.getByTestId("audit-report-container");
+    const badges = container.querySelectorAll("[data-label]");
+    expect(badges.length).toBeGreaterThan(0);
+    badges.forEach((b) => {
+      const label = b.getAttribute("data-label");
+      expect(["real", "simulated", "estimated", "not_simulated"]).toContain(label);
+    });
+
     // Core Rule 2: not_broken summary specifically disclaims that the design is good/safe
     const notBrokenCard = screen.getByTestId("summary-not-broken");
     expect(notBrokenCard.textContent).toContain("Không đồng nghĩa thiết kế này ổn");
 
     // Verify no text anywhere in the document says "thiết kế này ổn" or "thiết kế an toàn"
-    const container = screen.getByTestId("audit-report-container");
     expect(container.textContent).not.toMatch(/thiết kế (này )?(tốt|hoàn hảo|an toàn tuyệt đối|chuẩn mực)/i);
   });
 
