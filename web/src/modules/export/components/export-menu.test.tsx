@@ -4,9 +4,16 @@ import { NextIntlClientProvider } from "next-intl";
 import messagesEn from "../../../../messages/en/export.json";
 import messagesVi from "../../../../messages/vi/export.json";
 import type { TableInfo } from "@/modules/data-lab/generate/plan-data";
+vi.mock("@/modules/export/capture/erd-png", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/modules/export/capture/erd-png")>();
+  return { ...actual, captureErdPng: vi.fn() };
+});
+
+import { captureErdPng, ErdCaptureError } from "@/modules/export/capture/erd-png";
 import {
   ExportMenu,
   formatExportTimestamp,
+  getErdFileName,
   getExportFileName,
   normalizeTables,
   sanitizeFileName,
@@ -406,6 +413,14 @@ describe("ExportMenu Component (Task138)", () => {
       expect(clickedElements).toHaveLength(1);
     });
 
+    it("tên file ERD: <dự án>-erd-<YYYYMMDD-HHmm>.png, làm sạch ký tự cấm", () => {
+      const date = new Date(2026, 10, 17, 15, 30);
+      expect(getErdFileName("My Project", date)).toBe("My-Project-erd-20261117-1530.png");
+      expect(getErdFileName("Dự án / Quản lý <Kho>", date)).toBe("Dự-án-Quản-lý-Kho-erd-20261117-1530.png");
+      expect(getErdFileName(undefined, date)).toBe("sqllens-erd-20261117-1530.png");
+      expect(getErdFileName("A".repeat(100), date)).toMatch(/^A{100}-erd-\d{8}-\d{4}\.png$/);
+    });
+
     it("khi disabled=true (đang chạy query), trigger không thể mở menu", () => {
       renderExportMenu({ disabled: true });
 
@@ -414,6 +429,84 @@ describe("ExportMenu Component (Task138)", () => {
 
       fireEvent.click(trigger);
       expect(screen.queryByTestId("export-menu-panel")).toBeNull();
+    });
+  });
+
+  describe("Task139: mục tải sơ đồ PNG", () => {
+    const capture = vi.mocked(captureErdPng);
+
+    beforeEach(() => {
+      capture.mockReset();
+      capture.mockResolvedValue(new Blob(["png"], { type: "image/png" }));
+    });
+
+    it("AC1: bấm mục PNG tải file .png đúng tên dự án", async () => {
+      renderExportMenu({ projectName: "Dự án Bán Hàng" });
+      fireEvent.click(screen.getByTestId("export-menu-trigger"));
+      fireEvent.click(screen.getByTestId("export-png-item"));
+
+      await waitFor(() => expect(clickedElements).toHaveLength(1));
+      expect(capture).toHaveBeenCalledTimes(1);
+      expect(clickedElements[0].download).toMatch(/^Dự-án-Bán-Hàng-erd-\d{8}-\d{4}\.png$/);
+      expect(createdUrls).toHaveLength(1);
+    });
+
+    it("AC3: hiện tiến trình theo từng bước và thông báo xong", async () => {
+      let done: ((blob: Blob) => void) | undefined;
+      capture.mockImplementation(
+        (opts) =>
+          new Promise<Blob>((resolve) => {
+            opts?.onProgress?.("capture");
+            done = resolve;
+          }),
+      );
+
+      renderExportMenu();
+      fireEvent.click(screen.getByTestId("export-menu-trigger"));
+      fireEvent.click(screen.getByTestId("export-png-item"));
+
+      await waitFor(() => expect(screen.getByTestId("export-png-item").textContent).toContain("Đang chụp sơ đồ"));
+      // Trong lúc chụp, mục .sql bị khoá để không xuất hai thứ cùng lúc.
+      expect(screen.getByTestId("export-sql-item")).toHaveProperty("disabled", true);
+
+      done?.(new Blob(["png"], { type: "image/png" }));
+      await waitFor(() => expect(screen.getByTestId("export-status").textContent).toContain(messagesVi.pngDone));
+      expect(clickedElements).toHaveLength(1);
+    });
+
+    it("chưa có sơ đồ (not_found) thì báo đúng lý do và mở lại nút", async () => {
+      capture.mockRejectedValue(new ErdCaptureError("not_found", "ERD canvas not found"));
+
+      renderExportMenu();
+      fireEvent.click(screen.getByTestId("export-menu-trigger"));
+      fireEvent.click(screen.getByTestId("export-png-item"));
+
+      await waitFor(() => expect(screen.getByTestId("export-status").textContent).toContain(messagesVi.pngNotFound));
+      expect(clickedElements).toHaveLength(0);
+      expect(screen.getByTestId("export-png-item")).not.toHaveProperty("disabled", true);
+    });
+
+    it("lỗi khác thì báo lỗi chung; schema rỗng thì mục PNG bị disable", async () => {
+      capture.mockRejectedValue(new ErdCaptureError("failed", "boom"));
+      renderExportMenu();
+      fireEvent.click(screen.getByTestId("export-menu-trigger"));
+      fireEvent.click(screen.getByTestId("export-png-item"));
+      await waitFor(() => expect(screen.getByTestId("export-status").textContent).toContain(messagesVi.pngFailed));
+      cleanup();
+
+      renderExportMenu({ tables: [] });
+      fireEvent.click(screen.getByTestId("export-menu-trigger"));
+      const pngItem = screen.getByTestId("export-png-item");
+      expect(pngItem).toHaveProperty("disabled", true);
+      expect(pngItem.getAttribute("title")).toBe(messagesVi.disabledEmpty);
+    });
+
+    it("tiếng Anh: nhãn và tiến trình không lẫn tiếng Việt", async () => {
+      renderExportMenu({}, "en");
+      fireEvent.click(screen.getByTestId("export-menu-trigger"));
+      expect(screen.getByTestId("export-png-item").textContent).toContain(messagesEn.png);
+      fireEvent.click(screen.getByTestId("export-png-item"));
+      await waitFor(() => expect(screen.getByTestId("export-status").textContent).toContain(messagesEn.pngDone));
     });
   });
 });

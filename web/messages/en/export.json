@@ -8,5 +8,15 @@
   "menuAriaLabel": "Export data options",
   "sheetTitle": "Export options",
   "close": "Close",
-  "sqlDescription": "Export DDL definitions for the current dialect"
+  "sqlDescription": "Export DDL definitions for the current dialect",
+  "png": "Download table diagram (PNG)",
+  "pngDescription": "2x diagram image, no zoom controls or minimap",
+  "pngDone": "Diagram image exported",
+  "pngFailed": "Could not capture the diagram",
+  "pngNotFound": "There is no diagram to capture yet",
+  "pngStep": {
+    "prepare": "Preparing the diagram…",
+    "capture": "Capturing the diagram…",
+    "encode": "Encoding the PNG…"
+  }
 }

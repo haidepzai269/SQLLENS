@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { Download, FileCode, Loader2, X } from "lucide-react";
+import { Download, FileCode, Image as ImageIcon, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { TableInfo } from "@/modules/data-lab/generate/plan-data";
+import { captureErdPng, ErdCaptureError, type ErdCaptureStep } from "@/modules/export/capture/erd-png";
 import { serializeSchema } from "@/modules/export/sql-serializer";
 import type { ColumnSpec, ForeignKeySpec, TableSpec } from "@/modules/export/types";
 
@@ -92,6 +93,23 @@ export function getExportFileName(projectName: string | undefined, now: Date): s
   return `${cleanProject}-schema-${timeStr}.sql`;
 }
 
+export function getErdFileName(projectName: string | undefined, now: Date): string {
+  return `${sanitizeFileName(projectName)}-erd-${formatExportTimestamp(now)}.png`;
+}
+
+/** Một chỗ duy nhất cho việc tải file: 100% client-side, 0 byte gửi mạng (Core Rule 7). */
+export function saveBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  // Thu hồi ở nhịp sau: revoke ngay sau click có trình duyệt huỷ luôn lượt tải.
+  setTimeout(() => URL.revokeObjectURL(url), 1_000);
+}
+
 export function ExportMenu({
   engine,
   tables: propTables,
@@ -105,7 +123,11 @@ export function ExportMenu({
 
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [lastStatus, setLastStatus] = useState<"done" | "failed" | null>(null);
+  const [pngStep, setPngStep] = useState<ErdCaptureStep | null>(null);
+  // Giữ nguyên câu thông báo (không phải mã trạng thái) để live region đọc đúng lý do thất bại.
+  const [lastNotice, setLastNotice] = useState<string | null>(null);
+  const busy = isExporting || pngStep !== null;
+  const pngStepText = pngStep ? t(`pngStep.${pngStep}`) : null;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -215,10 +237,10 @@ export function ExportMenu({
 
   const handleDownloadSql = () => {
     // Chặn bấm lặp khi đang xuất hoặc khi schema rỗng
-    if (isExporting || isEmpty) return;
+    if (busy || isEmpty) return;
 
     setIsExporting(true);
-    setLastStatus(null);
+    setLastNotice(null);
 
     try {
       const now = new Date();
@@ -231,25 +253,38 @@ export function ExportMenu({
       });
 
       // Tạo Blob và trigger download (100% client-side, 0 byte mạng theo Core Rule 7)
-      const blob = new Blob([sqlContent], { type: "application/sql;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      saveBlob(new Blob([sqlContent], { type: "application/sql;charset=utf-8" }), fileName);
 
-      setLastStatus("done");
+      setLastNotice(t("done"));
       toast.success(t("done"));
       closeMenu();
       triggerRef.current?.focus();
     } catch {
-      setLastStatus("failed");
+      setLastNotice(t("failed"));
       toast.error(t("failed"));
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleDownloadPng = async () => {
+    if (busy || isEmpty) return;
+
+    setLastNotice(null);
+    setPngStep("prepare");
+    try {
+      const blob = await captureErdPng({ onProgress: setPngStep });
+      saveBlob(blob, getErdFileName(projectName, new Date()));
+      setLastNotice(t("pngDone"));
+      toast.success(t("pngDone"));
+      closeMenu();
+      triggerRef.current?.focus();
+    } catch (e) {
+      const reason = e instanceof ErdCaptureError && e.code === "not_found" ? t("pngNotFound") : t("pngFailed");
+      setLastNotice(reason);
+      toast.error(reason);
+    } finally {
+      setPngStep(null);
     }
   };
 
@@ -282,8 +317,8 @@ export function ExportMenu({
         data-testid="export-status"
       >
         {isExporting && t("exporting")}
-        {!isExporting && lastStatus === "done" && t("done")}
-        {!isExporting && lastStatus === "failed" && t("failed")}
+        {pngStepText}
+        {!busy && lastNotice}
       </div>
 
       {/* Menu Dropdown (Desktop) & Bottom Sheet (Mobile 390px) */}
@@ -334,13 +369,13 @@ export function ExportMenu({
             <div className="mt-2 flex flex-col gap-1">
               <button
                 type="button"
-                disabled={isEmpty || isExporting}
-                aria-disabled={isEmpty || isExporting}
+                disabled={isEmpty || busy}
+                aria-disabled={isEmpty || busy}
                 title={isEmpty ? t("disabledEmpty") : t("sql")}
                 onClick={handleDownloadSql}
                 className={cn(
                   "group flex w-full items-start gap-2.5 rounded-lg p-2 text-left transition-colors",
-                  isEmpty || isExporting
+                  isEmpty || busy
                     ? "cursor-not-allowed opacity-50 bg-muted/20"
                     : "hover:bg-accent hover:text-accent-foreground cursor-pointer"
                 )}
@@ -359,6 +394,35 @@ export function ExportMenu({
                   </span>
                   <span className="text-[11px] text-muted-foreground">
                     {isEmpty ? t("disabledEmpty") : t("sqlDescription")}
+                  </span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                disabled={isEmpty || busy}
+                aria-disabled={isEmpty || busy}
+                title={isEmpty ? t("disabledEmpty") : t("png")}
+                onClick={handleDownloadPng}
+                className={cn(
+                  "group flex w-full items-start gap-2.5 rounded-lg p-2 text-left transition-colors",
+                  isEmpty || busy
+                    ? "cursor-not-allowed opacity-50 bg-muted/20"
+                    : "hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                )}
+                data-testid="export-png-item"
+              >
+                <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  {pngStep ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <ImageIcon className="size-3.5" aria-hidden="true" />
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col">
+                  <span className="text-xs font-medium text-foreground">{pngStepText ?? t("png")}</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {isEmpty ? t("disabledEmpty") : pngStepText ?? t("pngDescription")}
                   </span>
                 </div>
               </button>

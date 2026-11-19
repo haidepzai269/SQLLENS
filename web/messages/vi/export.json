@@ -8,5 +8,15 @@
   "menuAriaLabel": "Tùy chọn xuất dữ liệu",
   "sheetTitle": "Tùy chọn xuất",
   "close": "Đóng",
-  "sqlDescription": "Xuất định nghĩa DDL theo dialect hiện tại"
+  "sqlDescription": "Xuất định nghĩa DDL theo dialect hiện tại",
+  "png": "Tải sơ đồ bảng (PNG)",
+  "pngDescription": "Ảnh sơ đồ 2x, không có nút điều khiển hay minimap",
+  "pngDone": "Đã xuất ảnh sơ đồ thành công",
+  "pngFailed": "Không chụp được sơ đồ",
+  "pngNotFound": "Chưa có sơ đồ nào để chụp",
+  "pngStep": {
+    "prepare": "Đang chuẩn bị sơ đồ…",
+    "capture": "Đang chụp sơ đồ…",
+    "encode": "Đang tạo ảnh PNG…"
+  }
 }
