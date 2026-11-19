@@ -1,0 +1,10 @@
+GET /vi/share
+HTTP/1.1 200 OK
+Referrer-Policy: no-referrer
+
+GET /en/share
+HTTP/1.1 200 OK
+Referrer-Policy: no-referrer
+
+GET /vi (đối chứng: không áp)
+HTTP/1.1 200 OK

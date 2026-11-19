@@ -8,5 +8,28 @@
   "blocked": "Data exceeds browser safe URL length (32 KB). Cannot create direct share link.",
   "download": "Download .sqllens file",
   "downloadHint": "You can send this snapshot file directly to others.",
-  "close": "Close"
+  "close": "Close",
+  "view": {
+    "metaTitle": "Shared snapshot",
+    "loading": "Decoding snapshot…",
+    "loadingHint": "The data lives in the link itself and is only read on your machine.",
+    "missingTitle": "This link has no snapshot",
+    "missingBody": "The part after # may have been cut off. Ask the sender to reopen the Share dialog and copy the full link again.",
+    "invalidTitle": "This snapshot can't be read",
+    "invalidBody": "The link may have been truncated by a chat app, or it was created by a different SQLLens version. Ask the sender to send the full link again.",
+    "errorCode": "Error code: {code}",
+    "errorCorrupt": "the data is invalid or was cut off",
+    "errorVersion": "this snapshot version isn't supported",
+    "errorTooLarge": "the link is over the 32 KB limit",
+    "home": "Back to home",
+    "badge": "Read-only snapshot",
+    "tabsLabel": "Tabs in this snapshot",
+    "editorLabel": "SQL in tab {name}, read-only",
+    "copy": "Copy SQL",
+    "copied": "SQL copied",
+    "copyFailed": "Couldn't copy — select the text and press Ctrl+C",
+    "emptyTab": "This tab has no content",
+    "noTabs": "This snapshot has no tabs",
+    "readOnlyNote": "Read-only. The content comes from the sender and is read on your machine only."
+  }
 }

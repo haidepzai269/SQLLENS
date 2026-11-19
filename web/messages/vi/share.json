@@ -8,5 +8,28 @@
   "blocked": "Dữ liệu vượt quá giới hạn URL an toàn của trình duyệt (32 KB). Không thể tạo liên kết chia sẻ trực tiếp.",
   "download": "Tải file .sqllens",
   "downloadHint": "Bạn có thể gửi file snapshot này trực tiếp cho người khác.",
-  "close": "Đóng"
+  "close": "Đóng",
+  "view": {
+    "metaTitle": "Snapshot chia sẻ",
+    "loading": "Đang giải mã snapshot…",
+    "loadingHint": "Dữ liệu nằm trong chính liên kết và chỉ được đọc trên máy của bạn.",
+    "missingTitle": "Liên kết này chưa có snapshot",
+    "missingBody": "Có thể liên kết đã bị cắt mất phần sau dấu #. Hãy xin người gửi mở lại hộp thoại Chia sẻ và sao chép lại đầy đủ.",
+    "invalidTitle": "Không đọc được snapshot này",
+    "invalidBody": "Liên kết có thể đã bị cắt khi gửi qua ứng dụng chat, hoặc được tạo bởi phiên bản SQLLens khác. Hãy xin người gửi gửi lại liên kết đầy đủ.",
+    "errorCode": "Mã lỗi: {code}",
+    "errorCorrupt": "dữ liệu không hợp lệ hoặc đã bị cắt",
+    "errorVersion": "phiên bản snapshot chưa được hỗ trợ",
+    "errorTooLarge": "liên kết dài quá giới hạn 32 KB",
+    "home": "Về trang chủ",
+    "badge": "Snapshot chỉ đọc",
+    "tabsLabel": "Các tab trong snapshot",
+    "editorLabel": "SQL của tab {name}, chỉ đọc",
+    "copy": "Sao chép SQL",
+    "copied": "Đã sao chép SQL",
+    "copyFailed": "Không sao chép được — hãy bôi đen rồi nhấn Ctrl+C",
+    "emptyTab": "Tab này không có nội dung",
+    "noTabs": "Snapshot này không có tab nào",
+    "readOnlyNote": "Bản chỉ đọc. Nội dung do người gửi tạo, chỉ đọc trên máy bạn."
+  }
 }
