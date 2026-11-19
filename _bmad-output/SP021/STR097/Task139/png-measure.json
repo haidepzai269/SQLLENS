@@ -1,0 +1,38 @@
+{
+  "doDonVi": "px",
+  "moiTruong": "Chrome that qua Playwright, ban build production (next start, port 3111-3118), SQLite WASM",
+  "scaleMacDinh": 2,
+  "visible": {
+    "moTa": "Tab So do dang hien, theme toi, 3 bang (users/posts/tags)",
+    "width": 1232,
+    "height": 612,
+    "bg": "rgb(14,14,16)",
+    "distinctColors": 569,
+    "inkRatio": 0.0398
+  },
+  "hidden": {
+    "moTa": "Tab So do dang an (display: none) sau khi chuyen sang tab Plan, cung so do 3 bang",
+    "width": 1232,
+    "height": 612,
+    "distinctColors": 569,
+    "inkRatio": 0.0398,
+    "ghiChu": "Trung khop voi anh chup luc tab hien. Truoc khi sua waitForLayout (loi tim thay khi review) ca nay ra 592x844 — bo cuc cot doc, mat duong noi FK."
+  },
+  "tables50": {
+    "moTa": "So do 50 bang chuoi FK (t1 -> t0 ... t49 -> t48), tab So do dang hien",
+    "width": 16295,
+    "height": 89,
+    "nodes": 50,
+    "edges": 49,
+    "captureMs": 1399,
+    "scale": 1.0,
+    "ghiChu": "Chuoi 50 bang rong ~16.300 px CSS nen planScale ha tu 2x xuong 1.00x de khong vuot canh canvas 16.384 px (khong cat bot bang nao)."
+  },
+  "mobile390": {
+    "moTa": "Man hinh 390x844, xuat PNG tu tab Simulation (Stage), 2 bang books/authors",
+    "viewport": "390x844",
+    "width": 592,
+    "height": 648,
+    "horizontalOverflowPx": 0
+  }
+}
