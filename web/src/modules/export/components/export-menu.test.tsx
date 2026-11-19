@@ -9,6 +9,12 @@ vi.mock("@/modules/export/capture/erd-png", async (importOriginal) => {
   return { ...actual, captureErdPng: vi.fn() };
 });
 
+vi.mock("@/modules/export/capture/btree-svg", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/modules/export/capture/btree-svg")>();
+  return { ...actual, exportBTreeSvg: vi.fn(), findBTreeSvg: vi.fn(() => null) };
+});
+
+import { exportBTreeSvg, findBTreeSvg } from "@/modules/export/capture/btree-svg";
 import { captureErdPng, ErdCaptureError } from "@/modules/export/capture/erd-png";
 import {
   ExportMenu,
@@ -507,6 +513,65 @@ describe("ExportMenu Component (Task138)", () => {
       expect(screen.getByTestId("export-png-item").textContent).toContain(messagesEn.png);
       fireEvent.click(screen.getByTestId("export-png-item"));
       await waitFor(() => expect(screen.getByTestId("export-status").textContent).toContain(messagesEn.pngDone));
+    });
+  });
+
+  describe("Task140: mục tải cây B-Tree (SVG)", () => {
+    const find = vi.mocked(findBTreeSvg);
+    const exp = vi.mocked(exportBTreeSvg);
+
+    beforeEach(() => {
+      find.mockReset();
+      find.mockReturnValue(null);
+      exp.mockReset();
+      exp.mockReturnValue(new Blob(["<svg/>"], { type: "image/svg+xml" }));
+    });
+
+    it("chưa có cây thì mục SVG tắt kèm lý do, không tạo file", () => {
+      renderExportMenu();
+      fireEvent.click(screen.getByTestId("export-menu-trigger"));
+      const item = screen.getByTestId("export-svg-item");
+      expect(item).toHaveProperty("disabled", true);
+      expect(item.getAttribute("title")).toBe(messagesVi.svgDisabled);
+      expect(clickedElements).toHaveLength(0);
+      expect(exp).not.toHaveBeenCalled();
+    });
+
+    it("có cây: tải .svg đúng tên và tiêu đề dịch đúng tham số (không lọt export.svgTitle)", () => {
+      find.mockReturnValue({} as SVGSVGElement);
+      renderExportMenu({ projectName: "Dự án Bán Hàng" });
+      fireEvent.click(screen.getByTestId("export-menu-trigger"));
+
+      const item = screen.getByTestId("export-svg-item");
+      expect(item).not.toHaveProperty("disabled", true);
+      fireEvent.click(item);
+
+      // Tiêu đề trong file dùng chuỗi đã dịch, không phải khóa i18n (lỗi ICU sẽ trả về "export.svgTitle").
+      expect(exp).toHaveBeenCalledWith(expect.anything(), { title: "Cây B-Tree — Dự án Bán Hàng" });
+      expect(clickedElements).toHaveLength(1);
+      expect(clickedElements[0].download).toMatch(/^Dự-án-Bán-Hàng-btree-\d{8}-\d{4}\.svg$/);
+      expect(createdUrls).toHaveLength(1);
+    });
+
+    it("lỗi khi xuất thì báo không xuất được, không tải file hỏng", () => {
+      find.mockReturnValue({} as SVGSVGElement);
+      exp.mockImplementation(() => {
+        throw new Error("boom");
+      });
+      renderExportMenu();
+      fireEvent.click(screen.getByTestId("export-menu-trigger"));
+      fireEvent.click(screen.getByTestId("export-svg-item"));
+
+      expect(screen.getByTestId("export-status").textContent).toContain(messagesVi.svgFailed);
+      expect(clickedElements).toHaveLength(0);
+    });
+
+    it("tiếng Anh: nhãn và lý do tắt không lẫn tiếng Việt", () => {
+      renderExportMenu({}, "en");
+      fireEvent.click(screen.getByTestId("export-menu-trigger"));
+      const item = screen.getByTestId("export-svg-item");
+      expect(item.textContent).toContain(messagesEn.svg);
+      expect(item.getAttribute("title")).toBe(messagesEn.svgDisabled);
     });
   });
 });
