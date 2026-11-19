@@ -13,7 +13,7 @@ Toàn bộ Epic chạy trong trình duyệt. Không có headless browser trên s
 | **STR096** | `Task137` | Serializer `.sql` theo dialect, tách `ALTER` cho vòng FK | Amelia | Hoàn thành 100% |
 | **STR096** | `Task138` | Menu Export & tải file `.sql` | Amelia | Hoàn thành 100% |
 | **STR097** | `Task139` | Xuất ERD thành PNG | Amelia | Hoàn thành 100% |
-| **STR097** | `Task140` | Xuất cây B-Tree thành SVG vector | Amelia | Chờ thực hiện |
+| **STR097** | `Task140` | Xuất cây B-Tree thành SVG vector | Amelia | Hoàn thành 100% |
 | **STR098** | `Task141` | Bố cục báo cáo Audit A4 3 trang | Amelia | Chờ thực hiện |
 | **STR098** | `Task142` | In PDF bằng Playwright và kiểm nội dung | Amelia | Chờ thực hiện |
 
