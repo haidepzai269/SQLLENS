@@ -187,29 +187,29 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | STR089 Workspace Store & nháp IndexedDB          | Tạo tab/dự án khi chưa đăng nhập, F5 không mất nội dung, dữ liệu tách namespace `guest` và `user_<uuid>`, không request nào mang nội dung nháp (Đã xong 100% - Task122, Task123, Task124)     | Có  |      |
 | STR090 Tab Bar đa tab & phiên sandbox dùng chung | Thêm/đóng/đổi tên/kéo sắp xếp tab; chuyển tab đổi nội dung CodeMirror nhưng schema và dữ liệu giữ nguyên; DDL ở tab khác hiện "Schema đã cập nhật từ Tab X" (Đã xong 100% - Task125, Task126) | Có  | Thật |
 | STR091 Đa dự án & engine ghim theo dự án         | Switcher tạo/đổi tên/nhân bản/xóa dự án; mỗi dự án ghim 1 engine và giữ sandbox riêng; rời dự án MySQL nhả phiên container (Đã xong 100% - Task127, Task128)                                  | Có  | Thật |
-| STR092 Chính sách máy dùng chung                 | Modal khi đăng xuất hỏi xóa hay giữ nháp cục bộ; đăng nhập lần đầu có nháp `guest` thì có banner 1-Click nhập vào tài khoản (ĐÃ XONG 100% - Task129, Task130)                                    | Có  |      |
+| STR092 Chính sách máy dùng chung                 | Modal khi đăng xuất hỏi xóa hay giữ nháp cục bộ; đăng nhập lần đầu có nháp `guest` thì có banner 1-Click nhập vào tài khoản (ĐÃ XONG 100% - Task129, Task130)                                 | Có  |      |
 
 ## SP020 Đo lường & Engine SQLite thứ ba
 
-| Story                                   | Hành vi khi xong                                                                                                                                                   | GD  | Nhãn |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ---- |
+| Story                                   | Hành vi khi xong                                                                                                                                                                   | GD  | Nhãn |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---- |
 | STR093 Đo bundle & RAM SQLite WASM      | Có số thật về bundle, RAM ở 10k/100k/500k dòng, thời gian khởi động; có quyết định go/no-go ghi vào `CLAUDE.md` và là cổng chặn của Epic (ĐÃ XONG 100% - Task131: Go có điều kiện) |     | Thật |
-| STR094 SQLite chạy trong trình duyệt    | Chọn engine SQLite, chạy DDL/DML/SELECT trong máy, 0 request server; tab Plan/B-Tree hiện `chưa mô phỏng được` kèm lý do (Task132, Task133 ĐÃ XONG 100%)        | Có  | Thật |
-| STR095 Nhập/xuất file `.sqlite` / `.db` | Nạp file từ máy vào sandbox SQLite, chạy query, xuất lại file; file hỏng hoặc quá lớn báo lỗi rõ, file không rời máy (Task134, Task135 ĐÃ XONG 100%)            | Có  | Thật |
+| STR094 SQLite chạy trong trình duyệt    | Chọn engine SQLite, chạy DDL/DML/SELECT trong máy, 0 request server; tab Plan/B-Tree hiện `chưa mô phỏng được` kèm lý do (Task132, Task133 ĐÃ XONG 100%)                           | Có  | Thật |
+| STR095 Nhập/xuất file `.sqlite` / `.db` | Nạp file từ máy vào sandbox SQLite, chạy query, xuất lại file; file hỏng hoặc quá lớn báo lỗi rõ, file không rời máy (Chờ thực hiện - Task134, Task135)                            | Có  | Thật |
 
 ## SP021 Xuất báo cáo & sơ đồ (Export)
 
-| Story                                | Hành vi khi xong                                                                                                                                | GD  | Nhãn       |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---------- |
+| Story                                | Hành vi khi xong                                                                                                                               | GD  | Nhãn       |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---------- |
 | STR096 Xuất `.sql` chuẩn hóa         | File `.sql` tải về chạy được ngay, bảng cha trước bảng con, vòng khóa ngoại tách `ALTER` xuống cuối (ĐÃ XONG 100% - Task136, Task137, Task138) | Có  | Thật       |
-| STR097 Xuất ảnh ERD PNG & B-Tree SVG | Tải PNG sơ đồ bảng đúng vùng có tiến trình; tải SVG cây B-Tree vector, phóng to không vỡ (Chờ thực hiện - Task139, Task140)                     | Có  | Thật       |
-| STR098 Báo cáo Audit PDF A4          | In ra PDF 3 trang, giữ đủ 3 nhãn, có disclaimer, không cắt đôi card (Chờ thực hiện - Task141, Task142)                                          | Có  | Theo nguồn |
+| STR097 Xuất ảnh ERD PNG & B-Tree SVG | Tải PNG sơ đồ bảng đúng vùng có tiến trình; tải SVG cây B-Tree vector, phóng to không vỡ (Chờ thực hiện - Task139, Task140)                    | Có  | Thật       |
+| STR098 Báo cáo Audit PDF A4          | In ra PDF 3 trang, giữ đủ 3 nhãn, có disclaimer, không cắt đôi card (Chờ thực hiện - Task141, Task142)                                         | Có  | Theo nguồn |
 
 ## SP022 Chia sẻ Snapshot qua URL
 
 | Story                                | Hành vi khi xong                                                                                                                                                                         | GD  | Nhãn |
 | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---- |
-| STR099 Mã hóa snapshot vào URL       | Bấm Share là có link chứa toàn bộ snapshot (gzip + base64url trong fragment), không gửi byte nào lên server; quá lớn thì báo và cho tải file thay thế (Chờ thực hiện - Task143, Task144) | Có  | Thật |
+| STR099 Mã hóa snapshot vào URL       | Bấm Share là có link chứa toàn bộ snapshot (gzip + base64url trong fragment), không gửi byte nào lên server; quá lớn thì báo và cho tải file thay thế (Task143 ĐÃ XONG 100% - còn Task144) | Có  | Thật |
 | STR100 Trang `/share` chỉ đọc        | Mở link là thấy snapshot đúng thiết kế prototype, không sửa được, không có dữ liệu nào rời máy, chặn referrer (Chờ thực hiện - Task145, Task146)                                         | Có  | Thật |
 | STR101 Fork vào workspace & chạy thử | Người nhận fork 1-Click thành dự án riêng và chạy thử cục bộ, snapshot trong URL không đổi (Chờ thực hiện - Task147, Task148)                                                            | Có  | Thật |
 
