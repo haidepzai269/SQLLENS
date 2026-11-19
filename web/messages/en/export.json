@@ -26,5 +26,77 @@
     "prepare": "Preparing the diagram…",
     "capture": "Capturing the diagram…",
     "encode": "Encoding the PNG…"
+  },
+  "audit": {
+    "title": "Database Audit Report",
+    "subtitle": "Schema structure and query execution analysis in SQLLens Sandbox",
+    "printButton": "Print Report (A4)",
+    "backButton": "Back to Lab",
+    "pageIndicator": "Page {current}/{total}",
+    "disclaimer": "This report was generated automatically from SQLLens Sandbox. All conclusions are valid only within the tested data and scenarios.",
+    "branding": "SQLLens Database Audit Report",
+    "metadata": {
+      "project": "Project",
+      "engine": "Engine",
+      "date": "Created Date",
+      "tables": "Tables",
+      "statements": "Statements",
+      "environment": "Environment",
+      "environmentVal": "Sandbox (Client-side)"
+    },
+    "healthScore": {
+      "title": "Database Health Score",
+      "subtitle": "Database Health Score",
+      "desc": "Estimated score based on 8 schema and query audit rules in SQLLens sandbox. This score does not guarantee production safety.",
+      "noScore": "--",
+      "outOf": "/ 100",
+      "statusEstimated": "Estimated",
+      "statusNotSimulated": "Not simulated"
+    },
+    "summary": {
+      "title": "Risk Summary",
+      "broken": "Broken in this scenario",
+      "brokenDesc": "Structural or query issues causing severe failure or degradation.",
+      "unverified": "Unverified / Estimated",
+      "unverifiedDesc": "Potential risk or unsimulated scenario requiring production data.",
+      "notBroken": "Not broken in this scenario",
+      "notBrokenDesc": "No issues observed in the executed scenarios (Note: Does not imply the design is sound)."
+    },
+    "scope": {
+      "title": "Audit Scope (8 SQLLens Rules)",
+      "desc": "Missing PK, unindexed FK, float for currency, oversized varchar, function on indexed column, leading wildcard, composite index prefix, implicit cast."
+    },
+    "findings": {
+      "title": "Findings & Evidence",
+      "subtitle": "Detailed findings and technical evidence from schema and queries",
+      "count": "{count} findings detected",
+      "colSeverity": "Severity",
+      "colRule": "Rule & Target",
+      "colEvidence": "Technical Evidence",
+      "colLabel": "Label",
+      "moreFindings": "Showing top {shown}/{total} findings. See the Findings tab for full details."
+    },
+    "plan": {
+      "title": "Query Execution Plan",
+      "subtitle": "Execution node details and resource usage",
+      "queryLabel": "Analyzed Query",
+      "colStep": "Execution Step",
+      "colDetails": "Condition / Filter",
+      "colRows": "Rows (Actual / Est)",
+      "colCost": "Cost / Pages",
+      "metrics": {
+        "actualRows": "Actual Rows",
+        "estimatedRows": "Estimated Rows",
+        "pagesRead": "Pages Read",
+        "analyzed": "Executed (ANALYZE)",
+        "notAnalyzed": "Estimated only (EXPLAIN)"
+      }
+    },
+    "empty": {
+      "title": "No conclusions available",
+      "desc": "No statements or schema structures have been analyzed yet.",
+      "findingsDesc": "No findings detected or no schema available for verification.",
+      "planDesc": "No execution plan found (no SELECT statement executed or EXPLAIN requested)."
+    }
   }
 }

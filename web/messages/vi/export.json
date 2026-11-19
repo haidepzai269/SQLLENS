@@ -26,5 +26,77 @@
     "prepare": "Đang chuẩn bị sơ đồ…",
     "capture": "Đang chụp sơ đồ…",
     "encode": "Đang tạo ảnh PNG…"
+  },
+  "audit": {
+    "title": "Báo cáo kiểm toán cơ sở dữ liệu",
+    "subtitle": "Phân tích cấu trúc schema và kế hoạch thực thi trong môi trường Sandbox",
+    "printButton": "In báo cáo (A4)",
+    "backButton": "Quay lại Lab",
+    "pageIndicator": "Trang {current}/{total}",
+    "disclaimer": "Báo cáo này được tạo tự động từ kết quả chạy trong môi trường Sandbox của SQLLens. Mọi kết luận chỉ có giá trị trong phạm vi dữ liệu và kịch bản thử nghiệm.",
+    "branding": "SQLLens Database Audit Report",
+    "metadata": {
+      "project": "Dự án",
+      "engine": "Engine",
+      "date": "Ngày tạo",
+      "tables": "Số bảng",
+      "statements": "Số câu lệnh",
+      "environment": "Môi trường",
+      "environmentVal": "Sandbox (Client-side)"
+    },
+    "healthScore": {
+      "title": "Điểm sức khỏe cơ sở dữ liệu",
+      "subtitle": "Database Health Score",
+      "desc": "Điểm số ước lượng dựa trên 8 luật kiểm toán rủi ro cấu trúc và truy vấn trong sandbox SQLLens. Điểm số này không đồng nghĩa thiết kế an toàn cho môi trường production.",
+      "noScore": "--",
+      "outOf": "/ 100",
+      "statusEstimated": "Ước lượng",
+      "statusNotSimulated": "Chưa mô phỏng"
+    },
+    "summary": {
+      "title": "Tóm tắt mức độ rủi ro",
+      "broken": "Hỏng ở kịch bản này",
+      "brokenDesc": "Lỗi cấu trúc hoặc truy vấn chắc chắn gây suy giảm nghiêm trọng.",
+      "unverified": "Chưa xác nhận / Ước lượng",
+      "unverifiedDesc": "Rủi ro tiềm ẩn hoặc cần thêm dữ liệu để kiểm chứng.",
+      "notBroken": "Không hỏng ở kịch bản này",
+      "notBrokenDesc": "Không phát hiện lỗi trong các kịch bản đã thử (Lưu ý: Không đồng nghĩa thiết kế này ổn)."
+    },
+    "scope": {
+      "title": "Phạm vi kiểm toán (8 luật SQLLens)",
+      "desc": "Kiểm tra khóa chính, khóa ngoại thiếu index, kiểu float lưu tiền, varchar quá dài, hàm trên cột có index, like đầu wildcard, composite index sai thứ tự, ép kiểu ngầm."
+    },
+    "findings": {
+      "title": "Chi tiết rủi ro & bằng chứng",
+      "subtitle": "Danh sách các phát hiện từ cấu trúc schema và câu lệnh đã chạy",
+      "count": "{count} rủi ro được phát hiện",
+      "colSeverity": "Mức độ",
+      "colRule": "Luật & Đối tượng",
+      "colEvidence": "Bằng chứng kỹ thuật",
+      "colLabel": "Nhãn",
+      "moreFindings": "Đang hiển thị {shown}/{total} rủi ro nghiêm trọng nhất. Xem toàn bộ trong tab Findings của SQLLens."
+    },
+    "plan": {
+      "title": "Kế hoạch thực thi truy vấn",
+      "subtitle": "Chi tiết các bước thực thi (Query Execution Plan)",
+      "queryLabel": "Câu truy vấn được phân tích",
+      "colStep": "Bước thực thi",
+      "colDetails": "Điều kiện / Bộ lọc",
+      "colRows": "Số dòng (Thật / Ước lượng)",
+      "colCost": "Chi phí / Trang",
+      "metrics": {
+        "actualRows": "Dòng thực tế",
+        "estimatedRows": "Dòng ước lượng",
+        "pagesRead": "Trang đã đọc",
+        "analyzed": "Đã chạy thật (ANALYZE)",
+        "notAnalyzed": "Chỉ ước lượng (EXPLAIN)"
+      }
+    },
+    "empty": {
+      "title": "Chưa có kết luận",
+      "desc": "Chưa có câu lệnh hoặc cấu trúc nào được phân tích.",
+      "findingsDesc": "Chưa phát hiện rủi ro nào hoặc chưa có schema để kiểm tra.",
+      "planDesc": "Không tìm thấy kế hoạch thực thi (chưa chạy câu SELECT hoặc chưa có lệnh EXPLAIN)."
+    }
   }
 }

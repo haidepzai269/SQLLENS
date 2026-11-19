@@ -1,0 +1,214 @@
+/* Bố cục in ấn A4 chuẩn cho SQLLens Audit Report */
+
+@page {
+  size: A4 portrait;
+  margin: 14mm;
+}
+
+/* Khung hiển thị xem trước trên màn hình (Screen Preview) */
+.report-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 24px 16px;
+  background-color: var(--color-ground, #090d16);
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+/* Thanh công cụ xem trước */
+.report-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 210mm;
+  padding: 10px 16px;
+  background-color: var(--color-surface, #151b28);
+  border: 1px solid var(--color-line, #283347);
+  border-radius: 8px;
+  color: var(--color-text, #f1f5f9);
+}
+
+/* Định nghĩa trang báo cáo A4 */
+.report-page {
+  box-sizing: border-box;
+  width: 210mm;
+  min-height: 297mm;
+  max-height: 297mm;
+  height: 297mm;
+  padding: 14mm;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  border: 1px solid #cbd5e1;
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  position: relative;
+  page-break-after: always;
+  break-after: page;
+}
+
+.report-page:last-of-type {
+  page-break-after: auto;
+  break-after: auto;
+}
+
+/* Chống cắt đôi card / hàng bảng giữa các trang in */
+.avoid-break {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+}
+
+/* Header & Footer trang in */
+.report-page-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid #e2e8f0;
+  margin-bottom: 12px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.report-page-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.report-page-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 12px;
+  font-size: 9px;
+  line-height: 1.35;
+  color: #64748b;
+}
+
+/* Đảm bảo tương phản cao (High Contrast) cho các nhãn kết luận trên nền trang in trắng A4 (cả Preview và Print) */
+.report-page [data-testid="conclusion-badge"],
+.report-page [data-testid="finding-label"],
+.report-page [data-testid="health-score-badge"],
+.report-page [data-testid="plan-label-badge"] {
+  font-weight: 600 !important;
+  border-radius: 3px !important;
+  padding: 1px 7px !important;
+  font-size: 10.5px !important;
+  line-height: 1.4 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.report-page [data-label="real"] {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border: 1px solid #475569 !important;
+}
+
+.report-page [data-label="simulated"] {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border: 1px solid #334155 !important;
+}
+
+.report-page [data-label="estimated"] {
+  background-color: #fffbeb !important;
+  color: #92400e !important;
+  border: 1px dashed #d97706 !important;
+  font-style: italic !important;
+}
+
+.report-page [data-label="not_simulated"] {
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+/* Khi in ấn thực tế bằng trình duyệt (@media print) */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: var(--font-public-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  }
+
+  /* Ẩn các thành phần giao diện không thuộc nội dung in */
+  header,
+  nav,
+  #app-header,
+  .no-print,
+  [data-no-print],
+  button {
+    display: none !important;
+  }
+
+  #content {
+    overflow: visible !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .report-preview-container {
+    padding: 0 !important;
+    gap: 0 !important;
+    background: transparent !important;
+    min-height: auto !important;
+    width: 100% !important;
+  }
+
+  .report-page {
+    width: 182mm !important; /* 210mm - 2*14mm */
+    max-width: 182mm !important;
+    height: 269mm !important; /* 297mm - 2*14mm */
+    max-height: 269mm !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+  }
+
+  .report-page:last-of-type {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
