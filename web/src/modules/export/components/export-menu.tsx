@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { Download, FileCode, Image as ImageIcon, Loader2, X } from "lucide-react";
+import { Download, FileCode, Image as ImageIcon, Loader2, Network, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { TableInfo } from "@/modules/data-lab/generate/plan-data";
+import { exportBTreeSvg, findBTreeSvg } from "@/modules/export/capture/btree-svg";
 import { captureErdPng, ErdCaptureError, type ErdCaptureStep } from "@/modules/export/capture/erd-png";
 import { serializeSchema } from "@/modules/export/sql-serializer";
 import type { ColumnSpec, ForeignKeySpec, TableSpec } from "@/modules/export/types";
@@ -97,6 +98,10 @@ export function getErdFileName(projectName: string | undefined, now: Date): stri
   return `${sanitizeFileName(projectName)}-erd-${formatExportTimestamp(now)}.png`;
 }
 
+export function getBTreeFileName(projectName: string | undefined, now: Date): string {
+  return `${sanitizeFileName(projectName)}-btree-${formatExportTimestamp(now)}.svg`;
+}
+
 /** Một chỗ duy nhất cho việc tải file: 100% client-side, 0 byte gửi mạng (Core Rule 7). */
 export function saveBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
@@ -124,9 +129,13 @@ export function ExportMenu({
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [pngStep, setPngStep] = useState<ErdCaptureStep | null>(null);
+  const [svgBusy, setSvgBusy] = useState(false);
+  // Tab B-Tree giữ mounted nhưng cây chỉ tồn tại sau khi người dùng mở tab và chọn chỉ mục.
+  // Kiểm lại mỗi lần mở menu thay vì đọc DOM lúc render.
+  const [treeReady, setTreeReady] = useState(false);
   // Giữ nguyên câu thông báo (không phải mã trạng thái) để live region đọc đúng lý do thất bại.
   const [lastNotice, setLastNotice] = useState<string | null>(null);
-  const busy = isExporting || pngStep !== null;
+  const busy = isExporting || pngStep !== null || svgBusy;
   const pngStepText = pngStep ? t(`pngStep.${pngStep}`) : null;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -195,16 +204,25 @@ export function ExportMenu({
     return () => clearTimeout(timer);
   }, [isOpen]);
 
+  const openMenu = () => {
+    setTreeReady(findBTreeSvg() !== null);
+    setIsOpen(true);
+  };
+
   const handleTriggerClick = () => {
     if (disabled) return;
-    setIsOpen((prev) => !prev);
+    if (isOpen) {
+      setIsOpen(false);
+      return;
+    }
+    openMenu();
   };
 
   const handleTriggerKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
     if (disabled) return;
     if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      setIsOpen(true);
+      openMenu();
     }
   };
 
@@ -267,6 +285,34 @@ export function ExportMenu({
     }
   };
 
+  const handleDownloadSvg = () => {
+    if (busy) return;
+
+    const svg = findBTreeSvg();
+    if (!svg) {
+      setTreeReady(false);
+      setLastNotice(t("svgNotFound"));
+      toast.error(t("svgNotFound"));
+      return;
+    }
+
+    setSvgBusy(true);
+    setLastNotice(null);
+    try {
+      const title = t("svgTitle", { name: projectName?.trim() || "SQLLens" });
+      saveBlob(exportBTreeSvg(svg, { title }), getBTreeFileName(projectName, new Date()));
+      setLastNotice(t("svgDone"));
+      toast.success(t("svgDone"));
+      closeMenu();
+      triggerRef.current?.focus();
+    } catch {
+      setLastNotice(t("svgFailed"));
+      toast.error(t("svgFailed"));
+    } finally {
+      setSvgBusy(false);
+    }
+  };
+
   const handleDownloadPng = async () => {
     if (busy || isEmpty) return;
 
@@ -317,6 +363,7 @@ export function ExportMenu({
         data-testid="export-status"
       >
         {isExporting && t("exporting")}
+        {svgBusy && t("svgWorking")}
         {pngStepText}
         {!busy && lastNotice}
       </div>
@@ -394,6 +441,35 @@ export function ExportMenu({
                   </span>
                   <span className="text-[11px] text-muted-foreground">
                     {isEmpty ? t("disabledEmpty") : t("sqlDescription")}
+                  </span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                disabled={!treeReady || busy}
+                aria-disabled={!treeReady || busy}
+                title={!treeReady ? t("svgDisabled") : t("svg")}
+                onClick={handleDownloadSvg}
+                className={cn(
+                  "group flex w-full items-start gap-2.5 rounded-lg p-2 text-left transition-colors",
+                  !treeReady || busy
+                    ? "cursor-not-allowed opacity-50 bg-muted/20"
+                    : "hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                )}
+                data-testid="export-svg-item"
+              >
+                <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  {svgBusy ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Network className="size-3.5" aria-hidden="true" />
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col">
+                  <span className="text-xs font-medium text-foreground">{svgBusy ? t("svgWorking") : t("svg")}</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {!treeReady ? t("svgDisabled") : t("svgDescription")}
                   </span>
                 </div>
               </button>

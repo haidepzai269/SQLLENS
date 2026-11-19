@@ -1,0 +1,87 @@
+[
+  {
+    "name": "nhãn tiếng Việt của mục SVG",
+    "pass": true,
+    "detail": "Tải cây B-Tree (SVG) | Vector phóng to không vỡ, dùng cho slide và tài liệu kỹ thuật"
+  },
+  {
+    "name": "mục SVG bật khi có cây",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "tên file đúng mẫu <dự án>-btree-<YYYYMMDD-HHmm>.svg",
+    "pass": true,
+    "detail": "Mặc-định-btree-20261119-2203.svg"
+  },
+  {
+    "name": "AC1 file SVG mở được, đúng namespace + viewBox",
+    "pass": true,
+    "detail": "272×78 0 0 272 78"
+  },
+  {
+    "name": "AC2 không mất node/nhãn/đường nối",
+    "pass": true,
+    "detail": "nodes=1/1 keys=4 edges=0/0"
+  },
+  {
+    "name": "AC3 là vector thật, không ảnh nhúng",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "AC4 có title + desc",
+    "pass": true,
+    "detail": "Cây B-Tree — Mặc định | Index idx_orders_user trên public.orders(user_id). Query quét toàn bảng bằng Seq Scan, index idx_orders_user trên bảng orders không được dùng."
+  },
+  {
+    "name": "AC6 0 request mạng (không thể phát sinh từ file tĩnh)",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "style nhúng: không class, nét/chữ có màu + font thật",
+    "pass": true,
+    "detail": "fill=rgb(19, 18, 23) stroke=rgb(58, 58, 62) font=\"JetBrains Mono\", \"JetBrains Mono Fallback\", \"JetBrains Mono\", \"Cascadia Mono\", Consolas, \"DejaVu Sans Mono\", \"Noto Sans Mono\", monospace 12.5px"
+  },
+  {
+    "name": "nền tối lấy từ stage (không trong suốt)",
+    "pass": true,
+    "detail": "rgb(14, 14, 16)"
+  },
+  {
+    "name": "cây đang làm mờ: file giữ đúng độ mờ và desc nêu lý do (không để cây mờ vô cớ)",
+    "pass": true,
+    "detail": "dimmed=3 opacity=0.22 notice=\"Query quét toàn bảng bằng Seq Scan, inde…\""
+  },
+  {
+    "name": "không còn tabindex/role nút bên trong",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "AC5 đang animation vẫn xuất tĩnh, không lẫn viên bi/heap",
+    "pass": true,
+    "detail": "playing=1 overlays=0 nodes=1"
+  },
+  {
+    "name": "mở lại menu: mục SVG vẫn bật",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "theme sáng: nền file sáng, chữ vẫn đọc được",
+    "pass": true,
+    "detail": "bg=rgb(241, 242, 244) text=rgb(55, 65, 81)"
+  },
+  {
+    "name": "chưa có cây: mục SVG tắt kèm lý do",
+    "pass": true,
+    "detail": "Mở tab B-Tree và chọn một chỉ mục trước"
+  },
+  {
+    "name": "bản tiếng Anh có mục B-Tree SVG",
+    "pass": true,
+    "detail": ""
+  }
+]
