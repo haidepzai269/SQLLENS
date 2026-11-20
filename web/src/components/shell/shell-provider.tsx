@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { usePathname } from "@/i18n/navigation";
 import { AuthProvider } from "@/modules/auth/auth-provider";
-import { isBareRoute } from "./bare-routes";
+import { isAuthFreeRoute } from "./bare-routes";
 import { defaultState, sanitize, STORAGE_KEY, toggleZone, type LayoutState, type SizedZone, type Zone } from "./layout-state";
 
 type Shell = {
@@ -28,7 +28,8 @@ export const useShell = () => {
 export function ShellProvider({ children }: { children: React.ReactNode }) {
   // /share không có header/workspace nên không cần phiên đăng nhập; gọi /api/me ở đó
   // sẽ làm trang người nhận phụ thuộc backend dù dữ liệu đã nằm trong fragment.
-  const bare = isBareRoute(usePathname());
+  // /login và /about vẫn phải có AuthProvider: LoginPage gọi useAuth().
+  const authFree = isAuthFreeRoute(usePathname());
   const [state, setState] = useState<LayoutState>(defaultState);
   const [ready, setReady] = useState(false);
   const [hasWorkspace, setHasWorkspace] = useState(false);
@@ -68,7 +69,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   return (
     <Ctx.Provider value={value}>
       <TooltipProvider delay={400}>
-        {bare ? children : <AuthProvider>{children}</AuthProvider>}
+        {authFree ? children : <AuthProvider>{children}</AuthProvider>}
       </TooltipProvider>
     </Ctx.Provider>
   );
