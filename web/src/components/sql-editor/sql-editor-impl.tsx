@@ -1,5 +1,6 @@
 "use client";
 
+import { EditorState } from "@codemirror/state";
 import { sql } from "@codemirror/lang-sql";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
@@ -133,6 +134,7 @@ export default function SqlEditorImpl({
   error,
   highlight: hl,
   ariaLabel,
+  readOnly = false,
   onRun,
   onSelectionChange,
   schema,
@@ -145,9 +147,10 @@ export default function SqlEditorImpl({
   onEditorReady,
 }: SqlEditorProps) {
   const settings = useSafeSettings();
-  const isAutocompleteEnabled = dropdownAutocomplete ?? settings.dropdownAutocomplete;
-  const isGhostTextEnabled = ghostTextEnabled ?? settings.ghostTextEnabled;
-  const isAiCopilotEnabled = aiCopilotEnabled ?? settings.aiCopilotEnabled;
+  // Trang chỉ đọc không gợi ý gì: ghost text AI có thể gọi mạng, mà snapshot không được rời máy.
+  const isAutocompleteEnabled = !readOnly && (dropdownAutocomplete ?? settings.dropdownAutocomplete);
+  const isGhostTextEnabled = !readOnly && (ghostTextEnabled ?? settings.ghostTextEnabled);
+  const isAiCopilotEnabled = !readOnly && (aiCopilotEnabled ?? settings.aiCopilotEnabled);
   const errId = useId();
   const [view, setView] = useState<EditorView | null>(null);
   const doc = useMemo(() => normalize(value), [value]);
@@ -264,16 +267,26 @@ export default function SqlEditorImpl({
     () =>
       basicSetup({
         foldGutter: false,
-        lineNumbers: settings.lineNumbers,
-        highlightActiveLine: settings.highlightActiveLine,
+        // Snapshot phải đọc được như bản trên màn hình: luôn có số dòng khi chỉ đọc.
+        lineNumbers: readOnly ? true : settings.lineNumbers,
+        highlightActiveLine: readOnly ? false : settings.highlightActiveLine,
         autocompletion: false,
       }),
-    [settings.lineNumbers, settings.highlightActiveLine]
+    [readOnly, settings.lineNumbers, settings.highlightActiveLine]
   );
 
   const extensions = useMemo<Extension[]>(
     () => [
       editorSetup,
+      // `editable(false)` làm contentDOM mất tabindex, click không focus được nên Ctrl+F và
+      // bôi đen bằng bàn phím chết. Giữ tabindex để người nhận vẫn tìm/copy được trong khi không sửa được.
+      ...(readOnly
+        ? [
+            EditorState.readOnly.of(true),
+            EditorView.editable.of(false),
+            EditorView.contentAttributes.of({ tabindex: "0" }),
+          ]
+        : []),
       sql({ dialect: DIALECT[engine], upperCaseKeywords: true }),
       autocompleteExt,
       ghostTextExt,
@@ -304,6 +317,7 @@ export default function SqlEditorImpl({
       fontSizeTheme,
       editorSetup,
       docBridge,
+      readOnly,
     ],
   );
 

@@ -21,6 +21,11 @@ export type SqlEditorProps = {
   /** Tô khoảng [from, to) đếm từ 0 trên `value` và cuộn tới đó; `nonce` đổi thì cuộn lại. */
   highlight?: { from: number; to: number; nonce: number };
   ariaLabel: string;
+  /**
+   * Chế độ chỉ đọc: không gõ/sửa được, tắt autocomplete + ghost text + AI, luôn hiện số dòng.
+   * Trang /share dùng chế độ này để người nhận xem snapshot mà không sửa vào bản gốc.
+   */
+  readOnly?: boolean;
   /** Kích hoạt khi người dùng nhấn Ctrl+Enter hoặc Cmd+Enter. */
   onRun?: (options?: RunScopeOptions) => void;
   /** Kích hoạt khi vùng bôi đen (selection) thay đổi. */

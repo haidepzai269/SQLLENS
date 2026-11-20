@@ -1,0 +1,64 @@
+/*
+ * Trang chia sẻ là bề mặt riêng: nó phải giữ đúng token của prototype kể cả khi
+ * theme chung của app đổi. Token ở đây chỉ áp trong .share-page, không sửa :root.
+ */
+.share-page {
+  --stage: #0e0e10;
+  --lamp: #f2b84b;
+  --radius: 4px;
+  font-family: var(--sans);
+}
+
+/* Theme sáng của app (Settings) vẫn phải đọc được trên trang share. */
+html.light .share-page {
+  --stage: #f1f2f4;
+  --lamp: #b45309;
+}
+
+/* Scrollbar phòng lab: mảnh, không bo tròn. */
+.share-page ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.share-page ::-webkit-scrollbar-track {
+  background: var(--stage);
+}
+
+.share-page ::-webkit-scrollbar-thumb {
+  background: var(--line);
+}
+
+.share-page ::-webkit-scrollbar-thumb:hover {
+  background: var(--control);
+}
+
+/* In trang share ra giấy: không cắt mất SQL, bỏ nút bấm và nền tối. */
+@media print {
+  .share-page {
+    --stage: #ffffff;
+    --surface: #ffffff;
+    --ground: #ffffff;
+    --text: #000000;
+    --ink2: #1f2937;
+    --dim: #4b5563;
+    --line: #d1d5db;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    color-scheme: light;
+  }
+
+  .share-page [data-print-hide] {
+    display: none !important;
+  }
+
+  .share-page .cm-scroller {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .share-page .cm-editor {
+    height: auto !important;
+  }
+}

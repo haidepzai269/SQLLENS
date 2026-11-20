@@ -1,0 +1,106 @@
+{
+  "base": "http://localhost:3213",
+  "shareUrlLength": 346,
+  "results": [
+    {
+      "name": "share URL có fragment #d=",
+      "pass": true,
+      "detail": "346 ký tự"
+    },
+    {
+      "name": "AC1 không request nào chứa payload",
+      "pass": true,
+      "detail": "28 request, rò=0"
+    },
+    {
+      "name": "AC6 0 request sau khi snapshot đã giải mã",
+      "pass": true,
+      "detail": "0 request: "
+    },
+    {
+      "name": "badge + tên dự án đúng",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "có đúng 2 tab, không có nút thêm/đóng",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "AC5 SQL chứa thẻ HTML vẫn là chữ",
+      "pass": true,
+      "detail": "{\"img\":0,\"script\":0,\"flag\":0}"
+    },
+    {
+      "name": "AC2 gõ không làm đổi nội dung",
+      "pass": true,
+      "detail": "86 ký tự"
+    },
+    {
+      "name": "AC2 editor contenteditable=false",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "AC2 Ctrl+F mở ô tìm kiếm",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "AC3 chuyển tab đổi nội dung",
+      "pass": true,
+      "detail": "SELECT '<script>window.__xss=2</script>'"
+    },
+    {
+      "name": "AC3 tab không có nút đóng",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "AC4 sao chép đúng SQL tab đang mở",
+      "pass": true,
+      "detail": "toast=\"Đã sao chép SQL\""
+    },
+    {
+      "name": "ca biên theme sáng: nền sáng, chữ tối",
+      "pass": true,
+      "detail": "{\"bg\":\"rgb(241, 242, 244)\",\"fg\":\"rgb(17, 24, 39)\"}"
+    },
+    {
+      "name": "AC5 390px không tràn ngang, editor cuộn được",
+      "pass": true,
+      "detail": "{\"overflow\":0,\"scroller\":390,\"client\":390}"
+    },
+    {
+      "name": "AC5 bản tiếng Anh",
+      "pass": true,
+      "detail": "Read-only snapshot"
+    },
+    {
+      "name": "AC2 hash hỏng: màn lỗi + mã + nút về trang chủ",
+      "pass": true,
+      "detail": "code=\"Mã lỗi: SNAPSHOT_CORRUPT · dữ liệu không hợp lệ hoặc đã bị cắt\" home=\"/vi\""
+    },
+    {
+      "name": "AC3 không #d= hiện missing",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "ca biên: hash có tham số khác vẫn đọc được d",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "AC4 Referrer-Policy: no-referrer",
+      "pass": true,
+      "detail": "no-referrer"
+    },
+    {
+      "name": "không có lỗi console trên trang share",
+      "pass": true,
+      "detail": ""
+    }
+  ]
+}

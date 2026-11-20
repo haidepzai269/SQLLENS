@@ -18,6 +18,14 @@ function apiOrigin(): string {
 }
 
 const nextConfig: NextConfig = {
+  // Snapshot nằm trong fragment nên trình duyệt không gửi nó đi; referrer của trang share
+  // vẫn có thể mang theo URL cho bên thứ ba (ảnh, font). Cắt referrer để link không rò rỉ.
+  headers: async () => [
+    {
+      source: "/:locale(vi|en)/share",
+      headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+    },
+  ],
   // /lab cũ về màn hình chính; Next giữ nguyên query khi chuyển hướng.
   redirects: async () => [{ source: "/:locale(vi|en)/lab", destination: "/:locale", permanent: false }],
   rewrites: async () => [{ source: "/api/:path*", destination: `${apiOrigin()}/:path*` }],
