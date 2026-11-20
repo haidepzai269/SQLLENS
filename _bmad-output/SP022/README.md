@@ -13,7 +13,7 @@ Quyết định của chủ dự án: nhúng payload vào URL (gzip + base64url 
 | **STR099** | `Task144` | Share dialog: sao chép link, cảnh báo, đường lui khi link quá dài | Amelia | Hoàn thành 100% |
 | **STR100** | `Task145` | Route `/share` đọc fragment, trạng thái lỗi, chặn referrer | Amelia | Hoàn thành 100% |
 | **STR100** | `Task146` | Renderer chỉ đọc bám prototype | Amelia | Hoàn thành 100% |
-| **STR101** | `Task147` | Fork snapshot vào workspace | Amelia | Chờ thực hiện |
+| **STR101** | `Task147` | Fork snapshot vào workspace | Amelia | Hoàn thành 100% |
 | **STR101** | `Task148` | Chạy thử snapshot ngay trên trang share | Amelia | Chờ thực hiện |
 
 ## Hợp đồng payload dùng chung
