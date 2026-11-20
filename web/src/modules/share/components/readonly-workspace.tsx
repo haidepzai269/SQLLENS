@@ -9,11 +9,22 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, Lock } from "lucide-react";
+import { Check, Copy, GitFork, Loader2, Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import { SqlEditor } from "@/components/sql-editor/sql-editor";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { EngineId } from "@/contracts/engine";
+import { useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
+import {
+  ForkError,
+  forkSnapshot,
+  hasForkedSnapshot,
+  resolveWorkspaceScope,
+  snapshotFingerprint,
+  type ForkErrorCode,
+} from "../fork";
 import type { SnapshotV1 } from "../snapshot";
 
 const ENGINE_LABEL: Record<SnapshotV1["project"]["engine"], string> = {
@@ -52,8 +63,13 @@ async function copyToClipboard(text: string): Promise<boolean> {
 
 export function ReadonlyWorkspace({ snapshot }: { snapshot: SnapshotV1 }) {
   const t = useTranslations("share");
+  const router = useRouter();
   const [activeIndex, setActiveIndex] = useState(0);
   const [notice, setNotice] = useState<{ kind: "copied" | "failed"; nonce: number } | null>(null);
+  const [forking, setForking] = useState(false);
+  const [forkError, setForkError] = useState<ForkErrorCode | null>(null);
+  // Lần fork thứ hai trong cùng trình duyệt phải hỏi lại, không im lặng nhân bản (AC3).
+  const [confirmFork, setConfirmFork] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tabs = snapshot.tabs;
@@ -72,6 +88,39 @@ export function ReadonlyWorkspace({ snapshot }: { snapshot: SnapshotV1 }) {
     setNotice({ kind: ok ? "copied" : "failed", nonce: Date.now() });
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setNotice(null), 2500);
+  };
+
+  const forkErrorMessage = (code: ForkErrorCode) => {
+    if (code === "FORK_QUOTA_EXCEEDED") return t("view.forkErrorQuota");
+    if (code === "FORK_STORAGE_UNAVAILABLE") return t("view.forkErrorStorage");
+    return t("view.forkError");
+  };
+
+  // Scope được hỏi đúng lúc bấm Fork: trang /share không gọi /api/me khi tải.
+  const runFork = async () => {
+    setForking(true);
+    setForkError(null);
+    try {
+      const scope = await resolveWorkspaceScope();
+      const result = await forkSnapshot(snapshot, scope, { suffix: t("view.forkSuffix") });
+      setConfirmFork(false);
+      // Toaster toàn cục, nên thông báo sống qua bước điều hướng về workspace.
+      toast.success(t("view.forkDone", { count: result.tabs }));
+      router.push("/");
+    } catch (err) {
+      setForkError(err instanceof ForkError ? err.code : "FORK_FAILED");
+      setConfirmFork(false);
+    } finally {
+      setForking(false);
+    }
+  };
+
+  const handleForkClick = () => {
+    if (hasForkedSnapshot(snapshotFingerprint(snapshot))) {
+      setConfirmFork(true);
+      return;
+    }
+    void runFork();
   };
 
   return (
@@ -101,7 +150,7 @@ export function ReadonlyWorkspace({ snapshot }: { snapshot: SnapshotV1 }) {
 
           <span
             data-testid="readonly-badge"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xs border border-severity-uncertain/40 bg-severity-uncertain-bg px-2 py-0.5 font-mono text-[11px] text-severity-uncertain-foreground"
+            className="hidden shrink-0 items-center gap-1.5 rounded-xs border border-severity-uncertain/40 bg-severity-uncertain-bg px-2 py-0.5 font-mono text-[11px] text-severity-uncertain-foreground sm:inline-flex"
           >
             <span className="size-1.5 rounded-full bg-severity-uncertain" aria-hidden="true" />
             {t("view.badge")}
@@ -120,7 +169,34 @@ export function ReadonlyWorkspace({ snapshot }: { snapshot: SnapshotV1 }) {
           </span>
         </div>
 
-        <p className="sr-only">{t("view.readOnlyNote")}</p>
+        <div className="flex shrink-0 items-center gap-2">
+          <p className="sr-only">{t("view.readOnlyNote")}</p>
+          {forkError && (
+            <span
+              role="alert"
+              data-testid="share-fork-error"
+              className="hidden max-w-[240px] truncate text-[11px] text-negative sm:inline"
+            >
+              {forkErrorMessage(forkError)}
+            </span>
+          )}
+          <button
+            type="button"
+            data-testid="share-fork-btn"
+            data-print-hide
+            onClick={handleForkClick}
+            disabled={forking}
+            aria-busy={forking || undefined}
+            className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius)] border border-lamp/60 bg-lamp/10 px-2.5 text-xs font-medium text-lamp transition-colors hover:bg-lamp/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-lamp disabled:opacity-60"
+          >
+            {forking ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+            ) : (
+              <GitFork className="size-3.5" aria-hidden="true" />
+            )}
+            <span>{forking ? t("view.forking") : t("view.fork")}</span>
+          </button>
+        </div>
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col">
@@ -196,6 +272,34 @@ export function ReadonlyWorkspace({ snapshot }: { snapshot: SnapshotV1 }) {
           )}
         </div>
       </div>
+
+      <Dialog open={confirmFork} onOpenChange={setConfirmFork}>
+        <DialogContent data-testid="share-fork-confirm" className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("view.forkAgainTitle")}</DialogTitle>
+            <DialogDescription>{t("view.forkAgainBody")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              type="button"
+              data-testid="share-fork-cancel"
+              onClick={() => setConfirmFork(false)}
+              className="inline-flex h-8 items-center rounded-[var(--radius)] border border-line bg-ground px-3 text-xs text-text transition-colors hover:bg-raised focus:outline-none focus-visible:ring-1 focus-visible:ring-lamp"
+            >
+              {t("view.forkAgainCancel")}
+            </button>
+            <button
+              type="button"
+              data-testid="share-fork-confirm-btn"
+              onClick={() => void runFork()}
+              disabled={forking}
+              className="inline-flex h-8 items-center rounded-[var(--radius)] bg-lamp px-3 text-xs font-semibold text-stage transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-1 focus-visible:ring-lamp disabled:opacity-60"
+            >
+              {t("view.forkAgainConfirm")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div
         role="status"

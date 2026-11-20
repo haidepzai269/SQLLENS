@@ -69,6 +69,8 @@ export interface WorkspaceRepository {
   listProjects(scope: WorkspaceScope): Promise<WorkspaceProject[]>;
   getProject(id: string): Promise<WorkspaceProject | undefined>;
   upsertProject(record: WorkspaceProject): Promise<void>;
+  /** Ghi dự án và toàn bộ tab trong một transaction: dùng cho Fork snapshot (Task147). */
+  putProjectWithTabs(project: WorkspaceProject, tabs: WorkspaceTab[]): Promise<void>;
   deleteProjectCascade(id: string): Promise<void>;
   listTabs(projectId: string): Promise<WorkspaceTab[]>;
   upsertTab(tab: WorkspaceTab): Promise<void>;
@@ -96,6 +98,16 @@ export function getRepository(db: IDBDatabase): WorkspaceRepository {
     upsertProject(record) {
       return runTx(db, [STORE_PROJECTS], "readwrite", async (tx) => {
         await requestDone(tx.objectStore(STORE_PROJECTS).put(record));
+      });
+    },
+
+    // Một transaction cho cả dự án và các tab: lỗi quota giữa chừng sẽ abort toàn bộ,
+    // không để lại dự án rỗng hoặc tab mồ côi (Task147 AC: fork không tạo nửa vời).
+    putProjectWithTabs(project, tabs) {
+      return runTx(db, [STORE_PROJECTS, STORE_TABS], "readwrite", async (tx) => {
+        await requestDone(tx.objectStore(STORE_PROJECTS).put(project));
+        const store = tx.objectStore(STORE_TABS);
+        for (const tab of tabs) await requestDone(store.put(tab));
       });
     },
 

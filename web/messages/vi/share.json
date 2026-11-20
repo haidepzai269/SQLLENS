@@ -30,6 +30,17 @@
     "copyFailed": "Không sao chép được — hãy bôi đen rồi nhấn Ctrl+C",
     "emptyTab": "Tab này không có nội dung",
     "noTabs": "Snapshot này không có tab nào",
-    "readOnlyNote": "Bản chỉ đọc. Nội dung do người gửi tạo, chỉ đọc trên máy bạn."
+    "readOnlyNote": "Bản chỉ đọc. Nội dung do người gửi tạo, chỉ đọc trên máy bạn.",
+    "fork": "Thêm vào workspace",
+    "forking": "Đang thêm…",
+    "forkSuffix": " (bản sao)",
+    "forkDone": "Đã thêm vào workspace ({count} tab)",
+    "forkError": "Không thêm được snapshot này vào workspace",
+    "forkErrorQuota": "Bộ nhớ trình duyệt đã đầy nên chưa thêm được. Hãy xoá bớt dự án cũ rồi thử lại.",
+    "forkErrorStorage": "Trình duyệt đang chặn lưu nháp (chế độ riêng tư?), nên chưa thêm được.",
+    "forkAgainTitle": "Bạn đã thêm liên kết này trước đó",
+    "forkAgainBody": "Snapshot này đã được fork một lần trong trình duyệt này. Vẫn thêm một bản nữa?",
+    "forkAgainConfirm": "Vẫn thêm",
+    "forkAgainCancel": "Hủy"
   }
 }
