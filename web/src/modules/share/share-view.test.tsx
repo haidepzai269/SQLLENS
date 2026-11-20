@@ -8,13 +8,16 @@ import { bytesToBase64Url, encodeSnapshot } from "./codec";
 import { extractPayload, ShareView } from "./share-view";
 import type { SnapshotV1 } from "./snapshot";
 
-// Vite không phân giải được `next/navigation` qua junction node_modules; test chỉ cần một thẻ a.
+// Vite không phân giải được `next/navigation` qua junction node_modules; test chỉ cần một thẻ a
+// và router giả (ReadonlyWorkspace dùng useRouter cho nút Fork ở Task147).
 vi.mock("@/i18n/navigation", () => ({
   Link: ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
     <a href={href} {...rest}>
       {children}
     </a>
   ),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  usePathname: () => "/share",
 }));
 
 function renderView(locale: "vi" | "en" = "vi") {

@@ -30,6 +30,17 @@
     "copyFailed": "Couldn't copy — select the text and press Ctrl+C",
     "emptyTab": "This tab has no content",
     "noTabs": "This snapshot has no tabs",
-    "readOnlyNote": "Read-only. The content comes from the sender and is read on your machine only."
+    "readOnlyNote": "Read-only. The content comes from the sender and is read on your machine only.",
+    "fork": "Add to workspace",
+    "forking": "Adding…",
+    "forkSuffix": " (fork)",
+    "forkDone": "Added to workspace ({count} tabs)",
+    "forkError": "Could not add this snapshot to your workspace",
+    "forkErrorQuota": "Browser storage is full, so the snapshot was not added. Delete an old project and try again.",
+    "forkErrorStorage": "Your browser is blocking local drafts (private mode?), so the snapshot was not added.",
+    "forkAgainTitle": "You already added this link",
+    "forkAgainBody": "This snapshot was forked once in this browser. Add another copy anyway?",
+    "forkAgainConfirm": "Add anyway",
+    "forkAgainCancel": "Cancel"
   }
 }

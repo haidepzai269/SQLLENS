@@ -3,6 +3,7 @@
 
 import { createAutosave, type Autosave } from "./autosave";
 import { openWorkspaceDb } from "./db";
+import { clearPendingProject, peekPendingProject } from "./pending-project";
 import { getRepository, type WorkspaceRepository } from "./repository";
 import { useWorkspaceStore } from "./store";
 import {
@@ -16,6 +17,8 @@ export interface BootWorkspaceOptions {
   factory?: IDBFactory;
   initialSql?: string;
   delayMs?: number;
+  /** Nguồn id dự án cần mở (Fork từ /share ghi vào sessionStorage); test truyền storage giả. */
+  sessionStorage?: Storage;
 }
 
 interface WorkspaceSession {
@@ -144,7 +147,16 @@ export async function bootWorkspace(
       const tabLists = await Promise.all(projects.map((p) => repo!.listTabs(p.id)));
       tabs = tabLists.flat();
 
-      activeProjectId = projects[0].id;
+      // Fork từ /share ghi lại id dự án vừa tạo; chỉ mở và chỉ dọn khi nó thuộc scope đang nạp.
+      // Lab boot hai lần (guest trước, user sau khi /api/me xong), nên lần boot không khớp scope
+      // phải giữ nguyên dấu chờ cho lần sau.
+      const pending = peekPendingProject(options?.sessionStorage);
+      if (pending && projects.some((p) => p.id === pending)) {
+        activeProjectId = pending;
+        clearPendingProject(pending, options?.sessionStorage);
+      } else {
+        activeProjectId = projects[0].id;
+      }
       const activeProjectTabs = tabs.filter((t) => t.projectId === activeProjectId);
 
       if (activeProjectTabs.length === 0) {

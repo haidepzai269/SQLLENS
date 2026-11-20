@@ -1,0 +1,27 @@
+{
+  "task": "Task147",
+  "env": "Chrome 157.0.8103.52 qua Playwright, bản next build + next start tại máy (port 3999), API_ORIGIN trỏ tới 127.0.0.1:8080 (Gin không chạy)",
+  "harness": "web/.tmp-verify-fork.mjs (script tạm, không commit)",
+  "data": {
+    "projectName": "E-Commerce Deadlock Test",
+    "landedUrl": "http://127.0.0.1:3999/vi",
+    "toastShown": true,
+    "switcherText": "E-Commerce Deadlock Test (bản sao)\\nPG",
+    "payloadLeaked": false,
+    "survivesReload": true,
+    "sqlAfterReload": true,
+    "confirmDialog": true,
+    "confirmClosedOnCancel": true,
+    "forkBtnVisible390": true,
+    "overflow390": false,
+    "mobileHasDialog": false
+  },
+  "ghiChu": [
+    "Fork xong điều hướng về /vi và dự án đang mở đúng tên '<tên gốc> (bản sao)' (đọc từ nút chuyển dự án).",
+    "Không request nào mang payload (so 24 ký tự đầu của #d=) trong toàn bộ lượt chạy.",
+    "F5 vẫn còn dự án fork và SQL của tab đầu, nên dữ liệu đã ghi thật vào IndexedDB.",
+    "Fork lần hai mở hộp thoại 'Bạn đã thêm liên kết này trước đó'; bấm Hủy đóng đúng.",
+    "390px: nút 'Thêm vào workspace' hiện, không tràn ngang; badge 'Snapshot chỉ đọc' ẩn dưới sm để nhường chỗ.",
+    "consoleErrors chỉ gồm 500 của /api/me (Gin tắt) và wasm PGlite 500 rồi fallback ArrayBuffer — lỗi có sẵn trên main, không liên quan Fork."
+  ]
+}
