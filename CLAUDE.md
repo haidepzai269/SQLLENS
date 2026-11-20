@@ -262,6 +262,12 @@ Parser và luật kiểm tra viết bằng TypeScript ở frontend, dùng chung 
 - Quy ước số trong `Plan` (Task046): `actualRows` là tổng qua mọi vòng lặp, `estimatedRows` là ước lượng mỗi lần chạy nút, `pagesRead` là của riêng nút, tức buffers của nút trừ buffers các con. `nextval` không hoàn tác khi `explain` chạy câu ghi dữ liệu rồi rollback.
 - PGlite 0.5.14 đọc `infinity` thành `Invalid Date` và mất cả dấu, nên `roles.ts` đặt `parsers` riêng cho date, timestamp, timestamptz và kiểu mảng của chúng. `affectedRows` của PGlite cộng dồn qua các câu trong một lần `exec`, nên lấy `rowCount` của từng câu (Task027).
 - PGlite 0.5.14 treo mãi, không báo lỗi, khi tải WASM thất bại. Vì vậy `web/src/engines/postgres/adapter.ts` tự tải file rồi truyền vào `PGlite.create`. Khi nâng PGlite hoặc đổi chỗ file này phải kiểm lại đường dẫn.
+- Chạy thử snapshot trên trang share (Task148), đo trong Google Chrome thật trên bản `next build` + `next start`, 1440×900:
+  - Snapshot 3 tab Postgres, chạy tab thứ ba (2 tab trước dựng bảng + nạp dữ liệu trên cùng phiên): **2.959 ms** từ lúc bấm tới khi có bảng kết quả, gồm lần tải WASM PGlite đầu tiên. Vùng kết quả 1280×186 px, không tràn ngang.
+  - Câu treo `generate_series(1, 20000000)` bị ngắt sau **4.501 ms** tính cả lần tải WASM đầu; riêng câu SQL bị cắt đúng hạn **1.500 ms**. 390×844: `scrollWidth` 390 = `innerWidth` 390, bảng kết quả 366/366 px.
+  - **0 request tới `/api/*`, 0 request mang payload**, mọi request chỉ tới chính origin của trang. Đây là số đo cho AC4 (Core Rule 7) của Task148.
+- **Bẫy đã gặp ở Task148:** `createPostgresAdapter`/`createSqliteAdapter` **không nhận `AbortSignal`** — chúng tự tải WASM với hạn riêng 30 giây. Vì vậy "hủy" một lượt chạy phải đua `create()` với tín hiệu hủy (`Promise.race`) và `dispose()` adapter về muộn; chỉ gọi `db.cancel()` sau khi `await create()` là nút Hủy chết trong suốt lúc tải (reviewer đo: bấm Hủy ở 223 ms vẫn phải chờ thêm 23.907 ms). Sau khi sửa: **114 ms**.
+- `SnapshotRunError` mang `guardReasonKey` dạng `guard.role` / `guard.sqlite.attach`; giao diện phải dịch qua `useTranslations()` gốc (namespace `guard.json`), không được hiện `error.message` của engine vì đó là tiếng Anh nội bộ ("Statement 1 blocked (guard.role)").
 
 ## Chưa kiểm chứng
 
