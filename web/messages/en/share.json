@@ -68,6 +68,7 @@
     "runPage": "Page {page}/{pages}",
     "runPrev": "Previous page",
     "runNext": "Next page",
-    "runRowNumber": "#"
+    "runRowNumber": "#",
+    "runStarting": "Starting {engine}…"
   }
 }

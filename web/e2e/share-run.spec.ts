@@ -157,6 +157,31 @@ test.describe("Chạy thử snapshot (Task148)", () => {
     await expect(page.getByTestId("share-run-btn")).toBeEnabled();
   });
 
+  test("AC5 (review vòng 1): Hủy trong lúc đang tải WASM phải dừng ngay, không chờ tải xong", async ({ page }) => {
+    // Làm chậm đúng các file WASM của PGlite: người xem mạng chậm bấm Hủy ở giai đoạn tải.
+    await page.route(/\.wasm(\?|$)/, async (route) => {
+      await new Promise((r) => setTimeout(r, 10_000));
+      await route.continue();
+    });
+    await openShare(page, PG_SNAPSHOT);
+
+    await page.getByTestId("share-run-btn").click();
+    const cancel = page.getByTestId("share-run-cancel");
+    await expect(cancel).toBeVisible({ timeout: 30_000 });
+    // Đang tải WASM: nhãn phải nói "đang tải", không phải "đang chạy".
+    await expect(page.getByTestId("share-run-busy")).toHaveAttribute("data-stage", "loading");
+
+    const t0 = Date.now();
+    await cancel.click();
+    await expect(page.getByTestId("share-run-panel")).toHaveAttribute("data-phase", "error", { timeout: 5_000 });
+    const elapsed = Date.now() - t0;
+
+    // Bấm Hủy phải có tác dụng ngay, không đợi 10 giây tải WASM.
+    expect(elapsed, `Hủy mất ${elapsed} ms`).toBeLessThan(2_000);
+    await expect(page.getByTestId("share-run-error")).toContainText("Đã hủy");
+    await expect(page.getByTestId("share-run-btn")).toBeEnabled();
+  });
+
   test("AC6: kết quả không vào URL, F5 là mất kết quả", async ({ page }) => {
     await openShare(page, PG_SNAPSHOT);
     const urlBefore = page.url();

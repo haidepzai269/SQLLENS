@@ -5,6 +5,8 @@ import messagesEn from "../../../../messages/en/share.json";
 import messagesVi from "../../../../messages/vi/share.json";
 import messagesCommonEn from "../../../../messages/en/common.json";
 import messagesCommonVi from "../../../../messages/vi/common.json";
+import messagesGuardEn from "../../../../messages/en/guard.json";
+import messagesGuardVi from "../../../../messages/vi/guard.json";
 import { ForkError } from "../fork";
 import type { SnapshotV1 } from "../snapshot";
 import { SnapshotRunError, type SnapshotRunOutcome } from "../try-run";
@@ -73,11 +75,12 @@ function snapshot(overrides: Partial<SnapshotV1> = {}): SnapshotV1 {
 }
 
 function renderWorkspace(data: SnapshotV1 = snapshot(), locale: "vi" | "en" = "vi") {
-  // `common` cần cho nhãn kết luận của vùng kết quả (ConclusionBadge dùng common.conclusionLabels).
+  // `common` cho nhãn kết luận, `guard` cho câu giải thích rào chắn (dùng chung với phòng lab).
   const messagesCommon = locale === "vi" ? messagesCommonVi : messagesCommonEn;
   const messages = {
     share: locale === "vi" ? messagesVi : messagesEn,
     common: { conclusionLabels: messagesCommon.conclusionLabels },
+    guard: locale === "vi" ? messagesGuardVi : messagesGuardEn,
   };
   return render(
     <NextIntlClientProvider locale={locale} messages={messages}>
@@ -399,6 +402,25 @@ describe("ReadonlyWorkspace — Chạy thử (Task148)", () => {
 
     const box = await screen.findByTestId("share-run-error");
     expect(box.textContent).toContain(messagesVi.view.runGuardTitle);
+    // Review vòng 1: lý do chặn phải là câu giải thích đã dịch, không phải chuỗi thô của engine.
+    expect(box.textContent).toContain(messagesGuardVi.sqlite.attach);
+    expect(box.textContent).not.toContain("blocked");
+    // Dòng trạng thái ở tiêu đề panel phải cùng ý với tiêu đề trong phần thân.
+    expect(screen.getByTestId("share-run-panel").textContent).toContain(messagesVi.view.runGuardTitle);
+    expect(screen.getByTestId("share-run-panel").textContent).not.toContain(messagesVi.view.runFailedTitle);
+  });
+
+  it("rào chắn Postgres hiện câu giải thích role đã dịch kèm số câu", async () => {
+    runMock.runSnapshotTab.mockRejectedValue(
+      new SnapshotRunError("guard", "Statement 1 blocked (guard.role)", undefined, "guard.role", 1),
+    );
+    renderWorkspace();
+
+    fireEvent.click(screen.getByTestId("share-run-btn"));
+
+    const box = await screen.findByTestId("share-run-error");
+    expect(box.textContent).toContain(messagesGuardVi.role.replace("{index}", "1"));
+    expect(box.textContent).not.toContain("guard.role");
   });
 
   it("AC6: kết quả không ghi vào URL; đổi tab thì ẩn kết quả cũ", async () => {

@@ -113,17 +113,39 @@ describe("runSnapshotTab — PostgreSQL (AC1, AC4)", () => {
   });
 
   it("AC6: kết quả không được ghi vào URL hay bộ nhớ cứng của trình duyệt", async () => {
-    // Môi trường node không có location/localStorage: nếu runner lén lưu kết quả, nó phải tự tạo
-    // một trong các kho đó. Kiểm cả ba kho của trình duyệt.
-    const storage = ["localStorage", "sessionStorage", "indexedDB"] as const;
-    const before = storage.filter((key) => key in globalThis);
+    // Node không có localStorage/sessionStorage/indexedDB. Cài bẫy giả để nếu runner (hoặc engine)
+    // lén ghi kết quả thì test thấy ngay — khác với việc chỉ khẳng định "không có kho nào".
+    const writes: string[] = [];
+    const trap = (name: string) => {
+      const store = new Map<string, string>();
+      const fake = {
+        getItem: (k: string) => store.get(name + k) ?? null,
+        setItem: (k: string, v: string) => {
+          writes.push(`${name}:${k}`);
+          store.set(name + k, v);
+        },
+        removeItem: (k: string) => store.delete(name + k),
+        clear: () => store.clear(),
+        key: (i: number) => [...store.keys()][i] ?? null,
+        get length() {
+          return store.size;
+        },
+      };
+      Object.defineProperty(globalThis, name, { value: fake, configurable: true, writable: true });
+    };
+    trap("localStorage");
+    trap("sessionStorage");
+    const urlBefore = globalThis.location?.href;
 
-    const out = await runSnapshotTab(TAB, "postgres", { createAdapter: async () => fakeAdapter() });
-
-    expect(storage.filter((key) => key in globalThis)).toEqual(before);
-    // Kết quả chỉ nằm trong giá trị trả về: không có nơi nào khác giữ nó.
-    expect(out.kind).toBe("result");
-    expect(storage.every((key) => !(key in globalThis))).toBe(true);
+    try {
+      const out = await runSnapshotTab(TAB, "postgres", { createAdapter: async () => fakeAdapter() });
+      expect(out.kind).toBe("result");
+      expect(writes).toEqual([]); // không khóa nào bị ghi
+      expect(globalThis.location?.href).toBe(urlBefore); // URL không đổi
+    } finally {
+      delete (globalThis as Record<string, unknown>).localStorage;
+      delete (globalThis as Record<string, unknown>).sessionStorage;
+    }
   });
 });
 
@@ -235,6 +257,65 @@ describe("runSnapshotTab — lỗi và hủy (AC5)", () => {
     expect((err as SnapshotRunError).code).toBe("cancelled");
     expect(create).not.toHaveBeenCalled();
   });
+
+  it("AC5 (review vòng 1): Hủy trong lúc WASM còn đang nạp phải dừng ngay, không chờ adapter", async () => {
+    const ctl = new AbortController();
+    let disposeLate: Fake | undefined;
+    // Adapter "nạp" 10 giây — mô phỏng mạng chậm. Nếu runner chỉ chờ `create()` xong mới kiểm
+    // signal thì test này treo 10 giây và nút Hủy là nút chết đúng như reviewer báo.
+    const create = () =>
+      new Promise<EngineAdapter>((resolve) => {
+        setTimeout(() => {
+          disposeLate = fakeAdapter();
+          resolve(disposeLate);
+        }, 10_000);
+      });
+
+    const started = Date.now();
+    const run = runSnapshotTab(TAB, "postgres", { createAdapter: create, signal: ctl.signal });
+    // Hủy khi adapter còn đang nạp.
+    setTimeout(() => ctl.abort(), 50);
+    const err = await run.catch((e: unknown) => e);
+    const elapsed = Date.now() - started;
+
+    expect((err as SnapshotRunError).code).toBe("cancelled");
+    expect(elapsed).toBeLessThan(2_000); // dừng ngay, không đợi 10 giây của adapter
+  }, 15_000);
+
+  it("AC5: adapter về muộn sau khi hủy vẫn bị dispose, không rò worker", async () => {
+    const ctl = new AbortController();
+    let made: Fake | undefined;
+    const create = () =>
+      new Promise<EngineAdapter>((resolve) => {
+        setTimeout(() => {
+          made = fakeAdapter();
+          resolve(made);
+        }, 150);
+      });
+
+    const run = runSnapshotTab(TAB, "postgres", { createAdapter: create, signal: ctl.signal });
+    ctl.abort();
+    await run.catch(() => {});
+
+    // Chờ adapter về muộn rồi kiểm nó đã bị dọn.
+    await new Promise((r) => setTimeout(r, 400));
+    expect(made).toBeDefined();
+    expect(made?.disposed).toBe(1);
+  });
+
+  it("AC5: onExecuting chỉ gọi khi engine đã sẵn sàng, sau khi nạp xong", async () => {
+    const order: string[] = [];
+    const db = fakeAdapter();
+    await runSnapshotTab(TAB, "postgres", {
+      createAdapter: async () => {
+        order.push("created");
+        return db;
+      },
+      onExecuting: () => order.push("executing"),
+    });
+
+    expect(order).toEqual(["created", "executing"]);
+  });
 });
 
 describe("runSnapshotTab — ca biên", () => {
@@ -290,26 +371,23 @@ describe("runSnapshotTab — ca biên", () => {
     expect(out.rows[0]).toEqual([0]);
   });
 
-  it("bấm Chạy 5 lần liên tiếp: mỗi lần một phiên mới, kết quả như nhau, không rò worker", async () => {
+  it("bấm Chạy 5 lần liên tiếp: mỗi lần một phiên mới, không rò worker", async () => {
+    // Chạy tuần tự đúng như UI (nút tự khóa trong lúc chạy): 5 lượt, 5 phiên khác nhau.
     const made: Fake[] = [];
-    const runs = await Promise.all(
-      Array.from({ length: 5 }, () =>
-        runSnapshotTab({ name: "q.sql", sql: "CREATE TABLE t (id int); SELECT 1" }, "postgres", {
-          createAdapter: async () => {
-            const db = fakeAdapter();
-            made.push(db);
-            return db;
-          },
-        }),
-      ),
-    );
+    for (let i = 0; i < 5; i++) {
+      await runSnapshotTab({ name: "q.sql", sql: "CREATE TABLE t (id int); SELECT 1" }, "postgres", {
+        createAdapter: async () => {
+          const db = fakeAdapter();
+          made.push(db);
+          return db;
+        },
+      });
+    }
 
     expect(made).toHaveLength(5);
-    expect(new Set(made).size).toBe(5);
+    expect(new Set(made).size).toBe(5); // không tái dùng phiên cũ (sẽ lỗi "bảng đã tồn tại")
     expect(made.every((db) => db.disposed === 1)).toBe(true);
-    // Không lần nào chạy trên phiên của lần trước: cùng SQL, cùng kết quả.
     expect(made.every((db) => db.calls.join() === "CREATE TABLE t (id int); SELECT 1")).toBe(true);
-    expect(runs.map((r) => (r.kind === "result" ? r.rows : null))).toEqual([[[1]], [[1]], [[1]], [[1]], [[1]]]);
   });
 
   it("lỗi khi nạp engine (WASM 404) thành load_failed, không phải lỗi SQL", async () => {

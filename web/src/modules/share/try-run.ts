@@ -89,6 +89,8 @@ export type SnapshotRunOptions = {
   timeoutMs?: number;
   /** Tiến trình tải WASM, để giao diện báo "đang tải PostgreSQL…". */
   onProgress?: (p: LoadProgress) => void;
+  /** Gọi đúng lúc engine đã sẵn sàng và câu SQL đầu tiên sắp chạy. */
+  onExecuting?: () => void;
   /** Dành cho test: thay engine thật bằng adapter giả. */
   createAdapter?: CreateLocalAdapter;
 };
@@ -163,23 +165,43 @@ export async function runSnapshotTab(
   const timeoutMs = options.timeoutMs ?? SNAPSHOT_RUN_TIMEOUT_MS;
   const create = options.createAdapter ?? createLocalAdapter;
   let db: EngineAdapter | undefined;
-  // Người xem bấm Hủy trong lúc WASM còn đang tải: adapter chưa có để `cancel()`, nên ghi cờ
-  // rồi dừng ngay sau khi tạo xong, thay vì chạy tiếp một câu người dùng đã bỏ.
-  let cancelledEarly = false;
-  const onAbort = () => {
-    cancelledEarly = true;
-    void db?.cancel();
-  };
+  const cancelledError = () => new SnapshotRunError("cancelled", "Đã hủy câu đang chạy");
+
+  // Hủy trong lúc WASM còn đang tải (có thể tới ~14 giây trên mạng chậm) phải dừng **ngay**:
+  // `create()` không nhận signal — adapter tự tải file với hạn riêng 30 giây — nên đua nó với
+  // tín hiệu hủy. Adapter về muộn vẫn bị `dispose()` để không rò worker (xem nhánh catch dưới).
+  const cancelledSignal = new Promise<never>((_, reject) => {
+    const signal = options.signal;
+    if (!signal) return;
+    if (signal.aborted) return reject(cancelledError());
+    signal.addEventListener("abort", () => reject(cancelledError()), { once: true });
+  });
+  // Nếu `create()` thắng cuộc đua, lời hứa này sẽ reject sau đó mà không ai chờ: phải bắt để
+  // không thành unhandled rejection.
+  cancelledSignal.catch(() => {});
+
+  // Hủy khi câu SQL đang chạy thì adapter đã có: gọi `cancel()` để dừng worker.
+  const onAbort = () => void db?.cancel();
   options.signal?.addEventListener("abort", onAbort, { once: true });
 
   try {
-    db = await create(engine, { timeoutMs, onProgress: options.onProgress });
-    if (cancelledEarly || aborted()) {
+    const pending = create(engine, { timeoutMs, onProgress: options.onProgress });
+    try {
+      db = await Promise.race([pending, cancelledSignal]);
+    } catch (e) {
+      // Adapter còn đang nạp mà người xem đã bỏ: dọn nó khi về, rồi báo hủy ngay bây giờ.
+      if (e instanceof SnapshotRunError) {
+        void pending.then((late) => late.dispose().catch(() => {})).catch(() => {});
+      }
+      throw e;
+    }
+    if (aborted()) {
       await db.cancel().catch(() => {});
-      throw new SnapshotRunError("cancelled", "Đã hủy câu đang chạy");
+      throw cancelledError();
     }
 
     let statements = 0;
+    options.onExecuting?.();
     if (setup !== "") statements += (await db.execute(setup, { signal: options.signal })).length;
     const results = await db.execute(sql, { signal: options.signal });
     statements += results.length;

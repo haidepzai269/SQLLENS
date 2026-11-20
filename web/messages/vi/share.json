@@ -68,6 +68,7 @@
     "runPage": "Trang {page}/{pages}",
     "runPrev": "Trang trước",
     "runNext": "Trang sau",
-    "runRowNumber": "STT"
+    "runRowNumber": "STT",
+    "runStarting": "Đang khởi tạo {engine}…"
   }
 }

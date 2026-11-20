@@ -51,7 +51,8 @@ type RunResult = Extract<SnapshotRunOutcome, { kind: "result" }>;
  */
 export type RunState =
   | { phase: "idle" }
-  | { phase: "busy"; stage: "loading" | "running"; progress?: LoadProgress }
+  /** `stage`: tải WASM → khởi tạo engine → chạy SQL. Ba nhãn riêng để người xem biết đang chờ gì. */
+  | { phase: "busy"; stage: "loading" | "starting" | "running"; progress?: LoadProgress }
   | { phase: "done"; result: RunResult; setupTabs: number }
   | { phase: "empty" }
   | { phase: "sandbox" }
@@ -96,6 +97,8 @@ async function copyToClipboard(text: string): Promise<boolean> {
 
 export function ReadonlyWorkspace({ snapshot }: { snapshot: SnapshotV1 }) {
   const t = useTranslations("share");
+  // Câu giải thích rào chắn nằm ở namespace gốc (guard.json), dùng chung với phòng lab.
+  const tg = useTranslations() as unknown as (key: string, values?: Record<string, string | number>) => string;
   const router = useRouter();
   const [activeIndex, setActiveIndex] = useState(0);
   const [notice, setNotice] = useState<{ kind: "copied" | "failed"; nonce: number } | null>(null);
@@ -157,7 +160,16 @@ export function ReadonlyWorkspace({ snapshot }: { snapshot: SnapshotV1 }) {
         signal: ctl.signal,
         setupSql,
         onProgress: (progress) => {
-          if (seq === runSeq.current) setRunState({ phase: "busy", stage: progress.phase === "init" ? "running" : "loading", progress });
+          if (seq !== runSeq.current) return;
+          setRunState({
+            phase: "busy",
+            // `download` = đang tải WASM, `init` = WASM xong, engine đang khởi tạo.
+            stage: progress.phase === "init" ? "starting" : "loading",
+            progress,
+          });
+        },
+        onExecuting: () => {
+          if (seq === runSeq.current) setRunState({ phase: "busy", stage: "running" });
         },
       });
       if (seq !== runSeq.current) return; // lượt mới đã bắt đầu: bỏ kết quả cũ
@@ -194,6 +206,17 @@ export function ReadonlyWorkspace({ snapshot }: { snapshot: SnapshotV1 }) {
         return t("view.runCancelled");
       case "load_failed":
         return t("view.runLoadFailed", { message: error.message });
+      case "guard":
+        // Lý do chặn đã có câu giải thích trong `guard.json` (lab dùng cùng khóa này). Hiện
+        // nguyên văn tiếng Anh của engine cho người xem Việt là vô nghĩa (review vòng 1).
+        if (error.guardReasonKey) {
+          try {
+            return tg(error.guardReasonKey, { index: error.statementIndex ?? 0 });
+          } catch {
+            return t("view.runGuardTitle");
+          }
+        }
+        return t("view.runGuardTitle");
       default:
         return error.message;
     }
@@ -493,12 +516,22 @@ function RunPanel({
   const current = Math.min(page, pages - 1);
   const shown = result ? result.rows.slice(current * RUN_ROWS_PER_PAGE, (current + 1) * RUN_ROWS_PER_PAGE) : [];
 
+  // Một chỗ duy nhất quyết định câu trạng thái, để dòng tiêu đề và phần thân không nói lệch nhau.
+  const busyLabel =
+    state.phase !== "busy"
+      ? ""
+      : state.stage === "loading"
+        ? t("view.runLoading", { engine: engineLabel })
+        : state.stage === "starting"
+          ? t("view.runStarting", { engine: engineLabel })
+          : t("view.runRunning");
+
   const status = (() => {
     switch (state.phase) {
       case "idle":
         return t("view.runLocalNote");
       case "busy":
-        return state.stage === "loading" ? t("view.runLoading", { engine: engineLabel }) : t("view.runRunning");
+        return busyLabel;
       case "done":
         return [
           t("view.runStatements", { count: state.result.statements }),
@@ -511,7 +544,10 @@ function RunPanel({
           .filter(Boolean)
           .join(" · ");
       case "error":
-        return state.error.code === "timeout" ? t("view.runTimeout") : t("view.runFailedTitle");
+        // Cùng một câu với tiêu đề trong phần thân: không nói "không chạy được" ở đây rồi
+        // "bị rào chắn chặn" ở dưới.
+        if (state.error.code === "timeout") return t("view.runTimeout");
+        return state.error.code === "guard" ? t("view.runGuardTitle") : t("view.runFailedTitle");
       case "sandbox":
         return t("view.runNeedsSandboxTitle");
       case "empty":
@@ -598,11 +634,11 @@ function RunPanel({
         )}
 
         {busy && (
-          <div role="status" aria-live="polite" data-testid="share-run-busy" className="flex flex-col gap-1.5 text-dim">
-            <span>{state.stage === "loading" ? t("view.runLoading", { engine: engineLabel }) : t("view.runRunning")}</span>
+          <div role="status" aria-live="polite" data-testid="share-run-busy" data-stage={state.stage} className="flex flex-col gap-1.5 text-dim">
+            <span>{busyLabel}</span>
             {state.stage === "loading" && state.progress?.loadedBytes !== undefined && (
               <progress
-                aria-label={t("view.runLoading", { engine: engineLabel })}
+                aria-label={busyLabel}
                 className="w-full max-w-xs"
                 max={state.progress.totalBytes}
                 value={state.progress.totalBytes ? state.progress.loadedBytes : undefined}
