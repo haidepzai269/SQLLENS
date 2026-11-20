@@ -27,6 +27,12 @@ Sửa thêm 3 điểm reviewer ghi ở mục "Ghi chú" (không phải lỗi AC)
 - Dòng trạng thái ở tiêu đề panel và tiêu đề trong phần thân nay cùng một câu cho trạng thái rào chắn (trước đó một bên nói "không chạy được", một bên nói "bị rào chắn chặn").
 - 2 test reviewer chỉ ra là "không thể fail" đã viết lại: AC6 cài bẫy `localStorage`/`sessionStorage` giả để bắt mọi lần ghi; ca "bấm 5 lần" chạy tuần tự đúng như UI (nút tự khóa) thay vì 5 lần song song.
 
+**Vòng 2: PASS.** Reviewer kiểm lại đúng hai lỗi và diff `e8c4272..7ed9ccb`, xác nhận bằng số đo trên Chromium thật:
+- Lỗi 1: chặn `*.wasm` trễ 10 giây rồi bấm Hủy — trước sửa `busy` 23.907 ms, sau sửa **114 ms** là ra `error` với "Đã hủy câu đang chạy."; chạy lại sau đó ra `done` đúng dữ liệu, không kẹt trạng thái.
+- Lỗi 2: SQLite `ATTACH` và Postgres `SET ROLE` đều hiện câu giải thích tiếng Việt đúng, `{index}` = 1 đúng, bản `en` cũng đúng; hết chuỗi "SQLite guard" / "Statement 1 blocked (guard.role)".
+- `onExecuting` (thay đổi ngoài 2 lỗi) không làm sai `statements`: thứ tự giai đoạn đo bằng MutationObserver là `loading → starting → running → done`, số câu vẫn "3 câu đã chạy".
+- Không hồi quy: `check-i18n` 0, `tsc` 0, `eslint` 0, `vitest src/modules/share` 120/120, `playwright e2e/share-run.spec.ts` 10/10. `web/src/engines/` và `next.config.ts` không bị đụng.
+
 Số đo thật trên Chrome (1440×900, bản build tại máy):
 - Snapshot 3 tab Postgres, chạy tab thứ ba: **2.959 ms** từ lúc bấm tới khi có bảng kết quả (gồm tải WASM PGlite lần đầu), 3 câu đã chạy, nhãn `Thật`.
 - Vùng kết quả: **1280×186 px**, `document.scrollWidth` 1280 = `innerWidth` 1280 → không tràn.
@@ -35,7 +41,6 @@ Số đo thật trên Chrome (1440×900, bản build tại máy):
 - AC4: ghi lại toàn bộ request trong lượt chạy — **0 request tới `/api/*`**, **0 request mang payload**, mọi request chỉ tới chính origin (WASM tĩnh của PGlite).
 
 Chưa làm được / giới hạn:
-- **Chưa chạy vòng review thứ 2** (quy trình cho tối đa 2 vòng); reviewer vòng 1 đã kết thúc phiên nên phần sửa này chưa được kiểm lại bởi người khác. Chưa merge.
 - Safari/Firefox chưa kiểm (Playwright WebKit thiếu executable, như Task131/145/147).
 - `setupSql` chạy lại toàn bộ SQL của các tab trước, kể cả khi tab đó là `BEGIN;`/`UPDATE` của một kịch bản tranh chấp: kết quả vẫn đúng nhưng không phải "mô phỏng 2 phiên" — vùng kết quả chỉ nói câu cuối trả gì.
 - Tab có `BEGIN` mà không `COMMIT` vẫn chạy được nhưng transaction bị bỏ khi phiên bị dispose; không có cảnh báo riêng.
@@ -47,5 +52,6 @@ Phát sinh (SP999):
 3. Vẫn còn 4 lỗi E2E có sẵn trên `main` (Task113/114/128) đã ghi ở mục trước của `AGENTS.md`, chưa sửa.
 4. `web/e2e/share-run-shots.spec.ts` ghi ảnh thẳng vào `_bmad-output/`, nên chạy cả bộ E2E sẽ làm bẩn worktree; nếu khó chịu thì chuyển sang `test-results/`.
 5. `createLocalAdapter` (PGlite/SQLite) không nhận `AbortSignal`, nên mọi chỗ gọi khác cũng phải tự đua với tín hiệu hủy như Task148 vừa làm. Nên thêm `signal` vào chữ ký adapter ở một task riêng để khỏi lặp lại cái bẫy này.
+6. Reviewer vòng 2 thấy `404 /_next/static/chunks/libpg-query.wasm` 3 lần rồi guard vẫn hoạt động (do `engines/postgres/guard.ts` vá `fetch` sang URL có hash và thử lại 3 lần) — hành vi có sẵn từ Task021, chỉ là tiếng ồn console.
 
 Việc tiếp theo cần biết: Task148 là task cuối của STR101; xong là **đóng Epic SP022 (Share qua URL)**. Epic tiếp theo là **SP023 (Cloud sync & RLS, Task149-156)**. `runSnapshotTab` cố ý không đụng tới workspace/IndexedDB, nên SP023 có thể dùng lại nó cho bản xem cloud mà không sửa gì.
