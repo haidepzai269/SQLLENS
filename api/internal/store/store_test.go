@@ -9,6 +9,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/haidepzai269/SQLLENS/api/migrations"
 )
 
 // Cần Postgres: đặt T041_DATABASE_URL, ví dụ postgres://postgres:pw@localhost:54410/app
@@ -27,7 +29,8 @@ func newStore(t *testing.T) *Store {
 		t.Fatal(err)
 	}
 	t.Cleanup(s.Close)
-	if _, err := s.pool.Exec(ctx, `DROP TABLE IF EXISTS sessions, identities, users, schema_migrations`); err != nil {
+	if _, err := s.pool.Exec(ctx, `DROP TABLE IF EXISTS cloud_project_members, cloud_tabs, cloud_projects,
+		sessions, identities, users, schema_migrations CASCADE`); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Migrate(ctx); err != nil {
@@ -42,9 +45,20 @@ func TestMigrateTwice(t *testing.T) { // AC1
 	if err := s.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
+	// Đếm theo số file .sql nhúng thật, để thêm migration mới không làm hỏng test này.
+	files, err := migrations.FS.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := 0
+	for _, f := range files {
+		if !f.IsDir() && strings.HasSuffix(f.Name(), ".sql") {
+			want++
+		}
+	}
 	var n int
-	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM schema_migrations`).Scan(&n); err != nil || n != 2 {
-		t.Fatalf("schema_migrations = %d, %v", n, err)
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM schema_migrations`).Scan(&n); err != nil || n != want {
+		t.Fatalf("schema_migrations = %d, %v (mong đợi %d)", n, err, want)
 	}
 }
 
