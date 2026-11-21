@@ -20,12 +20,26 @@ Role tạo bảng là owner thì **mặc định bỏ qua RLS**. Epic này phả
 |---|---|---|---|---|
 | **STR102** | `Task149` | Migration 3 bảng cloud + role app không phải owner | Amelia | Hoàn thành 100% |
 | **STR102** | `Task150` | Gin CRUD lưu dự án cloud, quota, không log SQL | Amelia | Hoàn thành 100% (chưa gọi reviewer độc lập) |
-| **STR103** | `Task151` | Policy RLS theo từng lệnh, `FORCE RLS`, helper transaction | Amelia | Hoàn thành 100% (chưa gọi reviewer độc lập) |
+| **STR103** | `Task151` | Policy RLS theo từng lệnh, `FORCE RLS`, helper transaction | Amelia | Hoàn thành 100% + **đã sửa 5 lỗi review** (xem `ban_giao_task151_fix.md`) |
 | **STR103** | `Task152` | Test cross-tenant thật và test rò ngữ cảnh qua pool | Amelia | Hoàn thành 100% (chưa gọi reviewer độc lập) |
-| **STR104** | `Task153` | Kéo/đẩy dự án và xử lý xung đột | Amelia | Hoàn thành 100% (chưa gọi reviewer độc lập) |
-| **STR104** | `Task154` | Cloud panel trong giao diện | Amelia | Chờ thực hiện |
+| **STR104** | `Task153` | Kéo/đẩy dự án và xử lý xung đột | Amelia | Hoàn thành 100% + **đã sửa 2 lỗi chặn** (LỖI 4, 5) |
+| **STR104** | `Task154` | Cloud panel trong giao diện | Amelia | Đang làm (đã có nhánh `remote_gone`) |
 | **STR105** | `Task155` | Cổng `security-audit` cho toàn Epic | Amelia | Chờ thực hiện |
 | **STR105** | `Task156` | Kiểm referrer/XSS của share và hồi quy RLS | Amelia | Chờ thực hiện |
+
+## Vòng sửa lỗi sau review độc lập (2026-11-21)
+
+Reviewer độc lập tìm 5 lỗi, đã sửa hết, mỗi lỗi có test **FAIL trước / PASS sau**. Chi tiết và số đo thật ở `STR103/Task151/ban_giao_task151_fix.md`.
+
+| Lỗi | Mức | Nội dung | Sửa ở đâu |
+|---|---|---|---|
+| 1 | BLOCKER | `viewer` vẫn UPDATE/DELETE/INSERT được tab của dự án được chia sẻ | `api/migrations/005_cloud_tabs_write_role.sql` |
+| 2 | BLOCKER | `go test ./...` đỏ 8 test `auth`: `DROP TABLE users` thiếu `CASCADE` | `api/internal/auth/auth_test.go` |
+| 3 | — | Trần body 1MB toàn cục chặn quota 100 tab × 512KB | `store/cloud.go`, `httpapi/router.go`, `httpapi/cloud_projects.go` |
+| 4 | CHẶN | Đẩy hai lần tạo hai dự án cloud trùng (POST lặp) | `web/src/modules/cloud/sync.ts` |
+| 5 | CHẶN | 404 của dự án đã bị xóa làm kẹt vĩnh viễn, không có lối thoát | `web/src/modules/cloud/sync.ts` + `cloud-panel.tsx` |
+
+**Giới hạn mới cần biết:** `MaxCloudProjectBytes = 2MB` là trần **tổng** của một dự án, nên tab 512KB chỉ chứa được 3–4 tab/dự án. Con số "100 tab" trong quota chỉ đạt được khi tab nhỏ. Nâng lên ~52MB cần chủ dự án quyết vì ảnh hưởng RAM Gin trên Render free.
 
 ## Không làm
 
