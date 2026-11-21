@@ -113,7 +113,7 @@ cd web && npm run check
   check:i18n  → sạch
   lint        → 0 error, 1 warning có từ trước (e2e/plan-explain.spec.ts: 'hist' không dùng)
   typecheck   → sạch
-  test        → Test Files 112 passed | 2 skipped (114), Tests 1386 passed | 18 skipped (1404)
+  test        → Test Files 115 passed | 2 skipped (117), Tests 1421 passed | 18 skipped (1439)
 ```
 
 ## Việc chưa làm / chưa kiểm
