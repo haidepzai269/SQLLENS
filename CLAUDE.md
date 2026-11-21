@@ -4,7 +4,7 @@
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
 - **Khi Google Doc và file này khác nhau:** file này đúng hơn, cho đến khi Google Doc được cập nhật.
-- **Giai đoạn hiện tại:** SP001 đến SP022 đã xong (SP022 Share qua URL đóng ở Task148). Đang làm **SP023 Đồng bộ Cloud & RLS cấp Project** (Task149 đến Task156): Task149 (migration 3 bảng cloud + role `sqllens_app` không phải owner) đang triển khai. Còn lại của SP023: Task150 (Gin CRUD + quota), Task151–152 (RLS từng lệnh, `FORCE RLS`, test cross-tenant), Task153–154 (đồng bộ local ↔ cloud), Task155–156 (cổng `security-audit`, kiểm referrer/XSS). Việc phát sinh ghi ở `SP999`, tiến độ từng Epic ở `_bmad-output/SP0xx/README.md`.
+- **Giai đoạn hiện tại:** SP001 đến SP022 đã xong (SP022 Share qua URL đóng ở Task148). Đang làm **SP023 Đồng bộ Cloud & RLS cấp Project** (Task149 đến Task156): Task149 (migration 3 bảng cloud + role `sqllens_app` không phải owner) đã xong và merge. Kế tiếp: Task150 (Gin CRUD + quota, kết nối bằng role `sqllens_app`), Task151–152 (RLS từng lệnh, `FORCE RLS`, test cross-tenant), Task153–154 (đồng bộ local ↔ cloud), Task155–156 (cổng `security-audit`, kiểm referrer/XSS). Việc phát sinh ghi ở `SP999`, tiến độ từng Epic ở `_bmad-output/SP0xx/README.md`.
 - **Mục tiêu trước mắt:** xem `_bmad-output/MUC_TIEU_TRUOC_MAT.md`.
 - **Việc tạm gác:** cập nhật Google Doc. Chỉ làm khi chủ dự án yêu cầu, theo `_bmad-output/CAP_NHAT_GOOGLE_DOC.md`.
 - **Key của bên thứ 3:** danh sách ở `KEY_CAN_LAY.md`, file này không được commit. Sau khi chủ dự án điền giá trị, agent không đọc file đó. Cần thêm key thì báo chủ dự án.

@@ -18,7 +18,7 @@ Role tạo bảng là owner thì **mặc định bỏ qua RLS**. Epic này phả
 
 | Story | Task | Tên Task | Phân công | Trạng thái |
 |---|---|---|---|---|
-| **STR102** | `Task149` | Migration 3 bảng cloud + role app không phải owner | Amelia | Chờ thực hiện |
+| **STR102** | `Task149` | Migration 3 bảng cloud + role app không phải owner | Amelia | Hoàn thành 100% |
 | **STR102** | `Task150` | Gin CRUD lưu dự án cloud, quota, không log SQL | Amelia | Chờ thực hiện |
 | **STR103** | `Task151` | Policy RLS theo từng lệnh, `FORCE RLS`, helper transaction | Amelia | Chờ thực hiện |
 | **STR103** | `Task152` | Test cross-tenant thật và test rò ngữ cảnh qua pool | Amelia | Chờ thực hiện |
