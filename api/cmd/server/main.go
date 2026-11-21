@@ -60,6 +60,7 @@ func build(ctx context.Context) *gin.Engine {
 		OpenRouterKey: os.Getenv("OPENROUTER_API_KEY"),
 		Limiter:       d.Limiter,
 	}, a.RequireVip())
+	httpapi.MountCloud(r, httpapi.CloudConfig{Store: d.Store, RequireUser: a.RequireUser(), UID: auth.UserID})
 	return r
 }
 

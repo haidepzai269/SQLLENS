@@ -1,0 +1,383 @@
+package httpapi
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/haidepzai269/SQLLENS/api/internal/store"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// Test handler cloud CRUD (Task150). Cần Postgres thật:
+//   T150_DATABASE_URL=postgres://postgres:t150@localhost:54491/app go test ./internal/httpapi -run Cloud -v
+
+const cloudMark = "ZZTOPSECRET"
+
+type cloudProjectResp struct {
+	Project struct {
+		ID       string `json:"id"`
+		Name     string `json:"name"`
+		Engine   string `json:"engine"`
+		TabCount int    `json:"tabCount"`
+		Tabs     []struct {
+			Name     string `json:"name"`
+			SQL      string `json:"sql"`
+			Position int    `json:"position"`
+		} `json:"tabs"`
+	} `json:"project"`
+	Projects []struct {
+		ID       string `json:"id"`
+		TabCount int    `json:"tabCount"`
+	} `json:"projects"`
+	Error struct {
+		Code       string `json:"code"`
+		MessageKey string `json:"messageKey"`
+	} `json:"error"`
+}
+
+type cloudEnv struct {
+	r     *gin.Engine
+	buf   *bytes.Buffer
+	st    *store.Store
+	raw   *pgxpool.Pool
+	user  string // user A
+	other string // user B
+}
+
+func newCloudEnv(t *testing.T) *cloudEnv {
+	t.Helper()
+	url := os.Getenv("T150_DATABASE_URL")
+	if url == "" {
+		t.Skip("bỏ qua: chưa đặt T150_DATABASE_URL (cần Postgres trong Docker)")
+	}
+	if !strings.Contains(url, "@localhost:") && !strings.Contains(url, "@127.0.0.1:") {
+		t.Fatal("từ chối chạy: test xóa bảng, chỉ cho phép database ở localhost")
+	}
+	ctx := context.Background()
+	raw, err := pgxpool.New(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(raw.Close)
+	if _, err := raw.Exec(ctx, `DROP TABLE IF EXISTS cloud_project_members, cloud_tabs, cloud_projects,
+		user_vip_redemptions, vip_codes, sessions, identities, users, schema_migrations CASCADE`); err != nil {
+		t.Fatal(err)
+	}
+	st, err := store.Open(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(st.Close)
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	e := &cloudEnv{raw: raw, st: st}
+	if err := raw.QueryRow(ctx, `INSERT INTO users (display_name) VALUES ('A') RETURNING id::text`).Scan(&e.user); err != nil {
+		t.Fatal(err)
+	}
+	if err := raw.QueryRow(ctx, `INSERT INTO users (display_name) VALUES ('B') RETURNING id::text`).Scan(&e.other); err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	e.buf = &buf
+	e.r = NewRouterWithLog(&buf)
+	// Middleware đăng nhập giả: danh tính lấy từ header, chỉ tồn tại trong test.
+	guard := func(c *gin.Context) {
+		u := c.GetHeader("X-Test-User")
+		if u == "" {
+			Abort(c, http.StatusUnauthorized, "auth_required", "error.authRequired")
+			return
+		}
+		c.Set("test.user", u)
+		c.Next()
+	}
+	MountCloud(e.r, CloudConfig{Store: st, RequireUser: guard, UID: func(c *gin.Context) string {
+		v, _ := c.Get("test.user")
+		s, _ := v.(string)
+		return s
+	}})
+	return e
+}
+
+func (e *cloudEnv) do(t *testing.T, user, method, path, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
+	if user != "" {
+		req.Header.Set("X-Test-User", user)
+	}
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	return w
+}
+
+func (e *cloudEnv) body(t *testing.T, w *httptest.ResponseRecorder) cloudProjectResp {
+	t.Helper()
+	var out cloudProjectResp
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatalf("body không phải JSON: %q (%v)", w.Body.String(), err)
+	}
+	return out
+}
+
+func cloudJSON(name, engine string, tabs ...[2]string) string {
+	parts := make([]string, 0, len(tabs))
+	for _, tb := range tabs {
+		parts = append(parts, fmt.Sprintf(`{"name":%q,"sql":%q}`, tb[0], tb[1]))
+	}
+	return fmt.Sprintf(`{"name":%q,"engine":%q,"tabs":[%s]}`, name, engine, strings.Join(parts, ","))
+}
+
+// AC1: tạo kèm 3 tab rồi đọc lại đúng nội dung và thứ tự tab.
+func TestCloudCreateReadOrder(t *testing.T) {
+	e := newCloudEnv(t)
+	w := e.do(t, e.user, "POST", "/api/v1/cloud/projects",
+		cloudJSON("Dự án A", "postgres", [2]string{"tab1", "SELECT 1"}, [2]string{"tab2", "SELECT 2"}, [2]string{"tab3", "SELECT 3"}))
+	if w.Code != http.StatusCreated {
+		t.Fatalf("POST = %d %q", w.Code, w.Body.String())
+	}
+	created := e.body(t, w).Project
+	if created.ID == "" || created.Name != "Dự án A" || created.Engine != "postgres" || created.TabCount != 3 {
+		t.Fatalf("project = %+v", created)
+	}
+
+	w = e.do(t, e.user, "GET", "/api/v1/cloud/projects/"+created.ID, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET = %d %q", w.Code, w.Body.String())
+	}
+	got := e.body(t, w).Project
+	if len(got.Tabs) != 3 {
+		t.Fatalf("tabs = %+v", got.Tabs)
+	}
+	for i, want := range [][2]string{{"tab1", "SELECT 1"}, {"tab2", "SELECT 2"}, {"tab3", "SELECT 3"}} {
+		if got.Tabs[i].Name != want[0] || got.Tabs[i].SQL != want[1] || got.Tabs[i].Position != i {
+			t.Fatalf("tab %d = %+v, mong đợi %v", i, got.Tabs[i], want)
+		}
+	}
+
+	w = e.do(t, e.user, "GET", "/api/v1/cloud/projects", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("LIST = %d %q", w.Code, w.Body.String())
+	}
+	list := e.body(t, w).Projects
+	if len(list) != 1 || list[0].ID != created.ID || list[0].TabCount != 3 {
+		t.Fatalf("list = %+v", list)
+	}
+
+	// PUT thay cả bộ tab và giữ đúng thứ tự mới.
+	w = e.do(t, e.user, "PUT", "/api/v1/cloud/projects/"+created.ID,
+		cloudJSON("Dự án A2", "mysql", [2]string{"x", "SELECT 'x'"}, [2]string{"y", "SELECT 'y'"}))
+	if w.Code != http.StatusOK {
+		t.Fatalf("PUT = %d %q", w.Code, w.Body.String())
+	}
+	w = e.do(t, e.user, "GET", "/api/v1/cloud/projects/"+created.ID, "")
+	got = e.body(t, w).Project
+	if got.Name != "Dự án A2" || got.Engine != "mysql" || len(got.Tabs) != 2 || got.Tabs[0].Name != "x" || got.Tabs[1].Name != "y" {
+		t.Fatalf("sau PUT = %+v", got)
+	}
+}
+
+// AC2: người khác dùng id của chủ nhận 404, không lộ dữ liệu, dự án của chủ còn nguyên.
+func TestCloudCrossTenant(t *testing.T) {
+	e := newCloudEnv(t)
+	w := e.do(t, e.user, "POST", "/api/v1/cloud/projects",
+		cloudJSON("Riêng tư", "postgres", [2]string{"t", "SELECT 'bí mật'"}))
+	if w.Code != http.StatusCreated {
+		t.Fatalf("POST = %d", w.Code)
+	}
+	id := e.body(t, w).Project.ID
+
+	for _, tc := range []struct{ method, path, body string }{
+		{"GET", "/api/v1/cloud/projects/" + id, ""},
+		{"PUT", "/api/v1/cloud/projects/" + id, cloudJSON("cướp", "postgres")},
+		{"DELETE", "/api/v1/cloud/projects/" + id, ""},
+	} {
+		w := e.do(t, e.other, tc.method, tc.path, tc.body)
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("%s của người khác = %d %q, mong đợi 404", tc.method, w.Code, w.Body.String())
+		}
+		if strings.Contains(w.Body.String(), "bí mật") {
+			t.Fatalf("%s làm lộ nội dung: %q", tc.method, w.Body.String())
+		}
+	}
+
+	// Dự án của chủ vẫn còn, tên không bị đổi.
+	var name string
+	var n int
+	if err := e.raw.QueryRow(context.Background(), `SELECT name FROM cloud_projects WHERE id = $1`, id).Scan(&name); err != nil {
+		t.Fatalf("dự án của chủ biến mất: %v", err)
+	}
+	if err := e.raw.QueryRow(context.Background(), `SELECT count(*) FROM cloud_tabs WHERE project_id = $1`, id).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("tab của chủ: n=%d err=%v", n, err)
+	}
+	if name != "Riêng tư" {
+		t.Fatalf("tên bị đổi thành %q", name)
+	}
+
+	// Danh sách của B rỗng.
+	w = e.do(t, e.other, "GET", "/api/v1/cloud/projects", "")
+	if len(e.body(t, w).Projects) != 0 {
+		t.Fatalf("B thấy dự án của A: %q", w.Body.String())
+	}
+}
+
+// AC3: vượt quota trả 400 kèm mã lỗi, và không ghi một phần.
+func TestCloudQuota(t *testing.T) {
+	e := newCloudEnv(t)
+	ctx := context.Background()
+
+	// 512KB/tab: 600KB bị từ chối, không tạo dự án nào.
+	big := strings.Repeat("a", 600*1024)
+	w := e.do(t, e.user, "POST", "/api/v1/cloud/projects", cloudJSON("Quá lớn", "postgres", [2]string{"t", big}))
+	if w.Code != http.StatusBadRequest || e.body(t, w).Error.Code != codeCloudTabTooLarge {
+		t.Fatalf("tab 600KB = %d %q", w.Code, w.Body.String())
+	}
+	var n int
+	if err := e.raw.QueryRow(ctx, `SELECT count(*) FROM cloud_projects`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("đã ghi một phần: n=%d err=%v", n, err)
+	}
+
+	// 100 tab/dự án: 101 tab bị từ chối.
+	tabs := make([][2]string, 0, store.MaxCloudTabs+1)
+	for i := 0; i <= store.MaxCloudTabs; i++ {
+		tabs = append(tabs, [2]string{fmt.Sprintf("t%d", i), "SELECT 1"})
+	}
+	w = e.do(t, e.user, "POST", "/api/v1/cloud/projects", cloudJSON("Quá nhiều tab", "postgres", tabs...))
+	if w.Code != http.StatusBadRequest || e.body(t, w).Error.Code != codeCloudTooManyTabs {
+		t.Fatalf("101 tab = %d %q", w.Code, w.Body.String())
+	}
+
+	// 50 dự án/user: dựng sẵn 49 rồi tạo 1 qua API (được), dự án thứ 51 phải bị chặn.
+	if _, err := e.raw.Exec(ctx, `INSERT INTO cloud_projects (owner_id, name, engine)
+		SELECT $1, 'p' || g, 'postgres' FROM generate_series(1, 49) g`, e.user); err != nil {
+		t.Fatal(err)
+	}
+	w = e.do(t, e.user, "POST", "/api/v1/cloud/projects", cloudJSON("thứ 50", "postgres"))
+	if w.Code != http.StatusCreated {
+		t.Fatalf("dự án thứ 50 = %d %q", w.Code, w.Body.String())
+	}
+	w = e.do(t, e.user, "POST", "/api/v1/cloud/projects", cloudJSON("thứ 51", "postgres"))
+	if w.Code != http.StatusBadRequest || e.body(t, w).Error.Code != codeCloudTooManyProject {
+		t.Fatalf("dự án thứ 51 = %d %q", w.Code, w.Body.String())
+	}
+	if err := e.raw.QueryRow(ctx, `SELECT count(*) FROM cloud_projects WHERE owner_id = $1`, e.user).Scan(&n); err != nil || n != 50 {
+		t.Fatalf("số dự án sau khi chặn = %d err=%v, mong đợi 50", n, err)
+	}
+
+	// Người khác không bị ảnh hưởng bởi quota của A.
+	w = e.do(t, e.other, "POST", "/api/v1/cloud/projects", cloudJSON("của B", "sqlite"))
+	if w.Code != http.StatusCreated {
+		t.Fatalf("B tạo dự án = %d %q", w.Code, w.Body.String())
+	}
+}
+
+// AC4: xóa dự án xóa luôn tab, trả 204.
+func TestCloudDeleteCascade(t *testing.T) {
+	e := newCloudEnv(t)
+	ctx := context.Background()
+	w := e.do(t, e.user, "POST", "/api/v1/cloud/projects",
+		cloudJSON("Xóa", "postgres", [2]string{"a", "SELECT 1"}, [2]string{"b", "SELECT 2"}))
+	id := e.body(t, w).Project.ID
+
+	w = e.do(t, e.user, "DELETE", "/api/v1/cloud/projects/"+id, "")
+	if w.Code != http.StatusNoContent || w.Body.Len() != 0 {
+		t.Fatalf("DELETE = %d %q", w.Code, w.Body.String())
+	}
+	var n int
+	if err := e.raw.QueryRow(ctx, `SELECT count(*) FROM cloud_tabs WHERE project_id = $1`, id).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("tab còn lại: n=%d err=%v", n, err)
+	}
+	if err := e.raw.QueryRow(ctx, `SELECT count(*) FROM cloud_projects WHERE id = $1`, id).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("dự án còn lại: n=%d err=%v", n, err)
+	}
+	// Xóa lần hai: 404.
+	w = e.do(t, e.user, "DELETE", "/api/v1/cloud/projects/"+id, "")
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("xóa lần hai = %d %q", w.Code, w.Body.String())
+	}
+}
+
+// AC5: log của handler không chứa nội dung SQL, kể cả ở nhánh 500.
+func TestCloudLogsNoSQL(t *testing.T) {
+	e := newCloudEnv(t)
+	w := e.do(t, e.user, "POST", "/api/v1/cloud/projects",
+		cloudJSON("Log "+cloudMark, "postgres", [2]string{"t", "SELECT '" + cloudMark + "'"}))
+	if w.Code != http.StatusCreated {
+		t.Fatalf("POST = %d %q", w.Code, w.Body.String())
+	}
+	id := e.body(t, w).Project.ID
+	e.do(t, e.user, "GET", "/api/v1/cloud/projects/"+id, "")
+	e.do(t, e.user, "PUT", "/api/v1/cloud/projects/"+id, cloudJSON("x", "postgres", [2]string{"t", "SELECT '" + cloudMark + "'"}))
+	e.do(t, e.user, "DELETE", "/api/v1/cloud/projects/"+id, "")
+
+	// Nhánh 500: đóng pool để mọi câu SQL hỏng, rồi gửi lại đúng SQL có dấu.
+	e.st.Close()
+	w = e.do(t, e.user, "POST", "/api/v1/cloud/projects",
+		cloudJSON("Log "+cloudMark, "postgres", [2]string{"t", "SELECT '" + cloudMark + "'"}))
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("nhánh 500 = %d %q", w.Code, w.Body.String())
+	}
+
+	if e.buf.Len() == 0 {
+		t.Fatal("không có dòng log nào: test không chứng minh được gì")
+	}
+	if strings.Contains(e.buf.String(), cloudMark) || strings.Contains(e.buf.String(), "SELECT") {
+		t.Fatalf("log chứa nội dung SQL: %q", e.buf.String())
+	}
+	if !strings.Contains(e.buf.String(), "POST /api/v1/cloud/projects 500") {
+		t.Fatalf("log thiếu dòng của request 500: %q", e.buf.String())
+	}
+}
+
+// Ca biên: body thiếu trường, id không phải UUID, owner_id trong body bị bỏ qua.
+func TestCloudEdgeCases(t *testing.T) {
+	e := newCloudEnv(t)
+
+	for _, tc := range []struct{ name, body, code string }{
+		{"thiếu name", `{"engine":"postgres"}`, codeCloudInvalidBody},
+		{"thiếu engine", `{"name":"x"}`, codeCloudInvalidEngine},
+		{"engine lạ", `{"name":"x","engine":"oracle"}`, codeCloudInvalidEngine},
+		{"thân rỗng", ``, codeCloudInvalidBody},
+		{"JSON hỏng", `{"name":`, codeCloudInvalidBody},
+	} {
+		w := e.do(t, e.user, "POST", "/api/v1/cloud/projects", tc.body)
+		if w.Code != http.StatusBadRequest || e.body(t, w).Error.Code != tc.code {
+			t.Fatalf("%s: %d %q, mong đợi 400 %s", tc.name, w.Code, w.Body.String(), tc.code)
+		}
+	}
+
+	for _, method := range []string{"GET", "PUT", "DELETE"} {
+		w := e.do(t, e.user, method, "/api/v1/cloud/projects/khong-phai-uuid", `{"name":"x","engine":"postgres"}`)
+		if w.Code != http.StatusBadRequest || e.body(t, w).Error.Code != codeCloudInvalidID {
+			t.Fatalf("%s id rác = %d %q", method, w.Code, w.Body.String())
+		}
+	}
+
+	// owner_id trong body không được dùng: dự án thuộc về người gọi, không thuộc người trong body.
+	w := e.do(t, e.user, "POST", "/api/v1/cloud/projects",
+		fmt.Sprintf(`{"name":"A","engine":"postgres","owner_id":%q,"tabs":[]}`, e.other))
+	if w.Code != http.StatusCreated {
+		t.Fatalf("POST = %d %q", w.Code, w.Body.String())
+	}
+	id := e.body(t, w).Project.ID
+	var owner string
+	if err := e.raw.QueryRow(context.Background(), `SELECT owner_id::text FROM cloud_projects WHERE id = $1`, id).Scan(&owner); err != nil {
+		t.Fatal(err)
+	}
+	if owner != e.user {
+		t.Fatalf("owner trong DB = %s, mong đợi người gọi %s", owner, e.user)
+	}
+
+	// Chưa đăng nhập: 401.
+	if w := e.do(t, "", "GET", "/api/v1/cloud/projects", ""); w.Code != http.StatusUnauthorized {
+		t.Fatalf("không có session = %d %q", w.Code, w.Body.String())
+	}
+}

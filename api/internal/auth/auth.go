@@ -41,17 +41,17 @@ type Provider struct {
 
 // Config: trường rỗng nghĩa là chưa cấu hình, route liên quan trả 503.
 type Config struct {
-	PublicOrigin  string // https://host hoặc http://localhost:3000, không có path
-	SessionSecret string // Tối thiểu 32 ký tự dùng ký HMAC-SHA256 cho session cookie sid
+	PublicOrigin   string // https://host hoặc http://localhost:3000, không có path
+	SessionSecret  string // Tối thiểu 32 ký tự dùng ký HMAC-SHA256 cho session cookie sid
 	Google, GitHub Provider
-	HTTPClient    *http.Client // nil: client timeout 10 giây
+	HTTPClient     *http.Client // nil: client timeout 10 giây
 }
 
 type Deps struct {
 	Config     Config
-	Store      *store.Store        // nil: chưa có DATABASE_URL
-	Limiter    *quota.Limiter      // nil: chưa có Upstash
-	Gatekeeper *AbuseGatekeeper    // nil: chưa có Abuse Gatekeeper
+	Store      *store.Store     // nil: chưa có DATABASE_URL
+	Limiter    *quota.Limiter   // nil: chưa có Upstash
+	Gatekeeper *AbuseGatekeeper // nil: chưa có Abuse Gatekeeper
 }
 
 type pending struct {
@@ -264,6 +264,10 @@ func (a *Auth) requireUser(c *gin.Context) {
 		c.Next()
 	}
 }
+
+// RequireUser là cổng đăng nhập công khai cho các package khác gắn lên nhóm route của mình
+// (cloud CRUD ở SP023 không import được package auth vì auth đã import httpapi).
+func (a *Auth) RequireUser() gin.HandlerFunc { return a.requireUser }
 
 // Gate = đăng nhập, rồi giới hạn tần suất thô theo user (bảo vệ Upstash và Neon), rồi quota.
 // Giới hạn thô theo user thay vì theo IP: sau Vercel rewrite và proxy của Render, IP kết nối là IP proxy chung.
