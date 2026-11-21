@@ -21,8 +21,8 @@ Role tạo bảng là owner thì **mặc định bỏ qua RLS**. Epic này phả
 | **STR102** | `Task149` | Migration 3 bảng cloud + role app không phải owner | Amelia | Hoàn thành 100% |
 | **STR102** | `Task150` | Gin CRUD lưu dự án cloud, quota, không log SQL | Amelia | Hoàn thành 100% (chưa gọi reviewer độc lập) |
 | **STR103** | `Task151` | Policy RLS theo từng lệnh, `FORCE RLS`, helper transaction | Amelia | Hoàn thành 100% (chưa gọi reviewer độc lập) |
-| **STR103** | `Task152` | Test cross-tenant thật và test rò ngữ cảnh qua pool | Amelia | Chờ thực hiện |
-| **STR104** | `Task153` | Kéo/đẩy dự án và xử lý xung đột | Amelia | Chờ thực hiện |
+| **STR103** | `Task152` | Test cross-tenant thật và test rò ngữ cảnh qua pool | Amelia | Hoàn thành 100% (chưa gọi reviewer độc lập) |
+| **STR104** | `Task153` | Kéo/đẩy dự án và xử lý xung đột | Amelia | Hoàn thành 100% (chưa gọi reviewer độc lập) |
 | **STR104** | `Task154` | Cloud panel trong giao diện | Amelia | Chờ thực hiện |
 | **STR105** | `Task155` | Cổng `security-audit` cho toàn Epic | Amelia | Chờ thực hiện |
 | **STR105** | `Task156` | Kiểm referrer/XSS của share và hồi quy RLS | Amelia | Chờ thực hiện |
