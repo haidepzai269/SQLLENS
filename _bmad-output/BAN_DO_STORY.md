@@ -211,7 +211,7 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---- |
 | STR099 Mã hóa snapshot vào URL       | Bấm Share là có link chứa toàn bộ snapshot (gzip + base64url trong fragment), không gửi byte nào lên server; quá lớn thì báo và cho tải file thay thế (ĐÃ XONG 100% - Task143, Task144) | Có  | Thật |
 | STR100 Trang `/share` chỉ đọc        | Mở link là thấy snapshot đúng thiết kế prototype, không sửa được, không có dữ liệu nào rời máy, chặn referrer (ĐÃ XONG 100% - Task145, Task146)                                          | Có  | Thật |
-| STR101 Fork vào workspace & chạy thử | Người nhận fork 1-Click thành dự án riêng và chạy thử cục bộ, snapshot trong URL không đổi (Task147 ĐÃ XONG 100%; còn Task148)                                                             | Có  | Thật |
+| STR101 Fork vào workspace & chạy thử | Người nhận fork 1-Click thành dự án riêng và chạy thử cục bộ, snapshot trong URL không đổi (ĐÃ XONG 100% - Task147, Task148)                                                               | Có  | Thật |
 
 ## SP023 Đồng bộ Cloud & RLS cấp Project
 

@@ -14,7 +14,7 @@ Quyết định của chủ dự án: nhúng payload vào URL (gzip + base64url 
 | **STR100** | `Task145` | Route `/share` đọc fragment, trạng thái lỗi, chặn referrer | Amelia | Hoàn thành 100% |
 | **STR100** | `Task146` | Renderer chỉ đọc bám prototype | Amelia | Hoàn thành 100% |
 | **STR101** | `Task147` | Fork snapshot vào workspace | Amelia | Hoàn thành 100% |
-| **STR101** | `Task148` | Chạy thử snapshot ngay trên trang share | Amelia | Chờ thực hiện |
+| **STR101** | `Task148` | Chạy thử snapshot ngay trên trang share | Amelia | Hoàn thành 100% |
 
 ## Hợp đồng payload dùng chung
 
