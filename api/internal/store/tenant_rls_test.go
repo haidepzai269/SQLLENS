@@ -36,6 +36,8 @@ const (
 	rlsUserBinh    = "bbbbbbbb-0000-4000-8000-000000000002"
 	rlsUserChi     = "cccccccc-0000-4000-8000-000000000003"
 	rlsUserAn2     = "dddddddd-0000-4000-8000-000000000004"
+	rlsUserDung    = "eeeeeeee-0000-4000-8000-000000000005" // thành viên editor của dự án Bình
+	rlsTabBinh     = "44444444-0000-4000-8000-000000000004"
 	rlsProjectAn   = "11111111-0000-4000-8000-000000000001"
 	rlsProjectBinh = "22222222-0000-4000-8000-000000000002"
 	rlsMissing     = "99999999-0000-4000-8000-000000000099"
@@ -209,6 +211,95 @@ func TestRLSMemberReadsButCannotDelete(t *testing.T) {
 	var projects int
 	if err := e.owner.pool.QueryRow(ctx, `SELECT count(*) FROM cloud_projects WHERE id = $1`, rlsProjectBinh).Scan(&projects); err != nil || projects != 1 {
 		t.Fatalf("dự án của Bình: n=%d err=%v", projects, err)
+	}
+}
+
+// Lỗi chặn của review độc lập: policy GHI của cloud_tabs chỉ kiểm "là thành viên", nên một
+// `viewer` (chỉ được mời xem) sửa/xóa/chèn được tab của chủ dự án — ghi đè SQL của người khác.
+// Đọc phải giữ nguyên cho viewer (đó là mục đích của viewer), nên test khẳng định cả hai chiều.
+//
+// Chạy bằng role chủ NOSUPERUSER NOBYPASSRLS (chân dung Neon) vì superuser bỏ qua RLS và sẽ
+// làm test này xanh giả: đây đúng là cái bẫy đã che lỗi COPY FROM ở Task150.
+func TestRLSMemberRoleGateOnTabs(t *testing.T) {
+	e := newRLSEnv(t)
+	ctx := context.Background()
+	ownerStore := e.asNonSuperuserOwner(t)
+
+	// run chạy fn trong ngữ cảnh tenant bằng role chủ non-superuser và trả lỗi cho người gọi tự
+	// quyết định: INSERT bị policy chặn thì đó là kết quả ĐÚNG, không phải test hỏng.
+	run := func(user string, fn func(tx pgx.Tx) error) error {
+		t.Helper()
+		return ownerStore.WithTenant(ctx, user, fn)
+	}
+	execAs := func(user, sql string, args ...any) (int64, error) {
+		t.Helper()
+		var n int64
+		err := run(user, func(tx pgx.Tx) error {
+			tag, err := tx.Exec(ctx, sql, args...)
+			if err != nil {
+				return err
+			}
+			n = tag.RowsAffected()
+			return nil
+		})
+		return n, err
+	}
+
+	// 1. Viewer ĐỌC được: đó là quyền duy nhất của viewer, không được siết nhầm.
+	var seen int
+	if err := run(rlsUserChi, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT count(*) FROM cloud_tabs WHERE project_id = $1`, rlsProjectBinh).Scan(&seen)
+	}); err != nil {
+		t.Fatalf("viewer đọc tab: %v", err)
+	}
+	if seen != 1 {
+		t.Fatalf("viewer đọc được %d tab, mong đợi 1", seen)
+	}
+
+	// 2. Viewer KHÔNG ghi được: UPDATE/DELETE trả 0 hàng, INSERT bị WITH CHECK chặn.
+	if n, err := execAs(rlsUserChi, `UPDATE cloud_tabs SET sql = 'HACK' WHERE id = $1`, rlsTabBinh); err != nil || n != 0 {
+		t.Fatalf("viewer UPDATE tab: %d hàng, err=%v; mong đợi 0 hàng", n, err)
+	}
+	if n, err := execAs(rlsUserChi, `DELETE FROM cloud_tabs WHERE id = $1`, rlsTabBinh); err != nil || n != 0 {
+		t.Fatalf("viewer DELETE tab: %d hàng, err=%v; mong đợi 0 hàng", n, err)
+	}
+	err := run(rlsUserChi, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `INSERT INTO cloud_tabs (project_id, name, sql) VALUES ($1, 'hack', 'HACK')`, rlsProjectBinh)
+		return err
+	})
+	if err == nil || !strings.Contains(err.Error(), "row-level security") {
+		t.Fatalf("viewer INSERT tab: err=%v, mong đợi vi phạm row-level security", err)
+	}
+
+	// 3. Dữ liệu của chủ dự án còn nguyên: đọc bằng chính ngữ cảnh của chủ.
+	var sqlText string
+	var tabs int
+	if err := run(rlsUserBinh, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM cloud_tabs WHERE project_id = $1`, rlsProjectBinh).Scan(&tabs); err != nil {
+			return err
+		}
+		return tx.QueryRow(ctx, `SELECT sql FROM cloud_tabs WHERE id = $1`, rlsTabBinh).Scan(&sqlText)
+	}); err != nil {
+		t.Fatalf("chủ dự án đọc lại tab: %v", err)
+	}
+	if tabs != 1 || sqlText != "SELECT 2" {
+		t.Fatalf("tab của Bình sau khi viewer thử ghi: %d tab, sql=%q", tabs, sqlText)
+	}
+
+	// 4. Editor ghi được: siết role không được chặn nhầm người thật sự được phép ghi.
+	if n, err := execAs(rlsUserDung, `UPDATE cloud_tabs SET sql = 'SELECT 3' WHERE id = $1`, rlsTabBinh); err != nil || n != 1 {
+		t.Fatalf("editor UPDATE tab: %d hàng, err=%v; mong đợi 1", n, err)
+	}
+	var newTab int64
+	if err := run(rlsUserDung, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `INSERT INTO cloud_tabs (project_id, name, sql) VALUES ($1, 'editor', 'SELECT 4')`, rlsProjectBinh)
+		newTab = tag.RowsAffected()
+		return err
+	}); err != nil || newTab != 1 {
+		t.Fatalf("editor INSERT tab: %d hàng, err=%v; mong đợi 1", newTab, err)
+	}
+	if n, err := execAs(rlsUserDung, `DELETE FROM cloud_tabs WHERE project_id = $1 AND name = 'editor'`, rlsProjectBinh); err != nil || n != 1 {
+		t.Fatalf("editor DELETE tab: %d hàng, err=%v; mong đợi 1", n, err)
 	}
 }
 

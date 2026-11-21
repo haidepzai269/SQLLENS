@@ -249,6 +249,65 @@ func TestCloudCrossTenant(t *testing.T) {
 	}
 }
 
+// Lỗi 3 của review: trần body 1MB toàn cục nhỏ hơn quota tab (100 × 512KB) nên hai tab 512KB
+// đã bị 413 trước khi handler kịp chạy, và quota "100 tab" không bao giờ chạm tới. Sau khi sửa:
+// route cloud có trần riêng đủ rộng, còn trần TỔNG 2MB/dự án trả 400 project_too_large.
+func TestCloudBodyLimitPerProject(t *testing.T) {
+	e := newCloudEnv(t)
+	ctx := context.Background()
+
+	// 1. Tab 600KB vẫn bị chặn bởi trần riêng của tab (không phải bởi trần body).
+	w := e.do(t, e.user, "POST", "/api/v1/cloud/projects",
+		cloudJSON("tab to", "postgres", [2]string{"t", strings.Repeat("a", 600*1024)}))
+	if w.Code != http.StatusBadRequest || e.body(t, w).Error.Code != codeCloudTabTooLarge {
+		t.Fatalf("tab 600KB = %d %q", w.Code, w.Body.String())
+	}
+
+	// 2. Hai tab 512KB (body ~1MB): trước đây 413, nay phải lưu được.
+	half := strings.Repeat("a", 512*1024)
+	w = e.do(t, e.user, "POST", "/api/v1/cloud/projects",
+		cloudJSON("hai tab lớn", "postgres", [2]string{"a", half}, [2]string{"b", half}))
+	if w.Code != http.StatusCreated {
+		t.Fatalf("hai tab 512KB = %d %q, mong đợi 201", w.Code, w.Body.String())
+	}
+	id := e.body(t, w).Project.ID
+	var stored int
+	if err := e.raw.QueryRow(ctx, `SELECT count(*) FROM cloud_tabs WHERE project_id = $1`, id).Scan(&stored); err != nil || stored != 2 {
+		t.Fatalf("hai tab 512KB đã lưu: n=%d err=%v", stored, err)
+	}
+
+	// 3. Dự án vượt trần tổng 2MB: 400 project_too_large (không phải 413) và KHÔNG ghi một phần.
+	//    5 tab × 450KB = 2,25MB, mỗi tab vẫn dưới trần riêng 512KB.
+	tabs := make([][2]string, 0, 5)
+	for i := 0; i < 5; i++ {
+		tabs = append(tabs, [2]string{fmt.Sprintf("t%d", i), strings.Repeat("a", 450*1024)})
+	}
+	before := countProjects(t, e)
+	w = e.do(t, e.user, "POST", "/api/v1/cloud/projects", cloudJSON("quá tổng", "postgres", tabs...))
+	if w.Code != http.StatusBadRequest || e.body(t, w).Error.Code != codeCloudProjectTooBig {
+		t.Fatalf("tổng 2,25MB = %d %q, mong đợi 400 %s", w.Code, w.Body.String(), codeCloudProjectTooBig)
+	}
+	if after := countProjects(t, e); after != before {
+		t.Fatalf("đã ghi một phần: %d -> %d dự án", before, after)
+	}
+
+	// 4. Route khác vẫn giữ trần 1MB: không được nới rộng cả hệ thống vì route cloud.
+	//    1,5MB nằm giữa hai trần nên phân biệt được hai chế độ.
+	r, _ := testRouter()
+	w = do(r, "POST", "/echo/1", strings.Repeat("a", 1536*1024))
+	wantErr(t, w, http.StatusRequestEntityTooLarge, "payload_too_large", "error.payloadTooLarge")
+}
+
+// countProjects đếm dự án bằng role chủ để không phụ thuộc RLS của phiên.
+func countProjects(t *testing.T, e *cloudEnv) int {
+	t.Helper()
+	var n int
+	if err := e.raw.QueryRow(context.Background(), `SELECT count(*) FROM cloud_projects`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
 // AC3: vượt quota trả 400 kèm mã lỗi, và không ghi một phần.
 func TestCloudQuota(t *testing.T) {
 	e := newCloudEnv(t)

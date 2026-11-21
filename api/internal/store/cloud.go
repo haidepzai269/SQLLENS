@@ -19,12 +19,17 @@ const (
 	MaxCloudProjects = 50
 	MaxCloudTabs     = 100
 	MaxCloudTabBytes = 512 * 1024
+	// MaxCloudProjectBytes là trần TỔNG của một dự án. Vì sao cần trần tổng: quota 100 tab ×
+	// 512KB cho phép một dự án 50MB, vượt xa mọi trần body hợp lý, nên "100 tab" chỉ là con số
+	// không bao giờ chạm tới. Trần tổng đặt giới hạn thật cho dung lượng một lần đồng bộ.
+	MaxCloudProjectBytes = 2 * 1024 * 1024
 )
 
 var (
 	ErrCloudTooManyProjects = errors.New("store: vượt giới hạn 50 dự án cloud")
 	ErrCloudTooManyTabs     = errors.New("store: vượt giới hạn 100 tab mỗi dự án")
 	ErrCloudTabTooLarge     = errors.New("store: một tab vượt giới hạn 512KB")
+	ErrCloudProjectTooLarge = errors.New("store: tổng dung lượng tab của dự án vượt giới hạn 2MB")
 	ErrCloudInvalidEngine   = errors.New("store: engine cloud không hợp lệ")
 	ErrCloudInvalidName     = errors.New("store: tên dự án cloud không được rỗng")
 )
@@ -56,6 +61,9 @@ type CloudProject struct {
 
 // ValidateCloudInput kiểm tra dữ liệu trước khi chạm database, để lỗi quota không bao giờ để lại
 // một phần dự án đã ghi.
+//
+// Trần tổng tính cả `Name` chứ không chỉ `SQL`: tên tab cũng đi vào body và vào database, nên bỏ
+// nó ra thì body thật vẫn vượt trần trong khi hàm nói "vừa".
 func ValidateCloudInput(name, engine string, tabs []CloudTab) error {
 	if strings.TrimSpace(name) == "" {
 		return ErrCloudInvalidName
@@ -66,10 +74,15 @@ func ValidateCloudInput(name, engine string, tabs []CloudTab) error {
 	if len(tabs) > MaxCloudTabs {
 		return ErrCloudTooManyTabs
 	}
+	total := 0
 	for _, t := range tabs {
 		if len(t.SQL) > MaxCloudTabBytes {
 			return ErrCloudTabTooLarge
 		}
+		total += len(t.SQL) + len(t.Name)
+	}
+	if total > MaxCloudProjectBytes {
+		return ErrCloudProjectTooLarge
 	}
 	return nil
 }

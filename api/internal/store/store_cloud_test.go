@@ -687,9 +687,15 @@ func TestCloudPreexistingTableMissingIndexedColumn(t *testing.T) {
 	// Ca 2: cloud_projects (bảng rỗng) thiếu cột owner_id và khóa ngoại của nó.
 	// Bảng ở trạng thái "trước 004" nên không còn policy RLS nào tham chiếu owner_id: policy
 	// 004 dựng trên cột này, để nguyên thì Postgres từ chối DROP COLUMN (phụ thuộc).
-	for _, pol := range []string{"cloud_projects_select", "cloud_projects_insert", "cloud_projects_update", "cloud_projects_delete"} {
-		if _, err := s.pool.Exec(ctx, `DROP POLICY IF EXISTS `+pol+` ON public.cloud_projects`); err != nil {
-			t.Fatal(err)
+	// Phải xóa policy của CẢ cloud_tabs nữa, không chỉ cloud_projects: migration 005 siết 3
+	// policy ghi của cloud_tabs theo `p.owner_id` nên chúng cũng phụ thuộc cột này. Dựng lại
+	// đúng trạng thái "chưa có RLS" thay vì chỉ xóa một nửa, nếu không test sẽ đỏ vì lý do
+	// dựng cảnh chứ không phải vì migration.
+	for _, tbl := range []string{"cloud_projects", "cloud_tabs"} {
+		for _, pol := range []string{"select", "insert", "update", "delete"} {
+			if _, err := s.pool.Exec(ctx, `DROP POLICY IF EXISTS `+tbl+`_`+pol+` ON public.`+tbl); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 	if _, err := s.pool.Exec(ctx, `ALTER TABLE public.cloud_project_members DROP CONSTRAINT cloud_project_members_project_id_fkey`); err != nil {

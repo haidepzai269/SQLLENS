@@ -9,12 +9,15 @@
 --   Chi  (c...) là thành viên (viewer) của dự án của Bình
 --   An thứ hai (d...) cùng tên với An nhưng không sở hữu gì: chứng minh policy so theo id,
 --        không so theo tên hiển thị.
+--   Dũng (e...) là thành viên **editor** của dự án của Bình: ca đối chứng, để việc siết
+--        role ở lệnh ghi không chặn nhầm người thật sự được phép ghi.
 
 INSERT INTO users (id, display_name) VALUES
   ('aaaaaaaa-0000-4000-8000-000000000001', 'An'),
   ('bbbbbbbb-0000-4000-8000-000000000002', 'Bình'),
   ('cccccccc-0000-4000-8000-000000000003', 'Chi'),
-  ('dddddddd-0000-4000-8000-000000000004', 'An')
+  ('dddddddd-0000-4000-8000-000000000004', 'An'),
+  ('eeeeeeee-0000-4000-8000-000000000005', 'Dũng')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO cloud_projects (id, owner_id, name, engine) VALUES
@@ -28,5 +31,6 @@ INSERT INTO cloud_tabs (id, project_id, name, sql, position) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO cloud_project_members (project_id, user_id, role) VALUES
-  ('22222222-0000-4000-8000-000000000002', 'cccccccc-0000-4000-8000-000000000003', 'viewer')
+  ('22222222-0000-4000-8000-000000000002', 'cccccccc-0000-4000-8000-000000000003', 'viewer'),
+  ('22222222-0000-4000-8000-000000000002', 'eeeeeeee-0000-4000-8000-000000000005', 'editor')
 ON CONFLICT (project_id, user_id) DO NOTHING;

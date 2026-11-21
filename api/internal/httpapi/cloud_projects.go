@@ -28,8 +28,24 @@ const (
 	codeCloudTooManyProject = "too_many_projects"
 	codeCloudTooManyTabs    = "too_many_tabs"
 	codeCloudTabTooLarge    = "tab_too_large"
+	codeCloudProjectTooBig  = "project_too_large"
 	codeCloudNotFound       = "not_found"
 )
+
+// cloudPathPrefix là tiền tố mà router dùng để nâng trần body. Trần mặc định 1MB nhỏ hơn quota
+// tab (100 × 512KB) nên nếu để chung, một dự án nhiều tab bị 413 trước khi handler kịp trả lỗi
+// quota có nghĩa. Chỉ route dưới tiền tố này được nâng, mọi route khác giữ 1MB.
+const cloudPathPrefix = "/api/v1/cloud/"
+
+// cloudBodyOverhead là phần dôi ra cho vỏ JSON (tên trường, dấu ngoặc, escape). Phải dương để
+// dự án vượt trần TỔNG nhận 400 project_too_large từ handler thay vì 413 từ tầng vận chuyển:
+// nếu trần body bằng đúng trần tổng thì mọi ca vượt quota đều bị chặn sớm hơn, và client không
+// phân biệt được "dự án quá lớn" với "request quá lớn". Dấu nháy và xuống dòng trong SQL tốn
+// 2 byte JSON mỗi byte, nên để dư 1MB (50%) thay vì sát trần.
+const cloudBodyOverhead = 1 << 20
+
+// cloudBodyBytes là trần body riêng của route cloud.
+const cloudBodyBytes = store.MaxCloudProjectBytes + cloudBodyOverhead
 
 var cloudIDRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
@@ -166,6 +182,10 @@ func (h *cloudHandler) fail(c *gin.Context, err error) {
 		Abort(c, http.StatusBadRequest, codeCloudTooManyTabs, "error.badRequest")
 	case errors.Is(err, store.ErrCloudTabTooLarge):
 		Abort(c, http.StatusBadRequest, codeCloudTabTooLarge, "error.badRequest")
+	case errors.Is(err, store.ErrCloudProjectTooLarge):
+		// Mã riêng chứ không gộp vào tab_too_large: client cần biết phải xóa bớt tab hay cắt
+		// ngắn một tab, và 400 (không phải 413) nói rằng request đã tới được handler.
+		Abort(c, http.StatusBadRequest, codeCloudProjectTooBig, "error.badRequest")
 	case errors.Is(err, store.ErrNotFound):
 		// Người khác dùng id của chủ cũng rơi vào đây: 404 để không lộ dự án có tồn tại hay không.
 		Abort(c, http.StatusNotFound, codeCloudNotFound, "error.notFound")
