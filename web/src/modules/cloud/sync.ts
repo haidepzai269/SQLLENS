@@ -44,6 +44,7 @@ export type CloudSyncErrorCode =
   | "UNAVAILABLE"
   | "REJECTED"
   | "TOO_LARGE"
+  | "BUSY"
   | "FAILED";
 
 export class CloudSyncError extends Error {
@@ -74,9 +75,19 @@ export class CloudSyncError extends Error {
  */
 const unpersistedLinks = new Map<string, { remoteId: string; remoteUpdatedAt: string }>();
 
+/**
+ * Các lượt đẩy đang chạy, theo projectId. `unpersistedLinks` chỉ chặn được hai lượt đẩy TUẦN TỰ;
+ * hai lượt chạy SONG SONG (hai tab, hoặc bấm đúp trước khi nút kịp chuyển sang trạng thái bận)
+ * đều đọc `cloud` chưa có rồi cùng POST → hai dự án trùng trên cloud, đúng lỗi mà bộ nhớ kia
+ * vừa sửa. Chặn bằng cách từ chối lượt thứ hai thay vì xếp hàng: người dùng bấm lại được, còn
+ * xếp hàng thì hai lượt vẫn nối tiếp nhau và lượt sau ghi đè lượt trước một cách im lặng.
+ */
+const inFlight = new Set<string>();
+
 /** Chỉ dùng cho test: quên các liên kết còn trong bộ nhớ giữa các ca. */
 export function forgetUnpersistedLinks(): void {
   unpersistedLinks.clear();
+  inFlight.clear();
 }
 
 /**
@@ -255,7 +266,18 @@ export async function detachCloudLink(projectId: string, options: SyncOptions = 
  * cloud → `remote_gone`, để UI hỏi người dùng có đẩy lên thành dự án mới hay không.
  */
 export async function pushProject(projectId: string, options: SyncOptions = {}): Promise<PushResult> {
-  const db = await openDb(options.factory);
+  if (inFlight.has(projectId)) {
+    throw new CloudSyncError("BUSY", "Dự án này đang được đẩy lên cloud, chờ một chút rồi thử lại");
+  }
+  inFlight.add(projectId);
+  let db: IDBDatabase;
+  try {
+    db = await openDb(options.factory);
+  } catch (err) {
+    // Mở bộ nhớ hỏng thì phải nhả khóa, nếu không dự án kẹt ở trạng thái "đang đẩy" mãi.
+    inFlight.delete(projectId);
+    throw err;
+  }
   try {
     const repo = getRepository(db);
     let project: WorkspaceProject | undefined;
@@ -321,6 +343,7 @@ export async function pushProject(projectId: string, options: SyncOptions = {}):
     unpersistedLinks.delete(projectId);
     return { kind: "ok", updatedAt: remote.updatedAt, remoteId: remote.id, stamp };
   } finally {
+    inFlight.delete(projectId);
     closeDb(db);
   }
 }

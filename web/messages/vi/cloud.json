@@ -46,6 +46,7 @@
     "QUOTA_EXCEEDED": "Bộ nhớ trình duyệt đã đầy nên không ghi được dự án xuống máy.",
     "STORAGE_UNAVAILABLE": "Trình duyệt đang chặn bộ nhớ cục bộ, không lưu được dự án.",
     "TOO_LARGE": "Dự án quá lớn để lưu lên cloud. Hãy bớt tab hoặc chia nhỏ câu lệnh.",
+    "BUSY": "Dự án này đang được lưu lên cloud. Chờ một chút rồi thử lại.",
     "REJECTED": "Máy chủ từ chối nội dung dự án.",
     "FAILED": "Có lỗi khi lưu dự án. Thử lại."
   },

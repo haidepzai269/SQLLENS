@@ -36,11 +36,6 @@
   "remoteGoneSaveNew": "Save as new cloud project",
   "remoteGoneDetach": "Unlink from cloud",
   "remoteGoneDetached": "Cloud link removed. The project is on this device only.",
-  "remoteGone": "The cloud copy was deleted somewhere else.",
-  "remoteGoneHint": "The project on this device is untouched. Save it as a new cloud project, or detach the cloud link so it stays on this device only.",
-  "remoteGoneSaveNew": "Save as a new project",
-  "remoteGoneDetach": "Detach cloud link",
-  "remoteGoneDetached": "Cloud link removed. The project now lives only on this device.",
   "dismiss": "Dismiss message",
   "error": {
     "AUTH_REQUIRED": "Your session expired. Sign in again, then save.",
@@ -51,6 +46,7 @@
     "QUOTA_EXCEEDED": "Browser storage is full, so the project couldn't be written to this device.",
     "STORAGE_UNAVAILABLE": "This browser is blocking local storage, so the project can't be saved.",
     "TOO_LARGE": "This project is too large for the cloud. Remove a tab or split the SQL.",
+    "BUSY": "This project is already being saved. Wait a moment, then try again.",
     "REJECTED": "The server rejected the project content.",
     "FAILED": "Something went wrong while saving. Try again."
   },

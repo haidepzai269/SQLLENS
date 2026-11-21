@@ -357,6 +357,85 @@ describe("pushProject", () => {
     expect(calls.map((c) => c.method)).toEqual(["POST"]);
   });
 
+  // Reviewer vòng 2: hai lượt đẩy SONG SONG cùng dự án đều thấy `cloud` trống nên cùng POST,
+  // sinh hai dự án trùng — cùng lớp lỗi LỖI 4 nhưng ở đường thứ hai. `unpersistedLinks` chỉ
+  // chặn được lượt TUẦN TỰ, nên phải có khóa theo lượt đang chạy.
+  it("hai lượt đẩy song song cùng dự án: lượt thứ hai bị chặn, chỉ một POST", async () => {
+    await seedLocal(localProject(), []);
+    const pushed = { ...remote, id: "remote-9", updatedAt: "2026-11-21T08:30:00Z", tabs: undefined };
+    // Giữ lượt đầu lại giữa đường để lượt thứ hai chắc chắn chạy chồng lên.
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const calls: string[] = [];
+    const impl = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push(init?.method ?? "GET");
+      await gate;
+      return jsonResponse(201, { project: pushed });
+    }) as typeof fetch;
+
+    const first = pushProject("local-1", { factory, fetchImpl: impl });
+    const second = await pushProject("local-1", { factory, fetchImpl: impl }).catch((e) => e);
+    release?.();
+
+    expect(second).toMatchObject({ code: "BUSY" });
+    await expect(first).resolves.toMatchObject({ kind: "ok" });
+    expect(calls).toEqual(["POST"]);
+  });
+
+  it("lượt đẩy song song bị chặn không làm kẹt dự án: sau đó đẩy lại được", async () => {
+    await seedLocal(localProject(), []);
+    const pushed = { ...remote, id: "remote-9", updatedAt: "2026-11-21T08:30:00Z", tabs: undefined };
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let held = true;
+    const impl = (async () => {
+      if (held) {
+        held = false;
+        await gate;
+      }
+      return jsonResponse(201, { project: pushed });
+    }) as typeof fetch;
+
+    const first = pushProject("local-1", { factory, fetchImpl: impl });
+    await expect(pushProject("local-1", { factory, fetchImpl: impl })).rejects.toMatchObject({ code: "BUSY" });
+    release?.();
+    await expect(first).resolves.toMatchObject({ kind: "ok" });
+
+    // Khóa đã nhả: lượt sau chạy bình thường và đi PUT vì đã có liên kết.
+    const third = await pushProject("local-1", { factory, fetchImpl: impl });
+    expect(third).toMatchObject({ kind: "ok", remoteId: "remote-9" });
+  });
+
+  // Ca mà reviewer vòng 2 tìm ra là lỗ hổng test: liên kết còn trong BỘ NHỚ (`unpersistedLinks`)
+  // nhưng người dùng gỡ liên kết. Nếu nhánh detach quên xóa Map thì lần đẩy sau vẫn PUT vào
+  // đúng dự án vừa gỡ, tức liên kết chết sống lại và người dùng không tạo được dự án mới.
+  it("LỖI 5: detachCloudLink khi liên kết chỉ nằm trong bộ nhớ thì lần sau vẫn là POST", async () => {
+    await seedLocal(localProject(), [
+      { id: "t1", projectId: "local-1", name: "q1", sql: "SELECT 1", position: 0, updatedAt: NOW },
+    ]);
+    const first = { ...remote, id: "remote-9", updatedAt: "2026-11-21T08:30:00Z", tabs: undefined };
+    const { impl, calls } = fakeFetch(() => jsonResponse(201, { project: first }));
+
+    // Đẩy thành công ở server nhưng ghi IndexedDB hỏng → chỉ bộ nhớ biết `remote-9`.
+    failUpsert.times = 1;
+    await expect(pushProject("local-1", { factory, fetchImpl: impl })).rejects.toMatchObject({
+      code: "QUOTA_EXCEEDED",
+    });
+    expect((await readLocal("local-1")).project?.cloud).toBeUndefined();
+
+    // Người dùng gỡ liên kết (dự án trên đĩa vốn chưa có liên kết, nên đây là nhánh sớm).
+    await detachCloudLink("local-1", { factory });
+
+    const retry = await pushProject("local-1", { factory, fetchImpl: impl });
+    expect(retry).toMatchObject({ kind: "ok" });
+    expect(calls.map((c) => c.method)).toEqual(["POST", "POST"]);
+    expect(calls[1].url).toBe("/api/v1/cloud/projects");
+  });
+
   it("LỖI 5: 404 khác lỗi mạng — mất mạng vẫn là NETWORK, không phải remote_gone", async () => {
     await seedLocal(localProject({ cloud: { remoteId: "remote-9", remoteUpdatedAt: "2026-11-20T10:00:00Z" } }));
     const { impl } = fakeFetch(() => {
