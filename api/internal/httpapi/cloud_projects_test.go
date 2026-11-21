@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	neturl "net/url"
 	"os"
 	"strings"
 	"testing"
@@ -23,11 +24,13 @@ const cloudMark = "ZZTOPSECRET"
 
 type cloudProjectResp struct {
 	Project struct {
-		ID       string `json:"id"`
-		Name     string `json:"name"`
-		Engine   string `json:"engine"`
-		TabCount int    `json:"tabCount"`
-		Tabs     []struct {
+		ID        string `json:"id"`
+		Name      string `json:"name"`
+		Engine    string `json:"engine"`
+		TabCount  int    `json:"tabCount"`
+		CreatedAt string `json:"createdAt"`
+		UpdatedAt string `json:"updatedAt"`
+		Tabs      []struct {
 			Name     string `json:"name"`
 			SQL      string `json:"sql"`
 			Position int    `json:"position"`
@@ -41,6 +44,9 @@ type cloudProjectResp struct {
 		Code       string `json:"code"`
 		MessageKey string `json:"messageKey"`
 	} `json:"error"`
+	Conflict struct {
+		RemoteUpdatedAt string `json:"remoteUpdatedAt"`
+	} `json:"conflict"`
 }
 
 type cloudEnv struct {
@@ -58,8 +64,22 @@ func newCloudEnv(t *testing.T) *cloudEnv {
 	if url == "" {
 		t.Skip("bỏ qua: chưa đặt T150_DATABASE_URL (cần Postgres trong Docker)")
 	}
-	if !strings.Contains(url, "@localhost:") && !strings.Contains(url, "@127.0.0.1:") {
-		t.Fatal("từ chối chạy: test xóa bảng, chỉ cho phép database ở localhost")
+	// So Hostname() đã parse chứ không dùng strings.Contains: URL
+	// `postgres://u:p@localhost:5432@db.invalid:5432/app` có chứa "@localhost:" nhưng thật sự
+	// trỏ tới db.invalid. Cùng quy tắc với guardLocalOnly của package store.
+	u, err := neturl.Parse(url)
+	if err != nil {
+		t.Fatalf("từ chối chạy: không đọc được URL kết nối (%v); test chỉ cho phép database ở localhost", err)
+	}
+	switch u.Scheme {
+	case "postgres", "postgresql":
+	default:
+		t.Fatalf("từ chối chạy: URL phải dùng scheme postgres, nhận %q", u.Scheme)
+	}
+	switch u.Hostname() {
+	case "localhost", "127.0.0.1", "::1":
+	default:
+		t.Fatalf("từ chối chạy: host %q không phải localhost; test xóa bảng nên chỉ cho phép database ở localhost", u.Hostname())
 	}
 	ctx := context.Background()
 	raw, err := pgxpool.New(ctx, url)
@@ -334,6 +354,65 @@ func TestCloudLogsNoSQL(t *testing.T) {
 	}
 	if !strings.Contains(e.buf.String(), "POST /api/v1/cloud/projects 500") {
 		t.Fatalf("log thiếu dòng của request 500: %q", e.buf.String())
+	}
+}
+
+// Task153: ghi có điều kiện bằng `baseUpdatedAt` — máy khác đã sửa thì 409 và không ghi đè.
+func TestCloudUpdateConflict(t *testing.T) {
+	e := newCloudEnv(t)
+	w := e.do(t, e.user, "POST", "/api/v1/cloud/projects", cloudJSON("Bản gốc", "postgres", [2]string{"t", "SELECT 1"}))
+	if w.Code != http.StatusCreated {
+		t.Fatalf("POST = %d %q", w.Code, w.Body.String())
+	}
+	created := e.body(t, w).Project
+	base := created.UpdatedAt
+	if base == "" {
+		t.Fatal("response thiếu updatedAt")
+	}
+
+	put := func(name, base string) *httptest.ResponseRecorder {
+		t.Helper()
+		body := fmt.Sprintf(`{"name":%q,"engine":"postgres","tabs":[],"baseUpdatedAt":%q}`, name, base)
+		return e.do(t, e.user, "PUT", "/api/v1/cloud/projects/"+created.ID, body)
+	}
+
+	// Đúng mốc: ghi được.
+	w = put("Bản mới", base)
+	if w.Code != http.StatusOK {
+		t.Fatalf("PUT đúng mốc = %d %q", w.Code, w.Body.String())
+	}
+	if e.body(t, w).Project.UpdatedAt == base {
+		t.Fatal("updatedAt không đổi sau khi ghi")
+	}
+
+	// Mốc cũ: 409, kèm mốc hiện tại của server, và KHÔNG ghi đè.
+	w = put("Bản cướp", base)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("PUT mốc cũ = %d %q, mong đợi 409", w.Code, w.Body.String())
+	}
+	conflict := e.body(t, w)
+	if conflict.Error.Code != "conflict" || conflict.Conflict.RemoteUpdatedAt == "" {
+		t.Fatalf("payload 409 = %q", w.Body.String())
+	}
+	var name string
+	if err := e.raw.QueryRow(context.Background(), `SELECT name FROM cloud_projects WHERE id = $1`, created.ID).Scan(&name); err != nil {
+		t.Fatal(err)
+	}
+	if name != "Bản mới" {
+		t.Fatalf("409 mà vẫn ghi đè: tên = %q", name)
+	}
+
+	// Không gửi baseUpdatedAt: giữ hành vi cũ của Task150.
+	body := fmt.Sprintf(`{"name":"Không điều kiện","engine":"postgres","tabs":[]}`)
+	w = e.do(t, e.user, "PUT", "/api/v1/cloud/projects/"+created.ID, body)
+	if w.Code != http.StatusOK {
+		t.Fatalf("PUT không base = %d %q", w.Code, w.Body.String())
+	}
+
+	// Mốc không phải RFC3339: 400, không ghi gì.
+	w = put("x", "không-phải-thời-gian")
+	if w.Code != http.StatusBadRequest || e.body(t, w).Error.Code != codeCloudInvalidBody {
+		t.Fatalf("baseUpdatedAt rác = %d %q", w.Code, w.Body.String())
 	}
 }
 

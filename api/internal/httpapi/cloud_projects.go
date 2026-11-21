@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/haidepzai269/SQLLENS/api/internal/store"
@@ -74,6 +76,8 @@ type cloudProjectBody struct {
 	Name   string         `json:"name"`
 	Engine string         `json:"engine"`
 	Tabs   []cloudTabBody `json:"tabs"`
+	// BaseUpdatedAt là mốc server của lần đồng bộ trước (Task153). Vắng = ghi không điều kiện.
+	BaseUpdatedAt string `json:"baseUpdatedAt"`
 }
 
 func (b cloudProjectBody) toStore() []store.CloudTab {
@@ -142,6 +146,15 @@ func (h *cloudHandler) cloudID(c *gin.Context) (string, bool) {
 // fail dịch lỗi store sang mã lỗi. Nhánh mặc định KHÔNG ghi err: thông điệp lỗi của pgx có thể
 // chứa giá trị cột, và giá trị đó có thể là SQL của người dùng.
 func (h *cloudHandler) fail(c *gin.Context, err error) {
+	// 409 có payload riêng (mốc hiện tại của server) để UI hỏi người dùng thay vì ghi đè.
+	var conflict *store.CloudConflictError
+	if errors.As(err, &conflict) {
+		c.AbortWithStatusJSON(http.StatusConflict, gin.H{
+			"error":    gin.H{"code": "conflict", "messageKey": "error.badRequest"},
+			"conflict": gin.H{"remoteUpdatedAt": conflict.RemoteUpdatedAt},
+		})
+		return
+	}
 	switch {
 	case errors.Is(err, store.ErrCloudInvalidName):
 		Abort(c, http.StatusBadRequest, codeCloudInvalidBody, "error.badRequest")
@@ -243,7 +256,16 @@ func (h *cloudHandler) replace(c *gin.Context) {
 		Abort(c, http.StatusBadRequest, codeCloudInvalidBody, "error.badRequest")
 		return
 	}
-	p, err := h.s.ReplaceCloudProject(c.Request.Context(), owner, id, body.Name, body.Engine, body.toStore())
+	var base *time.Time
+	if raw := strings.TrimSpace(body.BaseUpdatedAt); raw != "" {
+		t, err := time.Parse(time.RFC3339Nano, raw)
+		if err != nil {
+			Abort(c, http.StatusBadRequest, codeCloudInvalidBody, "error.badRequest")
+			return
+		}
+		base = &t
+	}
+	p, err := h.s.ReplaceCloudProject(c.Request.Context(), owner, id, body.Name, body.Engine, body.toStore(), base)
 	if err != nil {
 		h.fail(c, err)
 		return

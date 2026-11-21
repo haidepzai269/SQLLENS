@@ -4,6 +4,14 @@ export type WorkspaceScope = { kind: "guest" } | { kind: "user"; userId: string 
 
 export type WorkspaceEngine = "postgres" | "mysql" | "sqlite";
 
+// Liên kết tới bản lưu trên cloud (Task153). Thiếu trường này nghĩa là dự án chỉ nằm trên máy.
+// `remoteUpdatedAt` là mốc của server ở lần kéo/đẩy gần nhất, dùng làm `baseUpdatedAt` để
+// server từ chối ghi đè khi máy khác đã sửa trước.
+export interface WorkspaceCloudLink {
+  remoteId: string;
+  remoteUpdatedAt: string;
+}
+
 export interface WorkspaceProject {
   id: string;
   scopeKey: string;
@@ -11,6 +19,7 @@ export interface WorkspaceProject {
   engine: WorkspaceEngine;
   createdAt: number;
   updatedAt: number;
+  cloud?: WorkspaceCloudLink;
 }
 
 export interface WorkspaceTab {

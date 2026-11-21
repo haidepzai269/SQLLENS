@@ -29,6 +29,12 @@ var (
 	ErrCloudInvalidName     = errors.New("store: tên dự án cloud không được rỗng")
 )
 
+// CloudConflictError: dự án đã bị sửa SAU mốc `baseUpdatedAt` client gửi, nên lần ghi bị từ chối
+// thay vì ghi đè im lặng. Mang mốc hiện tại của server để client hiển thị hai bên.
+type CloudConflictError struct{ RemoteUpdatedAt time.Time }
+
+func (e *CloudConflictError) Error() string { return "store: cloud conflict" }
+
 var cloudEngines = map[string]bool{"postgres": true, "mysql": true, "sqlite": true}
 
 // CloudTab là một tab SQL được lưu kèm dự án. Không mang id: mỗi lần cập nhật là thay cả bộ tab,
@@ -94,16 +100,29 @@ func cleanCloudTabs(tabs []CloudTab) []CloudTab {
 	return out
 }
 
+// insertCloudTabs ghi tab bằng MỘT câu INSERT nhiều dòng, KHÔNG dùng COPY FROM.
+//
+// PostgreSQL từ chối COPY FROM trên bảng có RLS (`COPY FROM not supported with row-level
+// security`) với mọi role bị RLS áp dụng; superuser thì lọt nên test chạy bằng superuser không
+// thấy gì. Trên Neon API chạy bằng role chủ non-superuser, nên nếu dùng COPY thì mọi lần lưu
+// dự án CÓ TAB đều 500 — dự án rỗng vẫn lưu được, rất dễ chẩn đoán nhầm là lỗi frontend.
+// INSERT nhiều dòng vẫn đi qua WITH CHECK của policy đúng như mong muốn.
 func insertCloudTabs(ctx context.Context, tx pgx.Tx, projectID string, tabs []CloudTab) error {
 	if len(tabs) == 0 {
 		return nil
 	}
-	rows := make([][]any, 0, len(tabs))
+	var b strings.Builder
+	b.WriteString(`INSERT INTO cloud_tabs (project_id, name, sql, position) VALUES `)
+	args := make([]any, 0, len(tabs)*4)
 	for i, t := range tabs {
-		rows = append(rows, []any{projectID, t.Name, t.SQL, i})
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		n := i*4 + 1
+		fmt.Fprintf(&b, "($%d, $%d, $%d, $%d)", n, n+1, n+2, n+3)
+		args = append(args, projectID, t.Name, t.SQL, i)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"cloud_tabs"},
-		[]string{"project_id", "name", "sql", "position"}, pgx.CopyFromRows(rows)); err != nil {
+	if _, err := tx.Exec(ctx, b.String(), args...); err != nil {
 		return fmt.Errorf("store: cloud tabs: %w", err)
 	}
 	return nil
@@ -209,7 +228,10 @@ func (s *Store) GetCloudProject(ctx context.Context, ownerID, id string) (CloudP
 
 // ReplaceCloudProject thay tên, engine và toàn bộ tab trong MỘT transaction. Tab cũ bị xóa hết
 // để thứ tự và tập tab đúng như client gửi; lỗi giữa đường thì cả dự án quay về trạng thái cũ.
-func (s *Store) ReplaceCloudProject(ctx context.Context, ownerID, id, name, engine string, tabs []CloudTab) (CloudProject, error) {
+//
+// `baseUpdatedAt` khác nil là điều kiện ghi có kiểm: chỉ ghi khi dòng còn đúng mốc đó. Lệch mốc
+// (máy khác đã sửa) trả *CloudConflictError và KHÔNG ghi gì; không truyền (nil) giữ hành vi cũ.
+func (s *Store) ReplaceCloudProject(ctx context.Context, ownerID, id, name, engine string, tabs []CloudTab, baseUpdatedAt *time.Time) (CloudProject, error) {
 	if err := ValidateCloudInput(name, engine, tabs); err != nil {
 		return CloudProject{}, err
 	}
@@ -220,12 +242,23 @@ func (s *Store) ReplaceCloudProject(ctx context.Context, ownerID, id, name, engi
 			return err
 		}
 		tag, err := tx.Exec(ctx, `UPDATE cloud_projects SET name = $3, engine = $4, updated_at = now()
-			WHERE id = $1 AND owner_id = $2`, id, ownerID, out.Name, engine)
+			WHERE id = $1 AND owner_id = $2
+			  AND ($5::timestamptz IS NULL OR updated_at = $5::timestamptz)`, id, ownerID, out.Name, engine, baseUpdatedAt)
 		if err != nil {
 			return fmt.Errorf("store: cloud update: %w", err)
 		}
 		if tag.RowsAffected() == 0 {
-			return ErrNotFound
+			// Không sửa được hàng nào: hoặc không có dự án, hoặc mốc đã lệch. Đọc lại mốc để
+			// phân biệt, nhờ vậy client nhận 409 (có việc để hỏi người dùng) thay vì 404.
+			var remote time.Time
+			err := tx.QueryRow(ctx, `SELECT updated_at FROM cloud_projects WHERE id = $1 AND owner_id = $2`, id, ownerID).Scan(&remote)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrNotFound
+			}
+			if err != nil {
+				return fmt.Errorf("store: cloud conflict probe: %w", err)
+			}
+			return &CloudConflictError{RemoteUpdatedAt: remote}
 		}
 		if _, err := tx.Exec(ctx, `DELETE FROM cloud_tabs WHERE project_id = $1`, id); err != nil {
 			return fmt.Errorf("store: cloud clear tabs: %w", err)
