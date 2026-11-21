@@ -235,14 +235,18 @@ export async function bootWorkspace(
         }
       }
 
-      // Projects: thêm mới hoặc đổi tên / engine
+      // Projects: thêm mới, đổi tên / engine, hoặc đổi liên kết cloud (Task154: lưu lên cloud
+      // hay xóa trên cloud xong phải ghi xuống đĩa, nếu không F5 là liên kết cũ sống lại).
       for (const proj of state.projects) {
         const prev = lastProjects.find((p) => p.id === proj.id);
         if (
           !prev ||
           prev.name !== proj.name ||
           prev.engine !== proj.engine ||
-          prev.updatedAt !== proj.updatedAt
+          prev.updatedAt !== proj.updatedAt ||
+          prev.cloud?.remoteId !== proj.cloud?.remoteId ||
+          prev.cloud?.remoteUpdatedAt !== proj.cloud?.remoteUpdatedAt ||
+          prev.cloud?.stamp !== proj.cloud?.stamp
         ) {
           repo!.upsertProject(proj).catch((err) => {
             useWorkspaceStore.getState().setSaveState("error", err instanceof Error ? err.message : String(err));

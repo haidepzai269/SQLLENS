@@ -30,6 +30,7 @@
     "cancel": "Cancel",
     "save": "Save",
     "untitled": "Untitled project",
+    "cloud": "Cloud",
     "updatedAt": "Updated {time}",
     "releaseFailed": "Could not release MySQL session right now due to a network error.",
     "releaseFailedDesc": "The container session will automatically terminate upon expiry (15 minutes)."

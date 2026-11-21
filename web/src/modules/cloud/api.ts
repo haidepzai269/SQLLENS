@@ -147,3 +147,18 @@ export function updateCloudProject(
 ): Promise<CloudProject> {
   return send("PUT", `${BASE}/${encodeURIComponent(id)}`, payload, options);
 }
+
+/** Xóa vĩnh viễn dự án trên cloud. Server trả 204, không có thân. */
+export async function deleteCloudProject(
+  id: string,
+  options: CloudRequestOptions = {},
+): Promise<void> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const res = await fetchImpl(`${BASE}/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+  if (res.ok) return;
+  throw failureFrom(res.status, await readJson(res));
+}

@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import {
   Check,
   ChevronDown,
+  Cloud,
   Copy,
   Folder,
   Pencil,
@@ -17,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { CloudPanel } from "@/modules/cloud/components/cloud-panel";
 import { useWorkspaceStore } from "@/modules/workspace/store";
 import type { WorkspaceEngine, WorkspaceProject } from "@/modules/workspace/types";
 
@@ -45,6 +47,8 @@ export function ProjectSwitcher({ className, defaultEngine }: ProjectSwitcherPro
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
+  // Mục Cloud (Task154): mở ngay trong panel để không phải lồng thêm một hộp thoại khác.
+  const [showCloud, setShowCloud] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -79,6 +83,7 @@ export function ProjectSwitcher({ className, defaultEngine }: ProjectSwitcherPro
     setEditingProjectId(null);
     setEditingName("");
     setDeletingProjectId(null);
+    setShowCloud(false);
   };
 
   // Đóng khi click ngoài container
@@ -588,6 +593,31 @@ export function ProjectSwitcher({ className, defaultEngine }: ProjectSwitcherPro
                 })
               )}
             </div>
+
+            {/* Mục Cloud của dự án đang mở (Task154) */}
+            {currentProject && (
+              <div className="mt-1 border-t pt-1.5">
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="ghost"
+                  aria-expanded={showCloud}
+                  onClick={() => setShowCloud((open) => !open)}
+                  className="h-7 w-full justify-start gap-1.5 px-1.5 text-xs"
+                  data-testid="project-cloud-button"
+                >
+                  <Cloud className="size-3.5" aria-hidden="true" />
+                  <span>{t("project.cloud")}</span>
+                </Button>
+                {showCloud && (
+                  <CloudPanel
+                    projectId={currentProject.id}
+                    onClose={() => setShowCloud(false)}
+                    className="mt-1.5"
+                  />
+                )}
+              </div>
+            )}
           </div>
         </>
       )}

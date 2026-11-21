@@ -71,6 +71,12 @@ export interface WorkspaceRepository {
   upsertProject(record: WorkspaceProject): Promise<void>;
   /** Ghi dự án và toàn bộ tab trong một transaction: dùng cho Fork snapshot (Task147). */
   putProjectWithTabs(project: WorkspaceProject, tabs: WorkspaceTab[]): Promise<void>;
+  /**
+   * Thay toàn bộ tab của một dự án trong một transaction: xóa tab cũ của dự án rồi ghi dự án và
+   * tab mới. Dùng khi lấy bản cloud đè lên bản máy (Task154) — hỏng giữa chừng thì IndexedDB
+   * rollback, không để lại tab mồ côi.
+   */
+  replaceProjectTabs(project: WorkspaceProject, tabs: WorkspaceTab[]): Promise<void>;
   deleteProjectCascade(id: string): Promise<void>;
   listTabs(projectId: string): Promise<WorkspaceTab[]>;
   upsertTab(tab: WorkspaceTab): Promise<void>;
@@ -119,6 +125,18 @@ export function getRepository(db: IDBDatabase): WorkspaceRepository {
         const keys = await requestDone<IDBValidKey[]>(tabs.index(INDEX_BY_PROJECT).getAllKeys(id));
         for (const key of keys) await requestDone(tabs.delete(key));
         await requestDone(tx.objectStore(STORE_PROJECTS).delete(id));
+      });
+    },
+
+    // Thay tab của một dự án: xóa hết tab cũ rồi ghi tab mới, cùng transaction với dự án.
+    // Không dùng deleteProjectCascade vì dự án phải giữ nguyên id (đang mở trong workspace).
+    replaceProjectTabs(project, tabs) {
+      return runTx(db, [STORE_PROJECTS, STORE_TABS], "readwrite", async (tx) => {
+        const store = tx.objectStore(STORE_TABS);
+        const keys = await requestDone<IDBValidKey[]>(store.index(INDEX_BY_PROJECT).getAllKeys(project.id));
+        for (const key of keys) await requestDone(store.delete(key));
+        await requestDone(tx.objectStore(STORE_PROJECTS).put(project));
+        for (const tab of tabs) await requestDone(store.put(tab));
       });
     },
 

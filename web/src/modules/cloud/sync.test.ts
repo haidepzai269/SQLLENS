@@ -3,11 +3,35 @@ import { fileURLToPath } from "node:url";
 import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { openWorkspaceDb } from "@/modules/workspace/db";
-import { getRepository } from "@/modules/workspace/repository";
+import { getRepository, WorkspaceQuotaError } from "@/modules/workspace/repository";
 import { scopeKey, type WorkspaceProject, type WorkspaceScope, type WorkspaceTab } from "@/modules/workspace/types";
-import { CloudSyncError, pullProject, pushProject } from "./sync";
+import { CloudSyncError, detachCloudLink, forgetUnpersistedLinks, pullProject, pushProject } from "./sync";
 
 // Test Task153: kéo/đẩy dự án với API giả, IndexedDB thật (fake-indexeddb), không mock repository.
+
+// Cờ để giả lập "ghi IndexedDB hỏng sau khi server đã nhận" (hết dung lượng). Chỉ bật ở đúng ca
+// kiểm LỖI 4; mọi ca khác dùng repository thật nguyên vẹn.
+const failUpsert = vi.hoisted(() => ({ times: 0 }));
+
+vi.mock("@/modules/workspace/repository", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/modules/workspace/repository")>();
+  return {
+    ...actual,
+    getRepository: (db: IDBDatabase) => {
+      const repo = actual.getRepository(db);
+      return {
+        ...repo,
+        upsertProject: async (record: WorkspaceProject) => {
+          if (failUpsert.times > 0) {
+            failUpsert.times -= 1;
+            throw new WorkspaceQuotaError(new Error("QuotaExceededError (giả lập)"));
+          }
+          return repo.upsertProject(record);
+        },
+      };
+    },
+  };
+});
 
 const GUEST: WorkspaceScope = { kind: "guest" };
 const NOW = 1_700_000_000_000;
@@ -50,6 +74,10 @@ let factory: IDBFactory;
 
 beforeEach(() => {
   factory = new IDBFactory();
+  // Module nhớ liên kết chưa ghi được trong bộ nhớ; mỗi ca là một "lần tải trang" mới nên phải xóa,
+  // nếu không ca sau sẽ thấy liên kết của ca trước (cùng id dự án "local-1").
+  forgetUnpersistedLinks();
+  failUpsert.times = 0;
 });
 
 afterEach(() => {
@@ -102,7 +130,7 @@ describe("pullProject", () => {
     expect(project.name).toBe("Dự án Cloud");
     expect(project.engine).toBe("mysql");
     expect(project.scopeKey).toBe("guest");
-    expect(project.cloud).toEqual({ remoteId: "remote-1", remoteUpdatedAt: remote.updatedAt });
+    expect(project.cloud).toMatchObject({ remoteId: "remote-1", remoteUpdatedAt: remote.updatedAt });
 
     const { project: stored, tabs } = await readLocal(project.id);
     expect(stored?.cloud?.remoteId).toBe("remote-1");
@@ -147,7 +175,7 @@ describe("pushProject", () => {
     const { impl, calls } = fakeFetch(() => jsonResponse(201, { project: pushed }));
 
     const result = await pushProject("local-1", { factory, fetchImpl: impl });
-    expect(result).toEqual({ kind: "ok", updatedAt: "2026-11-21T08:30:00Z" });
+    expect(result).toMatchObject({ kind: "ok", updatedAt: "2026-11-21T08:30:00Z", remoteId: "remote-9" });
     expect(calls[0].method).toBe("POST");
     expect(calls[0].url).toBe("/api/v1/cloud/projects");
     expect(calls[0].body).toMatchObject({
@@ -159,7 +187,7 @@ describe("pushProject", () => {
     expect(calls[0].body && "baseUpdatedAt" in calls[0].body).toBe(false);
 
     const { project } = await readLocal("local-1");
-    expect(project?.cloud).toEqual({ remoteId: "remote-9", remoteUpdatedAt: "2026-11-21T08:30:00Z" });
+    expect(project?.cloud).toMatchObject({ remoteId: "remote-9", remoteUpdatedAt: "2026-11-21T08:30:00Z" });
     expect(project?.updatedAt).toBe(Date.parse("2026-11-21T08:30:00Z"));
   });
 
@@ -240,6 +268,101 @@ describe("pushProject", () => {
       code: "LOCAL_NOT_FOUND",
     });
     expect(calls).toHaveLength(0);
+  });
+
+  // LỖI 4 (review Task153): ghi IndexedDB hỏng SAU khi server đã tạo dự án thì lần đẩy sau phải
+  // là PUT, không được POST lần hai — POST lần hai sinh dự án TRÙNG trên cloud và không bao giờ
+  // nhận 409 (409 chỉ có ở PUT).
+  it("LỖI 4: ghi local hỏng sau khi POST thành công thì lần sau PUT, chỉ một POST duy nhất", async () => {
+    await seedLocal(localProject(), [
+      { id: "t1", projectId: "local-1", name: "q1", sql: "SELECT 1", position: 0, updatedAt: NOW },
+    ]);
+    const pushed = { ...remote, id: "remote-9", updatedAt: "2026-11-21T08:30:00Z", tabs: undefined };
+    const { impl, calls } = fakeFetch(() => jsonResponse(201, { project: pushed }));
+
+    // Lần 1: server nhận, nhưng bước ghi IndexedDB ném QuotaExceededError.
+    failUpsert.times = 1;
+    await expect(pushProject("local-1", { factory, fetchImpl: impl })).rejects.toMatchObject({
+      code: "QUOTA_EXCEEDED",
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].method).toBe("POST");
+
+    // Liên kết không ghi được xuống đĩa (đúng như lỗi thật)...
+    const afterFailure = await readLocal("local-1");
+    expect(afterFailure.project?.cloud).toBeUndefined();
+
+    // ...nhưng lần đẩy sau vẫn biết id của bản vừa tạo nên đi PUT, không tạo dự án thứ hai.
+    const retry = await pushProject("local-1", { factory, fetchImpl: impl });
+    expect(retry).toMatchObject({ kind: "ok", remoteId: "remote-9" });
+    expect(calls).toHaveLength(2);
+    expect(calls.map((c) => c.method)).toEqual(["POST", "PUT"]);
+    expect(calls[1].url).toBe("/api/v1/cloud/projects/remote-9");
+    expect(calls[1].body?.baseUpdatedAt).toBe("2026-11-21T08:30:00Z");
+
+    const afterRetry = await readLocal("local-1");
+    expect(afterRetry.project?.cloud).toMatchObject({ remoteId: "remote-9" });
+  });
+
+  // LỖI 5 (review Task153): server trả 404 cho remoteId đã lưu. Trước đây là lỗi NOT_FOUND và
+  // liên kết chết nằm lại IndexedDB nên mọi lần đẩy sau PUT vào id đã xóa, 404 mãi không lối ra.
+  it("LỖI 5: dự án trên cloud đã bị xóa → remote_gone, giữ liên kết, có lối thoát", async () => {
+    const dead = { remoteId: "remote-da-xoa", remoteUpdatedAt: "2026-11-20T10:00:00Z" };
+    await seedLocal(localProject({ cloud: dead }), [
+      { id: "t1", projectId: "local-1", name: "q1", sql: "SELECT 1", position: 0, updatedAt: NOW },
+    ]);
+    const gone = () => jsonResponse(404, { error: { code: "not_found", messageKey: "error.notFound" } });
+    const { impl, calls } = fakeFetch(gone);
+
+    // Trạng thái riêng, KHÔNG phải lỗi mạng — UI phân biệt được để hỏi người dùng.
+    const first = await pushProject("local-1", { factory, fetchImpl: impl });
+    expect(first).toEqual({ kind: "remote_gone", remoteId: "remote-da-xoa" });
+
+    // Không tự xóa liên kết: quyết định thuộc về người dùng, không mất dữ liệu.
+    const afterGone = await readLocal("local-1");
+    expect(afterGone.project?.cloud).toEqual(dead);
+    expect(afterGone.tabs).toHaveLength(1);
+
+    // Vẫn còn lối ra: đẩy lên thành dự án mới, không cần đụng gì khác.
+    const created = { ...remote, id: "remote-moi", updatedAt: "2026-11-21T11:00:00Z", tabs: undefined };
+    const { impl: impl2, calls: calls2 } = fakeFetch(() => jsonResponse(201, { project: created }));
+    const second = await pushProject("local-1", { factory, fetchImpl: impl2, asNew: true });
+    expect(second).toMatchObject({ kind: "ok", remoteId: "remote-moi" });
+    expect(calls2.map((c) => c.method)).toEqual(["POST"]);
+    expect(calls2[0].body && "baseUpdatedAt" in calls2[0].body).toBe(false);
+
+    const afterAsNew = await readLocal("local-1");
+    expect(afterAsNew.project?.cloud).toMatchObject({ remoteId: "remote-moi" });
+    expect(afterGone.project?.name).toBe(afterAsNew.project?.name);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("LỖI 5: detachCloudLink gỡ liên kết chết để lần đẩy sau là POST, giữ nguyên dữ liệu", async () => {
+    const dead = { remoteId: "remote-da-xoa", remoteUpdatedAt: "2026-11-20T10:00:00Z" };
+    await seedLocal(localProject({ cloud: dead }), [
+      { id: "t1", projectId: "local-1", name: "q1", sql: "SELECT 1", position: 0, updatedAt: NOW },
+    ]);
+    const { impl, calls } = fakeFetch(() =>
+      jsonResponse(201, { project: { ...remote, id: "remote-moi", updatedAt: "2026-11-21T11:00:00Z" } }),
+    );
+
+    await detachCloudLink("local-1", { factory });
+    const detached = await readLocal("local-1");
+    expect(detached.project?.cloud).toBeUndefined();
+    expect(detached.project?.name).toBe("Dự án trên máy");
+    expect(detached.tabs.map((t) => t.sql)).toEqual(["SELECT 1"]);
+
+    const result = await pushProject("local-1", { factory, fetchImpl: impl });
+    expect(result).toMatchObject({ kind: "ok", remoteId: "remote-moi" });
+    expect(calls.map((c) => c.method)).toEqual(["POST"]);
+  });
+
+  it("LỖI 5: 404 khác lỗi mạng — mất mạng vẫn là NETWORK, không phải remote_gone", async () => {
+    await seedLocal(localProject({ cloud: { remoteId: "remote-9", remoteUpdatedAt: "2026-11-20T10:00:00Z" } }));
+    const { impl } = fakeFetch(() => {
+      throw new TypeError("network down");
+    });
+    await expect(pushProject("local-1", { factory, fetchImpl: impl })).rejects.toMatchObject({ code: "NETWORK" });
   });
 });
 
