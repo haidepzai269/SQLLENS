@@ -4,6 +4,7 @@
 import { create } from "zustand";
 import {
   scopeKey,
+  type WorkspaceCloudLink,
   type WorkspaceEngine,
   type WorkspaceProject,
   type WorkspaceScope,
@@ -36,6 +37,17 @@ export interface WorkspaceStoreState {
   setScope: (scope: WorkspaceScope) => void;
   hydrate: (payload: HydratePayload) => void;
   createProject: (input: CreateProjectInput) => WorkspaceProject;
+  /**
+   * Gắn hoặc gỡ liên kết cloud của một dự án (Task154). Cố ý không đổi `updatedAt`: trạng thái
+   * "đã lưu / có thay đổi" suy ra từ dấu vân tay nội dung, không từ đồng hồ.
+   */
+  setProjectCloud: (id: string, cloud?: WorkspaceCloudLink) => void;
+  /**
+   * Thay nội dung một dự án bằng bản vừa kéo từ cloud (Task154). Giữ nguyên id dự án vì nó đang
+   * mở trong workspace; tab cũ bị gỡ khỏi store nên subscriber của hydrate sẽ xóa chúng trong
+   * IndexedDB.
+   */
+  replaceProjectContent: (project: WorkspaceProject, tabs: WorkspaceTab[]) => void;
   renameProject: (id: string, name: string) => void;
   updateProjectEngine: (id: string, engine: WorkspaceEngine) => void;
   duplicateProject: (id: string, copySuffix?: string) => WorkspaceProject | null;
@@ -116,6 +128,42 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()((set, get) => ({
     }));
 
     return project;
+  },
+
+  setProjectCloud: (id, cloud) => {
+    set((state) => {
+      let found = false;
+      const projects = state.projects.map((p) => {
+        if (p.id !== id) return p;
+        found = true;
+        const next: WorkspaceProject = { ...p };
+        if (cloud) next.cloud = cloud;
+        else delete next.cloud;
+        return next;
+      });
+      return found ? { projects } : state;
+    });
+  },
+
+  replaceProjectContent: (project, tabs) => {
+    set((state) => {
+      const target = state.projects.find((p) => p.id === project.id);
+      if (!target) return state;
+
+      const others = state.tabs.filter((t) => t.projectId !== project.id);
+      const ordered = [...tabs].sort((a, b) => a.position - b.position);
+      // Tab đang mở vừa bị thay bằng tab mới: chuyển sang tab đầu của bản mới thay vì để
+      // activeTabId trỏ vào tab đã biến mất.
+      const activeTabId = ordered.some((t) => t.id === state.activeTabId)
+        ? state.activeTabId
+        : (ordered[0]?.id ?? null);
+
+      return {
+        projects: state.projects.map((p) => (p.id === project.id ? project : p)),
+        tabs: [...others, ...ordered],
+        activeTabId: state.activeProjectId === project.id ? activeTabId : state.activeTabId,
+      };
+    });
   },
 
   renameProject: (id, name) => {

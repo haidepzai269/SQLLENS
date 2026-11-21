@@ -60,6 +60,11 @@ func newEnv(t *testing.T) *env {
 	if err := st.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
+	// Migration 003 tạo role sqllens_app ở cấp CLUSTER và GRANT ở cấp database. Không dọn thì
+	// role còn GRANT trong database này, và package khác (internal/store) không DROP ROLE được
+	// (SQLSTATE 2BP01) dù đã DROP OWNED trong database của nó. Đăng ký SAU st.Close để chạy
+	// TRƯỚC khi đóng pool (t.Cleanup chạy ngược thứ tự).
+	t.Cleanup(func() { dropAppRole(t, url) })
 	e := &env{t: t, st: st, logs: &bytes.Buffer{}, upstash: &atomic.Int64{}}
 	e.prov = httptest.NewServer(http.HandlerFunc(e.provider))
 	t.Cleanup(e.prov.Close)
@@ -433,8 +438,8 @@ func TestNotConfigured(t *testing.T) {
 		{"GET", "/auth/github/callback?state=a", nil, 503},
 		{"POST", "/auth/logout", nil, 503},
 		{"GET", "/me", nil, 401},
-		{"GET", "/me", junkSid, 401},  // sid rác bị từ chối 401 ngay tại RAM, không chạm database
-		{"GET", "/me", validSid, 503}, // sid hợp lệ qua được RAM nhưng store chưa cấu hình trả 503
+		{"GET", "/me", junkSid, 401},      // sid rác bị từ chối 401 ngay tại RAM, không chạm database
+		{"GET", "/me", validSid, 503},     // sid hợp lệ qua được RAM nhưng store chưa cấu hình trả 503
 		{"POST", "/mysql/ping", nil, 503}, // Origin không kiểm được khi thiếu PUBLIC_ORIGIN
 	}
 	for _, c := range cases {
@@ -468,6 +473,34 @@ func TestRateLimiter(t *testing.T) {
 	}
 }
 
+// dropAppRole gỡ GRANT của sqllens_app trong database của test này.
+//
+// Vì sao bắt buộc: role là đối tượng cấp CLUSTER, còn GRANT là cấp database. Migration 003 tạo
+// role rồi cấp USAGE trên schema public; nếu để lại, `internal/store` (chạy sau, dùng database
+// khác trên cùng cluster) không DROP ROLE được dù đã DROP OWNED trong database của nó, và cả
+// loạt test Task149 đỏ vì lý do môi trường chứ không phải vì code.
+//
+// Cố DROP ROLE sau đó nhưng KHÔNG bắt lỗi: database khác trên cluster có thể còn GRANT (ví dụ
+// khi chạy riêng một package), và lúc đó việc dọn thuộc về package đang sở hữu database đó.
+func dropAppRole(t *testing.T, url string) {
+	t.Helper()
+	ctx := context.Background()
+	c, err := pgx.Connect(ctx, url)
+	if err != nil {
+		t.Logf("dọn role: không kết nối lại được (%v); bỏ qua", err)
+		return
+	}
+	defer c.Close(ctx)
+	if _, err := c.Exec(ctx, `DROP OWNED BY sqllens_app`); err != nil {
+		// 42704 = role không tồn tại: đúng trạng thái mong muốn.
+		if !strings.Contains(err.Error(), "42704") && !strings.Contains(err.Error(), "does not exist") {
+			t.Logf("dọn role: DROP OWNED BY sqllens_app: %v", err)
+		}
+		return
+	}
+	_, _ = c.Exec(ctx, `DROP ROLE IF EXISTS sqllens_app`)
+}
+
 func resetDB(t *testing.T, url string) {
 	t.Helper()
 	c, err := pgx.Connect(context.Background(), url)
@@ -475,7 +508,13 @@ func resetDB(t *testing.T, url string) {
 		t.Fatal(err)
 	}
 	defer c.Close(context.Background())
-	if _, err := c.Exec(context.Background(), `DROP TABLE IF EXISTS sessions, identities, users, schema_migrations`); err != nil {
+	// Phải có CASCADE và phải kể tên 3 bảng cloud: migration 003 thêm khóa ngoại
+	// cloud_projects.owner_id -> users(id), nên DROP users trần bị Postgres chặn
+	// (SQLSTATE 2BP01) và mọi test sau test đầu tiên đều chết. Thứ tự theo phụ thuộc:
+	// con trước cha. Cùng danh sách với resetCloud/newTenantEnv trong package store.
+	if _, err := c.Exec(context.Background(), `DROP TABLE IF EXISTS
+		cloud_project_members, cloud_tabs, cloud_projects,
+		user_vip_redemptions, vip_codes, sessions, identities, users, schema_migrations CASCADE`); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -549,7 +588,7 @@ func TestAuth_CookieHMAC(t *testing.T) {
 			strings.Repeat("x", 86),
 			strings.Repeat("x", 88),
 			strings.Repeat("x", 120),
-			rawToken + "." + rawToken + "." + rawToken, // 2 dấu chấm
+			rawToken + "." + rawToken + "." + rawToken,              // 2 dấu chấm
 			strings.Repeat("a", 42) + "." + strings.Repeat("b", 44), // đúng 87 ký tự nhưng sai vị trí chấm
 			strings.Repeat("a", 44) + "." + strings.Repeat("b", 42),
 			"." + strings.Repeat("a", 86),

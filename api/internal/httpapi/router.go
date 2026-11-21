@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +14,27 @@ import (
 
 // MaxBodyBytes is the default request body limit.
 const MaxBodyBytes = 1 << 20
+
+// bodyLimit ghi đè trần body cho một nhóm route theo tiền tố path.
+//
+// Vì sao cần: http.MaxBytesReader đã bọc body ở 1MB thì bọc lại ở trần lớn hơn KHÔNG có tác
+// dụng, nên route cloud phải được miễn trần 1MB ngay từ middleware toàn cục thay vì tự gắn
+// thêm một lớp nữa. Nhờ vậy chỉ có đúng một lớp bọc, và mọi route khác giữ nguyên 1MB.
+type bodyLimit struct {
+	prefix string
+	max    int64
+}
+
+// maxBodyFor trả trần áp cho path: tiền tố khớp dài nhất thắng, không khớp thì dùng trần mặc định.
+func maxBodyFor(path string, def int64, overrides []bodyLimit) int64 {
+	max, best := def, -1
+	for _, o := range overrides {
+		if strings.HasPrefix(path, o.prefix) && len(o.prefix) > best {
+			max, best = o.max, len(o.prefix)
+		}
+	}
+	return max
+}
 
 // NewRouter builds the engine. Gin runs in release mode unless GIN_MODE is set.
 func NewRouter() *gin.Engine { return NewRouterWithLog(os.Stderr) }
@@ -28,7 +50,8 @@ func NewRouterWithLog(out io.Writer) *gin.Engine {
 	// Redirects would answer with a non-JSON body and echo the raw path.
 	r.RedirectTrailingSlash, r.RedirectFixedPath = false, false
 	// Order matters: logger outermost so it sees the 500 written by recovery.
-	r.Use(requestLog(log.New(out, "", log.LstdFlags)), recovery(out), limitBody(MaxBodyBytes))
+	r.Use(requestLog(log.New(out, "", log.LstdFlags)), recovery(out),
+		limitBody(MaxBodyBytes, []bodyLimit{{prefix: cloudPathPrefix, max: cloudBodyBytes}}))
 	r.NoRoute(func(c *gin.Context) { Abort(c, http.StatusNotFound, "not_found", "error.notFound") })
 	r.NoMethod(func(c *gin.Context) {
 		Abort(c, http.StatusMethodNotAllowed, "method_not_allowed", "error.methodNotAllowed")
@@ -85,8 +108,9 @@ func recovery(out io.Writer) gin.HandlerFunc {
 
 // limitBody rejects bodies over max. Handlers that read the body must pass a read
 // error to c.Error; a *http.MaxBytesError then becomes 413 if nothing was written.
-func limitBody(max int64) gin.HandlerFunc {
+func limitBody(def int64, overrides []bodyLimit) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		max := maxBodyFor(c.Request.URL.Path, def, overrides)
 		if c.Request.ContentLength > max {
 			Abort(c, http.StatusRequestEntityTooLarge, "payload_too_large", "error.payloadTooLarge")
 			return
