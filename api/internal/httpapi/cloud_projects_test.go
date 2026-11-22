@@ -10,9 +10,11 @@ import (
 	neturl "net/url"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/haidepzai269/SQLLENS/api/internal/quota"
 	"github.com/haidepzai269/SQLLENS/api/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -58,7 +60,7 @@ type cloudEnv struct {
 	other string // user B
 }
 
-func newCloudEnv(t *testing.T) *cloudEnv {
+func newCloudEnv(t *testing.T, guards ...gin.HandlerFunc) *cloudEnv {
 	t.Helper()
 	url := os.Getenv("T150_DATABASE_URL")
 	if url == "" {
@@ -120,7 +122,7 @@ func newCloudEnv(t *testing.T) *cloudEnv {
 		c.Set("test.user", u)
 		c.Next()
 	}
-	MountCloud(e.r, CloudConfig{Store: st, RequireUser: guard, UID: func(c *gin.Context) string {
+	MountCloud(e.r, CloudConfig{Store: st, RequireUser: guard, Guards: guards, UID: func(c *gin.Context) string {
 		v, _ := c.Get("test.user")
 		s, _ := v.(string)
 		return s
@@ -517,5 +519,46 @@ func TestCloudEdgeCases(t *testing.T) {
 	// Chưa đăng nhập: 401.
 	if w := e.do(t, "", "GET", "/api/v1/cloud/projects", ""); w.Code != http.StatusUnauthorized {
 		t.Fatalf("không có session = %d %q", w.Code, w.Body.String())
+	}
+}
+
+// SP999 (phát hiện F1 của cổng bảo mật Task155): route cloud phải trả 429 khi vượt hạn mức,
+// và lớp chặn phải chạy TRƯỚC handler để request thừa không chạm store/Neon.
+func TestCloudAppliesRateLimitGuard(t *testing.T) {
+	var count atomic.Int64
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer tok" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		// Như Redis thật: mỗi lệnh EVAL tăng bộ đếm rồi trả về giá trị mới.
+		json.NewEncoder(w).Encode(map[string]any{"result": []int64{count.Add(1), 300000}})
+	}))
+	t.Cleanup(up.Close)
+
+	guard := quota.New(up.URL, "tok", nil).Middleware(quota.CloudSync, func(c *gin.Context) (string, bool) {
+		v, _ := c.Get("test.user")
+		s, _ := v.(string)
+		return s, s != ""
+	})
+	e := newCloudEnv(t, guard)
+
+	count.Store(int64(quota.CloudSync.Limit)) // phép đếm kế tiếp = Limit+1 -> vượt
+	w := e.do(t, e.user, "POST", "/api/v1/cloud/projects", cloudJSON("Quá hạn mức", "postgres"))
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("vượt hạn mức = %d %q, muốn 429", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "quota_exceeded") || w.Header().Get("Retry-After") == "" {
+		t.Fatalf("429 thiếu mã/lệnh chờ: %q %q", w.Body.String(), w.Header().Get("Retry-After"))
+	}
+	if n := int(count.Load()); n != quota.CloudSync.Limit+1 {
+		t.Fatalf("request bị chặn vẫn đi quá lớp quota (count=%d)", n)
+	}
+
+	// Dưới hạn mức: guard cho qua, handler tạo dự án bình thường (guard không chặn nhầm).
+	count.Store(0)
+	w = e.do(t, e.user, "POST", "/api/v1/cloud/projects", cloudJSON("Trong hạn mức", "postgres"))
+	if w.Code != http.StatusCreated {
+		t.Fatalf("trong hạn mức = %d %q, muốn 201", w.Code, w.Body.String())
 	}
 }

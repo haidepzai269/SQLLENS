@@ -60,7 +60,14 @@ func build(ctx context.Context) *gin.Engine {
 		OpenRouterKey: os.Getenv("OPENROUTER_API_KEY"),
 		Limiter:       d.Limiter,
 	}, a.RequireVip())
-	httpapi.MountCloud(r, httpapi.CloudConfig{Store: d.Store, RequireUser: a.RequireUser(), UID: auth.UserID})
+	// strict=false: chưa cấu hình Upstash thì cloud vẫn chạy, chỉ mất lớp quota (giới hạn thô
+	// trong bộ nhớ vẫn áp dụng).
+	httpapi.MountCloud(r, httpapi.CloudConfig{
+		Store:       d.Store,
+		RequireUser: a.RequireUser(),
+		Guards:      a.GateLimit(quota.CloudSync, false),
+		UID:         auth.UserID,
+	})
 	return r
 }
 

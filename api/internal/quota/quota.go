@@ -28,11 +28,16 @@ type Rule struct {
 
 // Defaults: a MySQL session costs real CPU/RAM on a 1 GB VM and AI calls cost provider quota.
 // 20 sandbox sessions/day and 30 AI messages/day fit a learning session; change the numbers here.
+//
+// CloudSync chặn một tài khoản bắn vô hạn request 2 MB vào CRUD cloud: 120 lệnh/5 phút là
+// ~40 lần đồng bộ mỗi phút, thừa cho autosave của người dùng thật nhưng không đủ để đốt CPU
+// Gin và I/O Neon (SP999, phát hiện F1 của cổng bảo mật Task155).
 var (
 	MySQLSession    = Rule{Name: "mysql_session", Limit: 20, Window: 24 * time.Hour}
 	AIMessage       = Rule{Name: "ai_message", Limit: 30, Window: 24 * time.Hour}
 	VipInlineMinute = Rule{Name: "vip_inline_min", Limit: 60, Window: time.Minute}
 	VipInlineDay    = Rule{Name: "vip_inline_day", Limit: 1000, Window: 24 * time.Hour}
+	CloudSync       = Rule{Name: "cloud_sync", Limit: 120, Window: 5 * time.Minute}
 )
 
 const callTimeout = 2 * time.Second

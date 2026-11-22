@@ -54,7 +54,10 @@ var cloudIDRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4
 type CloudConfig struct {
 	Store       *store.Store
 	RequireUser gin.HandlerFunc
-	UID         func(*gin.Context) string
+	// Guards chạy ngay sau RequireUser, trước handler: giới hạn tần suất thô và quota
+	// (`auth.GateLimit(quota.CloudSync, false)` ở main.go). Để rỗng khi test riêng handler.
+	Guards []gin.HandlerFunc
+	UID    func(*gin.Context) string
 }
 
 // MountCloud đăng ký /api/v1/cloud/projects. Phải gọi sau auth.Mount để hưởng originCheck.
@@ -70,7 +73,10 @@ func MountCloud(r *gin.Engine, cfg CloudConfig) {
 			Abort(c, http.StatusServiceUnavailable, "not_configured", "error.notConfigured")
 		}
 	}
-	g := r.Group("/api/v1/cloud/projects", guard)
+	chain := make([]gin.HandlerFunc, 0, 1+len(cfg.Guards))
+	chain = append(chain, guard)
+	chain = append(chain, cfg.Guards...)
+	g := r.Group("/api/v1/cloud/projects", chain...)
 	g.POST("", h.create)
 	g.GET("", h.list)
 	g.GET("/:id", h.get)

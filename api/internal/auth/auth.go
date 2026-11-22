@@ -272,6 +272,15 @@ func (a *Auth) RequireUser() gin.HandlerFunc { return a.requireUser }
 // Gate = đăng nhập, rồi giới hạn tần suất thô theo user (bảo vệ Upstash và Neon), rồi quota.
 // Giới hạn thô theo user thay vì theo IP: sau Vercel rewrite và proxy của Render, IP kết nối là IP proxy chung.
 func (a *Auth) Gate(rule quota.Rule) []gin.HandlerFunc {
+	return append([]gin.HandlerFunc{a.requireUser}, a.GateLimit(rule, true)...)
+}
+
+// GateLimit là phần sau đăng nhập của Gate: giới hạn tần suất thô theo user rồi luật quota.
+// strict = true giữ nguyên hành vi của Gate (thiếu Upstash -> 503), dùng cho MySQL và AI vì chúng
+// tốn tài nguyên thật. strict = false dùng cho route chỉ cần chống lạm dụng nhẹ (cloud CRUD):
+// thiếu Upstash thì bỏ qua lớp quota chứ không đóng route, vì cloud vẫn phải chạy được khi
+// triển khai chưa cấu hình Redis.
+func (a *Auth) GateLimit(rule quota.Rule, strict bool) []gin.HandlerFunc {
 	uid := func(c *gin.Context) (string, bool) {
 		u, ok := c.Get(userKey)
 		if !ok {
@@ -279,11 +288,16 @@ func (a *Auth) Gate(rule quota.Rule) []gin.HandlerFunc {
 		}
 		return u.(store.User).ID, true
 	}
-	q := gin.HandlerFunc(notConfigured)
-	if a.limiter != nil {
+	var q gin.HandlerFunc
+	switch {
+	case a.limiter != nil:
 		q = a.limiter.Middleware(rule, uid)
+	case strict:
+		q = notConfigured
+	default:
+		q = func(c *gin.Context) { c.Next() }
 	}
-	return []gin.HandlerFunc{a.requireUser, func(c *gin.Context) {
+	return []gin.HandlerFunc{func(c *gin.Context) {
 		id, _ := uid(c)
 		if wait, ok := a.rate.allow(id); !ok {
 			c.Header("Retry-After", strconv.Itoa(int(wait.Seconds())+1))

@@ -405,8 +405,51 @@ func TestUnknownProvider(t *testing.T) {
 }
 
 // Route thử cho cổng đăng nhập và hạn mức; route MySQL thật nằm ở package mysql.
+// `/cloud/ping` mang đúng chuỗi mà main.go gắn cho CRUD cloud (SP999, F1 của Task155).
 func gatedPing(r *gin.Engine, a *Auth) {
 	r.Group("/mysql", a.Gate(quota.MySQLSession)...).POST("/ping", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	r.Group("/cloud", append([]gin.HandlerFunc{a.requireUser}, a.GateLimit(quota.CloudSync, false)...)...).
+		GET("/ping", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+}
+
+// Cloud CRUD không đánh đổi tính sẵn sàng: vượt hạn mức thô thì 429, còn thiếu Upstash thì
+// route vẫn phục vụ (khác MySQL/AI, nơi thiếu Redis là 503).
+func TestCloudGate(t *testing.T) { // SP999 F1
+	e := newEnv(t)
+	sid, _ := e.login("google", "/")
+
+	var last *httptest.ResponseRecorder
+	for i := 1; i <= 30; i++ {
+		if last = e.do("GET", "/cloud/ping", nil, sid); last.Code != http.StatusNoContent {
+			t.Fatalf("lần %d: %d %s", i, last.Code, last.Body)
+		}
+	}
+	// Giới hạn thô 30 request/phút chặn trước lớp quota, và không tốn lệnh Upstash.
+	before := e.upstash.Load()
+	w := e.do("GET", "/cloud/ping", nil, sid)
+	if w.Code != http.StatusTooManyRequests || !strings.Contains(w.Body.String(), "rate_limited") || w.Header().Get("Retry-After") == "" {
+		t.Fatalf("lần 31: %d %s", w.Code, w.Body)
+	}
+	if e.upstash.Load() != before {
+		t.Fatal("request bị chặn thô vẫn gọi Upstash")
+	}
+
+	// Thiếu Upstash (Deps.Limiter nil): GateLimit(rule, false) phải cho qua, không 503.
+	r := httpapi.NewRouter()
+	a := Mount(r, Deps{})
+	asUser := func(c *gin.Context) { c.Set(userKey, store.User{ID: "u1"}); c.Next() }
+	hit := func(handlers ...gin.HandlerFunc) int {
+		e := gin.New()
+		e.GET("/ping", append(append([]gin.HandlerFunc{asUser}, handlers...), func(c *gin.Context) {
+			c.Status(http.StatusNoContent)
+		})...)
+		w := httptest.NewRecorder()
+		e.ServeHTTP(w, httptest.NewRequest("GET", "/ping", nil))
+		return w.Code
+	}
+	if code := hit(a.GateLimit(quota.CloudSync, false)...); code != http.StatusNoContent {
+		t.Fatalf("thiếu Upstash: %d, muốn 204", code)
+	}
 }
 
 // Không cần Docker: thiếu cấu hình thì server vẫn chạy, route liên quan trả 503.
