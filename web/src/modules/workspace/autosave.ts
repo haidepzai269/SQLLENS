@@ -12,6 +12,11 @@ export interface AutosaveOptions<T = unknown> {
 export interface Autosave<T = unknown> {
   schedule: (key: string, payload: T) => void;
   flush: () => Promise<void>;
+  /**
+   * Như `flush` nhưng NÉM lỗi ghi đầu tiên thay vì nuốt vào `onError`. Dùng khi bên gọi phải biết
+   * dữ liệu đã thật sự xuống đĩa chưa rồi mới quyết định bước tiếp (ví dụ đẩy lên cloud).
+   */
+  flushStrict: () => Promise<void>;
   /** Bỏ phần đang chờ của một key (hoặc tất cả) mà không ghi, dùng khi bản ghi đã bị xóa. */
   cancel: (key?: string) => void;
   dispose: () => Promise<void>;
@@ -112,6 +117,46 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
     await Promise.all([...currentInFlight, ...newPromises]);
   }
 
+  /**
+   * `executeSave` nuốt lỗi vào `onError` nên `flush()` resolve dù ghi hỏng. `flushStrict` chạy
+   * lại cùng đường nhưng gom lỗi ra ngoài: bên gọi phải dừng khi dữ liệu chưa xuống đĩa, thay vì
+   * tưởng đã tươi rồi đọc ra bản cũ.
+   */
+  async function flushStrict(): Promise<void> {
+    const errors: unknown[] = [];
+
+    const tasks: Array<{ key: string; payload: T }> = [];
+    for (const [key, item] of pending.entries()) {
+      clearTimeout(item.timer);
+      tasks.push({ key, payload: item.payload });
+    }
+    pending.clear();
+
+    const currentInFlight = Array.from(inFlight);
+
+    const newPromises = tasks.map(async ({ key, payload }) => {
+      const p = (async () => {
+        try {
+          await save(key, payload);
+          onSuccess?.(key, payload);
+        } catch (err) {
+          errors.push(err);
+          onError?.(err, key, payload);
+        }
+      })();
+      inFlight.add(p);
+      try {
+        await p;
+      } finally {
+        inFlight.delete(p);
+      }
+    });
+
+    await Promise.all([...currentInFlight, ...newPromises]);
+
+    if (errors.length > 0) throw errors[0];
+  }
+
   async function dispose(): Promise<void> {
     if (isDisposed) {
       return;
@@ -135,6 +180,7 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
   return {
     schedule,
     flush,
+    flushStrict,
     cancel,
     dispose,
     isPending,

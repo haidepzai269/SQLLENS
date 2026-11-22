@@ -77,6 +77,18 @@ export interface WorkspaceRepository {
    * rollback, không để lại tab mồ côi.
    */
   replaceProjectTabs(project: WorkspaceProject, tabs: WorkspaceTab[]): Promise<void>;
+  /**
+   * Chỉ vá liên kết cloud của dự án đang có trong IndexedDB, trong một transaction.
+   *
+   * Dùng sau khi đẩy lên cloud xong: lúc đó dự án có thể vừa được đổi tên hoặc vừa bị xóa ở một
+   * chỗ khác (người dùng đổi tên trong lúc chờ mạng). Ghi đè bằng ảnh chụp đọc TRƯỚC vòng mạng
+   * sẽ nuốt mất tên mới, hoặc làm dự án đã xóa sống lại. Trả `false` khi dự án không còn.
+   */
+  patchProjectCloud(
+    id: string,
+    cloud: NonNullable<WorkspaceProject["cloud"]>,
+    updatedAt: number,
+  ): Promise<boolean>;
   deleteProjectCascade(id: string): Promise<void>;
   listTabs(projectId: string): Promise<WorkspaceTab[]>;
   upsertTab(tab: WorkspaceTab): Promise<void>;
@@ -137,6 +149,18 @@ export function getRepository(db: IDBDatabase): WorkspaceRepository {
         for (const key of keys) await requestDone(store.delete(key));
         await requestDone(tx.objectStore(STORE_PROJECTS).put(project));
         for (const tab of tabs) await requestDone(store.put(tab));
+      });
+    },
+
+    // Chỉ vá trường cloud + updatedAt trên hàng ĐANG CÓ, không ghi đè cả bản ghi. Dự án vừa bị
+    // xóa trong lúc chờ mạng thì trả false và không hồi sinh nó (kèm 0 tab, trông như dự án ma).
+    patchProjectCloud(id, cloud, updatedAt) {
+      return runTx(db, [STORE_PROJECTS], "readwrite", async (tx) => {
+        const store = tx.objectStore(STORE_PROJECTS);
+        const current = await requestDone<WorkspaceProject | undefined>(store.get(id));
+        if (!current) return false;
+        await requestDone(store.put({ ...current, updatedAt, cloud }));
+        return true;
       });
     },
 

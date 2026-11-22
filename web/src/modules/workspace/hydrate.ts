@@ -26,15 +26,36 @@ interface WorkspaceSession {
   db: IDBDatabase;
   repo: WorkspaceRepository;
   tabAutosave: Autosave<WorkspaceTab>;
+  /**
+   * Hàng project ghi ngay (không debounce) nhưng bắn-và-quên. Phải theo dõi riêng: không có nó
+   * thì `flushWorkspace()` trả về trước khi tên/engine/liên kết cloud xuống đĩa, và `pushProject`
+   * đọc ra bản cũ rồi ghi đè mất bản mới.
+   */
+  projectWrites: Set<Promise<void>>;
   unsubscribe: () => void;
 }
 
 let currentSession: WorkspaceSession | null = null;
 let bootLock: Promise<{ projectId: string; tabId: string }> | null = null;
 
+/**
+ * Ép mọi thay đổi đang chờ xuống IndexedDB rồi mới trả về.
+ *
+ * Ném lỗi khi có lần ghi hỏng: bên gọi (đẩy lên cloud) phải dừng, vì đọc tiếp sẽ ra bản cũ mà
+ * vẫn tưởng là bản mới nhất. Trước đây hàm này nuốt lỗi nên "gõ rồi lưu ngay" vẫn đẩy bản cũ
+ * khi đĩa đầy.
+ */
 export async function flushWorkspace(): Promise<void> {
-  if (currentSession) {
-    await currentSession.tabAutosave.flush();
+  if (!currentSession) return;
+  const session = currentSession;
+
+  await session.tabAutosave.flushStrict();
+  // Hàng project ghi ngay nhưng không await; chờ hết các lượt đang chạy.
+  const pendingProjects = Array.from(session.projectWrites);
+  if (pendingProjects.length > 0) {
+    const results = await Promise.allSettled(pendingProjects);
+    const failed = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (failed) throw failed.reason;
   }
 }
 
@@ -44,6 +65,9 @@ export async function disposeWorkspace(): Promise<void> {
     currentSession = null;
     session.unsubscribe();
     await session.tabAutosave.dispose();
+    // Lượt ghi project còn đang chạy phải xong trước khi đóng db, nếu không nó ném
+    // InvalidStateError và thay đổi cuối cùng mất mà không ai báo.
+    await Promise.allSettled(Array.from(session.projectWrites));
     try {
       session.db.close();
     } catch {
@@ -206,6 +230,19 @@ export async function bootWorkspace(
     let lastProjects = useWorkspaceStore.getState().projects;
 
     // 4. Lắng nghe store thay đổi để ghi vào IndexedDB
+    //
+    // Hàng project ghi ngay (không debounce) nhưng KHÔNG await được trong subscriber đồng bộ.
+    // Giữ lại promise GỐC trong `projectWrites` để `flushWorkspace()` chờ và biết ghi hỏng;
+    // phần báo trạng thái lỗi lên store gắn riêng, không nuốt mất lỗi của promise gốc.
+    const projectWrites = new Set<Promise<void>>();
+    const trackProjectWrite = (p: Promise<void>) => {
+      projectWrites.add(p);
+      void p.catch(() => undefined).finally(() => projectWrites.delete(p));
+      void p.catch((err) => {
+        useWorkspaceStore.getState().setSaveState("error", err instanceof Error ? err.message : String(err));
+      });
+    };
+
     const unsubscribe = useWorkspaceStore.subscribe((state) => {
       if (scopeKey(state.scope) !== scopeKey(scope)) return;
 
@@ -229,9 +266,7 @@ export async function bootWorkspace(
           // Hủy phần đang chờ ghi của tab này trước, nếu không debounce sẽ ghi lại
           // tab vừa đóng và sau F5 nó sống lại.
           tabAutosave.cancel(prev.id);
-          repo!.deleteTab(prev.id).catch((err) => {
-            useWorkspaceStore.getState().setSaveState("error", err instanceof Error ? err.message : String(err));
-          });
+          trackProjectWrite(repo!.deleteTab(prev.id));
         }
       }
 
@@ -248,9 +283,7 @@ export async function bootWorkspace(
           prev.cloud?.remoteUpdatedAt !== proj.cloud?.remoteUpdatedAt ||
           prev.cloud?.stamp !== proj.cloud?.stamp
         ) {
-          repo!.upsertProject(proj).catch((err) => {
-            useWorkspaceStore.getState().setSaveState("error", err instanceof Error ? err.message : String(err));
-          });
+          trackProjectWrite(repo!.upsertProject(proj));
         }
       }
 
@@ -261,9 +294,7 @@ export async function bootWorkspace(
           for (const tab of lastTabs) {
             if (tab.projectId === prev.id) tabAutosave.cancel(tab.id);
           }
-          repo!.deleteProjectCascade(prev.id).catch((err) => {
-            useWorkspaceStore.getState().setSaveState("error", err instanceof Error ? err.message : String(err));
-          });
+          trackProjectWrite(repo!.deleteProjectCascade(prev.id));
         }
       }
 
@@ -276,6 +307,7 @@ export async function bootWorkspace(
       db,
       repo,
       tabAutosave,
+      projectWrites,
       unsubscribe,
     };
 
