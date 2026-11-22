@@ -195,3 +195,55 @@ giới hạn số tab.
 **Epic SP023 đóng 100%.** Số đo cuối: `go test ./...` 7/7 package ok (kèm 10/10 test RLS trên
 PostgreSQL 18-alpine), `npm run check` 1456 passed / 18 skipped, `npm run build` PASS, Playwright
 `share-security` 6/6 (và 18/18 khi `--repeat-each=3`).
+
+*(Số 1456 là tại thời điểm đóng Epic. Sau đó Task157 và lượt review dưới đây thêm **5 test** — 3 test
+trần tab + 2 test hộp thoại share — nên con số hiện tại là **1461**.)*
+
+## Review độc lập Task155 + Task156 (lượt hai, 2026-11-22)
+
+Báo cáo: `STR105/review_task155_156.md`. Lượt này **không tin số của bàn giao**, chạy lại tất cả, và
+dùng **đột biến** để chứng minh test thật sự bắt được lỗi (không chỉ đọc mã).
+
+### Số đo độc lập (thay cho các số ở trên)
+
+| Việc | Kết quả |
+|---|---|
+| `go test -count=1 -p 1 ./...` trên **PostgreSQL 18.7 thật trong Docker** | **7/7 package ok**; **10/10 `TestRLS*` PASS, 0 SKIP** |
+| `npm run check` | **1461 passed / 18 skipped** (1479 test, 119 file), exit 0 |
+| `npm run build` | PASS |
+| Playwright `share-security` + `share-run` | **16/16 PASS**; `share-security --repeat-each=3` → **18/18 PASS** |
+
+**Đính chính số cũ:** dòng "10/10 test RLS trên PostgreSQL 18-alpine" ở trên là **sai thời điểm** —
+lượt audit đầu chưa chạy được Docker nên PostgreSQL dùng cho test là **17.5 trên host**. Lượt review
+này đã chạy lại trên **PG 18.7** và kết quả không đổi; báo cáo audit đã được đính chính.
+
+### Lỗi mới tìm được ở lượt này
+
+| Mã | Mức | Nội dung | Trạng thái |
+|---|---|---|---|
+| R4 | TB | Task156 AC6 "test chạy ở CI" **không đúng**: job `api` không đặt `RLS_TEST_DSN` nên **10/10 `TestRLS*` SKIP im lặng**, exit 0 — CI xanh dù RLS có thể đã hỏng | **Đã sửa**: thêm job `rls` (service `postgres:18`, DSN thật, đỏ nếu có `--- SKIP`, đòi ≥ 10 `--- PASS: TestRLS`) |
+| R5 | TB | Bản sửa F3 (Task157) sinh lỗi giao diện: `share-dialog.tsx` gộp mọi `SnapshotError` vào `blocked`, nên dự án **101 tab** báo nhầm "quá 32 KB" **và** vẫn mời tải file `.sqllens` mà `decodeSnapshot` sẽ từ chối | **Đã sửa**: trạng thái `blocked-tabs` + `failed` riêng, hàm thuần `statusForEncodeError`, chuỗi vi/en, 2 test mới (đã chứng minh đỏ bằng đột biến) |
+| R6 | Thấp | `Retry-After` của giới hạn thô lớn hơn cửa sổ 1 giây (`auth.go:302-304`) | Ghi `SP999`, chưa sửa |
+| R7 | Thấp | Giới hạn thô 30 request/phút dùng **chung một xô** theo user id cho mọi route: 30 request cloud làm 1 request MySQL của cùng user nhận 429 (đã đo bằng probe) | Chờ chủ dự án chọn (xô riêng theo route hay giữ chung) |
+
+### Đột biến đã chạy (chứng minh test "có thể đỏ")
+
+| Đột biến | Kết quả |
+|---|---|
+| `ALTER TABLE cloud_projects NO FORCE ROW LEVEL SECURITY` rồi chạy bước 5 của `TestRLSRegressionCrossTenantStoreMethods` | `TRƯỚC 0 hàng` → `SAU 1 hàng` ⇒ test gốc **sẽ đỏ** |
+| `Referrer-Policy` của `/:locale(vi\|en)/share` → `origin` | AC3 **đỏ đúng** (`Expected "no-referrer", Received "origin"`) |
+| `referrer: "no-referrer"` trong `share/page.tsx` → `origin` (thẻ `<meta>`) | AC4 **đỏ đúng** (`capturedReferer` = `http://localhost:3134/`) |
+| Bỏ nhánh `SNAPSHOT_TOO_MANY_TABS` trong `statusForEncodeError` | Test mới của share-dialog **đỏ đúng** (1 failed / 22 passed) |
+| Job CI `rls`: log chỉ có `--- SKIP` / log rỗng / đủ 10 `--- PASS` | 2 ca đầu **bị chặn**, ca 3 **cho qua** |
+
+### Bẫy đã gặp khi review
+
+`playwright.config.ts` dùng `webServer.command = npm run start`, tức phục vụ bản `.next` **đã build
+sẵn**. Sửa `next.config.ts` rồi chạy `npm run e2e` thì test **vẫn xanh** vì đột biến chưa vào bản
+build — rất dễ kết luận sai là "test không bắt được lỗi". Phải `npm run build` lại trước khi kết luận.
+
+### Kết luận
+
+Không còn lỗi critical/high trong phạm vi Task155 + Task156. Task155 đạt về nội dung audit nhưng báo
+cáo có 1 số liệu sai phiên bản PostgreSQL (đã đính chính); Task156 đạt về test, AC6 chỉ đúng **sau**
+khi thêm job `rls`. Hai việc R6/R7 và F2 không chặn đóng Epic.

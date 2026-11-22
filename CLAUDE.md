@@ -4,7 +4,7 @@
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
 - **Khi Google Doc và file này khác nhau:** file này đúng hơn, cho đến khi Google Doc được cập nhật.
-- **Giai đoạn hiện tại:** SP001 đến SP022 đã xong (SP022 Share qua URL đóng ở Task148). Đang làm **SP023 Đồng bộ Cloud & RLS cấp Project** (Task149 đến Task156): Task149 (migration 3 bảng cloud + role `sqllens_app` không phải owner) đã xong và merge. Kế tiếp: Task150 (Gin CRUD + quota, kết nối bằng role `sqllens_app`), Task151–152 (RLS từng lệnh, `FORCE RLS`, test cross-tenant), Task153–154 (đồng bộ local ↔ cloud), Task155–156 (cổng `security-audit`, kiểm referrer/XSS). Việc phát sinh ghi ở `SP999`, tiến độ từng Epic ở `_bmad-output/SP0xx/README.md`.
+- **Giai đoạn hiện tại:** SP001 đến SP023 đã xong và đóng Epic. SP023 (Đồng bộ Cloud & RLS cấp Project, Task149–156) đã merge; cổng `security-audit` (Task155) và kiểm referrer/XSS (Task156) đã qua review độc lập — báo cáo ở `_bmad-output/SP023/STR105/review_task155_156.md`. Ba phát hiện của cổng audit: F1 (thiếu hạn mức route cloud) và F3 (snapshot không giới hạn số tab) **đã sửa** ở `SP999` Task157; F2 (trần dung lượng cloud theo user) **chờ chủ dự án quyết**. Việc phát sinh ghi ở `SP999`, tiến độ từng Epic ở `_bmad-output/SP0xx/README.md`.
 - **Mục tiêu trước mắt:** xem `_bmad-output/MUC_TIEU_TRUOC_MAT.md`.
 - **Việc tạm gác:** cập nhật Google Doc. Chỉ làm khi chủ dự án yêu cầu, theo `_bmad-output/CAP_NHAT_GOOGLE_DOC.md`.
 - **Key của bên thứ 3:** danh sách ở `KEY_CAN_LAY.md`, file này không được commit. Sau khi chủ dự án điền giá trị, agent không đọc file đó. Cần thêm key thì báo chủ dự án.
@@ -12,6 +12,12 @@
 ## Quy trình làm việc của agent
 
 Đọc `_bmad-output/QUY_TRINH.md` trước khi làm bất kỳ task nào. Tóm tắt: mỗi task nằm ở `_bmad-output/SP0xx/STR0xx/Task0xx/` và một worktree riêng. Amelia làm bằng Ponytail, một reviewer mới kiểm tra, Amelia viết bàn giao, rồi commit và push. Tất cả dùng Sonnet 5.5. Việc phát sinh đưa vào `SP999`.
+
+### Chỗ đặt skill cho từng công cụ
+
+31 skill bmad nằm ở `.claude/skills/`, đó là đường dẫn Claude Code và Antigravity đọc. **DeepSeek Harness (DSH) không đọc `.claude/skills`**: nó quét `.dsh/skills`, `.agents/skills`, `~/.dsh/skills`, `~/.agents/skills` (mã `dsh-skill-filesystem/src/index.ts:251-271`). Vì vậy có junction `.agents/skills` → `.claude/skills`, đã thêm vào `.gitignore`. Không có junction này thì gõ `/` trong DSH không ra skill nào của dự án, kể cả `security-audit` mà `QUY_TRINH.md` bắt buộc dùng. `.agents/skills.json` là của Antigravity, DSH không đọc file đó.
+
+Junction là thứ chỉ có trên máy, git không mang theo, nên **worktree mới không tự có**. Tạo lại trong worktree bằng `New-Item -ItemType Junction -Path <worktree>\.agents\skills -Target <worktree>\.claude\skills` (kiểm `.claude/skills` có tồn tại trước).
 
 ## Sản phẩm là gì
 

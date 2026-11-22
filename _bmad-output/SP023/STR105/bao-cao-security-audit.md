@@ -18,8 +18,14 @@ tức `git diff 12e078f^..a1dc71c`.
   Kiểm chứng mất mạng: `ip route` in ra **rỗng**. Toàn bộ grep/grep nội dung của mục 5 chạy trong
   container đó, mount read-only.
 - **Phần kiểm động dùng dịch vụ localhost duy nhất** (được phép của skill: "isolated loopback"):
-  PostgreSQL 18-alpine ở `localhost:54492`, `next start` ở `localhost:31xx`. Không gọi host ngoài;
+  PostgreSQL ở `localhost:54492`, `next start` ở `localhost:31xx`. Không gọi host ngoài;
   riêng bộ `share-run` của Task148 còn tự khẳng định **0 request ra origin khác**.
+- **Đính chính (review `review_task155_156.md`)**: lượt audit đầu ghi "PostgreSQL 18-alpine ở
+  `localhost:54492`" là **sai**. Lượt đó máy chưa chạy được Docker nên PostgreSQL dùng cho test RLS
+  là **17.5 chạy trực tiếp trên host**. Số "10/10 `TestRLS*` PASS" vì thế không phải bằng chứng trên
+  PG18. Lượt review sau đã chạy lại toàn bộ trên **PostgreSQL 18.7 thật trong Docker**
+  (`postgres:18-alpine`, cổng 54493) và vẫn 10/10 PASS, nên kết luận RLS không đổi — chỉ bằng chứng
+  được thay bằng số đo đúng phiên bản.
 - **Giới hạn phải nói rõ**: toolchain Go/Node chạy trên máy host, **không** nằm trong container tắt
   mạng. Vì vậy AC1 đạt theo nghĩa "không truy cập Internet và phân tích tĩnh chạy trong container
   `--network none`", không phải "toàn bộ toolchain chạy trong container tắt mạng".
@@ -64,6 +70,12 @@ tức `git diff 12e078f^..a1dc71c`.
 - **Sửa tối thiểu**: bọc nhóm route cloud bằng một luật quota mới (`quota.CloudSync`, ví dụ
   120 request / 5 phút / user) như AI. **Chưa làm trong task này** vì phải thêm luật + hằng số +
   i18n và đổi hành vi API — xem `SP999`.
+- **CẬP NHẬT: đã sửa ở Task157** (`SP999/STR106/Task157/ban_giao_task157.md`). `quota.CloudSync`
+  = 120/5 phút (`api/internal/quota/quota.go:40`), `auth.GateLimit(rule, strict)`
+  (`api/internal/auth/auth.go:283`), `CloudConfig.Guards` (`httpapi/cloud_projects.go:59,76-79`),
+  `main.go` gắn `a.GateLimit(quota.CloudSync, false)`. Test thật: `TestCloudAppliesRateLimitGuard`,
+  `TestCloudGate`. Review độc lập (`review_task155_156.md`) đã chạy lại và chứng minh hai test **có
+  thể đỏ**.
 
 ### F2 — `needs_validation` (chưa xếp mức): trần dung lượng cloud tính theo dự án, không theo người dùng
 
@@ -86,6 +98,11 @@ tức `git diff 12e078f^..a1dc71c`.
 - **Sửa tối thiểu** (chưa làm, cần chủ dự án chốt ngưỡng): chặn `tabs.length > 100` trong
   `validateSnapshotStructure`, kèm câu báo song ngữ. 100 trùng quota tab cloud nên dễ giải thích.
 - Ghi `SP999`.
+- **CẬP NHẬT: đã sửa ở Task157.** `MAX_SNAPSHOT_TABS = 100` (`web/src/modules/share/snapshot.ts:32`),
+  chặn ở **cả hai chiều** (`codec.ts:224` khi tạo link, `codec.ts:345` khi giải mã), mã lỗi mới
+  `SNAPSHOT_TOO_MANY_TABS`, chuỗi `share.view.errorTooManyTabs` cho vi/en. Review độc lập phát hiện
+  bản sửa này **sinh ra lỗi giao diện mới** (hộp thoại báo nhầm "quá 32 KB" và vẫn mời tải file) —
+  đã sửa bằng trạng thái `blocked-tabs` riêng; xem `review_task155_156.md` mục R5.
 
 ### F4 — Thông tin: API cloud chỉ phục vụ chủ sở hữu
 
@@ -151,6 +168,13 @@ Kết luận Core Rule 7: **đúng cho toàn bộ diff của đợt này**.
 | AC5 phần riêng Core Rule 7 với bằng chứng grep | Đạt — mục 5 |
 | AC6 kết luận rõ | Đạt — mục 7 |
 
+**Đính chính sau review độc lập** (`review_task155_156.md`): AC1 đúng như đã ghi (đạt một phần,
+trung thực). Nhưng mục 1 ghi sai phiên bản PostgreSQL (đã sửa ở trên), và bảng AC này **thiếu một
+điểm**: Task156 AC6 ("test chạy ở CI") khi đó **không đúng** — job `api` của CI không đặt
+`RLS_TEST_DSN` nên cả 10 test RLS SKIP im lặng. Đã thêm job `rls` vào `.github/workflows/ci.yml`.
+Đây là lỗi của Task156, không phải của báo cáo audit, nhưng ghi ở đây để bảng AC không bị đọc như
+"mọi thứ đã xong".
+
 ## 7. Kết luận
 
 **Được đóng Epic SP023.** Trong phạm vi diff của đợt này không có lỗi mức critical/high: auth cloud
@@ -161,3 +185,7 @@ không rò qua referrer, log không chứa SQL.
 Còn lại ba việc không chặn đóng Epic, đã đưa vào `SP999`: giới hạn tần suất cho route cloud (F1,
 trung bình), chốt trần dung lượng cloud theo user (F2, chờ chủ dự án), và chặn số tab trong snapshot
 (F3, thấp).
+
+Cập nhật sau Task157: **F1 và F3 đã sửa xong** và có test chạy thật; **F2 vẫn chờ chủ dự án**. Hai
+việc nhỏ phát sinh thêm trong lúc review, đã ghi `SP999`: `Retry-After` lệch 1 giây, và giới hạn thô
+30 request/phút dùng chung một xô cho mọi route (F1 làm lộ ra, cần chủ dự án chọn cách xử lý).
