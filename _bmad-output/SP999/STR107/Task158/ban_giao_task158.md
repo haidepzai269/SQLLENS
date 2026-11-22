@@ -11,7 +11,7 @@ Nhánh `task/Task158`, base `main` @ `8d3b5c2`. Ngày 2026-11-22.
 Số đo thật, `npx playwright test e2e/sql-editor.spec.ts e2e/golden-path.spec.ts e2e/lab.spec.ts` trên bản `npm run build` mới (`API_ORIGIN=https://api.example.invalid`, `E2E_PORT=3128`): **55 passed, 0 failed (2,6 phút)**; chạy lại lần hai độc lập (`E2E_PORT=3131`): **55 passed, 0 failed (2,7 phút)**. Baseline cùng bộ lệnh trước khi sửa: **9 failed / 46 passed** (golden-path 4, lab.spec 4, sql-editor mobile 1).
 
 ## AC2 — gofmt
-`cd api && gofmt -l .` không in gì. Chỉ định dạng: `internal/ai/ai_test.go` (2 dòng trống cuối) và `internal/ai/inline_complete_test.go` (thụt lề struct tag). `go test -p 1 ./internal/ai` → `ok 3.369s`.
+`cd api && gofmt -l .` không in gì. Chỉ định dạng: `internal/ai/ai_test.go` (2 dòng trống cuối) và `internal/ai/inline_complete_test.go` (thụt lề struct tag). `go test -count=1 -p 1 ./internal/ai` → `ok 1.951s`, không đổi logic.
 
 ## AC3 — Retry-After
 `internal/auth/auth.go`: `strconv.Itoa(int(wait.Seconds())+1)` → `a.retryAfterSeconds(wait)`: làm tròn LÊN, sàn 1, trần bằng độ dài cửa sổ. Ca biên 59,4 s ra **60**, không phải 61. Test `TestRetryAfterSeconds` (9 ca + cửa sổ 500 ms) cộng `retryAfterHeader` kiểm header thật trong `TestMySQLGate`/`TestCloudGate`. Đột biến ngược: trả lại `int(wait.Seconds())+1` → đỏ (`chờ 30s: 31, muốn 30`; `chờ 1s: 2, muốn 1`); hoàn nguyên → xanh.
