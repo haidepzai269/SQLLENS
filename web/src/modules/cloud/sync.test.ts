@@ -11,10 +11,19 @@ import { CloudSyncError, detachCloudLink, forgetUnpersistedLinks, pullProject, p
 
 // Cờ để giả lập "ghi IndexedDB hỏng sau khi server đã nhận" (hết dung lượng). Chỉ bật ở đúng ca
 // kiểm LỖI 4; mọi ca khác dùng repository thật nguyên vẹn.
+//
+// Chặn cả `patchProjectCloud` (đường `pushProject` dùng để ghi liên kết cloud sau khi server nhận)
+// lẫn `upsertProject` (đường cũ, và đường các test khác dùng để dựng dữ liệu).
 const failUpsert = vi.hoisted(() => ({ times: 0 }));
 
 vi.mock("@/modules/workspace/repository", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/modules/workspace/repository")>();
+  const maybeFail = () => {
+    if (failUpsert.times > 0) {
+      failUpsert.times -= 1;
+      throw new WorkspaceQuotaError(new Error("QuotaExceededError (giả lập)"));
+    }
+  };
   return {
     ...actual,
     getRepository: (db: IDBDatabase) => {
@@ -22,11 +31,12 @@ vi.mock("@/modules/workspace/repository", async (importOriginal) => {
       return {
         ...repo,
         upsertProject: async (record: WorkspaceProject) => {
-          if (failUpsert.times > 0) {
-            failUpsert.times -= 1;
-            throw new WorkspaceQuotaError(new Error("QuotaExceededError (giả lập)"));
-          }
+          maybeFail();
           return repo.upsertProject(record);
+        },
+        patchProjectCloud: async (id: string, cloud: NonNullable<WorkspaceProject["cloud"]>, updatedAt: number) => {
+          maybeFail();
+          return repo.patchProjectCloud(id, cloud, updatedAt);
         },
       };
     },
@@ -384,8 +394,7 @@ describe("pushProject", () => {
     expect(calls).toEqual(["POST"]);
   });
 
-  it("lượt đẩy song song bị chặn không làm kẹt dự án: sau đó đẩy lại được", async () => {
-    await seedLocal(localProject(), []);
+  it("lượt đẩy song song bị chặn không làm kẹt dự án: sau đó đẩy lại được", async () => {    await seedLocal(localProject(), []);
     const pushed = { ...remote, id: "remote-9", updatedAt: "2026-11-21T08:30:00Z", tabs: undefined };
     let release: (() => void) | undefined;
     const gate = new Promise<void>((resolve) => {
@@ -408,6 +417,79 @@ describe("pushProject", () => {
     // Khóa đã nhả: lượt sau chạy bình thường và đi PUT vì đã có liên kết.
     const third = await pushProject("local-1", { factory, fetchImpl: impl });
     expect(third).toMatchObject({ kind: "ok", remoteId: "remote-9" });
+  });
+
+  // Reviewer vòng 3 (F1): `forgetUnpersistedLinks()` cũ xóa cả `inFlight`. Mất phiên giữa lúc đang
+  // đẩy thì khóa chống trùng biến mất, lượt thứ hai lọt qua và POST lần nữa → hai dự án cloud.
+  it("F1: quên liên kết giữa lúc đang đẩy KHÔNG được nhả khóa chống trùng", async () => {
+    await seedLocal(localProject(), []);
+    const pushed = { ...remote, id: "remote-9", updatedAt: "2026-11-21T08:30:00Z", tabs: undefined };
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const methods: string[] = [];
+    const impl = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      methods.push(init?.method ?? "GET");
+      await gate;
+      return jsonResponse(201, { project: pushed });
+    }) as typeof fetch;
+
+    const first = pushProject("local-1", { factory, fetchImpl: impl });
+    // Người dùng đăng xuất đúng lúc lượt đẩy đang chờ mạng.
+    forgetUnpersistedLinks();
+
+    await expect(pushProject("local-1", { factory, fetchImpl: impl })).rejects.toMatchObject({ code: "BUSY" });
+    release?.();
+    // Lượt đang chạy không ghi liên kết của phiên cũ: báo lỗi để giao diện biết phiên đã đổi.
+    await expect(first).rejects.toMatchObject({ code: "AUTH_REQUIRED" });
+    expect(methods).toEqual(["POST"]);
+  });
+
+  // Reviewer vòng 3 (F1, vế thứ hai): lượt đẩy đang chạy không được ghi LẠI liên kết của người
+  // dùng cũ sau khi phiên đã đổi — nếu không, người đăng nhập sau trong cùng tab PUT vào dự án
+  // của người trước.
+  it("F1: mất phiên giữa lúc đang đẩy thì liên kết của người cũ không sống lại", async () => {
+    await seedLocal(localProject(), []);
+    const pushed = { ...remote, id: "remote-9", updatedAt: "2026-11-21T08:30:00Z", tabs: undefined };
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const methods: string[] = [];
+    const impl = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      methods.push(init?.method ?? "GET");
+      await gate;
+      return jsonResponse(201, { project: pushed });
+    }) as typeof fetch;
+
+    const first = pushProject("local-1", { factory, fetchImpl: impl });
+    forgetUnpersistedLinks();
+    release?.();
+    await expect(first).rejects.toMatchObject({ code: "AUTH_REQUIRED" });
+
+    // Lượt sau (người dùng mới) phải là POST, không phải PUT vào dự án của người trước.
+    await pushProject("local-1", { factory, fetchImpl: impl });
+    expect(methods).toEqual(["POST", "POST"]);
+  });
+
+  // Reviewer vòng 3 (F4): nhánh mở IndexedDB hỏng phải nhả khóa, nếu không dự án kẹt BUSY vĩnh viễn.
+  it("F4: mở bộ nhớ hỏng thì nhả khóa, lượt sau không bị BUSY", async () => {
+    await seedLocal(localProject(), []);
+    const brokenFactory = {
+      open: () => {
+        throw new DOMException("bị chặn", "InvalidStateError");
+      },
+    } as unknown as IDBFactory;
+    const { impl } = fakeFetch(() => jsonResponse(201, { project: remote }));
+
+    await expect(pushProject("local-1", { factory: brokenFactory, fetchImpl: impl })).rejects.toMatchObject({
+      code: "STORAGE_UNAVAILABLE",
+    });
+
+    // Khóa đã nhả: lượt sau chạy tiếp thay vì báo BUSY.
+    const retry = await pushProject("local-1", { factory, fetchImpl: impl });
+    expect(retry).toMatchObject({ kind: "ok" });
   });
 
   // Ca mà reviewer vòng 2 tìm ra là lỗ hổng test: liên kết còn trong BỘ NHỚ (`unpersistedLinks`)

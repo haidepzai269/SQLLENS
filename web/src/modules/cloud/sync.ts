@@ -87,9 +87,20 @@ const inFlight = new Set<string>();
 
 /** Chỉ dùng cho test: quên các liên kết còn trong bộ nhớ giữa các ca. */
 export function forgetUnpersistedLinks(): void {
+  // KHÔNG đụng `inFlight`: nếu xóa khóa của một lượt đẩy đang chạy thì lượt thứ hai lọt qua và
+  // POST lần nữa, sinh dự án trùng trên cloud — đúng lỗi mà `inFlight` sinh ra để chặn. Lượt
+  // đang chạy tự nhả khóa ở `finally` của nó.
   unpersistedLinks.clear();
-  inFlight.clear();
+  // Tăng thế hệ: lượt đẩy đang chạy sẽ thấy `sessionEpoch` đổi và KHÔNG ghi lại liên kết cũ,
+  // nếu không người đăng nhập sau trong cùng tab vẫn PUT vào dự án của người trước.
+  sessionEpoch += 1;
 }
+
+/**
+ * Thế hệ phiên. Tăng mỗi lần quên liên kết (đăng xuất, mất phiên). Lượt đẩy đọc giá trị này lúc
+ * bắt đầu và so lại trước khi ghi liên kết: khác nhau nghĩa là phiên đã đổi, không được ghi.
+ */
+let sessionEpoch = 0;
 
 /**
  * Kết quả đẩy. `conflict` mang đủ hai mốc để UI hiển thị "bản trên cloud lúc X, bản trên máy
@@ -271,12 +282,21 @@ export async function pushProject(projectId: string, options: SyncOptions = {}):
     throw new CloudSyncError("BUSY", "Dự án này đang được đẩy lên cloud, chờ một chút rồi thử lại");
   }
   inFlight.add(projectId);
+  const epoch = sessionEpoch;
   let db: IDBDatabase;
   try {
     // Autosave ghi tab xuống IndexedDB qua debounce (mặc định 300 ms), còn hàm này đọc tab từ
     // IndexedDB. Không flush trước thì "gõ thêm một câu rồi bấm Lưu ngay" sẽ đẩy bản CŨ lên
     // cloud, panel báo đã lưu, và phần vừa gõ chỉ còn trên máy — đóng tab là mất.
-    await flushWorkspace();
+    //
+    // `flushWorkspace` ném lỗi khi có lần ghi hỏng, kể cả hàng project (ghi ngay, không debounce).
+    // Ghi hỏng thì DỪNG trước khi gọi mạng: thà báo lỗi lưu máy còn hơn đẩy bản cũ lên cloud rồi
+    // báo "đã lưu".
+    try {
+      await flushWorkspace();
+    } catch (err) {
+      throw storageFailure(err);
+    }
     db = await openDb(options.factory);
   } catch (err) {
     // Mở bộ nhớ hỏng thì phải nhả khóa, nếu không dự án kẹt ở trạng thái "đang đẩy" mãi.
@@ -330,22 +350,45 @@ export async function pushProject(projectId: string, options: SyncOptions = {}):
 
     // Ghi vào bộ nhớ NGAY, trước khi chạm IndexedDB: từ đây id của server không bị mất, kể cả
     // khi bước ghi dưới đây hỏng. Nhờ vậy lần đẩy sau là PUT, không phải POST lần hai.
-    unpersistedLinks.set(projectId, { remoteId: remote.id, remoteUpdatedAt: remote.updatedAt });
+    //
+    // Chỉ ghi khi phiên chưa đổi: người dùng đăng xuất giữa lúc chờ mạng thì liên kết này thuộc
+    // về người dùng cũ, không được để người đăng nhập sau trong cùng tab dùng lại.
+    const stillSameSession = epoch === sessionEpoch;
+    if (stillSameSession) {
+      unpersistedLinks.set(projectId, { remoteId: remote.id, remoteUpdatedAt: remote.updatedAt });
+    }
 
     const parsed = Date.parse(remote.updatedAt);
     const updatedAt = Number.isFinite(parsed) ? parsed : project.updatedAt;
-    try {
-      await repo.upsertProject({
-        ...project,
-        updatedAt,
-        cloud: { remoteId: remote.id, remoteUpdatedAt: remote.updatedAt, stamp },
-      });
-    } catch (err) {
-      // Bản trên cloud đã tồn tại và id vẫn nằm trong bộ nhớ: báo lỗi ghi local, KHÔNG báo như
-      // thể chưa có gì trên cloud (comment cũ nói "lần sau nhận 409" là sai với POST).
-      throw storageFailure(err);
+    let patched = false;
+    if (stillSameSession) {
+      try {
+        // Chỉ vá trường cloud trên hàng ĐANG CÓ. Dùng `upsertProject({...project})` với ảnh chụp
+        // đọc trước vòng mạng thì: (a) tên vừa đổi trong lúc chờ mạng bị ghi đè về tên cũ, (b) dự
+        // án vừa bị xóa sống lại với 0 tab và liên kết cloud.
+        patched = await repo.patchProjectCloud(
+          projectId,
+          { remoteId: remote.id, remoteUpdatedAt: remote.updatedAt, stamp },
+          updatedAt,
+        );
+      } catch (err) {
+        // Bản trên cloud đã tồn tại và id vẫn nằm trong bộ nhớ: báo lỗi ghi local, KHÔNG báo như
+        // thể chưa có gì trên cloud (comment cũ nói "lần sau nhận 409" là sai với POST).
+        throw storageFailure(err);
+      }
+      unpersistedLinks.delete(projectId);
     }
-    unpersistedLinks.delete(projectId);
+    if (!stillSameSession) {
+      // Phiên đã đổi giữa lúc chờ mạng: dự án vừa tạo trên cloud thuộc người dùng CŨ. Ghi id đó
+      // xuống máy thì người đăng nhập sau trong cùng tab sẽ PUT vào dự án của người trước. Bản
+      // trên cloud vẫn còn (người cũ thấy lại khi đăng nhập), chỉ là máy này không nhớ liên kết.
+      throw new CloudSyncError("AUTH_REQUIRED", "Phiên đăng nhập đã đổi trong lúc đang lưu");
+    }
+    if (!patched) {
+      // Dự án đã bị xóa trên máy trong lúc chờ mạng. Bản cloud vẫn tồn tại nhưng không còn dự án
+      // local nào để gắn vào — báo lỗi để giao diện không hiện "đã lưu" cho một dự án đã biến mất.
+      throw new CloudSyncError("LOCAL_NOT_FOUND", "Dự án đã bị xóa trên máy trong lúc đang lưu");
+    }
     return { kind: "ok", updatedAt: remote.updatedAt, remoteId: remote.id, stamp };
   } finally {
     inFlight.delete(projectId);
