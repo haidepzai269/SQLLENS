@@ -24,8 +24,8 @@ Hợp đồng giả định spec này cần sandbox Azure; thực tế **không*
 Trên `main` spec này có 2 test đỏ thật (`AC3 phiên hết hạn giữa chừng`, vi + en): `expect(mine(s)).toEqual([2 câu])` chỉ nhận 1 câu, vì `expect.poll` cũ chỉ đợi MỘT câu `information_schema` trong khi câu đọc schema còn đang bay nên nhận 404 trước lần bấm của người dùng. Đã siết thành `filter(...).length >= 2` (chờ đủ cả `refreshTables` và vùng stage); assertion về số câu người dùng giữ nguyên, không nới.
 
 ## Kiểm tra khác
-- `cd api && gofmt -l . && go vet ./... && go test -p 1 ./internal/ai ./internal/auth ./internal/store` → gofmt rỗng, vet exit 0, ba package `ok` (3,4 s / 28,6 s / 34,5 s) với `T042_DATABASE_URL` và `T149_DATABASE_URL` trỏ Postgres 18 trong Docker.
-- `cd web && npm run check` → 117 file / 1461 test passed, 18 skipped, exit 0; `npm run build` exit 0; `npm run check:i18n` xanh (không thêm chuỗi mới).
+- `cd api && gofmt -l . && go vet ./... && go test -count=1 -p 1 ./internal/ai ./internal/auth ./internal/store` → gofmt rỗng, vet exit 0, ba package `ok` (1,95 s / 8,53 s / 8,55 s) với `T042_DATABASE_URL` và `T149_DATABASE_URL` trỏ Postgres 18 trong Docker.
+- `cd web && npm run check` → 117 file / 1461 test passed, 18 skipped, exit 0 (204 s); `npm run build` exit 0; `npm run check:i18n` exit 0 (không thêm chuỗi mới).
 - Không sửa `web/next.config.ts`, không đụng `cloud-panel.tsx`/`web/src/modules/cloud/**`, không đổi nhãn Thật/Mô phỏng/Ước lượng.
 
 ## Chưa làm được, rủi ro còn lại
