@@ -300,12 +300,32 @@ func (a *Auth) GateLimit(rule quota.Rule, strict bool) []gin.HandlerFunc {
 	return []gin.HandlerFunc{func(c *gin.Context) {
 		id, _ := uid(c)
 		if wait, ok := a.rate.allow(id); !ok {
-			c.Header("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
+			c.Header("Retry-After", strconv.Itoa(a.retryAfterSeconds(wait)))
 			httpapi.Abort(c, http.StatusTooManyRequests, "rate_limited", "error.rateLimited")
 			return
 		}
 		c.Next()
 	}, q}
+}
+
+// retryAfterSeconds đổi thời gian chờ còn lại thành số giây nguyên của header Retry-After.
+//
+// Luôn >= 1 (0 nghĩa là "thử lại ngay", vô nghĩa với 429) và không vượt quá độ dài cửa sổ.
+// Công thức cũ `int(wait.Seconds())+1` cộng thêm một giây vào một giá trị đã làm tròn, nên
+// chờ 59,4 s ra 61 s — dài hơn cả cửa sổ 60 s. Làm tròn LÊN là đủ: client chờ đúng hạn.
+func (a *Auth) retryAfterSeconds(wait time.Duration) int {
+	sec := int(wait / time.Second)
+	if wait%time.Second != 0 {
+		sec++
+	}
+	if sec < 1 {
+		sec = 1
+	}
+	// Cửa sổ dưới 1 giây thì không biểu diễn được bằng số giây nguyên: giữ 1, đừng hạ về 0.
+	if max := int(a.rate.window / time.Second); max >= 1 && sec > max {
+		sec = max
+	}
+	return sec
 }
 
 func (a *Auth) me(c *gin.Context) {

@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -370,6 +371,7 @@ func TestMySQLGate(t *testing.T) { // AC5, AC7c
 	if w.Code != 429 || !strings.Contains(w.Body.String(), "rate_limited") || w.Header().Get("Retry-After") == "" {
 		t.Fatalf("giới hạn thô: %d %s", w.Code, w.Body)
 	}
+	retryAfterHeader(t, w)
 	if e.upstash.Load() != before {
 		t.Fatal("yêu cầu bị giới hạn thô vẫn gọi Upstash")
 	}
@@ -430,6 +432,7 @@ func TestCloudGate(t *testing.T) { // SP999 F1
 	if w.Code != http.StatusTooManyRequests || !strings.Contains(w.Body.String(), "rate_limited") || w.Header().Get("Retry-After") == "" {
 		t.Fatalf("lần 31: %d %s", w.Code, w.Body)
 	}
+	retryAfterHeader(t, w)
 	if e.upstash.Load() != before {
 		t.Fatal("request bị chặn thô vẫn gọi Upstash")
 	}
@@ -513,6 +516,50 @@ func TestRateLimiter(t *testing.T) {
 	}
 	if _, ok := r.allow("b"); !ok {
 		t.Error("khóa khác phải độc lập")
+	}
+}
+
+// AC3 (Task158): Retry-After phải là số giây nguyên, >= 1, và không vượt độ dài cửa sổ.
+// Công thức cũ `int(wait.Seconds())+1` cắt phần lẻ rồi cộng thêm một giây, nên khi thời gian
+// chờ đã tròn tới cửa sổ (60 s) nó trả 61 — dài hơn cả cửa sổ. Ca 59,4 s và ca tròn 60 s
+// cùng nằm trong bảng: ca 60 s giết công thức cũ, ca 59,4 s ghim đúng hợp đồng (60, không 61).
+// Các ca 0 s và âm giết biến thể bỏ chặn dưới; ca 90 s giết biến thể bỏ kẹp trên.
+func TestRetryAfterSeconds(t *testing.T) {
+	a := &Auth{rate: newRateLimiter(30, time.Minute)}
+	for _, tc := range []struct {
+		wait time.Duration
+		want int
+	}{
+		{59*time.Second + 400*time.Millisecond, 60}, // ca biên của AC3: 60, không phải 61
+		{time.Minute, 60},      // đúng bằng cửa sổ: không được vượt
+		{90 * time.Second, 60}, // phòng thủ: luôn kẹp về độ dài cửa sổ
+		{30 * time.Second, 30},
+		{1500 * time.Millisecond, 2},
+		{time.Second, 1},
+		{400 * time.Millisecond, 1}, // làm tròn lên, không bao giờ ra 0
+		{0, 1},
+		{-2 * time.Second, 1}, // đồng hồ nhảy lùi: vẫn phải >= 1
+	} {
+		if got := a.retryAfterSeconds(tc.wait); got != tc.want {
+			t.Errorf("chờ %v: %d, muốn %d", tc.wait, got, tc.want)
+		}
+	}
+	// Cửa sổ ngắn hơn 1 giây: không biểu diễn được bằng giây nguyên, giữ 1 thay vì 0.
+	if got := (&Auth{rate: newRateLimiter(1, 500*time.Millisecond)}).retryAfterSeconds(400 * time.Millisecond); got != 1 {
+		t.Errorf("cửa sổ 500 ms: %d, muốn 1", got)
+	}
+}
+
+// retryAfterHeader đọc header Retry-After và kiểm nó là số giây nguyên trong [1, cửa sổ].
+func retryAfterHeader(t *testing.T, w *httptest.ResponseRecorder) {
+	t.Helper()
+	raw := w.Header().Get("Retry-After")
+	sec, err := strconv.Atoi(raw)
+	if err != nil {
+		t.Fatalf("Retry-After %q không phải số giây nguyên: %v", raw, err)
+	}
+	if sec < 1 || sec > 60 {
+		t.Fatalf("Retry-After %d nằm ngoài [1, 60] (cửa sổ của newRateLimiter(30, time.Minute))", sec)
 	}
 }
 
