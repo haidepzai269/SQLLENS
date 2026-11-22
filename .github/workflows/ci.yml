@@ -48,6 +48,53 @@ jobs:
       - run: go vet ./...
       - run: go test ./...
 
+  # Hồi quy RLS của SP023 (Task156 AC5/AC6). Job `api` ở trên chạy `go test ./...` nhưng KHÔNG có
+  # RLS_TEST_DSN, nên cả 10 test TestRLS* SKIP im lặng và job vẫn xanh — tức AC6 "test chạy ở CI"
+  # không đúng. Job này dựng PostgreSQL thật, đặt DSN, rồi còn kiểm chính đầu ra để không cho phép
+  # skip: thiếu DSN là job đỏ, không phải xanh oan.
+  rls:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: rls
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: api/go.sum
+      - name: Test RLS chạy thật, không cho phép skip
+        env:
+          RLS_TEST_DSN: postgres://postgres:rls@localhost:5432/app
+        run: |
+          go test -count=1 -p 1 -v -run 'TestRLS' ./internal/store | tee rls.log
+          if grep -q -- "--- SKIP: TestRLS" rls.log; then
+            echo "::error::Test RLS bị SKIP — kiểm RLS_TEST_DSN"
+            exit 1
+          fi
+          # 10 test RLS phải thật sự chạy; đổi số này khi thêm/bớt test.
+          # `|| true` để grep không khớp (exit 1) không làm cả bước đỏ vì lý do sai.
+          passed=$(grep -c -- '--- PASS: TestRLS' rls.log || true)
+          if [ "${passed:-0}" -lt 10 ]; then
+            echo "::error::Chỉ $passed test RLS chạy được, cần ít nhất 10"
+            exit 1
+          fi
+
   e2e:
     runs-on: ubuntu-latest
     defaults:
