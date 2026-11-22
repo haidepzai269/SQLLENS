@@ -63,7 +63,19 @@ Agent làm Task154 bị gián đoạn giữa đường. Panel đã chạy nhưng
 | B | Trung bình | `unpersistedLinks` sống lâu hơn phiên đăng nhập; không dọn thì người đăng nhập sau trong cùng tab có thể PUT vào dự án của người trước | `auth/auth-provider.tsx` (`markAnon`) |
 | C | Thấp | Thiếu test cho ca biên "đổi ngôn ngữ khi panel mở" và "chạm trần 50 dự án" | `cloud-panel.test.tsx` |
 
-Sau vòng này: `npm run check` **1427 passed / 18 skipped**, 117 file pass, `tsc` sạch; Chromium thật **16/16 PASS** ở vi/1280, vi/390, en/390 và ca đổi ngôn ngữ khi panel đang mở. Task154 xong; còn lại Task155 (`security-audit`) và Task156 (referrer/XSS, hồi quy RLS).
+Sau vòng này: `npm run check` **1434 passed / 18 skipped**, 117 file pass, `tsc` sạch; Chromium thật **16/16 PASS** ở vi/1280, vi/390, en/390 và ca đổi ngôn ngữ khi panel đang mở. Task154 xong; còn lại Task155 (`security-audit`) và Task156 (referrer/XSS, hồi quy RLS).
+
+## Vòng sửa thứ ba: reviewer độc lập bắt 3 lỗi nữa (2026-11-22)
+
+Vòng 2 tưởng đã ổn, nhưng reviewer độc lập kết luận **FAIL**: ba lỗi nằm đúng trong phạm vi vừa sửa. Ghi lại vì bài học chung cho các task sau:
+
+| Lỗi | Mức | Đo được | Sửa |
+|---|---|---|---|
+| F1 | Trung bình | `forgetUnpersistedLinks()` xóa cả `inFlight` → `SO_POST: 2` (hai dự án cloud), liên kết người dùng cũ sống sót | Chỉ xóa `unpersistedLinks`; thêm `sessionEpoch`; ném `AUTH_REQUIRED` khi phiên đã đổi |
+| F2 | Trung bình | `flushWorkspace()` không flush hàng project → `TEN_TRONG_PAYLOAD: "Mặc định"` khi store đã là "Ten Vua Doi"; xóa dự án trong lúc đẩy thì dự án **sống lại** với 0 tab | `projectWrites` trong `hydrate.ts`; `patchProjectCloud` chỉ vá trường cloud trên hàng đang có |
+| F3 | Trung bình | `executeSave` nuốt lỗi → `KET_QUA_PUSH: ok` với `PAYLOAD_SQL: ""` khi đĩa đầy | `flushStrict()` ném lỗi; `pushProject` dừng trước khi gọi mạng |
+
+Bài học test: hai ca đua ban đầu **xanh kể cả khi code sai** (đổi tên) hoặc **đỏ vì lý do khác** (xóa dự án). Phải ép đúng cửa sổ đua — thao tác **bên trong** vòng mạng — thì test mới canh đúng điều muốn canh. Đã kiểm bằng 6 đột biến ngược, cả 6 đều làm test đỏ.
 
 ## Không làm
 

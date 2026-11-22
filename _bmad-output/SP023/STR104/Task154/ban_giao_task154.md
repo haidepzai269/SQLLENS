@@ -22,12 +22,26 @@ Agent trước bị gián đoạn giữa đường nên để lại panel chạy
 | `web/src/modules/cloud/apply.ts` (108 dòng) | Áp kết quả kéo về workspace: thay toàn bộ tab trong **một** transaction, giữ id dự án |
 | `web/src/modules/cloud/status.ts` (67 dòng) | Tính trạng thái hiển thị từ dấu vân tay nội dung (không so đồng hồ) |
 | `web/src/modules/workspace/components/project-switcher.tsx` | Mục Cloud mở panel ngay trong dropdown dự án |
-| `web/src/modules/workspace/{repository,store,types,hydrate}.ts` | `replaceProjectContent`, `setProjectCloud`, ghi liên kết cloud xuống đĩa khi đổi |
-| `web/messages/{vi,en}/cloud.json` | 36 key mỗi ngôn ngữ, khớp nhau (đã sửa 5 key trùng ở vòng trước) |
+| `web/src/modules/workspace/{repository,store,types,hydrate,autosave}.ts` | `replaceProjectContent`, `patchProjectCloud`, `setProjectCloud`, `flushStrict`, ghi liên kết cloud xuống đĩa khi đổi |
+| `web/messages/{vi,en}/cloud.json` | **54 key lá** mỗi ngôn ngữ, khớp đủ, 0 key trùng (đếm bằng scanner đệ quy; `JSON.parse` nuốt khối trùng nên không dùng nó để kiểm) |
+
+## Vòng sửa thứ ba: ba lỗi reviewer độc lập tìm ra
+
+Vòng 2 sửa xong tưởng đã ổn, nhưng reviewer độc lập kết luận **FAIL** vì ba lỗi nằm đúng trong phạm vi vừa sửa:
+
+| Lỗi | Mức | Nội dung | Sửa ở đâu |
+|---|---|---|---|
+| F1 | Trung bình | `forgetUnpersistedLinks()` xóa **cả** `inFlight`; lượt đẩy đang chạy vẫn ghi lại liên kết cũ sau đó. Đo được: `SO_POST: 2` (hai dự án cloud) và liên kết người dùng cũ sống sót (`GOI: ["PUT /api/v1/cloud/projects/remote-1"]`) | `sync.ts`: chỉ xóa `unpersistedLinks`, thêm `sessionEpoch`, ném `AUTH_REQUIRED` khi phiên đã đổi |
+| F2 | Trung bình | `flushWorkspace()` không flush hàng project (subscriber ghi bắn-và-quên) và `pushProject` ghi đè bằng ảnh chụp đọc trước vòng mạng. Đo được: `TEN_STORE: "Ten Vua Doi"` / `TEN_TRONG_PAYLOAD: "Mặc định"`; xóa dự án trong lúc đẩy thì dự án **sống lại** với 0 tab | `hydrate.ts` (`projectWrites`), `repository.ts` (`patchProjectCloud`), `sync.ts` |
+| F3 | Trung bình | `executeSave` nuốt lỗi vào `onError` nên `flush()` resolve dù ghi hỏng. Đo được: `KET_QUA_PUSH: ok`, `PAYLOAD_SQL: ""` khi đĩa đầy | `autosave.ts` (`flushStrict`), `hydrate.ts`, `sync.ts` |
+
+Cả ba đã sửa, mỗi lỗi có test đỏ trước / xanh sau, chứng minh bằng **6 đột biến ngược** (thêm lại `inFlight.clear()`, ép `stillSameSession = true`, đổi `patchProjectCloud` về `upsertProject`, bỏ nhánh `!patched`, đổi `flushStrict` về `flush`, bỏ `inFlight.delete` ở nhánh mở db hỏng) — cả 6 đều làm test đỏ và khôi phục khớp hash.
+
+**Bài học về test:** ca "đổi tên trong lúc chờ mạng" ban đầu **xanh kể cả khi code sai**, vì lượt ghi tên và lượt ghi đè chạy đua và trên máy này lượt ghi tên luôn về sau. Phải đổi tên **bên trong** vòng mạng rồi `await flushWorkspace()` mới tất định. Tương tự, ca "xóa dự án" ban đầu đỏ vì lý do khác (`LOCAL_NOT_FOUND` ở bước đọc trước khi gọi mạng) chứ không phải vì nhánh `!patched` — sửa lại cho đúng cửa sổ đua thì mới canh đúng điều muốn canh.
 
 ## Kiểm tra
 
-- `npm run check`: **1427 passed | 18 skipped**, 117 file pass, 0 error.
+- `npm run check`: **1434 passed | 18 skipped**, 117 file pass, 0 error.
 - `npx tsc --noEmit`: sạch.
 - Trình duyệt thật (Chromium, bản `next build` + `next start`) — **16/16 PASS**:
 
