@@ -685,5 +685,75 @@ describe("Workspace Autosave & Store (Task123)", () => {
       expect(autosave.hasPendingFailures()).toBe(false);
       await expect(autosave.flushStrict()).resolves.toBeUndefined();
     });
+
+    // Reviewer vòng 7, N2 — chiều nguy hiểm nhất, làm sống lại đúng bug gốc của Task154.
+    // Hai lượt ghi cùng key dùng chung thế hệ thì lượt CŨ settle muộn sẽ xoá dấu lỗi THẬT của lượt
+    // MỚI: ghi "BẢN CŨ" → ghi "BẢN MỚI" → "BẢN MỚI" hỏng thật → "BẢN CŨ" thành công muộn →
+    // `failedKeys.delete` → `flushStrict` tuyên bố xong trong khi bản mới chưa bao giờ xuống đĩa.
+    it("lượt cũ thành công muộn KHÔNG được xoá dấu lỗi thật của lượt mới", async () => {
+      const resolvers: Array<{ resolve: () => void; reject: (e: Error) => void; label: string }> = [];
+      const saveMock = vi.fn(
+        (key: string, payload: string) =>
+          new Promise<void>((resolve, reject) => {
+            resolvers.push({ resolve, reject, label: payload });
+            void key;
+          }),
+      );
+      const autosave = createAutosave<string>({ save: saveMock, delayMs: 10 });
+
+      // Lượt 1: "BẢN CŨ" bắt đầu bay.
+      autosave.schedule("tab-a", "BAN_CU");
+      await vi.advanceTimersByTimeAsync(20);
+      expect(resolvers).toHaveLength(1);
+
+      // Lượt 2: "BẢN MỚI" cũng bay (người dùng gõ tiếp trong lúc lượt 1 chưa xong).
+      autosave.schedule("tab-a", "BAN_MOI");
+      await vi.advanceTimersByTimeAsync(20);
+      expect(resolvers).toHaveLength(2);
+
+      // "BẢN MỚI" hỏng THẬT → dấu lỗi phải được ghi.
+      resolvers[1].reject(new Error("đĩa đầy"));
+      await vi.advanceTimersByTimeAsync(20);
+      expect(autosave.hasPendingFailures()).toBe(true);
+
+      // "BẢN CŨ" thành công MUỘN. Không được xoá dấu lỗi của bản mới.
+      resolvers[0].resolve();
+      await vi.advanceTimersByTimeAsync(20);
+
+      expect(autosave.hasPendingFailures()).toBe(true);
+      await expect(autosave.flushStrict()).rejects.toThrow(/chưa ghi được xuống máy/);
+    });
+
+    // Reviewer vòng 7, N1: một key có thể có NHIỀU lượt ghi cùng bay. Đếm bằng `Set` thì lượt thứ
+    // nhất settle là xoá mất key, `forgetEpochIfIdle` tưởng key rảnh và xoá luôn thế hệ; lượt thứ
+    // hai hỏng muộn thấy thế hệ đã về 0 nên KHÔNG ghi được dấu lỗi → mất dấu lỗi thật, và lần bấm
+    // Lưu sau đẩy bản cũ lên cloud rồi báo thành công.
+    it("hai lượt cùng bay: lượt đầu xong không được làm mất dấu lỗi của lượt sau", async () => {
+      const resolvers: Array<{ resolve: () => void; reject: (e: Error) => void }> = [];
+      const saveMock = vi.fn(
+        () =>
+          new Promise<void>((resolve, reject) => {
+            resolvers.push({ resolve, reject });
+          }),
+      );
+      const autosave = createAutosave<string>({ save: saveMock, delayMs: 10 });
+
+      autosave.schedule("tab-a", "SELECT 1");
+      await vi.advanceTimersByTimeAsync(20);
+      autosave.schedule("tab-a", "SELECT 2");
+      await vi.advanceTimersByTimeAsync(20);
+      expect(resolvers).toHaveLength(2);
+
+      // Lượt đầu thành công. Key vẫn còn một lượt đang bay nên thế hệ phải được giữ.
+      resolvers[0].resolve();
+      await vi.advanceTimersByTimeAsync(20);
+
+      // Lượt sau hỏng THẬT → bắt buộc phải nhớ.
+      resolvers[1].reject(new Error("transaction abort lúc commit"));
+      await vi.advanceTimersByTimeAsync(20);
+
+      expect(autosave.hasPendingFailures()).toBe(true);
+      await expect(autosave.flushStrict()).rejects.toThrow(/chưa ghi được xuống máy/);
+    });
   });
 });

@@ -294,7 +294,8 @@ describe("pushProject — ghi máy hỏng thì không đẩy bản cũ lên clou
     await new Promise((resolve) => setTimeout(resolve, 60));
 
     // Rồi sửa một TAB: lượt ghi này thành công và (theo cách cũ) xóa sạch dấu lỗi.
-    flag.broken = false;
+    // Cờ `broken` giữ nguyên: chỉ store `projects` bị hỏng, nên lượt ghi TAB vẫn thành công — đúng
+    // điều kiện cần để test này đo được điều nó định đo.
     useWorkspaceStore.getState().updateTabSql(tabId, "SELECT 'tab ghi duoc'");
     await new Promise((resolve) => setTimeout(resolve, 60));
 
@@ -304,10 +305,61 @@ describe("pushProject — ghi máy hỏng thì không đẩy bản cũ lên clou
       return createdProject();
     }) as typeof fetch;
 
-    // Phải DỪNG: tên mới chưa xuống đĩa nên đẩy lúc này là đẩy bản cũ.
+    // Phải DỪNG: đĩa vẫn hỏng nên tên mới chưa xuống đĩa, đẩy lúc này là đẩy bản cũ.
     await expect(pushProject(projectId, { factory: sabotaged, fetchImpl: impl })).rejects.toBeInstanceOf(
       CloudSyncError,
     );
     expect(calls).toBe(0);
+  });
+
+  // Vế còn lại của cùng kịch bản, sau khi có đường thử lại (reviewer vòng 7, N3): đĩa HỒI thì lần
+  // Lưu phải thử lại, đẩy được, và payload phải mang TÊN MỚI — không phải tên cũ. Đây mới là bất
+  // biến thật: không bao giờ đẩy bản cũ trong khi store giữ bản mới.
+  it("R1b: đĩa hồi thì đẩy được, và payload mang tên MỚI chứ không phải tên cũ", async () => {
+    const flag = { broken: false };
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (name === "projects" && flag.broken) {
+                s.put = (() => {
+                  throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                }) as IDBObjectStore["put"];
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const { projectId } = await bootWorkspace(GUEST, { factory: sabotaged, delayMs: 10 });
+
+    flag.broken = true;
+    useWorkspaceStore.getState().renameProject(projectId, "TEN-MOI-DA-XUONG-DIA");
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    // Đĩa hồi.
+    flag.broken = false;
+
+    let body: string | undefined;
+    const impl = (async (_url: string, init?: RequestInit) => {
+      body = String(init?.body ?? "");
+      return createdProject();
+    }) as unknown as typeof fetch;
+
+    await expect(pushProject(projectId, { factory: sabotaged, fetchImpl: impl })).resolves.toBeDefined();
+    expect(body).toContain("TEN-MOI-DA-XUONG-DIA");
   });
 });

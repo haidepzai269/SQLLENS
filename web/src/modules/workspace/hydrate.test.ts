@@ -321,11 +321,9 @@ describe("Workspace Hydrate & Persistence (Task124)", () => {
             tx.objectStore = ((name: string) => {
               const s = realStore(name);
               if (name === "projects" && flag.broken) {
-                const realDelete = s.delete.bind(s);
-                s.delete = ((key: IDBValidKey) => {
+                s.delete = (() => {
                   throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
                 }) as IDBObjectStore["delete"];
-                void realDelete;
               }
               return s;
             }) as IDBTransaction["objectStore"];
@@ -406,5 +404,158 @@ describe("Workspace Hydrate & Persistence (Task124)", () => {
     const elapsed = Date.now() - started;
 
     expect(elapsed).toBeLessThan(4000);
+  }, 15000);
+
+  // Reviewer vòng 7, N4: trần tính cho TỪNG entry cộng dồn thành (số entry) × trần, và số entry
+  // không bị chặn — đo được 6 entry treo → một lần Lưu mất 4,5 giây. Ngân sách phải là CHUNG cho cả
+  // vòng, để nút Lưu luôn trả về trong hạn dù có bao nhiêu entry đi nữa.
+  it("N4: nhiều lượt thử lại bị treo vẫn chỉ tốn một ngân sách chung", async () => {
+    const state = { calls: 0 };
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (name === "tabs") {
+                s.delete = (() => {
+                  state.calls += 1;
+                  // Mọi lượt xoá đều ném ngay (để tích nhiều entry), riêng các lượt THỬ LẠI thì treo:
+                  // phân biệt bằng số lần gọi — 6 lượt đầu là lúc xoá, sau đó là thử lại.
+                  if (state.calls <= 6) {
+                    throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                  }
+                  return {} as IDBRequest<undefined>;
+                }) as IDBObjectStore["delete"];
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const { projectId } = await bootWorkspace(GUEST_SCOPE, { factory: sabotaged, delayMs: 10 });
+
+    // Tạo 6 tab rồi đóng cả 6 → 6 entry `failedDeletes` khác key nhau.
+    const ids: string[] = [];
+    for (let i = 0; i < 6; i += 1) {
+      ids.push(useWorkspaceStore.getState().createTab(projectId).id);
+    }
+    await waitMs(40);
+    for (const id of ids) useWorkspaceStore.getState().closeTab(id);
+    await waitMs(80);
+    expect(state.calls).toBeGreaterThanOrEqual(6);
+
+    // Cả 6 lượt thử lại đều treo. Tổng thời gian phải quanh MỘT ngân sách chung (2 s), không phải
+    // 6 × 2 s.
+    const started = Date.now();
+    await flushWorkspace();
+    const elapsed = Date.now() - started;
+
+    expect(elapsed).toBeLessThan(4000);
+  }, 20000);
+  // TÊN key nên đĩa hết lỗi rồi vẫn kẹt vĩnh viễn — `hasUnflushedFailures()` đúng mãi, chặn cả
+  // những dự án khác không liên quan, và xoá chính dự án đó cũng không gỡ được.
+  it("N3: đĩa hết lỗi thì lần Lưu sau phải thử lại được lượt ghi project đã hỏng", async () => {
+    const flag = { broken: false };
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (name === "projects" && flag.broken) {
+                s.put = (() => {
+                  throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                }) as IDBObjectStore["put"];
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const { projectId } = await bootWorkspace(GUEST_SCOPE, { factory: sabotaged, delayMs: 10 });
+
+    // Đổi tên trong lúc đĩa hỏng → lượt ghi hỏng, ghi dấu nợ.
+    flag.broken = true;
+    useWorkspaceStore.getState().renameProject(projectId, "TEN-MOI");
+    await waitMs(60);
+    expect(hasUnflushedFailures()).toBe(true);
+
+    // Đĩa hết lỗi. Lần Lưu sau phải THỬ LẠI và thành công, không được kẹt.
+    flag.broken = false;
+    await expect(flushWorkspace()).resolves.toBeUndefined();
+    expect(hasUnflushedFailures()).toBe(false);
+  }, 10000);
+
+  // Reviewer vòng 7, N5: `disposeWorkspace()` bỏ rơi các lượt xoá đã hỏng, nên bản ghi ma nằm lại
+  // trên đĩa và SỐNG LẠI sau F5 (đo được `ghostAliveAfterF5=true`).
+  it("N5: đóng phiên không được để bản ghi đã xoá sống lại sau F5", async () => {
+    const flag = { broken: false };
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (name === "tabs" && flag.broken) {
+                s.delete = (() => {
+                  throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                }) as IDBObjectStore["delete"];
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const { projectId } = await bootWorkspace(GUEST_SCOPE, { factory: sabotaged, delayMs: 10 });
+    const second = useWorkspaceStore.getState().createTab(projectId);
+    await waitMs(40);
+
+    // Xoá tab trong lúc đĩa hỏng → lượt xoá hỏng.
+    flag.broken = true;
+    useWorkspaceStore.getState().closeTab(second.id);
+    await waitMs(60);
+
+    // Đĩa hết lỗi rồi đóng phiên: phải thử lại trước khi teardown.
+    flag.broken = false;
+    await disposeWorkspace();
+
+    // F5 giả lập: mở lại và kiểm tab đã xoá không sống lại.
+    await bootWorkspace(GUEST_SCOPE, { factory, delayMs: 10 });
+    const tabs = useWorkspaceStore.getState().tabs;
+    expect(tabs.some((t) => t.id === second.id)).toBe(false);
   }, 15000);
 });

@@ -41,8 +41,15 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
 
   const pending = new Map<string, PendingItem<T>>();
   const inFlight = new Set<Promise<void>>();
-  /** Key nào đang có lượt ghi chưa settle. Cần riêng để dọn `keyEpoch` mà không bỏ sót lượt bay. */
-  const inFlightKeys = new Set<string>();
+  /**
+   * ĐẾM số lượt ghi chưa settle của từng key, không phải tập hợp.
+   *
+   * Cùng một key có thể có NHIỀU lượt ghi cùng bay (gõ liên tục vượt qua cả debounce và flush).
+   * Dùng `Set<string>` thì lượt thứ nhất settle là xoá mất key, `forgetEpochIfIdle` tưởng key rảnh
+   * và xoá luôn thế hệ, rồi lượt thứ hai hỏng muộn thấy `0 === 0` nên dựng lại dấu lỗi cho một key
+   * đã chết — nút Lưu cloud chết tới khi F5 (reviewer vòng 7, N1).
+   */
+  const inFlightKeys = new Map<string, number>();
   let isDisposed = false;
   // Key nào đang có dữ liệu CHƯA xuống đĩa vì lượt ghi gần nhất của nó hỏng.
   //
@@ -75,6 +82,18 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
    */
   const forgetEpochIfIdle = (key: string): void => {
     if (!pending.has(key) && !failedKeys.has(key) && !inFlightKeys.has(key)) keyEpoch.delete(key);
+  };
+
+  /** Đánh dấu một lượt ghi của `key` bắt đầu bay. */
+  const beginFlight = (key: string): void => {
+    inFlightKeys.set(key, (inFlightKeys.get(key) ?? 0) + 1);
+  };
+  /** Đánh dấu một lượt ghi của `key` đã settle; chỉ nhả key khi không còn lượt nào. */
+  const endFlight = (key: string): void => {
+    const left = (inFlightKeys.get(key) ?? 1) - 1;
+    if (left > 0) inFlightKeys.set(key, left);
+    else inFlightKeys.delete(key);
+    forgetEpochIfIdle(key);
   };
 
   const onPageHide = () => {
@@ -110,18 +129,25 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
       clearTimeout(existing.timer);
     }
 
+    // Đổi thế hệ cho MỖI lượt xếp lịch mới.
+    //
+    // Không bump ở đây thì hai lượt ghi cùng key dùng chung một thế hệ, và lượt CŨ settle muộn sẽ
+    // xoá dấu lỗi THẬT của lượt MỚI: ghi "BẢN CŨ" → ghi "BẢN MỚI" → "BẢN MỚI" hỏng thật → "BẢN CŨ"
+    // thành công muộn → `failedKeys.delete(key)` → `flushStrict` tuyên bố xong trong khi bản mới
+    // chưa bao giờ xuống đĩa. Đó đúng là bug gốc của Task154 (reviewer vòng 7, N2).
+    bumpEpoch(key);
+
     const timer = setTimeout(async () => {
       pending.delete(key);
       const epoch = epochOf(key);
-      inFlightKeys.add(key);
+      beginFlight(key);
       const promise = executeSave(key, payload, epoch);
       inFlight.add(promise);
       try {
         await promise;
       } finally {
         inFlight.delete(promise);
-        inFlightKeys.delete(key);
-        forgetEpochIfIdle(key);
+        endFlight(key);
       }
     }, delayMs);
 
@@ -141,12 +167,14 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
         clearTimeout(item.timer);
         pending.delete(pendingKey);
       }
-      // Mọi key từng có thế hệ đều phải đổi thế hệ: key đang bay (không còn trong `pending`) cũng
-      // vậy, nếu không kết quả muộn của nó sẽ ghi dấu lỗi trở lại. Dùng `Array.from` vì `bumpEpoch`
-      // ghi vào chính Map đang lặp.
-      for (const knownKey of Array.from(keyEpoch.keys())) bumpEpoch(knownKey);
+      // Phải gom ĐỦ mọi key còn sống, không chỉ key đã có mặt trong `keyEpoch`: key đang bay mà
+      // chưa từng bị bump thì không có trong Map, nên lặp riêng `keyEpoch` sẽ bỏ sót nó và kết quả
+      // muộn của nó ghi dấu lỗi trở lại (reviewer vòng 7, N6). `Array.from` vì `bumpEpoch` ghi vào
+      // chính Map đang lặp.
+      const known = new Set<string>([...keyEpoch.keys(), ...pending.keys(), ...failedKeys, ...inFlightKeys.keys()]);
+      for (const knownKey of known) bumpEpoch(knownKey);
       failedKeys.clear();
-      for (const knownKey of Array.from(keyEpoch.keys())) forgetEpochIfIdle(knownKey);
+      for (const knownKey of known) forgetEpochIfIdle(knownKey);
       return;
     }
     // Đổi thế hệ TRƯỚC khi xóa dấu: lượt ghi đang bay của key này sẽ thấy thế hệ lệch và bỏ qua.
@@ -176,15 +204,14 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
 
     const newPromises = tasks.map(async ({ key, payload }) => {
       const epoch = epochOf(key);
-      inFlightKeys.add(key);
+      beginFlight(key);
       const p = executeSave(key, payload, epoch);
       inFlight.add(p);
       try {
         await p;
       } finally {
         inFlight.delete(p);
-        inFlightKeys.delete(key);
-        forgetEpochIfIdle(key);
+        endFlight(key);
       }
     });
 
@@ -215,7 +242,7 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
 
     const newPromises = tasks.map(async ({ key, payload }) => {
       const epoch = epochOf(key);
-      inFlightKeys.add(key);
+      beginFlight(key);
       const p = (async () => {
         try {
           await save(key, payload);
@@ -232,8 +259,7 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
         await p;
       } finally {
         inFlight.delete(p);
-        inFlightKeys.delete(key);
-        forgetEpochIfIdle(key);
+        endFlight(key);
       }
     });
 

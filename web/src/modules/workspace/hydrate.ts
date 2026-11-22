@@ -33,15 +33,19 @@ interface WorkspaceSession {
    */
   projectWrites: Set<Promise<void>>;
   /**
-   * Key nào có lượt GHI (upsert) hàng project đã hỏng và chưa ghi lại được.
+   * Key nào có lượt GHI (upsert) hàng project đã hỏng và chưa ghi lại được, kèm hàm để THỬ LẠI.
    *
    * Cần riêng khỏi `projectWrites`: promise hỏng đã settle thì rời khỏi Set, nên
    * `flushWorkspace()` không còn thấy nó. Không có nó thì "đổi tên khi đĩa đầy rồi bấm Lưu" sẽ đẩy
    * tên CŨ lên cloud và báo thành công — vế còn hở của N1 (reviewer vòng 5, R1).
    *
+   * Giữ HÀM chứ không chỉ tên key: bản đầu chỉ ghi tên key nên không có đường thử lại, và đĩa hết
+   * lỗi rồi vẫn kẹt vĩnh viễn — `hasUnflushedFailures()` đúng mãi, chặn cả những dự án khác không
+   * liên quan, xoá chính dự án đó cũng không gỡ được (reviewer vòng 7, N3).
+   *
    * CHỈ chứa lỗi GHI, không chứa lỗi XOÁ: xem `failedDeletes`.
    */
-  failedWrites: Set<string>;
+  failedWrites: Map<string, () => Promise<void>>;
   /**
    * Lượt XOÁ đã hỏng, giữ lại hàm để thử lại ở lần `flushWorkspace()` sau.
    *
@@ -63,8 +67,14 @@ let currentSession: WorkspaceSession | null = null;
 let bootLock: Promise<{ projectId: string; tabId: string }> | null = null;
 /** Trần chờ các lượt ghi project khi đóng phiên, xem `disposeWorkspace`. */
 const DISPOSE_WRITE_TIMEOUT_MS = 1500;
-/** Trần cho MỘT lần thử lại lượt xoá đã hỏng, xem `flushWorkspace`. */
-const DELETE_RETRY_TIMEOUT_MS = 1500;
+/**
+ * Ngân sách thời gian CHUNG cho toàn bộ vòng thử lại trong một lần `flushWorkspace()`.
+ *
+ * Đặt trần cho từng entry thì tổng thời gian là (số entry) × trần, và số entry không bị chặn: đo
+ * được 6 entry treo → một lần Lưu mất 4,5 giây, lần sau gấp đôi (reviewer vòng 7, N4). Ngân sách
+ * chung giữ cho nút Lưu luôn trả về trong hạn dù có bao nhiêu entry đi nữa.
+ */
+const RETRY_BUDGET_MS = 2000;
 
 /**
  * Ép mọi thay đổi đang chờ xuống IndexedDB rồi mới trả về.
@@ -85,32 +95,49 @@ export async function flushWorkspace(): Promise<void> {
     const failed = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
     if (failed) throw failed.reason;
   }
-  // Lượt ghi ĐÃ hỏng từ trước (không còn trong `projectWrites` vì promise đã settle) vẫn phải
-  // làm ném: nếu không, "đổi tên khi đĩa đầy rồi bấm Lưu" sẽ đẩy tên cũ lên cloud và báo thành
-  // công. Đây là vế còn hở của N1 — `flushStrict` chỉ biết key của tab, không biết hàng project.
+  // Lượt GHI đã hỏng thì thử lại trước khi tuyên bố "chưa xuống đĩa". Không thử lại thì đĩa hết lỗi
+  // rồi vẫn kẹt vĩnh viễn (reviewer vòng 7, N3). Vẫn hỏng thì mới ném.
+  await retryPending(session.failedWrites, session);
   if (session.failedWrites.size > 0) {
     throw new Error("Còn dữ liệu chưa ghi được xuống máy");
   }
-  // Lượt XOÁ đã hỏng thì thử lại ở đây, KHÔNG chặn đẩy cloud: bản ghi ma trên đĩa không nằm trong
-  // payload nên nội dung đẩy lên vẫn đúng. Thử lại thất bại thì để lần sau; nếu chặn ở đây thì xoá
-  // một tab lúc đĩa hỏng sẽ khoá nút Lưu vĩnh viễn (reviewer vòng 6, lỗi 4a).
-  //
-  // Mỗi lần thử lại phải có TRẦN: transaction IndexedDB có thể treo vĩnh viễn (đúng lý do sinh ra
-  // `DISPOSE_WRITE_TIMEOUT_MS`), và `pushProject` gọi hàm này nên treo ở đây là treo luôn nút Lưu.
-  // Hết hạn thì coi như vẫn hỏng, để lần flush sau thử tiếp.
-  if (session.failedDeletes.size > 0) {
-    for (const [key, retry] of Array.from(session.failedDeletes.entries())) {
-      try {
-        await Promise.race([
-          retry(),
-          new Promise<never>((_resolve, reject) =>
-            setTimeout(() => reject(new Error("Hết hạn thử lại lượt xoá")), DELETE_RETRY_TIMEOUT_MS),
-          ),
-        ]);
-        session.failedDeletes.delete(key);
-      } catch {
-        // Vẫn hỏng: giữ lại để lần flush sau thử tiếp. Không ném.
-      }
+  // Lượt XOÁ đã hỏng thì thử lại, KHÔNG chặn đẩy cloud: bản ghi ma trên đĩa không nằm trong payload
+  // nên nội dung đẩy lên vẫn đúng. Nếu chặn ở đây thì xoá một tab lúc đĩa hỏng sẽ khoá nút Lưu
+  // vĩnh viễn (reviewer vòng 6, lỗi 4a).
+  await retryPending(session.failedDeletes, session);
+}
+
+/**
+ * Thử lại các lượt đã hỏng trong MỘT ngân sách thời gian chung.
+ *
+ * Hai điều kiện quan trọng, cả hai đều do reviewer bắt được ở vòng 7:
+ * - Trần phải là ngân sách CHUNG, không phải trần từng entry: trần từng entry cộng dồn thành
+ *   (số entry) × 1500 ms và số entry không bị chặn (N4).
+ * - Mỗi lượt thử lại phải có trần: transaction IndexedDB có thể treo vĩnh viễn, và `pushProject`
+ *   gọi hàm này nên treo ở đây là treo luôn nút Lưu.
+ *
+ * Hết ngân sách thì thôi, giữ nguyên các entry còn lại cho lần flush sau.
+ */
+async function retryPending(pending: Map<string, () => Promise<void>>, session: WorkspaceSession): Promise<void> {
+  if (pending.size === 0) return;
+  const deadline = Date.now() + RETRY_BUDGET_MS;
+
+  for (const [key, retry] of Array.from(pending.entries())) {
+    // Một phiên KHÁC đã mở nghĩa là phiên này đã chết; thử lại trên session cũ là vô nghĩa.
+    // `currentSession === null` là trạng thái bình thường khi đang trong `disposeWorkspace`.
+    if (currentSession !== null && currentSession !== session) return;
+    const left = deadline - Date.now();
+    if (left <= 0) return;
+    try {
+      await Promise.race([
+        retry(),
+        new Promise<never>((_resolve, reject) =>
+          setTimeout(() => reject(new Error("Hết hạn thử lại")), Math.min(left, RETRY_BUDGET_MS)),
+        ),
+      ]);
+      pending.delete(key);
+    } catch {
+      // Vẫn hỏng: giữ lại để lần flush sau thử tiếp.
     }
   }
 }
@@ -126,7 +153,8 @@ export function hasUnflushedFailures(): boolean {
   return currentSession.tabAutosave.hasPendingFailures() || currentSession.failedWrites.size > 0;
 }
 
-export async function disposeWorkspace(): Promise<void> {  if (currentSession) {
+export async function disposeWorkspace(): Promise<void> {
+  if (currentSession) {
     const session = currentSession;
     currentSession = null;
     session.unsubscribe();
@@ -145,6 +173,11 @@ export async function disposeWorkspace(): Promise<void> {  if (currentSession) {
       (async () => {
         await session.tabAutosave.dispose();
         await Promise.allSettled(Array.from(session.projectWrites));
+        // Lượt xoá đã hỏng mà không thử lại trước khi đóng phiên thì bản ghi ma nằm lại trên đĩa
+        // và SỐNG LẠI sau F5 — reviewer vòng 7 đo được `ghostAliveAfterF5=true`. Thử lại ngay đây,
+        // trong cùng trần thời gian, để lần hydrate sau không đọc ra bản ghi đã bị xoá.
+        await retryPending(session.failedDeletes, session);
+        await retryPending(session.failedWrites, session);
       })(),
       new Promise<void>((resolve) => setTimeout(resolve, DISPOSE_WRITE_TIMEOUT_MS)),
     ]);
@@ -318,7 +351,7 @@ export async function bootWorkspace(
     // Key nào có lượt GHI (upsert) hàng project đã hỏng và chưa ghi lại được. Phải theo TỪNG key:
     // một lượt ghi thành công của key khác không chứng minh gì về key này (cùng lý do như
     // `failedKeys` trong `autosave.ts`).
-    const failedWrites = new Set<string>();
+    const failedWrites = new Map<string, () => Promise<void>>();
     // Lượt XOÁ đã hỏng, giữ hàm để thử lại. Xem `WorkspaceSession.failedDeletes`.
     const failedDeletes = new Map<string, () => Promise<void>>();
 
@@ -337,7 +370,7 @@ export async function bootWorkspace(
           else failedDeletes.delete(key);
         },
         (err) => {
-          if (kind === "write") failedWrites.add(key);
+          if (kind === "write") failedWrites.set(key, run);
           else failedDeletes.set(key, run);
           useWorkspaceStore.getState().setSaveState("error", err instanceof Error ? err.message : String(err));
         },
@@ -395,6 +428,11 @@ export async function bootWorkspace(
           for (const tab of lastTabs) {
             if (tab.projectId === prev.id) tabAutosave.cancel(tab.id);
           }
+          // Bản ghi đã rời store thì mọi "còn nợ" gắn với nó cũng hết nghĩa: không còn payload nào
+          // chứa nó để mà đẩy lên cloud. Giữ lại thì `hasUnflushedFailures()` đúng mãi và chặn cả
+          // những dự án khác (reviewer vòng 7, N3 — "xoá chính dự án đó cũng không gỡ được").
+          failedWrites.delete(`project:${prev.id}`);
+          failedDeletes.delete(`project:${prev.id}`);
           trackProjectWrite(`project:${prev.id}`, () => repo!.deleteProjectCascade(prev.id), "delete");
         }
       }
