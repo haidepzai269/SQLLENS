@@ -253,4 +253,61 @@ describe("pushProject — ghi máy hỏng thì không đẩy bản cũ lên clou
     );
     expect(calls).toBe(0);
   });
+
+  // Reviewer vòng 5 (R1), kịch bản A: hàng project ghi hỏng, rồi một TAB ghi thành công. Bản sửa
+  // vòng 4 dùng `saveState` của store, mà `saveState` bị đặt về "idle" sau MỌI lượt ghi thành
+  // công — kể cả của tab khác. Nên tên mới chưa xuống đĩa nhưng vẫn bị đẩy tên cũ lên cloud.
+  it("R1a: hàng project ghi hỏng rồi tab khác ghi được thì vẫn KHÔNG được đẩy bản cũ", async () => {
+    const flag = { broken: false };
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (name === "projects" && flag.broken) {
+                s.put = (() => {
+                  throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                }) as IDBObjectStore["put"];
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const { projectId, tabId } = await bootWorkspace(GUEST, { factory: sabotaged, delayMs: 10 });
+
+    // Đổi TÊN: hàng project ghi hỏng.
+    flag.broken = true;
+    useWorkspaceStore.getState().renameProject(projectId, "Tên Chưa Xuống Đĩa");
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    // Rồi sửa một TAB: lượt ghi này thành công và (theo cách cũ) xóa sạch dấu lỗi.
+    flag.broken = false;
+    useWorkspaceStore.getState().updateTabSql(tabId, "SELECT 'tab ghi duoc'");
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    let calls = 0;
+    const impl = (async () => {
+      calls += 1;
+      return createdProject();
+    }) as typeof fetch;
+
+    // Phải DỪNG: tên mới chưa xuống đĩa nên đẩy lúc này là đẩy bản cũ.
+    await expect(pushProject(projectId, { factory: sabotaged, fetchImpl: impl })).rejects.toBeInstanceOf(
+      CloudSyncError,
+    );
+    expect(calls).toBe(0);
+  });
 });

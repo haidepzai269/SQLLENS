@@ -19,6 +19,14 @@ export interface Autosave<T = unknown> {
   flushStrict: () => Promise<void>;
   /** Bỏ phần đang chờ của một key (hoặc tất cả) mà không ghi, dùng khi bản ghi đã bị xóa. */
   cancel: (key?: string) => void;
+  /**
+   * Còn key nào có dữ liệu chưa xuống đĩa vì lượt ghi trước hỏng không.
+   *
+   * Dùng thay cho việc đọc `saveState` của store: `saveState` là trạng thái TỨC THỜI, bị đặt về
+   * `idle` bởi bất kỳ lượt ghi thành công nào — kể cả của key khác — nên không dùng làm bằng
+   * chứng "mọi thứ đã xuống đĩa" được.
+   */
+  hasPendingFailures: () => boolean;
   dispose: () => Promise<void>;
   isPending: (key?: string) => boolean;
 }
@@ -34,8 +42,12 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
   const pending = new Map<string, PendingItem<T>>();
   const inFlight = new Set<Promise<void>>();
   let isDisposed = false;
-  // Lỗi ghi gần nhất chưa được xóa bởi một lượt ghi thành công. Xem `flushStrict`.
-  let lastFailure: unknown;
+  // Key nào đang có dữ liệu CHƯA xuống đĩa vì lượt ghi gần nhất của nó hỏng.
+  //
+  // Phải theo TỪNG KEY, không phải một biến "lỗi gần nhất": một lượt ghi thành công của key khác
+  // (tab khác, hoặc hàng project) không chứng minh gì về key đang hỏng. Dùng biến vô hướng thì
+  // "tab A ghi hỏng → tab B ghi được → bấm Lưu" sẽ đẩy bản cũ của A lên cloud và báo thành công.
+  const failedKeys = new Set<string>();
 
   const onPageHide = () => {
     void flush();
@@ -48,13 +60,13 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
   async function executeSave(key: string, payload: T): Promise<void> {
     try {
       await save(key, payload);
-      // Ghi được rồi thì lỗi cũ không còn nghĩa: đĩa đã nhận bản mới nhất.
-      lastFailure = undefined;
+      // Key NÀY đã xuống đĩa: xóa dấu lỗi của chính nó. Không đụng key khác.
+      failedKeys.delete(key);
       onSuccess?.(key, payload);
     } catch (err) {
       // Nhớ lại: đây là đường debounce, lỗi bị nuốt vào `onError`. Không nhớ thì lần bấm Lưu
       // sau (khi `pending` đã rỗng) sẽ tưởng mọi thứ đã xuống đĩa và đẩy bản cũ lên cloud.
-      lastFailure = err;
+      failedKeys.add(key);
       onError?.(err, key, payload);
     }
   }
@@ -131,8 +143,8 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
    *
    * Quan trọng: lỗi ghi TRƯỚC ĐÓ cũng phải làm ném, không chỉ lỗi trong chính lượt này. Đĩa đầy
    * lúc đang gõ thì lượt debounce hỏng và `pending` rỗng; lúc bấm Lưu, `flushStrict` không có gì
-   * để ghi nên sẽ "thành công" trong khi dữ liệu mới nhất chưa bao giờ xuống đĩa. Vì vậy nhớ lại
-   * lỗi gần nhất cho tới khi có một lượt ghi thành công.
+   * để ghi nên sẽ "thành công" trong khi dữ liệu mới nhất chưa bao giờ xuống đĩa. Vì vậy nhớ key
+   * nào còn hỏng, và chỉ xóa dấu khi chính key đó ghi được.
    */
   async function flushStrict(): Promise<void> {
     const errors: unknown[] = [];
@@ -150,8 +162,10 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
       const p = (async () => {
         try {
           await save(key, payload);
+          failedKeys.delete(key);
           onSuccess?.(key, payload);
         } catch (err) {
+          failedKeys.add(key);
           errors.push(err);
           onError?.(err, key, payload);
         }
@@ -166,14 +180,14 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
 
     await Promise.all([...currentInFlight, ...newPromises]);
 
-    if (errors.length > 0) {
-      lastFailure = errors[0];
-      throw errors[0];
+    if (errors.length > 0) throw errors[0];
+    // Key nào đã hỏng ở lượt trước mà lần này không được ghi lại thì vẫn phải báo: bấm Lưu lúc
+    // `pending` rỗng (vì lượt debounce đã chạy và hỏng) không được coi là "mọi thứ đã xuống đĩa".
+    // Dùng `failedKeys` chứ không phải "lỗi gần nhất": lượt ghi thành công của key KHÁC không
+    // chứng minh gì về key này.
+    if (failedKeys.size > 0) {
+      throw new Error("Còn dữ liệu chưa ghi được xuống máy");
     }
-    // Không có lượt ghi nào trong lần này: vẫn phải báo lỗi còn treo từ lượt trước, nếu không
-    // "gõ khi đĩa đầy rồi bấm Lưu" sẽ đẩy bản cũ lên cloud và báo thành công.
-    if (lastFailure !== undefined && tasks.length === 0) throw lastFailure;
-    lastFailure = undefined;
   }
 
   async function dispose(): Promise<void> {
@@ -196,11 +210,16 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
     return pending.size > 0 || inFlight.size > 0;
   }
 
+  function hasPendingFailures(): boolean {
+    return failedKeys.size > 0;
+  }
+
   return {
     schedule,
     flush,
     flushStrict,
     cancel,
+    hasPendingFailures,
     dispose,
     isPending,
   };

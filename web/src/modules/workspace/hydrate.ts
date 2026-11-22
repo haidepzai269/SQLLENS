@@ -32,6 +32,14 @@ interface WorkspaceSession {
    * đọc ra bản cũ rồi ghi đè mất bản mới.
    */
   projectWrites: Set<Promise<void>>;
+  /**
+   * Số lượt ghi hàng project đã HỎNG và chưa được sửa bằng một lượt ghi thành công sau đó.
+   *
+   * Cần riêng khỏi `projectWrites`: promise hỏng đã settle thì rời khỏi Set, nên
+   * `flushWorkspace()` không còn thấy nó. Không có bộ đếm này thì "đổi tên khi đĩa đầy rồi bấm
+   * Lưu" sẽ đẩy tên CŨ lên cloud và báo thành công — vế còn hở của N1 (reviewer vòng 5, R1).
+   */
+  failedWrites: Set<string>;
   unsubscribe: () => void;
 }
 
@@ -59,23 +67,45 @@ export async function flushWorkspace(): Promise<void> {
     const failed = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
     if (failed) throw failed.reason;
   }
+  // Lượt ghi ĐÃ hỏng từ trước (không còn trong `projectWrites` vì promise đã settle) vẫn phải
+  // làm ném: nếu không, "đổi tên khi đĩa đầy rồi bấm Lưu" sẽ đẩy tên cũ lên cloud và báo thành
+  // công. Đây là vế còn hở của N1 — `flushStrict` chỉ biết key của tab, không biết hàng project.
+  if (session.failedWrites.size > 0) {
+    throw new Error("Còn dữ liệu chưa ghi được xuống máy");
+  }
 }
 
-export async function disposeWorkspace(): Promise<void> {
-  if (currentSession) {
+/**
+ * Còn dữ liệu nào chưa xuống đĩa vì một lượt ghi trước đã hỏng không.
+ *
+ * Dùng thay cho việc đọc `saveState` của store: `saveState` bị đặt về `idle` bởi BẤT KỲ lượt ghi
+ * thành công nào — kể cả của tab khác — nên nó không chứng minh được mọi thứ đã xuống đĩa.
+ */
+export function hasUnflushedFailures(): boolean {
+  if (!currentSession) return false;
+  return currentSession.tabAutosave.hasPendingFailures() || currentSession.failedWrites.size > 0;
+}
+
+export async function disposeWorkspace(): Promise<void> {  if (currentSession) {
     const session = currentSession;
     currentSession = null;
     session.unsubscribe();
-    await session.tabAutosave.dispose();
-    // Lượt ghi project còn đang chạy phải xong trước khi đóng db, nếu không nó ném
-    // InvalidStateError và thay đổi cuối cùng mất mà không ai báo.
+    // Lượt ghi còn đang chạy phải xong trước khi đóng db, nếu không nó ném InvalidStateError và
+    // thay đổi cuối cùng mất mà không ai báo.
     //
     // Nhưng phải có trần thời gian: một transaction IndexedDB có thể treo vĩnh viễn (tab bị đóng,
     // db bị block bởi tab khác đang mở bản cũ), và `bootWorkspace` gọi hàm này trước khi mở phiên
     // mới — treo ở đây là treo cả ứng dụng. Chờ quá hạn thì đóng db và đi tiếp; dữ liệu chưa ghi
     // xong đã mất từ trước đó rồi, chờ thêm không cứu được.
+    //
+    // Trần phải bọc CẢ `tabAutosave.dispose()`: hàm đó `flush()` rồi `await Promise.all(inFlight)`
+    // không có hạn, nên một transaction tab treo vẫn treo y như transaction project — đúng lỗi mà
+    // trần này sinh ra để chặn. Trước đây chỉ bọc `projectWrites`, đo được TAB_HANG vẫn treo 6 s.
     await Promise.race([
-      Promise.allSettled(Array.from(session.projectWrites)),
+      (async () => {
+        await session.tabAutosave.dispose();
+        await Promise.allSettled(Array.from(session.projectWrites));
+      })(),
       new Promise<void>((resolve) => setTimeout(resolve, DISPOSE_WRITE_TIMEOUT_MS)),
     ]);
     try {
@@ -245,12 +275,20 @@ export async function bootWorkspace(
     // Giữ lại promise GỐC trong `projectWrites` để `flushWorkspace()` chờ và biết ghi hỏng;
     // phần báo trạng thái lỗi lên store gắn riêng, không nuốt mất lỗi của promise gốc.
     const projectWrites = new Set<Promise<void>>();
-    const trackProjectWrite = (p: Promise<void>) => {
+    // Key nào có lượt ghi hàng project đã hỏng và chưa ghi lại được. Phải theo TỪNG key: một lượt
+    // ghi thành công của key khác không chứng minh gì về key này (cùng lý do như `failedKeys`
+    // trong `autosave.ts`).
+    const failedWrites = new Set<string>();
+    const trackProjectWrite = (key: string, p: Promise<void>) => {
       projectWrites.add(p);
       void p.catch(() => undefined).finally(() => projectWrites.delete(p));
-      void p.catch((err) => {
-        useWorkspaceStore.getState().setSaveState("error", err instanceof Error ? err.message : String(err));
-      });
+      void p.then(
+        () => failedWrites.delete(key),
+        (err) => {
+          failedWrites.add(key);
+          useWorkspaceStore.getState().setSaveState("error", err instanceof Error ? err.message : String(err));
+        },
+      );
     };
 
     const unsubscribe = useWorkspaceStore.subscribe((state) => {
@@ -276,7 +314,7 @@ export async function bootWorkspace(
           // Hủy phần đang chờ ghi của tab này trước, nếu không debounce sẽ ghi lại
           // tab vừa đóng và sau F5 nó sống lại.
           tabAutosave.cancel(prev.id);
-          trackProjectWrite(repo!.deleteTab(prev.id));
+          trackProjectWrite(`tab:${prev.id}`, repo!.deleteTab(prev.id));
         }
       }
 
@@ -293,7 +331,7 @@ export async function bootWorkspace(
           prev.cloud?.remoteUpdatedAt !== proj.cloud?.remoteUpdatedAt ||
           prev.cloud?.stamp !== proj.cloud?.stamp
         ) {
-          trackProjectWrite(repo!.upsertProject(proj));
+          trackProjectWrite(`project:${proj.id}`, repo!.upsertProject(proj));
         }
       }
 
@@ -304,7 +342,7 @@ export async function bootWorkspace(
           for (const tab of lastTabs) {
             if (tab.projectId === prev.id) tabAutosave.cancel(tab.id);
           }
-          trackProjectWrite(repo!.deleteProjectCascade(prev.id));
+          trackProjectWrite(`project:${prev.id}`, repo!.deleteProjectCascade(prev.id));
         }
       }
 
@@ -318,6 +356,7 @@ export async function bootWorkspace(
       repo,
       tabAutosave,
       projectWrites,
+      failedWrites,
       unsubscribe,
     };
 

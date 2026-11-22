@@ -53,6 +53,25 @@ Sửa: `autosave.ts` nhớ `lastFailure` tới khi có một lượt ghi thành 
 
 Hai lớp N1 bù nhau — đã kiểm: phá riêng lớp này thì lớp kia chặn, phá **cả hai** thì `calls: 1` và test đỏ. Ghi lại vì nếu chỉ phá một lớp mà test vẫn xanh thì rất dễ tưởng test vô dụng.
 
+## Vòng sửa thứ năm: hai lỗi còn lại (R1, R2)
+
+Reviewer vòng 5 xác nhận N2 đạt, nhưng kết luận **FAIL**: N1 và N3 mới đóng đúng *kịch bản được báo*, còn hai đường tái hiện đúng lỗi gốc vẫn đo được.
+
+| Lỗi | Mức | Nội dung | Đo được trước khi sửa |
+|---|---|---|---|
+| R1 | Trung bình | `lastFailure` là biến **vô hướng**, không theo key; và `saveState` bị đặt về `"idle"` sau **mọi** lượt ghi thành công. Nên một lượt ghi khác thành công xen vào là **cả hai lớp N1 cùng bị xóa** | `saveState: idle` → `KẾT QUẢ PUSH: {"kind":"ok"}`, tên gửi lên cloud `"Mặc định"` trong khi store là `"TEN-MOI-CHUA-XUONG-DIA"`; biến thể tab: `sql gửi lên cloud: ""` trong khi store là `"SELECT 'ban-moi-cua-A'"` |
+| R2 | Trung bình | `disposeWorkspace()` gọi `tabAutosave.dispose()` **trước** `Promise.race`; bên trong `dispose()` có `await Promise.all(inFlight)` không hạn | `PROJECT_HANG: resolved 1502 ms` (trần chạy đúng) nhưng `TAB_HANG: HUNG 6001 ms` |
+
+Sửa:
+- `autosave.ts`: thay `lastFailure` vô hướng bằng `Set<string> failedKeys` — chỉ xóa dấu của **chính key** khi key đó ghi được. Thêm `hasPendingFailures()`.
+- `hydrate.ts`: thêm `failedWrites: Set<string>` cho hàng project (promise hỏng đã settle thì rời `projectWrites` nên phải nhớ riêng); `flushWorkspace()` ném khi còn key hỏng; export `hasUnflushedFailures()`.
+- `sync.ts`: `pushProject` dùng `hasUnflushedFailures()` thay vì đọc `saveState` của store — `saveState` là trạng thái tức thời, không dùng làm bằng chứng "mọi thứ đã xuống đĩa".
+- `disposeWorkspace`: `Promise.race` bọc **cả** `tabAutosave.dispose()` lẫn `projectWrites`.
+
+**Bài học quan trọng về đột biến ngược:** R1 có **ba** lớp phòng thủ (`failedKeys` trong `flushStrict`, `failedWrites` trong `flushWorkspace`, `hasUnflushedFailures` trong `pushProject`). Phá một hay hai lớp thì test vẫn xanh vì lớp còn lại chặn — chỉ khi phá **cả ba** mới thấy `kind: "ok"` và test đỏ. Vì vậy ghi chú cũ "hai lớp bù nhau, phá riêng lớp này thì lớp kia chặn" là **đúng về hành vi nhưng sai về kết luận test**: các lớp này **tương quan**, cùng bị vô hiệu bởi một sự kiện (một lượt ghi thành công), nên không phải defense-in-depth thật. Đã sửa bằng cách theo dõi theo key.
+
+Test mới: `autosave.test.ts` 2 ca (lỗi theo key; ghi lại đúng key mới hết báo), `push-freshness.test.ts` 1 ca (R1a), `hydrate.test.ts` 1 ca (R2 đo thời gian dispose).
+
 **N4 (đã biết, không sửa):** khi `pushProject` phát hiện phiên đã đổi thì nó **đã POST xong**, nên có thể còn một dự án mồ côi trên cloud. Không ai dọn, và giao diện chỉ hiện `error.AUTH_REQUIRED`. Chấp nhận cho V1 — an toàn hơn ghi nhầm vào dự án của người khác — nhưng nếu sau này có dọn dẹp thì đây là chỗ cần xử lý.
 
 ## Kiểm tra

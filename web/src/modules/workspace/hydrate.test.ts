@@ -199,4 +199,54 @@ describe("Workspace Hydrate & Persistence (Task124)", () => {
     await bootWorkspace(GUEST_SCOPE, { factory });
     expect(useWorkspaceStore.getState().tabs[0].sql).toBe("SELECT 'from tab B';");
   });
+
+  // Reviewer vòng 5 (R2): trần 1500 ms chỉ bọc `projectWrites`, còn `tabAutosave.dispose()` chạy
+  // TRƯỚC đó và bên trong nó `await Promise.all(inFlight)` không có hạn. Một transaction tab treo
+  // vẫn treo `disposeWorkspace` — và `bootWorkspace` gọi hàm này nên treo cả ứng dụng. Đo được
+  // trước khi sửa: `TAB_HANG: outcome=HUNG ms=6001`.
+  it("R2: transaction tab treo thì disposeWorkspace vẫn trả về trong hạn", async () => {
+    // Bọc factory TRƯỚC khi boot: phiên mở db qua factory này nên phần bọc mới có tác dụng.
+    // (Bọc sau khi boot thì db đã mở bằng factory thật và `transaction` không bị đổi.)
+    const flag = { hang: false };
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (name === "tabs" && flag.hang) {
+                // Request không bao giờ resolve: đúng dạng "transaction treo" khi tab bị đóng
+                // giữa chừng hoặc db bị tab khác đang mở bản cũ block.
+                s.put = (() => ({}) as IDBRequest<IDBValidKey>) as IDBObjectStore["put"];
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const { tabId } = await bootWorkspace(GUEST_SCOPE, { factory: sabotaged, delayMs: 10 });
+
+    // Ghi một tab rồi để debounce chạy: lượt ghi treo trong `inFlight`.
+    flag.hang = true;
+    useWorkspaceStore.getState().updateTabSql(tabId, "SELECT 'treo'");
+    await waitMs(60);
+
+    const started = Date.now();
+    await disposeWorkspace();
+    const elapsed = Date.now() - started;
+
+    // Phải trả về gần trần 1500 ms, không treo tới hạn test.
+    expect(elapsed).toBeLessThan(4000);
+  }, 10000);
 });

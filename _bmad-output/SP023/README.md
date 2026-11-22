@@ -91,6 +91,21 @@ Reviewer vòng 4 xác nhận F1/F2/F4 đã đúng nhưng vẫn **FAIL**: F3 sử
 
 **Bài học cho Epic sau:** một bản sửa chỉ đóng được đúng cửa sổ nó nghĩ tới. F3 vòng 3 canh "ghi hỏng ngay trong lượt flush" nhưng bỏ sót "ghi đã hỏng từ trước". Khi sửa lỗi có trạng thái, phải hỏi: trạng thái hỏng ấy còn sống được qua bao lâu, và ai đó đọc nó ở đâu?
 
+## Vòng sửa thứ năm: R1 và R2 (2026-11-22)
+
+Reviewer vòng 5 xác nhận N2 đạt, nhưng N1 và N3 mới đóng đúng *kịch bản được báo*; hai đường tái hiện đúng lỗi gốc vẫn đo được.
+
+| Lỗi | Mức | Đo được trước khi sửa |
+|---|---|---|
+| R1: `lastFailure` là biến vô hướng + `saveState` bị đặt về `"idle"` sau mọi lượt ghi thành công, nên một lượt ghi khác xen vào là **cả hai lớp N1 cùng bị xóa** | Trung bình | `saveState: idle` → push `{"kind":"ok"}`, tên gửi lên cloud `"Mặc định"` trong khi store là `"TEN-MOI-CHUA-XUONG-DIA"`; biến thể tab: `sql` gửi lên `""` trong khi store là `"SELECT 'ban-moi-cua-A'"` |
+| R2: `disposeWorkspace()` gọi `tabAutosave.dispose()` **trước** `Promise.race`, mà bên trong `dispose()` có `await Promise.all(inFlight)` không hạn | Trung bình | `PROJECT_HANG: resolved 1502 ms` (trần đúng) nhưng `TAB_HANG: HUNG 6001 ms` |
+
+Sửa: `Set<string> failedKeys` theo từng key trong `autosave.ts` + `hasPendingFailures()`; `failedWrites: Set<string>` cho hàng project trong `hydrate.ts` + `hasUnflushedFailures()`; `pushProject` dùng `hasUnflushedFailures()` thay vì đọc `saveState`; `Promise.race` bọc **cả** `tabAutosave.dispose()` lẫn `projectWrites`.
+
+`npm run check` **1440 passed / 18 skipped**, `tsc` sạch.
+
+**Bài học về đột biến ngược (quan trọng):** R1 có **ba** lớp phòng thủ. Phá một hay hai lớp thì test vẫn xanh vì lớp còn lại chặn — chỉ khi phá **cả ba** mới thấy `kind: "ok"` và test đỏ. Ghi chú cũ trong bàn giao nói "hai lớp N1 bù nhau, phá riêng lớp này thì lớp kia chặn" đúng về hành vi nhưng **sai về kết luận**: các lớp này **tương quan**, cùng bị vô hiệu bởi một sự kiện duy nhất (một lượt ghi thành công), nên không phải defense-in-depth thật. Đó chính là lý do R1 lọt qua vòng 4.
+
 ## Không làm
 
 Không có cột `is_public` trên `cloud_projects` (share đã đi đường URL ở SP022). Không autosave ngầm lên cloud.

@@ -16,9 +16,8 @@
 // bộ nhớ module (`unpersistedLinks`) ngay sau khi server trả về, trước khi chạm IndexedDB.
 
 import { openWorkspaceDb } from "@/modules/workspace/db";
-import { flushWorkspace } from "@/modules/workspace/hydrate";
+import { flushWorkspace, hasUnflushedFailures } from "@/modules/workspace/hydrate";
 import { getRepository, WorkspaceQuotaError } from "@/modules/workspace/repository";
-import { useWorkspaceStore } from "@/modules/workspace/store";
 import {
   scopeKey,
   type WorkspaceEngine,
@@ -315,14 +314,13 @@ export async function pushProject(projectId: string, options: SyncOptions = {}):
       throw storageFailure(err);
     }
     // Lượt ghi debounce có thể đã hỏng TRƯỚC khi bấm Lưu (đĩa đầy lúc đang gõ): khi đó `pending`
-    // rỗng nên `flushWorkspace` không có gì để ghi và không thấy lỗi, nhưng IndexedDB vẫn đang
-    // giữ bản cũ. Store đã biết điều đó qua `saveState`, nên đọc lại và dừng trước khi gọi mạng —
-    // đúng kịch bản "đĩa đầy vẫn đẩy bản cũ lên cloud rồi báo đã lưu".
-    const { saveState, saveError } = useWorkspaceStore.getState();
-    if (saveState === "error") {
+    // rỗng nên `flushWorkspace` không có gì để ghi. `flushStrict` và `failedWrites` đã lo phần
+    // lớn, nhưng kiểm thêm ở đây là lớp cuối cho trường hợp một lượt ghi thành công của key KHÁC
+    // đã xóa dấu lỗi — đúng kịch bản "đĩa đầy vẫn đẩy bản cũ lên cloud rồi báo đã lưu".
+    if (hasUnflushedFailures()) {
       throw new CloudSyncError(
         "STORAGE_UNAVAILABLE",
-        saveError ?? "Lần lưu gần nhất xuống máy bị lỗi nên chưa thể đẩy bản mới nhất lên cloud",
+        "Lần lưu gần nhất xuống máy bị lỗi nên chưa thể đẩy bản mới nhất lên cloud",
       );
     }
     db = await openDb(options.factory);

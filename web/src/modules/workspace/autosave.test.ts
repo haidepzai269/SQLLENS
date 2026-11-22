@@ -557,4 +557,45 @@ describe("Workspace Autosave & Store (Task123)", () => {
       });
     });
   });
+
+  // Reviewer vòng 5 (R1b): `lastFailure` cũ là biến vô hướng, nên lượt ghi thành công của tab B
+  // xóa mất dấu lỗi của tab A. `flushStrict` sau đó tưởng mọi thứ đã xuống đĩa và bên gọi đẩy
+  // bản CŨ của A lên cloud. Phải theo TỪNG key.
+  describe("flushStrict nhớ lỗi theo từng key", () => {
+    it("tab A ghi hỏng rồi tab B ghi được: flushStrict vẫn ném", async () => {
+      const saveMock = vi.fn(async (key: string) => {
+        if (key === "tab-a") throw new Error("đĩa đầy");
+      });
+      const autosave = createAutosave<string>({ save: saveMock, delayMs: 10 });
+
+      autosave.schedule("tab-a", "SELECT 'cua A'");
+      await vi.advanceTimersByTimeAsync(20);
+
+      autosave.schedule("tab-b", "SELECT 'cua B'");
+      await vi.advanceTimersByTimeAsync(20);
+
+      expect(autosave.hasPendingFailures()).toBe(true);
+      // Lượt thành công của B không được xóa dấu lỗi của A.
+      await expect(autosave.flushStrict()).rejects.toThrow();
+    });
+
+    it("ghi lại được đúng key đã hỏng thì mới hết báo lỗi", async () => {
+      let fail = true;
+      const saveMock = vi.fn(async () => {
+        if (fail) throw new Error("đĩa đầy");
+      });
+      const autosave = createAutosave<string>({ save: saveMock, delayMs: 10 });
+
+      autosave.schedule("tab-a", "SELECT 1");
+      await vi.advanceTimersByTimeAsync(20);
+      expect(autosave.hasPendingFailures()).toBe(true);
+
+      fail = false;
+      autosave.schedule("tab-a", "SELECT 2");
+      await vi.advanceTimersByTimeAsync(20);
+
+      expect(autosave.hasPendingFailures()).toBe(false);
+      await expect(autosave.flushStrict()).resolves.toBeUndefined();
+    });
+  });
 });
