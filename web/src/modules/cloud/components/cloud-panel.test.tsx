@@ -364,6 +364,37 @@ describe("CloudPanel — song ngữ, bàn phím, rào chắn (AC6)", () => {
     expect(screen.getByTestId("cloud-save").textContent).toContain(messagesEn.save);
   });
 
+  // Ca biên ghi trong task154.md: "đổi ngôn ngữ khi panel đang mở". Panel phải đổi chuỗi ngay,
+  // không giữ chuỗi cũ tới khi đóng/mở lại.
+  it("ca biên: đổi ngôn ngữ khi panel đang mở thì chuỗi đổi ngay", () => {
+    const projectId = seed();
+    const { rerender } = renderPanel(projectId, "vi");
+    expect(screen.getByTestId("cloud-status").textContent).toBe(messagesVi.status.local);
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={{ cloud: messagesEn }}>
+        <CloudPanel projectId={projectId} />
+      </NextIntlClientProvider>,
+    );
+
+    expect(screen.getByTestId("cloud-status").textContent).toBe(messagesEn.status.local);
+    expect(screen.getByTestId("cloud-save").textContent).toContain(messagesEn.save);
+  });
+
+  // Ca biên: chạm trần 50 dự án. Server trả `too_many_projects`, panel phải nói đúng việc cần làm
+  // chứ không hiện mã chung "bị từ chối".
+  it("ca biên: chạm trần 50 dự án thì hiện thông báo riêng của too_many_projects", async () => {
+    const projectId = seed();
+    pushMock.mockRejectedValue(new CloudSyncError("REJECTED", "từ chối", undefined, "too_many_projects"));
+    renderPanel(projectId);
+
+    fireEvent.click(screen.getByTestId("cloud-save"));
+
+    await screen.findByTestId("cloud-error");
+    expect(screen.getByTestId("cloud-error").textContent).toContain(messagesVi.rejected.too_many_projects);
+    expect(current().cloud).toBeUndefined();
+  });
+
   it("mọi hành động là nút thật, bấm được bằng bàn phím, và bị khóa khi đang bận", async () => {
     const projectId = seed({ remoteId: "remote-1", remoteUpdatedAt: REMOTE_AT, stamp: "x" });
     let release: (value: Awaited<ReturnType<typeof pushProject>>) => void = () => {};

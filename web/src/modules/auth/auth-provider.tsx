@@ -1,6 +1,7 @@
 "use client";
 
 import { endMysqlSession } from "@/engines/mysql/adapter";
+import { forgetUnpersistedLinks } from "@/modules/cloud/sync";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Me } from "./api";
 
@@ -53,6 +54,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const markAnon = useCallback(() => {
+    // Mất phiên là mất danh tính: các liên kết cloud còn kẹt trong bộ nhớ (đẩy thành công nhưng
+    // ghi IndexedDB hỏng) thuộc về người dùng vừa rồi. Giữ lại thì người đăng nhập sau trong
+    // cùng tab có thể PUT vào dự án cloud của người trước. Xóa là mất id của bản vừa tạo, nên
+    // lần đẩy sau sẽ POST thành dự án mới — đúng hướng an toàn (thừa một bản, không ghi nhầm).
+    forgetUnpersistedLinks();
     setUser(null);
     setStatus("anon");
   }, []);
@@ -61,8 +67,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const r = await fetch("/api/me", { credentials: "same-origin", cache: "no-store" });
       if (r.status === 401) {
-        setUser(null);
-        setStatus("anon");
+        // Dùng chung một lối với `markAnon` để không có đường mất phiên nào quên dọn bộ nhớ cloud.
+        markAnon();
         return;
       }
       if (!r.ok) return;
@@ -74,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // lỗi mạng tạm thời thì giữ nguyên
     }
-  }, []);
+  }, [markAnon]);
 
   const logout = useCallback(async () => {
     await endMysqlSession(); // hủy phiên MySQL trước khi cookie mất, nếu không yêu cầu hủy sẽ bị 401
