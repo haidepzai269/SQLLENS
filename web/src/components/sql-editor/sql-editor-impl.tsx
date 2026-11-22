@@ -251,11 +251,19 @@ export default function SqlEditorImpl({
     [isAiCopilotEnabled, isVip, engine, schema, onRequireUpgrade]
   );
 
+  // Cỡ chữ người dùng chọn, nhưng điện thoại luôn 16px: dưới 16px iOS tự phóng to trang khi
+  // focus ô soạn, làm lệch cả bố cục. Ngưỡng 639.98px khớp breakpoint `sm` của Tailwind
+  // (640px) nên không có khe hở giữa hai media query.
   const fontSizeTheme = useMemo(
     () =>
       EditorView.theme({
         ".cm-content, .cm-gutters": {
           fontSize: `${settings.fontSize}px !important`,
+        },
+        "@media (max-width: 639.98px)": {
+          ".cm-content, .cm-gutters": {
+            fontSize: "16px !important",
+          },
         },
       }),
     [settings.fontSize]

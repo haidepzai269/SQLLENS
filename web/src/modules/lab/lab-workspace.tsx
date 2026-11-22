@@ -104,7 +104,8 @@ export function LabWorkspace() {
   const t = useTranslations("lab");
   const ts = useTranslations("shell");
   const { setMobileTab, state: shell, toggle } = useShell();
-  const engine = parseEngine(useSearchParams().get("engine"));
+  const searchParams = useSearchParams();
+  const engine = parseEngine(searchParams.get("engine"));
   const { sqlRef, markAnon, status: authStatus, user } = useAuth();
   const workspaceScope = useMemo<WorkspaceScope>(
     () => (user?.id ? { kind: "user", userId: user.id } : { kind: "guest" }),
@@ -182,12 +183,20 @@ export function LabWorkspace() {
     const currentProj = projects.find((p) => p.id === activeProjectId);
     if (!currentProj) return;
 
+    // `?engine=` trên URL là người dùng chủ động chọn engine (bấm tab engine, hoặc mở link
+    // `?engine=mysql`): tôn trọng URL và ghi engine đó vào dự án. Ghi đè URL bằng engine cũ
+    // của dự án (hành vi trước Task158) làm `?engine=mysql` bị đổi ngược về postgres.
+    // Không có `?engine=` thì giữ nguyên hành vi cũ: URL theo engine của dự án.
+    // Chỉ một trong hai nhánh chạy nên không có vòng `router.replace` qua lại.
+    const syncEngine = () => {
+      if (searchParams.has("engine")) bindEngine(activeProjectId, engine);
+      else router.replace(`${pathname}?engine=${currentProj.engine}`);
+    };
+
     // Trường hợp 1: Chuyển dự án (activeProjectId thay đổi)
     if (prevId !== null && prevId !== activeProjectId) {
       void onProjectSwitch(prevId, activeProjectId);
-      if (currentProj.engine !== engine) {
-        router.replace(`${pathname}?engine=${currentProj.engine}`);
-      }
+      if (currentProj.engine !== engine) syncEngine();
       return;
     }
 
@@ -205,9 +214,9 @@ export function LabWorkspace() {
 
     // Trường hợp 3: Khi mới mount/F5 mà URL không khớp engine của project
     if (prevId === null && currentProj.engine !== engine) {
-      router.replace(`${pathname}?engine=${currentProj.engine}`);
+      syncEngine();
     }
-  }, [activeProjectId, projects, engine, pathname, router]);
+  }, [activeProjectId, projects, engine, pathname, router, searchParams]);
   const [gate, setGate] = useState<GuestGate | null>(null); // lý do khách bị chặn ở lần bấm Chạy gần nhất
   const guestRun = useRef(false); // lần chạy này của khách, tính lượt khi chạy xong
   // Câu hỏi của Mentor đi chung bản lưu tạm: lab giữ sqlRef, Mentor ghi câu hỏi qua askRef, đọc ra là bản ghép (stash.ts).
@@ -672,12 +681,16 @@ export function LabWorkspace() {
   const statements = outcome?.ok ? outcome.statements : [];
   const dialogOn = Boolean(draft && draft.sql === sql && draft.engine === engine);
   const effSql = parsed && outcome ? parsed.eff : sql;
-  // Dấu lỗi chỉ xuất hiện khi người dùng chạy lệnh và DB báo lỗi (state.phase === "sql_error").
-  // Không gán lỗi parse ngầm khi đang gõ dở để tránh viền đỏ/vàng làm phiền việc soạn thảo.
+  // Dấu lỗi cú pháp khi đang soạn: gắn với đúng nội dung đã sinh ra nó, nên sửa một chữ là
+  // dấu tự biến mất. Vị trí do parser trả về tính trên chuỗi ĐÃ bỏ khối `COPY ... FROM stdin`
+  // và `LOCK TABLES`, nên khi prepareDump có xóa gì thì bỏ qua dấu lỗi thay vì tô sai chỗ.
+  const removedAny = Boolean(parsed && outcome && (parsed.removed.copyBlocks || parsed.removed.lockStatements));
   const editorError =
     state.phase === "sql_error" && state.sql === sql && state.position !== undefined
       ? { position: engineToEditorPos(sql, state.position), message: state.message }
-      : undefined;
+      : outcome && !outcome.ok && outcome.error.position !== undefined && !removedAny
+        ? { position: outcome.error.position, message: outcome.error.message }
+        : undefined;
   // Lỗi parse không vị trí là parser không chạy được (tải hỏng, worker chết), không phải SQL sai.
   const parserDown = Boolean(outcome && !outcome.ok && outcome.error.position === undefined);
   const frun = useMemo(

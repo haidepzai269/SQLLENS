@@ -457,8 +457,8 @@ func TestInlineComplete_AC3_ModelIntegrationAndClean(t *testing.T) {
 			t.Fatalf("want 1 call to groq, got %d", fakeGroq.calls())
 		}
 		var upstreamReq struct {
-			Model     string `json:"model"`
-			MaxTokens int    `json:"max_tokens"`
+			Model     string   `json:"model"`
+			MaxTokens int      `json:"max_tokens"`
 			Stop      []string `json:"stop"`
 		}
 		_ = json.Unmarshal(fakeGroq.bodies[0], &upstreamReq)

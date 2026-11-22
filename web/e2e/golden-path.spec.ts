@@ -137,6 +137,10 @@ for (const l of ["vi", "en"] as const) {
         // BƯỚC 3: Nhấn Ctrl+Enter (Meta+Enter) -> PGlite chạy -> Result Grid & badge Thật
         // =========================================================================
         await editorContent.focus();
+        // Ctrl+Enter chạy câu tại con trỏ (Task113/114). Mẫu SQL có 3 câu, con trỏ đang ở cuối
+        // nên chỉ câu cuối chạy và Result Grid không có 3 dòng. Người dùng thật bôi đen cả
+        // khối rồi chạy; chọn tất cả để hành vi trong test khớp hành vi đó.
+        await page.keyboard.press("ControlOrMeta+a");
         await page.keyboard.press("ControlOrMeta+Enter");
 
         // Result Grid có các dòng trả về (trên mobile tự động chuyển sang tab Terminal)

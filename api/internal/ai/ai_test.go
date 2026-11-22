@@ -1119,5 +1119,3 @@ func TestEvidencePlanPromptFormatting(t *testing.T) { // Task120 AC2, AC3
 		t.Fatalf("user prompt should NOT contain QUERY_PLAN_EVIDENCE when empty: %q", userPrompt2)
 	}
 }
-
-
