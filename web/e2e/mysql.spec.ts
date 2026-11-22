@@ -173,7 +173,10 @@ for (const l of ["vi", "en"] as const) {
       await page.goto(`/${l}?engine=mysql`);
       await run(page, l, "INSERT INTO t VALUES (1)");
       await expect(page.getByTestId("mysql-ready")).toBeVisible();
-      await expect.poll(() => s.queries.some((q) => q.includes("information_schema"))).toBe(true); // vùng stage đọc xong trước khi phiên hết hạn
+      // Chờ CẢ refreshTables và vùng stage đọc xong information_schema rồi mới cho phiên hết hạn:
+      // chỉ chờ "có một câu" thì câu đọc schema còn đang bay sẽ nhận 404 và màn hình hết hạn
+      // hiện ra trước khi người dùng bấm Chạy, làm lần bấm thứ hai không gửi câu nào.
+      await expect.poll(() => s.queries.filter((q) => q.includes("information_schema")).length).toBeGreaterThanOrEqual(2);
       expire = true;
       await runBtn(page, l).click();
       await expect(failure(page)).toContainText(t.expired);
@@ -199,7 +202,7 @@ for (const l of ["vi", "en"] as const) {
       await page.goto(`/${l}?engine=mysql`);
       await run(page, l, "INSERT INTO t VALUES (1)");
       await expect(page.getByTestId("mysql-ready")).toBeVisible();
-      await expect.poll(() => s.queries.some((q) => q.includes("information_schema"))).toBe(true); // vùng stage đọc xong trước khi phiên hết hạn
+      await expect.poll(() => s.queries.filter((q) => q.includes("information_schema")).length).toBeGreaterThanOrEqual(2); // cả refreshTables và vùng stage đọc xong trước khi phiên hết hạn
       expire = true;
       await runBtn(page, l).click();
       await expect(failure(page)).toBeVisible();
