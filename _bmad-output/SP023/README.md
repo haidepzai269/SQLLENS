@@ -23,7 +23,7 @@ Role tạo bảng là owner thì **mặc định bỏ qua RLS**. Epic này phả
 | **STR103** | `Task151` | Policy RLS theo từng lệnh, `FORCE RLS`, helper transaction | Amelia | Hoàn thành 100% + **đã sửa 5 lỗi review** (xem `ban_giao_task151_fix.md`) |
 | **STR103** | `Task152` | Test cross-tenant thật và test rò ngữ cảnh qua pool | Amelia | Hoàn thành 100% (chưa gọi reviewer độc lập) |
 | **STR104** | `Task153` | Kéo/đẩy dự án và xử lý xung đột | Amelia | Hoàn thành 100% + **đã sửa 2 lỗi chặn** (LỖI 4, 5) |
-| **STR104** | `Task154` | Cloud panel trong giao diện | Amelia | Hoàn thành 100% — 6/6 AC có test, 16/16 đo trên Chromium thật (xem `ban_giao_task154.md`) |
+| **STR104** | `Task154` | Cloud panel trong giao diện | Amelia | Hoàn thành 100% — 6/6 AC có test, 16/16 đo trên Chromium thật; **đã qua 5 vòng review độc lập** (xem `ban_giao_task154.md`) |
 | **STR105** | `Task155` | Cổng `security-audit` cho toàn Epic | Amelia | Chờ thực hiện |
 | **STR105** | `Task156` | Kiểm referrer/XSS của share và hồi quy RLS | Amelia | Chờ thực hiện |
 
@@ -105,6 +105,19 @@ Sửa: `Set<string> failedKeys` theo từng key trong `autosave.ts` + `hasPendin
 `npm run check` **1440 passed / 18 skipped**, `tsc` sạch.
 
 **Bài học về đột biến ngược (quan trọng):** R1 có **ba** lớp phòng thủ. Phá một hay hai lớp thì test vẫn xanh vì lớp còn lại chặn — chỉ khi phá **cả ba** mới thấy `kind: "ok"` và test đỏ. Ghi chú cũ trong bàn giao nói "hai lớp N1 bù nhau, phá riêng lớp này thì lớp kia chặn" đúng về hành vi nhưng **sai về kết luận**: các lớp này **tương quan**, cùng bị vô hiệu bởi một sự kiện duy nhất (một lượt ghi thành công), nên không phải defense-in-depth thật. Đó chính là lý do R1 lọt qua vòng 4.
+
+## Vòng sửa thứ sáu: hai lỗ rò do bản vá R1 sinh ra (2026-11-22)
+
+Reviewer vòng 6 xác nhận R1/R2 đã đóng thật (tự dựng lại kịch bản: `push THREW`, `calls=0`; `TAB_HANG` 1500 ms, `PROJECT_HANG` 1502 ms) nhưng **FAIL** vì bản vá sinh hai lỗ rò.
+
+| Lỗi | Mức | Đo được | Sửa |
+|---|---|---|---|
+| 4a: `failedWrites` gộp cả lỗi XOÁ | Trung bình | Xoá tab lúc đĩa hỏng → `hasUnflushedFailures=true` mãi mãi, push `THREW` dù đĩa đã hết lỗi; đĩa còn tab ma → sau F5 tab đã xoá sống lại. Xoá project cũng chặn luôn việc Lưu **dự án khác** | Tách `failedDeletes` để **thử lại** thay vì chặn |
+| 4b: `cancel(key)` thua lượt ghi đang bay | Trung bình | Đóng tab đúng lúc request còn bay, request lỗi muộn → `failedKeys.add` chạy sau `cancel` và dựng lại dấu lỗi trên key đã chết | `keyEpoch` theo từng key; bỏ qua kết quả nếu thế hệ đã đổi |
+
+`npm run check` **1445 passed / 18 skipped**, `tsc` sạch.
+
+**Bài học:** lỗi ghi và lỗi xoá khác nhau về hậu quả. Ghi hỏng → bản trên đĩa cũ hơn RAM → phải **chặn** đẩy cloud. Xoá hỏng → chỉ còn bản ghi ma, không nằm trong payload → phải **thử lại**, không chặn. Gộp chung biến một phiền toái nhỏ thành khoá cứng tính năng.
 
 ## Không làm
 

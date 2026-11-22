@@ -72,6 +72,33 @@ Sửa:
 
 Test mới: `autosave.test.ts` 2 ca (lỗi theo key; ghi lại đúng key mới hết báo), `push-freshness.test.ts` 1 ca (R1a), `hydrate.test.ts` 1 ca (R2 đo thời gian dispose).
 
+### Rò do chính bản sửa R1 sinh ra: `cancel()` không xoá dấu lỗi
+
+Bản sửa R1 đổi sang `failedKeys` và chỉ xoá dấu khi **chính key đó ghi lại được**. Nhưng xoá tab/project là **đường thoát khác**: bản ghi không còn thì không bao giờ "ghi lại được" nữa, nên dấu lỗi nằm lại vĩnh viễn.
+
+Hậu quả: một lần ghi hỏng trước khi xoá tab làm `hasPendingFailures()` đúng **mãi mãi** → `pushProject` ném `STORAGE_UNAVAILABLE` ở mọi lần bấm Lưu sau đó, cho tới khi F5. Tính năng lưu cloud chết hẳn, và thông báo lỗi nói về "lần lưu gần nhất" đã qua từ lâu — người dùng không có cách nào tự thoát.
+
+Sửa (`8dbbff7`): `cancel(key)` gọi `failedKeys.delete(key)`; `cancel()` không tham số gọi `failedKeys.clear()`. 2 test mới, đã kiểm bằng cách phá `cancel` thì cả hai đều đỏ.
+
+**Bài học:** khi thêm một tập trạng thái "còn nợ", phải liệt kê **mọi** đường làm nó rỗng: ghi thành công (đã có), **xoá bản ghi** (bị bỏ sót), đổi phiên (đã có qua `disposeWorkspace`), huỷ thủ công. Chỉ nghĩ tới đường thành công là đủ để sinh lỗi kẹt vĩnh viễn.
+
+## Vòng sửa thứ sáu: hai lỗ rò do chính bản vá R1 sinh ra
+
+Reviewer vòng 6 xác nhận **R1 và R2 đã đóng thật** (tự dựng lại kịch bản, không tin test của tác giả: R1-A và R1-B đều `push THREW`, `calls=0`; `TAB_HANG` 1500 ms, `PROJECT_HANG` 1502 ms), nhưng kết luận **FAIL** vì bản vá sinh hai lỗ rò làm nút Lưu cloud chết vĩnh viễn.
+
+| Lỗi | Mức | Đo được | Sửa |
+|---|---|---|---|
+| 4a | Trung bình | Xoá tab lúc đĩa hỏng → `hasUnflushedFailures=true` **mãi mãi**, push `THREW/FAILED` dù đĩa đã hết lỗi; đĩa còn tab ma → sau F5 tab đã xoá **sống lại** và thành activeTab. Xoá project cũng kẹt y hệt và chặn luôn việc Lưu **dự án khác** | Tách `failedDeletes: Map<string, () => Promise<void>>` khỏi `failedWrites`; xoá hỏng thì **thử lại** trong `flushWorkspace()` chứ không chặn |
+| 4b | Trung bình | Đóng tab đúng lúc lượt ghi còn bay rồi request lỗi **muộn** → `failedKeys.add(key)` chạy sau `cancel()` và dựng lại dấu lỗi trên key đã chết → kẹt vĩnh viễn | `keyEpoch: Map<string, number>`; mỗi lượt ghi nhớ thế hệ lúc bắt đầu, ghi xong mà thế hệ đã đổi thì bỏ qua kết quả |
+
+**Vì sao 4a nguy hiểm hơn vẻ ngoài:** lỗi xoá và lỗi ghi khác nhau về hậu quả. Ghi hỏng nghĩa là bản trên đĩa **cũ hơn** trong RAM → đẩy lên cloud là đẩy bản cũ, phải chặn. Xoá hỏng chỉ để lại **bản ghi ma**; bản ghi đó không còn trong store nên **không nằm trong payload**, nội dung đẩy lên vẫn đúng. Gộp chung hai loại là biến một phiền toái nhỏ thành khoá cứng tính năng.
+
+**Phát hiện phụ reviewer nêu (Thấp, chưa sửa):** hai lớp `failedWrites` (trong `flushWorkspace`) và `hasUnflushedFailures` (trong `pushProject`) **che nhau** — phá riêng từng lớp thì không test nào đỏ, phá cả hai mới đỏ. Không phải lỗi chức năng (lớp thứ hai là phòng thủ dư thừa có chủ ý), nhưng nghĩa là bảng đột biến không chứng minh được **từng** lớp. Ghi lại để người sau không tưởng nhầm là mỗi lớp đều có test ghim.
+
+**Test mới:** `autosave.test.ts` +1 (cancel thắng lượt ghi đang bay), `hydrate.test.ts` +2 (xoá tab / xoá project lúc đĩa hỏng). Đã kiểm bằng đột biến: bỏ `keyEpoch` → test 4b đỏ; gộp lỗi xoá vào `failedWrites` → cả 2 test 4a đỏ.
+
+Sau vòng 6: `npm run check` **1445 passed / 18 skipped**, `tsc` sạch, 117 file pass.
+
 **N4 (đã biết, không sửa):** khi `pushProject` phát hiện phiên đã đổi thì nó **đã POST xong**, nên có thể còn một dự án mồ côi trên cloud. Không ai dọn, và giao diện chỉ hiện `error.AUTH_REQUIRED`. Chấp nhận cho V1 — an toàn hơn ghi nhầm vào dự án của người khác — nhưng nếu sau này có dọn dẹp thì đây là chỗ cần xử lý.
 
 ## Kiểm tra
