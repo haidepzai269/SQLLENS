@@ -101,9 +101,52 @@ Sau vòng 6: `npm run check` **1445 passed / 18 skipped**, `tsc` sạch, 117 fil
 
 **N4 (đã biết, không sửa):** khi `pushProject` phát hiện phiên đã đổi thì nó **đã POST xong**, nên có thể còn một dự án mồ côi trên cloud. Không ai dọn, và giao diện chỉ hiện `error.AUTH_REQUIRED`. Chấp nhận cho V1 — an toàn hơn ghi nhầm vào dự án của người khác — nhưng nếu sau này có dọn dẹp thì đây là chỗ cần xử lý.
 
+## Vòng sửa thứ bảy: ba lỗi Cao trong chính bộ máy ghi dấu nợ
+
+Reviewer vòng 7 **FAIL**. Cả ba lỗi đều nằm trong bộ máy `failedKeys`/`keyEpoch`/`inFlightKeys` — tức là trong **chính cơ chế đi bắt lỗi**, không phải trong tính năng.
+
+| Lỗi | Mức | Đo được | Sửa |
+|---|---|---|---|
+| N1 | Cao | `inFlightKeys` là `Set` nên đếm thiếu khi một key có hai lượt cùng bay → lượt đầu settle xoá key → `forgetEpochIfIdle` xoá thế hệ → lượt sau hỏng muộn thấy `0 === 0`, hoặc mất dấu lỗi thật hoặc dựng lại dấu trên key đã chết. `[J1] flying=2 afterLate=true flush=THREW push=THREW:FAILED calls=0` | Đổi `Set<string>` → `Map<string, number>` (đếm), thêm `beginFlight`/`endFlight` |
+| N2 | Cao | `schedule()` không bump thế hệ, nên lượt CŨ settle muộn xoá dấu lỗi THẬT của lượt MỚI. `[L1] afterRealFailure=true afterOldSucceededLate=false flushStrict=RESOLVED`; đầu-cuối `[H1] push=ok calls=1 SENT_SQL="SELECT 'BAN_CU'" SQL_IN_STORE="SELECT 'BAN_MOI'"` — **đúng bug gốc của Task154** | `schedule()` gọi `bumpEpoch(key)` ngay sau `clearTimeout` |
+| N3 | Cao | `failedWrites` chỉ giữ **tên key**, không có đường thử lại → đĩa hết lỗi rồi kẹt vĩnh viễn, chặn cả dự án khác. `[D1] failuresAfterDiskFixed=true push=THREW:FAILED calls=0` | Đổi sang `Map<string, () => Promise<void>>` giữ hàm thử lại; `flushWorkspace()` gọi `retryPending` |
+| N4 | Phụ | Trần **từng entry** cộng dồn: 6 entry treo → `[C1] flushMs=4502`, lần sau `[C2] firstMs=9003` | `RETRY_BUDGET_MS` dùng chung một `deadline` |
+| N5 | Phụ | `disposeWorkspace()` bỏ rơi `failedDeletes` → `[D3] ghostAliveAfterF5=true` | Thử lại cả hai Map trong dispose |
+| N6 | Phụ | `cancel()` không tham số chỉ lặp `keyEpoch`, bỏ sót key đang bay chưa từng bump | Gom đủ `keyEpoch ∪ pending ∪ failedKeys ∪ inFlightKeys` |
+
+Sau vòng 7: `npm run check` **1453 passed / 18 skipped**, `tsc` sạch.
+
+## Vòng sửa thứ tám: bỏ hẳn sổ nợ, đối chiếu đĩa với store
+
+Reviewer vòng 8 **FAIL** với 4 lỗi Cao + 2 phụ. Điểm chung: **vòng 5, 6, 7, 8 đều sửa đúng một nguyên nhân** — mỗi tập `failedKeys`/`failedWrites`/`failedDeletes` là một **bản sao thủ công** của một sự thật đã có sẵn trên đĩa, và mỗi đường bỏ sót cập nhật là một lần kẹt vĩnh viễn hoặc một lần đẩy bản cũ lên cloud. Vá tiếp triệu chứng chỉ sinh ra tập thứ tư.
+
+**Quyết định: bỏ hẳn sổ nợ.** `flushWorkspace()` nay đọc đĩa, so với store, ghi lại chỗ lệch, rồi **đọc lại để xác nhận**. Không còn tập trạng thái nào để quên cập nhật.
+
+| Lỗi | Mức | Đo được | Sửa |
+|---|---|---|---|
+| 1 | Cao | Hàng project không có "thế hệ": đổi tên TEN-A (chậm) → TEN-B (hỏng) → TEN-A xong muộn xoá mất dấu lỗi của TEN-B. `{"afterLateSuccess":false,"diskBeforeSave":"TEN-A","inStore":"TEN-B","pushOutcome":"OK","payloadName":"TEN-A"}` | Đối chiếu **không có dấu lỗi nào để xoá**: thấy đĩa ≠ store thì ghi lại |
+| 2 | Cao | Đường thử lại phát lại closure chụp lúc hỏng nên ghi **đĩa lùi lại**: `{"onDisk":"TEN-B","inStore":"TEN-C","payloadName":"TEN-B"}` | Luôn ghi giá trị **hiện tại** của store, không giữ closure cũ |
+| 3 | Cao | `flushWorkspace()` không có trần cho lượt ghi đang bay: `HANG-PROJECT-WRITE {"elapsedMs":8001}`, `HANG-NO-DEBT {"hasUnflushedFailures":false,"writeHanging":true}` — treo **và** không ghi nhận nợ, nên chỉ thêm trần là tái sinh đúng bug gốc | `guard()` bọc **mọi** thao tác IndexedDB; hết ngân sách → `diskMatchesStore=false` → chặn Lưu |
+| 4 | TB | `DISPOSE_WRITE_TIMEOUT_MS` (1500) < ngân sách (2000): `PH2 {"disposeElapsed":1501,"ghostAliveInStore":true,"retryNeededMs":1600}` | 3000 > 2000 |
+| 5 | TB | Tab có nợ nhưng N3 chỉ vá project: đĩa hết lỗi rồi 5/5 lần Lưu vẫn hỏng, `fetchCalls:0` | Đối chiếu không phân biệt tab/project |
+| 6 | Thấp | Ngân sách không dùng chung giữa hai Map: `{"elapsedMs":3006,"budgetMs":2000}` | Một vòng lặp, một `deadline` |
+
+**Phụ (7):** `cancel()` không tham số gom `keyEpoch ∪ pending ∪ failedKeys ∪ inFlightKeys` là **code chết**. Đột biến M6 (chỉ lặp `keyEpoch`) để **tất cả 29 test của tác giả + 11 test của reviewer xanh**. Vì `schedule()` bump trước khi vào `pending`, không đường nào tạo ra `key ∈ inFlightKeys ∧ key ∉ keyEpoch`. Cả bộ máy `failedKeys`/`keyEpoch`/`inFlightKeys`/`flushStrict`/`hasPendingFailures` trong `autosave.ts` chỉ còn test của chính nó dùng → **đã xoá**, cùng 8 test tương ứng.
+
+**Ba lớp bảo vệ che nhau:** phá riêng từng lớp trong ba lớp của R1 thì 8/8 test vẫn xanh; chỉ phá cả ba mới đỏ. Bảng đột biến vì thế **không** chứng minh được từng lớp — ghi lại để người sau không tưởng nhầm.
+
+**Kiểm chứng đột biến (6/6 bị bắt):** M1 `projectDiffers` luôn `false`; M2 dùng snapshot cũ; M3 bỏ trần `guard`; M4 dispose về 1500; M5 bỏ đối chiếu tab; M6 thêm ngân sách thứ hai.
+
+**Ba test đầu tiên viết ra đã XANH OAN dưới đúng đột biến của chúng** — đúng lớp lỗi đã xảy ra 3 lần trong task này:
+- Helper `sabotagePut` **không hề ném lỗi**, chỉ đếm → V8-2 và V8-5 là test rỗng. Sửa thành nhận `shouldFail(value)`.
+- V8-2 chỉ có **một** lần Lưu nên không có gì được "phát lại". Sửa thành hai lần Lưu.
+- V8-3 bị `raceWithDeadline` che, không chạm tới `guard`. Thêm **V8-3b** cho đường **ĐỌC** treo (không có lượt ghi nào đang bay).
+
+Sau vòng 8: `npm run check` **1452 passed / 18 skipped**, exit 0, `tsc` sạch, 1 cảnh báo cũ ngoài phạm vi.
+
 ## Kiểm tra
 
-- `npm run check`: **1436 passed | 18 skipped**, 117 file pass, 0 error (1 cảnh báo cũ ngoài phạm vi ở `e2e/plan-explain.spec.ts`).
+- `npm run check`: **1452 passed | 18 skipped**, 117 file pass, 0 error (1 cảnh báo cũ ngoài phạm vi ở `e2e/plan-explain.spec.ts`).
 - `npx tsc --noEmit`: sạch.
 - Trình duyệt thật (Chromium, bản `next build` + `next start`) — **16/16 PASS**:
 

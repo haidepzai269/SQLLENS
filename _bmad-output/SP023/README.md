@@ -119,6 +119,40 @@ Reviewer vòng 6 xác nhận R1/R2 đã đóng thật (tự dựng lại kịch 
 
 **Bài học:** lỗi ghi và lỗi xoá khác nhau về hậu quả. Ghi hỏng → bản trên đĩa cũ hơn RAM → phải **chặn** đẩy cloud. Xoá hỏng → chỉ còn bản ghi ma, không nằm trong payload → phải **thử lại**, không chặn. Gộp chung biến một phiền toái nhỏ thành khoá cứng tính năng.
 
+## Vòng sửa thứ bảy: ba lỗi Cao trong chính bộ máy ghi dấu nợ (2026-11-22)
+
+Reviewer vòng 7 **FAIL**. Cả ba lỗi đều nằm trong cơ chế đi bắt lỗi, không phải trong tính năng.
+
+| Lỗi | Mức | Đo được | Sửa |
+|---|---|---|---|
+| N1: `inFlightKeys` là `Set` | Cao | Hai lượt cùng bay cho một key → lượt đầu settle xoá key → `forgetEpochIfIdle` xoá thế hệ → lượt sau hỏng muộn thấy `0 === 0`. `[J1] flying=2 afterLate=true push=THREW:FAILED calls=0` | `Map<string, number>` đếm |
+| N2: `schedule()` không bump thế hệ | Cao | Lượt CŨ settle muộn xoá dấu lỗi THẬT của lượt MỚI. `[H1] push=ok SENT_SQL="BAN_CU" SQL_IN_STORE="BAN_MOI"` — **đúng bug gốc Task154** | Bump trong `schedule()` |
+| N3: `failedWrites` chỉ giữ tên key | Cao | Không có đường thử lại → đĩa hết lỗi rồi kẹt vĩnh viễn, chặn cả dự án khác. `[D1] failuresAfterDiskFixed=true` | Giữ **hàm** thử lại, `retryPending` |
+| N4–N6 | Phụ | Trần từng entry cộng dồn (4,5 s rồi 9 s); dispose bỏ rơi `failedDeletes` (`ghostAliveAfterF5=true`); `cancel()` bỏ sót key đang bay | Ngân sách chung; thử lại trong dispose; gom đủ tập key |
+
+`npm run check` **1453 passed / 18 skipped**.
+
+## Vòng sửa thứ tám: bỏ hẳn sổ nợ, đối chiếu đĩa với store (2026-11-22)
+
+Reviewer vòng 8 **FAIL** với 4 lỗi Cao + 2 phụ. Chẩn đoán: **vòng 5, 6, 7, 8 đều sửa đúng một nguyên nhân.** Mỗi tập `failedKeys`/`failedWrites`/`failedDeletes` là một **bản sao thủ công** của một sự thật đã có sẵn trên đĩa; mỗi đường bỏ sót cập nhật là một lần kẹt vĩnh viễn hoặc một lần đẩy bản cũ lên cloud. Vá tiếp triệu chứng chỉ sinh tập thứ tư.
+
+**Quyết định: bỏ hẳn sổ nợ.** `flushWorkspace()` đọc đĩa, so với store, ghi lại chỗ lệch, rồi **đọc lại để xác nhận**. Không còn tập trạng thái nào để quên cập nhật, và vì mỗi lần ghi luôn lấy giá trị **hiện tại** của store nên một lượt ghi cũ chạy muộn không thể đè bản mới bằng ảnh chụp cũ.
+
+| Lỗi | Mức | Đo được | Sửa |
+|---|---|---|---|
+| 1: project row không có thế hệ | Cao | TEN-A (chậm) → TEN-B (hỏng) → TEN-A xong muộn xoá mất nợ của TEN-B: `payloadName:"TEN-A"` trong khi `inStore:"TEN-B"`, `pushOutcome:"OK"` | Thấy đĩa ≠ store thì ghi lại |
+| 2: thử lại phát lại closure cũ | Cao | Ghi **đĩa lùi lại**: `onDisk:"TEN-B"` trong khi `inStore:"TEN-C"` | Luôn ghi giá trị hiện tại của store |
+| 3: không có trần cho lượt ghi đang bay | Cao | `HANG-PROJECT-WRITE {"elapsedMs":8001}` và `HANG-NO-DEBT {"hasUnflushedFailures":false}` — treo **và** không ghi nhận nợ | `guard()` bọc mọi thao tác IndexedDB; hết ngân sách → chặn Lưu |
+| 4: dispose 1500 < ngân sách 2000 | TB | `{"disposeElapsed":1501,"ghostAliveInStore":true,"retryNeededMs":1600}` | 3000 > 2000 |
+| 5: tab không có đường thử lại | TB | Đĩa hết lỗi rồi 5/5 lần Lưu vẫn hỏng, `fetchCalls:0` | Đối chiếu không phân biệt tab/project |
+| 6: hai Map, hai ngân sách | Thấp | `{"elapsedMs":3006,"budgetMs":2000}` | Một vòng lặp, một `deadline` |
+
+**Phụ (7):** `cancel()` gom `keyEpoch ∪ pending ∪ failedKeys ∪ inFlightKeys` là **code chết** — đột biến M6 để **tất cả 29 test tác giả + 11 test reviewer xanh**. Cả bộ máy `failedKeys`/`keyEpoch`/`flushStrict`/`hasPendingFailures` trong `autosave.ts` chỉ còn test của chính nó dùng → **đã xoá** cùng 8 test.
+
+**Bài học lớn nhất của Task154:** ba test viết ra để bắt lỗi đã **xanh oan** dưới đúng đột biến của chúng (helper giả lập không ném lỗi; test chỉ có một lần Lưu nên không có gì để "phát lại"; test bị lớp `raceWithDeadline` che). Trong task này đã có **6 test xanh oan** ở ba vòng khác nhau. Viết test xong phải chạy đột biến, và phải kiểm đột biến **thật sự vào được file**.
+
+`npm run check` **1452 passed / 18 skipped**, exit 0.
+
 ## Không làm
 
 Không có cột `is_public` trên `cloud_projects` (share đã đi đường URL ở SP022). Không autosave ngầm lên cloud.
