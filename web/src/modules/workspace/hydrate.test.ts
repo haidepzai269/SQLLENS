@@ -352,4 +352,59 @@ describe("Workspace Hydrate & Persistence (Task124)", () => {
     expect(hasUnflushedFailures()).toBe(false);
     void other;
   }, 10000);
+
+  // Cùng lớp lỗi R2 nhưng ở đường thử lại: transaction IndexedDB có thể treo vĩnh viễn, và
+  // `pushProject` gọi `flushWorkspace()` nên treo ở đây là treo luôn nút Lưu. Mỗi lần thử lại phải
+  // có trần, hết hạn thì coi như vẫn hỏng và để lần sau.
+  it("4a: thử lại lượt xoá bị treo vẫn trả về trong hạn", async () => {
+    // Lần xoá ĐẦU ném lỗi (để có entry trong `failedDeletes`); các lần SAU trả về request không
+    // bao giờ resolve — đúng dạng "transaction treo", buộc đường thử lại phải có trần.
+    const state = { calls: 0 };
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (name === "tabs") {
+                s.delete = (() => {
+                  state.calls += 1;
+                  if (state.calls === 1) {
+                    throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                  }
+                  // Treo hẳn: không resolve, không reject.
+                  return {} as IDBRequest<undefined>;
+                }) as IDBObjectStore["delete"];
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const { projectId } = await bootWorkspace(GUEST_SCOPE, { factory: sabotaged, delayMs: 10 });
+    const second = useWorkspaceStore.getState().createTab(projectId);
+    await waitMs(40);
+
+    useWorkspaceStore.getState().closeTab(second.id);
+    await waitMs(60);
+    expect(state.calls).toBeGreaterThan(0);
+
+    // Đường thử lại bị treo: `flushWorkspace` phải trả về trong hạn, không treo theo.
+    const started = Date.now();
+    await flushWorkspace();
+    const elapsed = Date.now() - started;
+
+    expect(elapsed).toBeLessThan(4000);
+  }, 15000);
 });

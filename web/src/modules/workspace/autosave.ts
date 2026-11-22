@@ -41,6 +41,8 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
 
   const pending = new Map<string, PendingItem<T>>();
   const inFlight = new Set<Promise<void>>();
+  /** Key nào đang có lượt ghi chưa settle. Cần riêng để dọn `keyEpoch` mà không bỏ sót lượt bay. */
+  const inFlightKeys = new Set<string>();
   let isDisposed = false;
   // Key nào đang có dữ liệu CHƯA xuống đĩa vì lượt ghi gần nhất của nó hỏng.
   //
@@ -64,6 +66,15 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
   const epochOf = (key: string): number => keyEpoch.get(key) ?? 0;
   const bumpEpoch = (key: string): void => {
     keyEpoch.set(key, epochOf(key) + 1);
+  };
+  /**
+   * Dọn thế hệ của key không còn gì để bảo vệ: không chờ ghi, không đang bay, không có lỗi.
+   *
+   * Không dọn thì Map phình mãi theo số tab/dự án người dùng từng mở trong một phiên. Xoá được vì
+   * thế hệ chỉ có nghĩa so với một lượt ghi đang bay của CÙNG key; không còn lượt nào thì 0 là đủ.
+   */
+  const forgetEpochIfIdle = (key: string): void => {
+    if (!pending.has(key) && !failedKeys.has(key) && !inFlightKeys.has(key)) keyEpoch.delete(key);
   };
 
   const onPageHide = () => {
@@ -102,12 +113,15 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
     const timer = setTimeout(async () => {
       pending.delete(key);
       const epoch = epochOf(key);
+      inFlightKeys.add(key);
       const promise = executeSave(key, payload, epoch);
       inFlight.add(promise);
       try {
         await promise;
       } finally {
         inFlight.delete(promise);
+        inFlightKeys.delete(key);
+        forgetEpochIfIdle(key);
       }
     }, delayMs);
 
@@ -126,21 +140,24 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
       for (const [pendingKey, item] of pending.entries()) {
         clearTimeout(item.timer);
         pending.delete(pendingKey);
-        bumpEpoch(pendingKey);
       }
-      // Key đang bay (không còn trong `pending`) cũng phải đổi thế hệ, nếu không kết quả muộn của
-      // nó sẽ ghi dấu lỗi trở lại.
-      for (const flyingKey of keyEpoch.keys()) bumpEpoch(flyingKey);
+      // Mọi key từng có thế hệ đều phải đổi thế hệ: key đang bay (không còn trong `pending`) cũng
+      // vậy, nếu không kết quả muộn của nó sẽ ghi dấu lỗi trở lại. Dùng `Array.from` vì `bumpEpoch`
+      // ghi vào chính Map đang lặp.
+      for (const knownKey of Array.from(keyEpoch.keys())) bumpEpoch(knownKey);
       failedKeys.clear();
+      for (const knownKey of Array.from(keyEpoch.keys())) forgetEpochIfIdle(knownKey);
       return;
     }
     // Đổi thế hệ TRƯỚC khi xóa dấu: lượt ghi đang bay của key này sẽ thấy thế hệ lệch và bỏ qua.
     bumpEpoch(key);
     failedKeys.delete(key);
     const item = pending.get(key);
-    if (!item) return;
-    clearTimeout(item.timer);
-    pending.delete(key);
+    if (item) {
+      clearTimeout(item.timer);
+      pending.delete(key);
+    }
+    forgetEpochIfIdle(key);
   }
 
   async function flush(): Promise<void> {
@@ -159,12 +176,15 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
 
     const newPromises = tasks.map(async ({ key, payload }) => {
       const epoch = epochOf(key);
+      inFlightKeys.add(key);
       const p = executeSave(key, payload, epoch);
       inFlight.add(p);
       try {
         await p;
       } finally {
         inFlight.delete(p);
+        inFlightKeys.delete(key);
+        forgetEpochIfIdle(key);
       }
     });
 
@@ -195,6 +215,7 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
 
     const newPromises = tasks.map(async ({ key, payload }) => {
       const epoch = epochOf(key);
+      inFlightKeys.add(key);
       const p = (async () => {
         try {
           await save(key, payload);
@@ -211,6 +232,8 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
         await p;
       } finally {
         inFlight.delete(p);
+        inFlightKeys.delete(key);
+        forgetEpochIfIdle(key);
       }
     });
 

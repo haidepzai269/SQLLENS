@@ -665,5 +665,25 @@ describe("Workspace Autosave & Store (Task123)", () => {
       expect(autosave.hasPendingFailures()).toBe(false);
       await expect(autosave.flushStrict()).resolves.toBeUndefined();
     });
+
+    // Dọn `keyEpoch` không được làm hỏng đường bình thường: sau khi cancel, cùng key đó phải
+    // schedule lại và ghi được như chưa từng có gì. Đây là điều kiện để việc dọn là an toàn —
+    // bản thân kích thước Map không quan sát được từ ngoài nên không có test trực tiếp cho nó.
+    it("sau cancel, cùng key vẫn ghi lại được bình thường", async () => {
+      const saveMock = vi.fn(async () => undefined);
+      const autosave = createAutosave<string>({ save: saveMock, delayMs: 10 });
+
+      autosave.schedule("tab-a", "SELECT 1");
+      await vi.advanceTimersByTimeAsync(20);
+      autosave.cancel("tab-a");
+
+      autosave.schedule("tab-a", "SELECT 2");
+      await vi.advanceTimersByTimeAsync(20);
+
+      expect(saveMock).toHaveBeenCalledTimes(2);
+      expect(saveMock).toHaveBeenLastCalledWith("tab-a", "SELECT 2");
+      expect(autosave.hasPendingFailures()).toBe(false);
+      await expect(autosave.flushStrict()).resolves.toBeUndefined();
+    });
   });
 });

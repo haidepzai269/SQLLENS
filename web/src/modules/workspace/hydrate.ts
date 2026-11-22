@@ -63,6 +63,8 @@ let currentSession: WorkspaceSession | null = null;
 let bootLock: Promise<{ projectId: string; tabId: string }> | null = null;
 /** Trần chờ các lượt ghi project khi đóng phiên, xem `disposeWorkspace`. */
 const DISPOSE_WRITE_TIMEOUT_MS = 1500;
+/** Trần cho MỘT lần thử lại lượt xoá đã hỏng, xem `flushWorkspace`. */
+const DELETE_RETRY_TIMEOUT_MS = 1500;
 
 /**
  * Ép mọi thay đổi đang chờ xuống IndexedDB rồi mới trả về.
@@ -92,10 +94,19 @@ export async function flushWorkspace(): Promise<void> {
   // Lượt XOÁ đã hỏng thì thử lại ở đây, KHÔNG chặn đẩy cloud: bản ghi ma trên đĩa không nằm trong
   // payload nên nội dung đẩy lên vẫn đúng. Thử lại thất bại thì để lần sau; nếu chặn ở đây thì xoá
   // một tab lúc đĩa hỏng sẽ khoá nút Lưu vĩnh viễn (reviewer vòng 6, lỗi 4a).
+  //
+  // Mỗi lần thử lại phải có TRẦN: transaction IndexedDB có thể treo vĩnh viễn (đúng lý do sinh ra
+  // `DISPOSE_WRITE_TIMEOUT_MS`), và `pushProject` gọi hàm này nên treo ở đây là treo luôn nút Lưu.
+  // Hết hạn thì coi như vẫn hỏng, để lần flush sau thử tiếp.
   if (session.failedDeletes.size > 0) {
     for (const [key, retry] of Array.from(session.failedDeletes.entries())) {
       try {
-        await retry();
+        await Promise.race([
+          retry(),
+          new Promise<never>((_resolve, reject) =>
+            setTimeout(() => reject(new Error("Hết hạn thử lại lượt xoá")), DELETE_RETRY_TIMEOUT_MS),
+          ),
+        ]);
         session.failedDeletes.delete(key);
       } catch {
         // Vẫn hỏng: giữ lại để lần flush sau thử tiếp. Không ném.
