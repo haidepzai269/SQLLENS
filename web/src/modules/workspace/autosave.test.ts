@@ -597,5 +597,41 @@ describe("Workspace Autosave & Store (Task123)", () => {
       expect(autosave.hasPendingFailures()).toBe(false);
       await expect(autosave.flushStrict()).resolves.toBeUndefined();
     });
+
+    // Xóa tab/project là đường thoát khỏi trạng thái hỏng. Không xóa dấu lỗi trong `cancel` thì
+    // một lần ghi hỏng trước khi xóa sẽ làm `hasPendingFailures()` đúng MÃI MÃI, và mọi lần bấm
+    // Lưu sau đó đều bị chặn — tính năng lưu cloud chết hẳn cho tới khi tải lại trang.
+    it("cancel(key) xóa luôn dấu lỗi của key đó", async () => {
+      const saveMock = vi.fn(async () => {
+        throw new Error("đĩa đầy");
+      });
+      const autosave = createAutosave<string>({ save: saveMock, delayMs: 10 });
+
+      autosave.schedule("tab-a", "SELECT 1");
+      await vi.advanceTimersByTimeAsync(20);
+      expect(autosave.hasPendingFailures()).toBe(true);
+
+      // Người dùng xóa tab hỏng: dữ liệu của nó không còn, lỗi cũng hết nghĩa.
+      autosave.cancel("tab-a");
+
+      expect(autosave.hasPendingFailures()).toBe(false);
+      await expect(autosave.flushStrict()).resolves.toBeUndefined();
+    });
+
+    it("cancel() không tham số cũng xóa sạch dấu lỗi", async () => {
+      const saveMock = vi.fn(async () => {
+        throw new Error("đĩa đầy");
+      });
+      const autosave = createAutosave<string>({ save: saveMock, delayMs: 10 });
+
+      autosave.schedule("tab-a", "SELECT 1");
+      autosave.schedule("tab-b", "SELECT 2");
+      await vi.advanceTimersByTimeAsync(20);
+      expect(autosave.hasPendingFailures()).toBe(true);
+
+      autosave.cancel();
+
+      expect(autosave.hasPendingFailures()).toBe(false);
+    });
   });
 });

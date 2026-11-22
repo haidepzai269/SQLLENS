@@ -95,14 +95,21 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
 
   // Bản ghi vừa bị xóa (tab/project) phải bỏ luôn phần đang chờ, nếu không lần ghi
   // debounce sẽ chạy sau lệnh xóa và làm bản ghi sống lại trong IndexedDB.
+  //
+  // Xóa luôn dấu lỗi của key: bản ghi không còn thì "dữ liệu chưa xuống đĩa" của nó cũng hết
+  // nghĩa. Không xóa thì một lần ghi hỏng trước khi xóa tab sẽ làm `hasPendingFailures()` đúng
+  // vĩnh viễn, và mọi lần bấm Lưu sau đó đều bị chặn — tính năng lưu cloud chết hẳn cho tới khi
+  // tải lại trang.
   function cancel(key?: string): void {
     if (key === undefined) {
       for (const [pendingKey, item] of pending.entries()) {
         clearTimeout(item.timer);
         pending.delete(pendingKey);
       }
+      failedKeys.clear();
       return;
     }
+    failedKeys.delete(key);
     const item = pending.get(key);
     if (!item) return;
     clearTimeout(item.timer);
