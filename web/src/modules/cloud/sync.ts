@@ -17,6 +17,7 @@
 
 import { openWorkspaceDb } from "@/modules/workspace/db";
 import { flushWorkspace, hasUnflushedFailures } from "@/modules/workspace/hydrate";
+import { useWorkspaceStore } from "@/modules/workspace/store";
 import { getRepository, WorkspaceQuotaError } from "@/modules/workspace/repository";
 import {
   scopeKey,
@@ -340,6 +341,25 @@ export async function pushProject(projectId: string, options: SyncOptions = {}):
     }
     if (!project) {
       throw new CloudSyncError("LOCAL_NOT_FOUND", "Không tìm thấy dự án trên máy");
+    }
+
+    // Lọc tab theo STORE, không đẩy mọi thứ đọc được từ đĩa.
+    //
+    // Đĩa có thể còn BẢN GHI MA: tab người dùng đã đóng nhưng lệnh xoá hỏng (đĩa đầy), và
+    // `flushWorkspace()` cố ý không chặn Lưu vì việc đó sẽ khoá nút Lưu vĩnh viễn (reviewer vòng 6,
+    // lỗi 4a). Không lọc thì đúng tab người dùng tưởng đã xoá lại được đẩy lên cloud — reviewer
+    // vòng 9 đo được `payloadCoTabDaXoa=true sqlTrongPayload="|SELECT 'bi-mat-cua-toi'"`.
+    //
+    // Store là nguồn sự thật về "cái gì còn tồn tại"; đĩa là nguồn sự thật về "nội dung mới nhất".
+    // Lấy nội dung từ đĩa nhưng lấy DANH SÁCH từ store. Dự án chưa được hydrate (store rỗng, ví dụ
+    // đẩy từ màn hình khác) thì giữ nguyên danh sách đọc từ đĩa.
+    const storeTabs = useWorkspaceStore.getState().tabs;
+    const liveIds =
+      storeTabs.length > 0
+        ? new Set(storeTabs.filter((t) => t.projectId === projectId).map((t) => t.id))
+        : null;
+    if (liveIds && liveIds.size > 0) {
+      tabs = tabs.filter((t) => liveIds.has(t.id));
     }
 
     // `asNew` bỏ qua liên kết cũ (người dùng đã đồng ý đẩy lên thành dự án mới). Còn lại dùng

@@ -144,9 +144,47 @@ Reviewer vòng 8 **FAIL** với 4 lỗi Cao + 2 phụ. Điểm chung: **vòng 5,
 
 Sau vòng 8: `npm run check` **1452 passed / 18 skipped**, exit 0, `tsc` sạch, 1 cảnh báo cũ ngoài phạm vi.
 
+## Vòng sửa thứ chín: reviewer độc lập tìm 3 lỗi Cao, cả 3 đều đúng
+
+Reviewer vòng 9 dựng lại bộ máy ghi từ đầu (bỏ sổ nợ) và tìm ra 3 lỗi **nặng hơn** những lỗi mà bản viết lại vừa sửa. Cả ba đều tái hiện được, và tôi đã đo lại từng cái.
+
+**Lỗi 1 — đăng xuất "Xoá nháp cục bộ" hồi sinh dữ liệu riêng tư (vi phạm AC2 Task129).**
+`purgeUserScope()` xoá thẳng trên đĩa, không đi qua store. Ngay sau đó `markAnon()` đổi scope → `disposeWorkspace()` → `flushWorkspace(session)`. Bước cuối thấy store còn dữ liệu mà đĩa rỗng nên coi là "ghi hỏng" và **ghi lại đúng những hàng vừa xoá**. Đo được: `sauPurge(userProjects=0)` → `sauDoiScope(userProjects=1)`, `sqlSongLai="SELECT 'bi-mat-nguoi-dung'"`. Đây là hồi quy do chính `af559d7` gây ra (code cũ chỉ chạy `retryPending`).
+Sửa: thêm cờ `purged` trên phiên + `markWorkspacePurged()`, gọi ngay sau `purgeUserScope()` trong `user-nav.tsx`. Đây là **ngoại lệ duy nhất** của quy tắc "store là nguồn sự thật" — có chú thích dài giải thích vì sao.
+
+**Lỗi 2 — bản ghi ma khoá nút Lưu vĩnh viễn (tái sinh lỗi 4a vòng 6).**
+Nhánh `leftover` được thiết kế để không bao giờ chặn, nhưng bước đọc-lại xác nhận gặp `guard()` hết hạn → `catch` đổi thành `blocking: 1` → ném. Đo được `[G1] flush=THREW ms=2047` với chỉ một tab ma, 3/3 lần.
+Sửa: tách `measured` khỏi `blocking`. "Đo được và thấy lệch" khác "không đo được"; chỉ cái đầu mới là bằng chứng.
+
+**Lỗi 3 — tab đã xoá lọt vào payload đẩy cloud.**
+`pushProject` dựng payload từ **đĩa** (`sync.ts:337`), nên bản ghi ma còn trên đĩa sẽ được gửi lên. Đo được `payloadCoTabDaXoa=true sqlTrongPayload="|SELECT 'bi-mat-cua-toi'"`. Chú thích cũ trong `hydrate.ts` khẳng định "nó không nằm trong payload" — **sai**.
+Sửa: `sync.ts` lọc danh sách tab theo **store** (nguồn sự thật về "cái gì còn tồn tại"), lấy nội dung từ đĩa. Đây mới là chỗ chặn đúng, thay vì chặn ở `flushWorkspace` (chặn ở đó tái sinh lỗi 4a).
+
+### Ba lỗi nữa do chính tôi tìm ra khi sửa (đo được, không phải suy đoán)
+
+| # | Triệu chứng đo được | Nguyên nhân | Sửa |
+|---|---|---|---|
+| A | `[Y] ms=2166 blocking=1 measured=false` rồi ném, dù vòng sau chỉ cần 114 ms là xong | Ngân sách là **tổng thời gian**; workspace 601 tab cần hơn 2 s cho một lượt ghi trên máy chậm | Đổi sang phát hiện **đứng yên**: mỗi vòng trả `work` = số hàng ghi/xoá được; `STALL_LIMIT=5` vòng không tăng là kết luận |
+| B | `leftover=1 work=0` lặp 11+ vòng, tốn trọn 2 s cho một tab đã đóng | Nhánh ma không dùng phát hiện đứng yên | Áp cùng `STALL_LIMIT` cho nhánh ma: bỏ cuộc sau ~0,5 s thay vì 2 s |
+| C | `[N4]` hết giờ ở bước xác nhận xoá và biến cả lần Lưu thành "không đo được gì" | Bước dọn ma chạy trước bước xác nhận ghi | Đảo thứ tự: xác nhận ghi → dọn ma → xác nhận xoá |
+
+### Sáu test mới, mỗi test đã kiểm bằng đột biến
+
+| Test | Bắt được gì | Đột biến làm nó đỏ |
+|---|---|---|
+| `V9-1` (viết lại) | Gõ tiếp trong lúc Lưu → `RESOLVED` với đĩa cũ | Bỏ kiểm danh tính store cuối `reconcileOnce` |
+| `V9-2` | 601 tab, sửa 1 tab, Lưu phải thành công | Gộp `deadline` đo chung với ngân sách chờ |
+| `V9-3` | Xoá nháp rồi đổi phiên không hồi sinh dữ liệu | Bỏ nhánh `if (session.purged)` |
+| `V8-4` (viết lại) | Dispose phải **cứu được** lượt xoá hỏng tạm thời | Hạ `DISPOSE_WRITE_TIMEOUT_MS` xuống 60 ms |
+| `push-freshness` mới | Tab ma không lọt payload | (xem dưới) |
+| `V8-3`, `V8-3b` | Ghi/đọc treo suốt ngân sách phải chặn (fail-safe) | Bỏ `guard()` |
+
+`V9-1` và `V8-4` cũ đều **xanh oan** trước khi viết lại: `V9-1` dùng `setTimeout(1)` nên tuỳ tốc độ máy (đỏ khi chạy cả file, xanh khi chạy riêng); `V8-4` chỉ đo `elapsed >= 1900` — kiểm chi tiết cài đặt chứ không kiểm kết quả. Đây là lần thứ bảy trong task này một test xanh dưới đúng đột biến mà nó sinh ra để bắt.
+
+Sau vòng 9: `npm run check` **1456 passed / 18 skipped**, exit 0, `tsc` sạch.
 ## Kiểm tra
 
-- `npm run check`: **1452 passed | 18 skipped**, 117 file pass, 0 error (1 cảnh báo cũ ngoài phạm vi ở `e2e/plan-explain.spec.ts`).
+- `npm run check`: **1456 passed | 18 skipped**, 117 file pass, 0 error (1 cảnh báo cũ ngoài phạm vi ở `e2e/plan-explain.spec.ts`).
 - `npx tsc --noEmit`: sạch.
 - Trình duyệt thật (Chromium, bản `next build` + `next start`) — **16/16 PASS**:
 

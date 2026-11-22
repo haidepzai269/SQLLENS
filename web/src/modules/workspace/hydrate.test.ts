@@ -1,7 +1,7 @@
 import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { openWorkspaceDb } from "./db";
-import { bootWorkspace, disposeWorkspace, flushWorkspace, hasUnflushedFailures } from "./hydrate";
+import { bootWorkspace, disposeWorkspace, flushWorkspace, hasUnflushedFailures, markWorkspacePurged } from "./hydrate";
 import { getRepository } from "./repository";
 import { useWorkspaceStore } from "./store";
 import type { WorkspaceProject, WorkspaceScope, WorkspaceTab } from "./types";
@@ -852,8 +852,15 @@ describe("Workspace Hydrate & Persistence (Task124)", () => {
   // Đo hệ quả trực tiếp: lượt xoá treo hẳn thì `disposeWorkspace()` phải chờ ÍT NHẤT một ngân sách
   // thử lại trước khi bỏ cuộc. Trần dispose nhỏ hơn ngân sách (1500 < 2000) sẽ trả về sớm hơn thế,
   // và mọi lần thử lại cần nhiều hơn 1500 ms đều bị cắt ngang.
-  it("V8-4: đóng phiên phải cho đường thử lại trọn một ngân sách, không cắt ngang", async () => {
-    const flag = { broken: false };
+  // Reviewer vòng 8, lỗi 5. `DISPOSE_WRITE_TIMEOUT_MS` từng là 1500 ms trong khi `FLUSH_BUDGET_MS`
+  // là 2000 ms, nên `disposeWorkspace` cắt ngang đường thử lại giữa chừng và bản ghi đã xoá sống lại
+  // sau F5. Test cũ chỉ đo `elapsed >= 1900` — kiểm chi tiết cài đặt, không kiểm kết quả.
+  //
+  // Bất biến thật: lượt xoá hỏng TẠM THỜI (vài lần đầu) mà `disposeWorkspace` chạy thì phải cứu được
+  // — tức là nó phải cho đường thử lại đủ thời gian để thử lại THÀNH CÔNG, không chỉ đủ lâu để hết
+  // giờ. Ca hỏng vĩnh viễn (đĩa đầy thật) thì bỏ cuộc sớm là đúng, xem V8-4b.
+  it("V8-4: đóng phiên phải cho đường thử lại đủ thời gian để CỨU được lượt xoá hỏng tạm thời", async () => {
+    const state = { fails: 0 };
     const realOpen = factory.open.bind(factory);
     const sabotaged = {
       open: (...args: Parameters<IDBFactory["open"]>) => {
@@ -867,10 +874,15 @@ describe("Workspace Hydrate & Persistence (Task124)", () => {
             const realStore = tx.objectStore.bind(tx);
             tx.objectStore = ((name: string) => {
               const s = realStore(name);
-              if (name === "tabs" && flag.broken) {
-                // Lượt xoá hỏng thật (để có gì mà thử lại), rồi các lượt sau treo hẳn.
-                s.delete = (() => {
-                  throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+              if (name === "tabs") {
+                const realDelete = s.delete.bind(s);
+                s.delete = ((k: IDBValidKey) => {
+                  // Hỏng 3 lần đầu rồi thành công: mô phỏng quota tạm thời.
+                  if (state.fails < 3) {
+                    state.fails += 1;
+                    throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                  }
+                  return realDelete(k);
                 }) as IDBObjectStore["delete"];
               }
               return s;
@@ -886,17 +898,23 @@ describe("Workspace Hydrate & Persistence (Task124)", () => {
     const second = useWorkspaceStore.getState().createTab(projectId);
     await waitMs(40);
 
-    // Xoá trong lúc đĩa hỏng → lượt xoá hỏng.
-    flag.broken = true;
+    // Đóng tab trong lúc các lượt xoá đầu còn hỏng.
     useWorkspaceStore.getState().closeTab(second.id);
     await waitMs(60);
 
-    const started = Date.now();
     await disposeWorkspace();
-    const elapsed = Date.now() - started;
 
-    // Phải chờ đủ một ngân sách thử lại (2 s), không cắt ở 1,5 s.
-    expect(elapsed).toBeGreaterThanOrEqual(1900);
+    // Đã thử lại ít nhất 3 lần (chứng minh đường thử lại thật sự chạy, không chỉ chờ rồi bỏ).
+    expect(state.fails).toBe(3);
+
+    // Và kết quả: bản ghi ma KHÔNG còn — nếu dispose cắt ngang thì nó sẽ sống lại sau F5.
+    const db = await openWorkspaceDb(factory);
+    try {
+      const onDisk = await getRepository(db).listTabs(projectId);
+      expect(onDisk.some((t) => t.id === second.id)).toBe(false);
+    } finally {
+      db.close();
+    }
   }, 20000);
 
   // Lỗi 5 (Trung bình): tab cũng có "nợ" như project, nhưng bản sổ nợ chỉ thêm đường thử lại cho
@@ -977,5 +995,144 @@ describe("Workspace Hydrate & Persistence (Task124)", () => {
     // Một ngân sách (2 s), không phải 2 × 2 s.
     expect(elapsed).toBeLessThan(3500);
     expect(hasUnflushedFailures()).toBe(true);
+  }, 20000);
+
+  // Vòng 9, lỗi do chính bản viết lại sinh ra. `reconcileOnce` chụp store ở ĐẦU hàm rồi await
+  // nhiều lượt (đọc đĩa, ghi, đọc lại). Nếu người dùng gõ tiếp trong cửa sổ đó, bản chụp đã cũ:
+  // ghi B xuống đĩa → gõ thành C → đọc lại đĩa thấy B khớp ảnh chụp B → kết luận "khớp" và
+  // `flushWorkspace` báo THÀNH CÔNG trong khi đĩa là B còn store là C.
+  //
+  // Đây đúng là bug gốc của Task154 (`pushProject` đọc tab TỪ ĐĨA ở `sync.ts:337` nên đẩy B lên
+  // cloud), chỉ khác đường vào. Đo trước khi sửa: `outcome=RESOLVED inStore="C" onDisk="B"`.
+  it("V9-1: gõ tiếp trong lúc đang Lưu không được để Lưu báo thành công với đĩa cũ hơn store", async () => {
+    // Phải chèn C vào ĐÚNG cửa sổ nguy hiểm: SAU khi `reconcileOnce` đã chụp ảnh store, và TRONG
+    // lúc nó đọc đĩa. Chèn bằng `setTimeout(1)` thì tuỳ tốc độ máy: nếu flush kịp xong trước khi C
+    // xuất hiện thì "RESOLVED" là ĐÚNG (C sẽ được debounce ghi sau) và test đỏ oan — đã đo được
+    // đúng hiện tượng đó khi chạy cả file.
+    //
+    // Chèn ở lượt GHI cũng sai: reconcile ghi theo ảnh chụp cũ rồi tự sửa ở vòng sau, nên đột biến
+    // bỏ lớp bảo vệ vẫn xanh. Móc vào transaction ĐỌC của store `tabs` — đó là bước đọc đĩa nằm sau
+    // ảnh chụp, nên ảnh chụp đã cũ mà chưa ai kiểm.
+    const arm = { armed: false, fired: false };
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode === "readwrite") return tx;
+            const isTabs = names === "tabs" || (Array.isArray(names) && names.includes("tabs"));
+            if (!isTabs || !arm.armed || arm.fired) return tx;
+            arm.fired = true;
+            // Người dùng gõ tiếp ngay lúc này: store thành C trong khi ảnh chụp vẫn là B.
+            useWorkspaceStore.getState().updateTabSql(tabId, "SELECT 'C'");
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const { tabId } = await bootWorkspace(GUEST_SCOPE, { factory: sabotaged, delayMs: 10 });
+
+    useWorkspaceStore.getState().updateTabSql(tabId, "SELECT 'A'");
+    await waitMs(50);
+    await flushWorkspace();
+
+    useWorkspaceStore.getState().updateTabSql(tabId, "SELECT 'B'");
+    arm.armed = true;
+    const outcome = await flushWorkspace().then(
+      () => "RESOLVED",
+      () => "THREW",
+    );
+    arm.armed = false;
+
+    // Chỉ có ý nghĩa nếu cửa sổ thật sự bị chèn — nếu không, test đang kiểm một tình huống khác.
+    expect(arm.fired).toBe(true);
+
+    const inStore = useWorkspaceStore.getState().tabs.find((t) => t.id === tabId)?.sql;
+    const disk = await readDisk();
+    const onDisk = disk.tabs.find((t) => t.id === tabId)?.sql;
+
+    // Hoặc đĩa khớp store, hoặc lần Lưu phải báo lỗi. Tuyệt đối không được "RESOLVED mà lệch".
+    expect(`${outcome}:${onDisk === inStore ? "khop" : "LECH"}`).toBe(
+      outcome === "RESOLVED" ? "RESOLVED:khop" : `${outcome}:LECH`,
+    );
+    if (outcome === "RESOLVED") expect(onDisk).toBe("SELECT 'C'");
+  }, 20000);
+
+  // Vòng 9, lỗi thứ hai do bản viết lại sinh ra: bước CHỜ và bước ĐO dùng chung một `deadline`.
+  // Workspace lớn thì bước chờ ăn hết ngân sách, bước đo thấy hết hạn ngay vòng đầu, kết luận
+  // `blocking` và ném — dù đĩa đã khớp store. Đo trước khi sửa: `[LOOP] iter=1 blocking=1 ms=2002`.
+  //
+  // Đây là "báo lỗi oan": người dùng không Lưu được dù mọi thứ đã xuống đĩa. Nguy hiểm hơn báo
+  // thành công nhầm, vì nó khoá cứng tính năng và người dùng không có cách nào thoát ngoài F5.
+  //
+  // Kịch bản thật: workspace đã có nhiều tab, người dùng sửa MỘT tab rồi bấm Lưu.
+  it("V9-2: workspace lớn, sửa một tab rồi Lưu vẫn phải thành công", async () => {
+    await bootWorkspace(GUEST_SCOPE, { factory, delayMs: 5 });
+
+    // 601 tab: ngưỡng mà bản trước đo được là luôn thất bại.
+    for (let i = 0; i < 20; i += 1) {
+      const p = useWorkspaceStore.getState().createProject({ name: `P${i}`, engine: "postgres" });
+      for (let j = 0; j < 30; j += 1) {
+        const t = useWorkspaceStore.getState().createTab(p.id);
+        useWorkspaceStore.getState().updateTabSql(t.id, `SELECT ${j}`);
+      }
+    }
+    // Chờ debounce ghi hết xuống đĩa: đây là trạng thái "đã ổn định" trước khi người dùng sửa.
+    await waitMs(200);
+    await flushWorkspace().catch(() => undefined);
+
+    const first = useWorkspaceStore.getState().tabs[0];
+    useWorkspaceStore.getState().updateTabSql(first.id, "SELECT 'SUA-MOT-TAB'");
+
+    await expect(flushWorkspace()).resolves.toBeUndefined();
+    expect(hasUnflushedFailures()).toBe(false);
+
+    const disk = await readDisk();
+    expect(disk.tabs.find((t) => t.id === first.id)?.sql).toBe("SELECT 'SUA-MOT-TAB'");
+  }, 120000);
+  // Reviewer vòng 9, lỗi 1 — hồi quy do chính bản viết lại gây ra, vi phạm AC2 Task129.
+  //
+  // Luồng đăng xuất thật: `flushWorkspace()` -> `purgeUserScope()` -> `logout()` -> `markAnon()` ->
+  // đổi scope -> `disposeWorkspace()` -> `flushWorkspace(session)`. Bước cuối thấy store còn dữ liệu
+  // mà đĩa rỗng nên tưởng "ghi hỏng" và ghi lại đúng những hàng vừa xoá. Nháp riêng tư sống lại
+  // nguyên văn SQL. Đo được trước khi sửa: `sauPurge(userProjects=0)` -> `sauDoiScope(userProjects=1)`,
+  // `sqlSongLai="SELECT 'bi-mat-nguoi-dung'"`.
+  it("V9-3: xoá nháp cục bộ rồi đổi phiên KHÔNG được hồi sinh dữ liệu riêng tư", async () => {
+    const { tabId } = await bootWorkspace(USER_SCOPE, { factory, delayMs: 5 });
+    useWorkspaceStore.getState().updateTabSql(tabId, "SELECT 'bi-mat-nguoi-dung'");
+    await waitMs(60);
+    await flushWorkspace();
+
+    // `purgeUserScope` xoá thẳng trên đĩa, không đi qua store.
+    const db = await openWorkspaceDb(factory);
+    try {
+      const repo = getRepository(db);
+      for (const p of await repo.listProjects(USER_SCOPE)) await repo.deleteProjectCascade(p.id);
+    } finally {
+      db.close();
+    }
+    markWorkspacePurged();
+
+    // Đổi scope: đúng đường đi của `disposeWorkspace` lúc `markAnon()`.
+    await disposeWorkspace();
+    await bootWorkspace(GUEST_SCOPE, { factory });
+
+    const db2 = await openWorkspaceDb(factory);
+    try {
+      const repo = getRepository(db2);
+      const userProjects = await repo.listProjects(USER_SCOPE);
+      const userTabs = (await Promise.all(userProjects.map((p) => repo.listTabs(p.id)))).flat();
+      expect(userProjects).toHaveLength(0);
+      expect(userTabs).toHaveLength(0);
+      expect(userTabs.some((t) => t.sql.includes("bi-mat"))).toBe(false);
+    } finally {
+      db2.close();
+    }
   }, 20000);
 });

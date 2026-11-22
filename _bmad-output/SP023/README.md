@@ -132,6 +132,23 @@ Reviewer vòng 7 **FAIL**. Cả ba lỗi đều nằm trong cơ chế đi bắt 
 
 `npm run check` **1453 passed / 18 skipped**.
 
+## Vòng sửa thứ chín: reviewer lật ngược bản viết lại, tìm 3 lỗi Cao (2026-11-22)
+
+Reviewer vòng 9 dựng lại bộ máy ghi từ đầu và tìm ra 3 lỗi **nặng hơn** lỗi vừa sửa. Cả ba đều tái hiện được và đã đo lại.
+
+**1. Đăng xuất "Xoá nháp cục bộ" hồi sinh dữ liệu riêng tư** (vi phạm AC2 Task129). `purgeUserScope()` xoá thẳng trên đĩa; `markAnon()` đổi scope → `disposeWorkspace()` → `flushWorkspace()` thấy store còn dữ liệu, đĩa rỗng, tưởng "ghi hỏng" và **ghi lại đúng những hàng vừa xoá**. Đo được `sauPurge(userProjects=0)` → `sauDoiScope(userProjects=1)`, `sqlSongLai="SELECT 'bi-mat-nguoi-dung'"`. Hồi quy do chính bản viết lại gây ra.
+
+**2. Bản ghi ma khoá nút Lưu vĩnh viễn** (tái sinh lỗi 4a vòng 6). Nhánh `leftover` sinh ra để không chặn, nhưng `guard()` hết hạn trong bước xác nhận bị `catch` đổi thành `blocking: 1` → ném. Đo được `[G1] flush=THREW ms=2047` với một tab ma, 3/3 lần.
+
+**3. Tab đã xoá lọt vào payload cloud.** `pushProject` dựng payload từ **đĩa**, nên bản ghi ma được gửi đi: `payloadCoTabDaXoa=true sqlTrongPayload="|SELECT 'bi-mat-cua-toi'"`. Chú thích cũ khẳng định "nó không nằm trong payload" — sai.
+
+**Bài học kiến trúc:** chỗ chặn đúng cho lỗi 3 không phải `flushWorkspace` (chặn ở đó tái sinh lỗi 4a) mà là **lúc dựng payload**: lấy nội dung từ đĩa, lấy **danh sách** từ store. Mỗi tầng phải chặn đúng thứ nó sở hữu.
+
+Thêm ba lỗi do tự đo trong lúc sửa: ngân sách là tổng thời gian nên cắt ngang workspace lớn đang tiến triển thật (đổi sang **phát hiện đứng yên**), nhánh ma không dùng phát hiện đó (tốn 2 s cho một tab đã đóng), và thứ tự dọn-ma-trước-xác-nhận-ghi làm mất phép đo.
+
+Sáu test mới, **mỗi test đã kiểm bằng đột biến**. `V9-1` và `V8-4` cũ đều xanh oan: `V9-1` dùng `setTimeout(1)` nên tuỳ tốc độ máy; `V8-4` chỉ đo `elapsed >= 1900` — kiểm chi tiết cài đặt chứ không kiểm kết quả. Đây là lần thứ bảy trong task một test xanh dưới đúng đột biến nó sinh ra để bắt.
+
+Sau vòng 9: `npm run check` **1456 passed / 18 skipped**, exit 0, `tsc` sạch.
 ## Vòng sửa thứ tám: bỏ hẳn sổ nợ, đối chiếu đĩa với store (2026-11-22)
 
 Reviewer vòng 8 **FAIL** với 4 lỗi Cao + 2 phụ. Chẩn đoán: **vòng 5, 6, 7, 8 đều sửa đúng một nguyên nhân.** Mỗi tập `failedKeys`/`failedWrites`/`failedDeletes` là một **bản sao thủ công** của một sự thật đã có sẵn trên đĩa; mỗi đường bỏ sót cập nhật là một lần kẹt vĩnh viễn hoặc một lần đẩy bản cũ lên cloud. Vá tiếp triệu chứng chỉ sinh tập thứ tư.

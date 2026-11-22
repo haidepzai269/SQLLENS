@@ -17,6 +17,8 @@ import { CloudSyncError, forgetUnpersistedLinks, pushProject } from "./sync";
 
 const GUEST: WorkspaceScope = { kind: "guest" };
 
+const waitMs = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
@@ -96,6 +98,82 @@ describe("pushProject — đẩy đúng bản mới nhất, không phải bản 
   });
 });
 
+describe("pushProject — tab đã đóng mà xoá hỏng không được lọt vào payload", () => {
+  // Reviewer vòng 9, lỗi 3. `pushProject` đọc tab TỪ ĐĨA, và `flushWorkspace()` cố ý không chặn
+  // Lưu khi còn bản ghi ma (chặn sẽ khoá nút Lưu vĩnh viễn — lỗi 4a vòng 6). Nên đĩa có thể còn
+  // tab người dùng đã đóng, và nó bị đẩy lên cloud: nội dung tưởng đã xoá lại được gửi đi.
+  // Đo được trước khi sửa: `payloadCoTabDaXoa=true sqlTrongPayload="|SELECT 'bi-mat-cua-toi'"`.
+  it("tab đã đóng mà lệnh xoá hỏng thì payload KHÔNG được chứa nó", async () => {
+    // Phải cài bẫy TRƯỚC `bootWorkspace`: nó mở kết nối IndexedDB và giữ nguyên, nên gắn bẫy lên
+    // factory sau đó là vô hiệu (đã đo: `[GHOST] onDisk` vẫn thiếu tab ma vì lệnh xoá thành công).
+    const arm = { broken: false };
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (name === "tabs") {
+                const realDelete = s.delete.bind(s);
+                s.delete = ((k: IDBValidKey) => {
+                  if (arm.broken) {
+                    throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                  }
+                  return realDelete(k);
+                }) as IDBObjectStore["delete"];
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const { projectId } = await bootWorkspace(GUEST, { factory: sabotaged });
+
+    // Một tab có nội dung riêng tư, đã xuống đĩa.
+    const secret = useWorkspaceStore.getState().createTab(projectId);
+    useWorkspaceStore.getState().updateTabSql(secret.id, "SELECT 'bi-mat-cua-toi'");
+    await flushWorkspace();
+
+    // Từ đây lệnh xoá hỏng: đóng tab sẽ để lại bản ghi ma trên đĩa.
+    arm.broken = true;
+    useWorkspaceStore.getState().closeTab(secret.id);
+    await waitMs(60);
+    // Lưu phải thành công (không khoá nút Lưu vì một tab đã xoá) — nhưng payload phải sạch.
+    await expect(flushWorkspace()).resolves.toBeUndefined();
+
+    // Xác nhận đúng là bản ghi ma còn trên đĩa, nếu không test đang kiểm tình huống khác.
+    const db = await openWorkspaceDb(sabotaged);
+    try {
+      const onDisk = await getRepository(db).listTabs(projectId);
+      expect(onDisk.some((t) => t.id === secret.id)).toBe(true);
+    } finally {
+      db.close();
+    }
+
+    let sent: { tabs?: Array<{ sql: string }> } | undefined;
+    const impl = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      sent = init?.body ? (JSON.parse(String(init.body)) as typeof sent) : undefined;
+      return createdProject();
+    }) as typeof fetch;
+
+    await pushProject(projectId, { factory: sabotaged, fetchImpl: impl });
+
+    expect(sent?.tabs ?? []).not.toContainEqual(
+      expect.objectContaining({ sql: expect.stringContaining("bi-mat") }),
+    );
+  });
+});
 describe("pushProject — không ghi đè thay đổi xảy ra trong lúc chờ mạng", () => {
   // Reviewer vòng 3 đo được: `pushProject` cũ ghi `upsertProject({...project})` bằng ảnh chụp đọc
   // TRƯỚC vòng mạng. Đổi tên trong lúc chờ mạng thì tên mới bị ghi đè về tên cũ.

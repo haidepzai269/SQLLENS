@@ -23,7 +23,7 @@ import { parseEngine } from "@/components/shell/engine-tabs";
 import { useSearchParams } from "next/navigation";
 import { LogoutDialog } from "@/modules/workspace/components/logout-dialog";
 import { hasUserLocalDrafts, purgeUserScope, WorkspacePurgeError } from "@/modules/workspace/logout-flow";
-import { flushWorkspace } from "@/modules/workspace/hydrate";
+import { flushWorkspace, markWorkspacePurged } from "@/modules/workspace/hydrate";
 
 const toPostgres = (router: ReturnType<typeof useRouter>, pathname: string) => {
   const q = new URLSearchParams(window.location.search);
@@ -63,6 +63,9 @@ export function UserNav({ className }: UserNavProps) {
           // (lúc đổi scope), đúng những tab vừa xóa sẽ được ghi lại.
           await flushWorkspace();
           await purgeUserScope(user.id);
+          // Đĩa đã sạch có chủ ý. Không báo thì phiên đang sống (store còn dữ liệu) sẽ coi
+          // đĩa-thiếu là "ghi hỏng" và ghi lại đúng nháp vừa xoá lúc đổi scope.
+          markWorkspacePurged();
         } catch (err) {
           // Xóa lỗi giữa đường vẫn cho đăng xuất để người dùng không bị kẹt,
           // nhưng phải báo phần còn lại (Task129 ca biên).
