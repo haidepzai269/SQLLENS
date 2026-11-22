@@ -16,6 +16,7 @@
 // bộ nhớ module (`unpersistedLinks`) ngay sau khi server trả về, trước khi chạm IndexedDB.
 
 import { openWorkspaceDb } from "@/modules/workspace/db";
+import { flushWorkspace } from "@/modules/workspace/hydrate";
 import { getRepository, WorkspaceQuotaError } from "@/modules/workspace/repository";
 import {
   scopeKey,
@@ -272,6 +273,10 @@ export async function pushProject(projectId: string, options: SyncOptions = {}):
   inFlight.add(projectId);
   let db: IDBDatabase;
   try {
+    // Autosave ghi tab xuống IndexedDB qua debounce (mặc định 300 ms), còn hàm này đọc tab từ
+    // IndexedDB. Không flush trước thì "gõ thêm một câu rồi bấm Lưu ngay" sẽ đẩy bản CŨ lên
+    // cloud, panel báo đã lưu, và phần vừa gõ chỉ còn trên máy — đóng tab là mất.
+    await flushWorkspace();
     db = await openDb(options.factory);
   } catch (err) {
     // Mở bộ nhớ hỏng thì phải nhả khóa, nếu không dự án kẹt ở trạng thái "đang đẩy" mãi.
