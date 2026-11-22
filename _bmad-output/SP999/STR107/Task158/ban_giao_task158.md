@@ -8,7 +8,7 @@ Nhánh `task/Task158`, base `main` @ `8d3b5c2`. Ngày 2026-11-22.
 - `web/src/modules/lab/lab-workspace.tsx`: `editorError` gắn lại lỗi parse khi có `error.position`, bỏ qua khi `prepareDump` đã xóa khối `COPY`/`LOCK` (`removedAny`) vì vị trí khi đó không khớp chuỗi trong ô soạn.
 - `web/e2e/golden-path.spec.ts`: thêm `ControlOrMeta+a` trước `ControlOrMeta+Enter`, đúng hành vi thật (bôi đen cả khối rồi chạy) sau khi Task113/114 đổi Ctrl+Enter thành "chạy câu tại con trỏ"; assertion giữ nguyên 3 dòng.
 
-Số đo thật, `npx playwright test e2e/sql-editor.spec.ts e2e/golden-path.spec.ts e2e/lab.spec.ts` trên bản `npm run build` mới (`API_ORIGIN=https://api.example.invalid`, `E2E_PORT=3128`): **55 passed, 0 failed (2,6 phút)**. Baseline cùng bộ lệnh trước khi sửa: **9 failed / 46 passed** (golden-path 4, lab.spec 4, sql-editor mobile 1).
+Số đo thật, `npx playwright test e2e/sql-editor.spec.ts e2e/golden-path.spec.ts e2e/lab.spec.ts` trên bản `npm run build` mới (`API_ORIGIN=https://api.example.invalid`, `E2E_PORT=3128`): **55 passed, 0 failed (2,6 phút)**; chạy lại lần hai độc lập (`E2E_PORT=3131`): **55 passed, 0 failed (2,7 phút)**. Baseline cùng bộ lệnh trước khi sửa: **9 failed / 46 passed** (golden-path 4, lab.spec 4, sql-editor mobile 1).
 
 ## AC2 — gofmt
 `cd api && gofmt -l .` không in gì. Chỉ định dạng: `internal/ai/ai_test.go` (2 dòng trống cuối) và `internal/ai/inline_complete_test.go` (thụt lề struct tag). `go test -p 1 ./internal/ai` → `ok 3.369s`.
@@ -30,5 +30,5 @@ Trên `main` spec này có 2 test đỏ thật (`AC3 phiên hết hạn giữa c
 
 ## Chưa làm được, rủi ro còn lại
 - **Chưa có reviewer độc lập**: phiên này ở độ sâu subagent tối đa nên không gọi được reviewer; tôi tự review theo QUY_TRINH §5.
-- Bộ e2e rộng (11 spec) còn 27 đỏ nhưng **không do Task158**: 14 test `lab-stage.spec.ts` đỏ vì chuỗi rỗng "Chưa có cảnh để hiện" không còn trong `#stage` (stage giờ hiện danh sách thẻ mẫu); `lab-polish.spec.ts` AC3 và `shell.spec.ts` AC2 cũng đỏ. Đã chứng minh bằng cách `git stash` phần `web/src` rồi chạy lại trên mã chưa sửa: vẫn đỏ y hệt. Cần task riêng.
+- Bộ e2e rộng (11 spec, 3 worker) còn 27 đỏ nhưng **không do Task158**. Chạy riêng từng spec trên chính mã đã sửa: `lab-stage.spec.ts` **14 failed / 26 passed** (đỏ vì chuỗi rỗng "Chưa có cảnh để hiện" không còn trong `#stage` — stage giờ hiện danh sách thẻ mẫu; và `getByRole("tab")` đếm 7 thay vì 0), `share-run.spec.ts` **10 passed** (đỏ ở lần chạy rộng chỉ do tranh tài nguyên). `lab-polish.spec.ts` AC3 Ctrl+Enter và `shell.spec.ts` AC1 đổi ngôn ngữ + AC2 phím mũi tên vẫn đỏ; đã `git stash` phần `web/src` rồi chạy lại trên mã chưa sửa: **4 failed / 18 passed, đỏ đúng 4 test đó** — tức có sẵn trên `main`, không phải hồi quy mới. Cần task riêng.
 - Chạy 3 worker song song trên máy đang tải nặng thỉnh thoảng quá hạn 30 giây (`lab.spec.ts` AC1+AC3 vi ở lần chạy 4 spec; `mysql.spec.ts` AC2 ở lần chạy 11 spec). Chạy riêng đều xanh.
