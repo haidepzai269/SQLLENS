@@ -633,5 +633,37 @@ describe("Workspace Autosave & Store (Task123)", () => {
 
       expect(autosave.hasPendingFailures()).toBe(false);
     });
+
+    // Reviewer vòng 6, lỗi 4b: lượt ghi còn ĐANG BAY khi `cancel(key)` chạy. Kịch bản thật là
+    // transaction abort lúc commit đúng lúc người dùng bấm đóng tab. Nếu chỉ xóa dấu lúc cancel
+    // thì lỗi muộn `failedKeys.add(key)` chạy sau đó và dấu sống lại — trên một key đã chết, nên
+    // `hasPendingFailures()` đúng vĩnh viễn và nút Lưu cloud chết tới khi F5.
+    it("cancel(key) thắng lượt ghi đang bay: lỗi muộn không làm dấu sống lại", async () => {
+      let rejectSave: ((err: Error) => void) | undefined;
+      const saveMock = vi.fn(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            rejectSave = reject;
+          }),
+      );
+      const autosave = createAutosave<string>({ save: saveMock, delayMs: 10 });
+
+      // Lượt ghi bắt đầu và treo (chưa settle).
+      autosave.schedule("tab-a", "SELECT 1");
+      await vi.advanceTimersByTimeAsync(20);
+      expect(saveMock).toHaveBeenCalledTimes(1);
+
+      // Người dùng đóng tab khi request còn bay.
+      autosave.cancel("tab-a");
+      expect(autosave.hasPendingFailures()).toBe(false);
+
+      // Request hỏng MUỘN, sau cancel.
+      rejectSave?.(new Error("transaction abort lúc commit"));
+      await vi.advanceTimersByTimeAsync(20);
+
+      // Không được dựng lại dấu lỗi: bản ghi đã biến mất, không còn đường ghi lại.
+      expect(autosave.hasPendingFailures()).toBe(false);
+      await expect(autosave.flushStrict()).resolves.toBeUndefined();
+    });
   });
 });

@@ -48,6 +48,23 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
   // (tab khác, hoặc hàng project) không chứng minh gì về key đang hỏng. Dùng biến vô hướng thì
   // "tab A ghi hỏng → tab B ghi được → bấm Lưu" sẽ đẩy bản cũ của A lên cloud và báo thành công.
   const failedKeys = new Set<string>();
+  /**
+   * Thế hệ của từng key, tăng mỗi khi key bị huỷ hoặc được xếp lịch lại.
+   *
+   * Cần vì một lượt ghi có thể còn ĐANG BAY khi `cancel(key)` chạy (người dùng đóng tab đúng lúc
+   * transaction chưa commit). Lượt ghi đó hỏng MUỘN, sau `cancel`, và nếu cứ `failedKeys.add(key)`
+   * thì dấu lỗi sống lại trên một key đã chết — bản ghi không còn nên không bao giờ ghi lại được,
+   * `hasPendingFailures()` đúng vĩnh viễn và nút Lưu cloud chết tới khi F5.
+   *
+   * Mỗi lượt ghi nhớ thế hệ lúc nó bắt đầu; ghi xong mà thế hệ đã đổi thì kết quả của nó không
+   * còn nghĩa (key đã bị huỷ, hoặc đã có lượt ghi mới hơn), nên bỏ qua.
+   */
+  const keyEpoch = new Map<string, number>();
+
+  const epochOf = (key: string): number => keyEpoch.get(key) ?? 0;
+  const bumpEpoch = (key: string): void => {
+    keyEpoch.set(key, epochOf(key) + 1);
+  };
 
   const onPageHide = () => {
     void flush();
@@ -57,16 +74,19 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
     window.addEventListener("pagehide", onPageHide);
   }
 
-  async function executeSave(key: string, payload: T): Promise<void> {
+  async function executeSave(key: string, payload: T, epoch: number): Promise<void> {
     try {
       await save(key, payload);
       // Key NÀY đã xuống đĩa: xóa dấu lỗi của chính nó. Không đụng key khác.
-      failedKeys.delete(key);
+      if (epoch === epochOf(key)) failedKeys.delete(key);
       onSuccess?.(key, payload);
     } catch (err) {
       // Nhớ lại: đây là đường debounce, lỗi bị nuốt vào `onError`. Không nhớ thì lần bấm Lưu
       // sau (khi `pending` đã rỗng) sẽ tưởng mọi thứ đã xuống đĩa và đẩy bản cũ lên cloud.
-      failedKeys.add(key);
+      //
+      // Bỏ qua nếu thế hệ đã đổi: key đã bị huỷ (tab bị đóng) trong lúc lượt ghi còn bay. Ghi dấu
+      // lúc này là dấu lỗi vĩnh viễn trên bản ghi không còn tồn tại.
+      if (epoch === epochOf(key)) failedKeys.add(key);
       onError?.(err, key, payload);
     }
   }
@@ -81,7 +101,8 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
 
     const timer = setTimeout(async () => {
       pending.delete(key);
-      const promise = executeSave(key, payload);
+      const epoch = epochOf(key);
+      const promise = executeSave(key, payload, epoch);
       inFlight.add(promise);
       try {
         await promise;
@@ -105,10 +126,16 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
       for (const [pendingKey, item] of pending.entries()) {
         clearTimeout(item.timer);
         pending.delete(pendingKey);
+        bumpEpoch(pendingKey);
       }
+      // Key đang bay (không còn trong `pending`) cũng phải đổi thế hệ, nếu không kết quả muộn của
+      // nó sẽ ghi dấu lỗi trở lại.
+      for (const flyingKey of keyEpoch.keys()) bumpEpoch(flyingKey);
       failedKeys.clear();
       return;
     }
+    // Đổi thế hệ TRƯỚC khi xóa dấu: lượt ghi đang bay của key này sẽ thấy thế hệ lệch và bỏ qua.
+    bumpEpoch(key);
     failedKeys.delete(key);
     const item = pending.get(key);
     if (!item) return;
@@ -131,7 +158,8 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
     const currentInFlight = Array.from(inFlight);
 
     const newPromises = tasks.map(async ({ key, payload }) => {
-      const p = executeSave(key, payload);
+      const epoch = epochOf(key);
+      const p = executeSave(key, payload, epoch);
       inFlight.add(p);
       try {
         await p;
@@ -166,13 +194,14 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
     const currentInFlight = Array.from(inFlight);
 
     const newPromises = tasks.map(async ({ key, payload }) => {
+      const epoch = epochOf(key);
       const p = (async () => {
         try {
           await save(key, payload);
-          failedKeys.delete(key);
+          if (epoch === epochOf(key)) failedKeys.delete(key);
           onSuccess?.(key, payload);
         } catch (err) {
-          failedKeys.add(key);
+          if (epoch === epochOf(key)) failedKeys.add(key);
           errors.push(err);
           onError?.(err, key, payload);
         }

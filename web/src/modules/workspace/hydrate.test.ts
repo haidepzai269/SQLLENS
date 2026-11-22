@@ -1,6 +1,6 @@
 import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { bootWorkspace, disposeWorkspace, flushWorkspace } from "./hydrate";
+import { bootWorkspace, disposeWorkspace, flushWorkspace, hasUnflushedFailures } from "./hydrate";
 import { useWorkspaceStore } from "./store";
 import type { WorkspaceScope } from "./types";
 
@@ -248,5 +248,108 @@ describe("Workspace Hydrate & Persistence (Task124)", () => {
 
     // Phải trả về gần trần 1500 ms, không treo tới hạn test.
     expect(elapsed).toBeLessThan(4000);
+  }, 10000);
+
+  // Reviewer vòng 6, lỗi 4a: xoá tab/project lúc đĩa hỏng làm `failedWrites` giữ key `tab:<id>`
+  // VĨNH VIỄN (bản ghi đã rời store nên không còn lượt ghi nào dùng lại key đó) →
+  // `hasUnflushedFailures()` đúng mãi → nút Lưu cloud chết tới khi F5, và chặn luôn việc lưu
+  // những dự án khác không liên quan. Xoá hỏng chỉ để lại bản ghi ma, KHÔNG được chặn đẩy cloud.
+  it("4a: xoá tab lúc đĩa hỏng KHÔNG được khoá nút Lưu vĩnh viễn", async () => {
+    const flag = { broken: false };
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (name === "tabs" && flag.broken) {
+                s.delete = (() => {
+                  throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                }) as IDBObjectStore["delete"];
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const { projectId, tabId } = await bootWorkspace(GUEST_SCOPE, { factory: sabotaged, delayMs: 10 });
+    const second = useWorkspaceStore.getState().createTab(projectId);
+    const secondId = second?.id ?? useWorkspaceStore.getState().tabs[1].id;
+    await waitMs(40);
+
+    // Xoá tab trong lúc đĩa hỏng: lượt xoá thất bại.
+    flag.broken = true;
+    useWorkspaceStore.getState().closeTab(secondId);
+    await waitMs(60);
+
+    // Đĩa hết lỗi.
+    flag.broken = false;
+
+    // Phải cho Lưu tiếp: bản ghi ma trên đĩa không nằm trong payload nên nội dung đẩy vẫn đúng.
+    await expect(flushWorkspace()).resolves.toBeUndefined();
+    expect(hasUnflushedFailures()).toBe(false);
+    void tabId;
+  }, 10000);
+
+  // Cùng gốc lỗi 4a nhưng ở hàng project, và hệ quả nặng hơn: dự án ma bị xoá hỏng nằm NGOÀI
+  // payload của dự án đang đẩy, nên chặn toàn cục là chặn nhầm — người dùng không lưu được cả
+  // những dự án không liên quan gì tới lỗi.
+  it("4a: xoá project lúc đĩa hỏng KHÔNG được chặn việc Lưu dự án khác", async () => {
+    const flag = { broken: false };
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (name === "projects" && flag.broken) {
+                const realDelete = s.delete.bind(s);
+                s.delete = ((key: IDBValidKey) => {
+                  throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                }) as IDBObjectStore["delete"];
+                void realDelete;
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const { projectId } = await bootWorkspace(GUEST_SCOPE, { factory: sabotaged, delayMs: 10 });
+    const other = useWorkspaceStore.getState().createProject({ name: "Dự án khác", engine: "postgres" });
+    await waitMs(60);
+
+    // Xoá dự án ĐẦU trong lúc đĩa hỏng: lượt xoá thất bại.
+    flag.broken = true;
+    useWorkspaceStore.getState().deleteProject(projectId);
+    await waitMs(60);
+
+    flag.broken = false;
+
+    // Dự án còn lại phải lưu được bình thường.
+    await expect(flushWorkspace()).resolves.toBeUndefined();
+    expect(hasUnflushedFailures()).toBe(false);
+    void other;
   }, 10000);
 });

@@ -33,13 +33,29 @@ interface WorkspaceSession {
    */
   projectWrites: Set<Promise<void>>;
   /**
-   * Số lượt ghi hàng project đã HỎNG và chưa được sửa bằng một lượt ghi thành công sau đó.
+   * Key nào có lượt GHI (upsert) hàng project đã hỏng và chưa ghi lại được.
    *
    * Cần riêng khỏi `projectWrites`: promise hỏng đã settle thì rời khỏi Set, nên
-   * `flushWorkspace()` không còn thấy nó. Không có bộ đếm này thì "đổi tên khi đĩa đầy rồi bấm
-   * Lưu" sẽ đẩy tên CŨ lên cloud và báo thành công — vế còn hở của N1 (reviewer vòng 5, R1).
+   * `flushWorkspace()` không còn thấy nó. Không có nó thì "đổi tên khi đĩa đầy rồi bấm Lưu" sẽ đẩy
+   * tên CŨ lên cloud và báo thành công — vế còn hở của N1 (reviewer vòng 5, R1).
+   *
+   * CHỈ chứa lỗi GHI, không chứa lỗi XOÁ: xem `failedDeletes`.
    */
   failedWrites: Set<string>;
+  /**
+   * Lượt XOÁ đã hỏng, giữ lại hàm để thử lại ở lần `flushWorkspace()` sau.
+   *
+   * Tách khỏi `failedWrites` vì hai loại lỗi này khác nhau về hậu quả. Ghi hỏng nghĩa là bản trên
+   * đĩa CŨ hơn trong RAM → phải chặn đẩy lên cloud, nếu không đẩy bản cũ. Còn xoá hỏng chỉ để lại
+   * một bản ghi ma trên đĩa; bản ghi đó KHÔNG còn trong store nên không nằm trong payload, và nội
+   * dung đẩy lên vẫn đúng.
+   *
+   * Gộp chung vào `failedWrites` (bản sửa R1 đầu tiên) gây kẹt thật, reviewer vòng 6 đo được:
+   * xoá một tab lúc đĩa hỏng → key `tab:<id>` không bao giờ được dùng lại (bản ghi đã biến mất
+   * khỏi store) → `hasUnflushedFailures()` đúng MÃI MÃI, nút Lưu cloud chết tới khi F5, và nó chặn
+   * luôn việc lưu những dự án khác không liên quan.
+   */
+  failedDeletes: Map<string, () => Promise<void>>;
   unsubscribe: () => void;
 }
 
@@ -72,6 +88,19 @@ export async function flushWorkspace(): Promise<void> {
   // công. Đây là vế còn hở của N1 — `flushStrict` chỉ biết key của tab, không biết hàng project.
   if (session.failedWrites.size > 0) {
     throw new Error("Còn dữ liệu chưa ghi được xuống máy");
+  }
+  // Lượt XOÁ đã hỏng thì thử lại ở đây, KHÔNG chặn đẩy cloud: bản ghi ma trên đĩa không nằm trong
+  // payload nên nội dung đẩy lên vẫn đúng. Thử lại thất bại thì để lần sau; nếu chặn ở đây thì xoá
+  // một tab lúc đĩa hỏng sẽ khoá nút Lưu vĩnh viễn (reviewer vòng 6, lỗi 4a).
+  if (session.failedDeletes.size > 0) {
+    for (const [key, retry] of Array.from(session.failedDeletes.entries())) {
+      try {
+        await retry();
+        session.failedDeletes.delete(key);
+      } catch {
+        // Vẫn hỏng: giữ lại để lần flush sau thử tiếp. Không ném.
+      }
+    }
   }
 }
 
@@ -275,17 +304,30 @@ export async function bootWorkspace(
     // Giữ lại promise GỐC trong `projectWrites` để `flushWorkspace()` chờ và biết ghi hỏng;
     // phần báo trạng thái lỗi lên store gắn riêng, không nuốt mất lỗi của promise gốc.
     const projectWrites = new Set<Promise<void>>();
-    // Key nào có lượt ghi hàng project đã hỏng và chưa ghi lại được. Phải theo TỪNG key: một lượt
-    // ghi thành công của key khác không chứng minh gì về key này (cùng lý do như `failedKeys`
-    // trong `autosave.ts`).
+    // Key nào có lượt GHI (upsert) hàng project đã hỏng và chưa ghi lại được. Phải theo TỪNG key:
+    // một lượt ghi thành công của key khác không chứng minh gì về key này (cùng lý do như
+    // `failedKeys` trong `autosave.ts`).
     const failedWrites = new Set<string>();
-    const trackProjectWrite = (key: string, p: Promise<void>) => {
+    // Lượt XOÁ đã hỏng, giữ hàm để thử lại. Xem `WorkspaceSession.failedDeletes`.
+    const failedDeletes = new Map<string, () => Promise<void>>();
+
+    /**
+     * @param run Hàm tạo promise, không phải promise sẵn — cần giữ lại để THỬ LẠI khi hỏng.
+     * @param kind `write` = ghi/upsert (hỏng thì mất dữ liệu, phải chặn đẩy cloud);
+     *             `delete` = xoá (hỏng chỉ để lại bản ghi ma, phải thử lại chứ không chặn).
+     */
+    const trackProjectWrite = (key: string, run: () => Promise<void>, kind: "write" | "delete" = "write") => {
+      const p = run();
       projectWrites.add(p);
       void p.catch(() => undefined).finally(() => projectWrites.delete(p));
       void p.then(
-        () => failedWrites.delete(key),
+        () => {
+          if (kind === "write") failedWrites.delete(key);
+          else failedDeletes.delete(key);
+        },
         (err) => {
-          failedWrites.add(key);
+          if (kind === "write") failedWrites.add(key);
+          else failedDeletes.set(key, run);
           useWorkspaceStore.getState().setSaveState("error", err instanceof Error ? err.message : String(err));
         },
       );
@@ -314,7 +356,7 @@ export async function bootWorkspace(
           // Hủy phần đang chờ ghi của tab này trước, nếu không debounce sẽ ghi lại
           // tab vừa đóng và sau F5 nó sống lại.
           tabAutosave.cancel(prev.id);
-          trackProjectWrite(`tab:${prev.id}`, repo!.deleteTab(prev.id));
+          trackProjectWrite(`tab:${prev.id}`, () => repo!.deleteTab(prev.id), "delete");
         }
       }
 
@@ -331,7 +373,7 @@ export async function bootWorkspace(
           prev.cloud?.remoteUpdatedAt !== proj.cloud?.remoteUpdatedAt ||
           prev.cloud?.stamp !== proj.cloud?.stamp
         ) {
-          trackProjectWrite(`project:${proj.id}`, repo!.upsertProject(proj));
+          trackProjectWrite(`project:${proj.id}`, () => repo!.upsertProject(proj));
         }
       }
 
@@ -342,7 +384,7 @@ export async function bootWorkspace(
           for (const tab of lastTabs) {
             if (tab.projectId === prev.id) tabAutosave.cancel(tab.id);
           }
-          trackProjectWrite(`project:${prev.id}`, repo!.deleteProjectCascade(prev.id));
+          trackProjectWrite(`project:${prev.id}`, () => repo!.deleteProjectCascade(prev.id), "delete");
         }
       }
 
@@ -357,6 +399,7 @@ export async function bootWorkspace(
       tabAutosave,
       projectWrites,
       failedWrites,
+      failedDeletes,
       unsubscribe,
     };
 
