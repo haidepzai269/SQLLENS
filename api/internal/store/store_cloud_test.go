@@ -23,6 +23,11 @@ var cloudTables = []string{"cloud_projects", "cloud_tabs", "cloud_project_member
 // Phải so Hostname() đã parse chứ không dùng strings.Contains: URL
 // "postgres://u:p@localhost:5432@db.invalid:5432/app" có chứa "@localhost:" nhưng
 // thật sự trỏ tới db.invalid.
+//
+// Chỉ so Hostname() là chưa đủ: chuỗi kết nối PostgreSQL còn nhận host từ query, và driver
+// (pgx) ưu tiên query hơn phần authority. `postgres://u:p@localhost:5432/app?host=db.invalid`
+// có Hostname() là localhost nhưng vẫn kết nối tới db.invalid, nên test xóa bảng trên một
+// database thật ở xa. Vì vậy từ chối luôn các khóa query đổi được đích: host, hostaddr, service.
 func guardLocalOnly(raw string) error {
 	u, err := url.Parse(raw)
 	if err != nil {
@@ -32,6 +37,13 @@ func guardLocalOnly(raw string) error {
 	case "postgres", "postgresql":
 	default:
 		return fmt.Errorf("từ chối chạy: URL phải dùng scheme postgres, nhận %q; test chỉ cho phép database ở localhost", u.Scheme)
+	}
+	// So khóa không phân biệt hoa thường: driver cũng không phân biệt.
+	for key := range u.Query() {
+		switch strings.ToLower(key) {
+		case "host", "hostaddr", "service":
+			return fmt.Errorf("từ chối chạy: URL có tham số %q ghi đè đích kết nối; test xóa bảng nên chỉ cho phép database ở localhost", key)
+		}
 	}
 	switch u.Hostname() {
 	case "localhost", "127.0.0.1", "::1":
@@ -623,6 +635,8 @@ func TestCloudRoleAlreadyExists(t *testing.T) {
 // TestCloudLocalhostGuard là AC7: URL không phải localhost phải bị từ chối TRƯỚC khi kết nối.
 // Ca "postgres://u:p@localhost:5432@db.invalid:5432/app" là lý do không dùng strings.Contains:
 // chuỗi đó có "@localhost:" nhưng Hostname() thật là db.invalid.
+// Các ca query `host`/`hostaddr`/`service` là AC4 của Task158: Hostname() vẫn là localhost
+// nhưng pgx đọc query sau phần authority nên đích kết nối thật là host trong query.
 func TestCloudLocalhostGuard(t *testing.T) {
 	if os.Getenv("T149_DATABASE_URL") == "" {
 		t.Skip("bỏ qua: chưa đặt T149_DATABASE_URL (cần Postgres trong Docker)")
@@ -634,6 +648,14 @@ func TestCloudLocalhostGuard(t *testing.T) {
 		"postgres://u:p@127.0.0.1.evil.com:5432/app",
 		"postgres://u:p@localhost.evil.com/app",
 		"mysql://u:p@localhost:5432/app",
+		// AC4: query ghi đè đích kết nối.
+		"postgres://u:p@localhost:5432/app?host=db.invalid",
+		"postgres://u:p@localhost:5432/app?host=db.invalid:5432",
+		"postgres://u:p@localhost:5432/app?hostaddr=10.0.0.7",
+		"postgres://u:p@localhost:5432/app?service=prod",
+		"postgres://u:p@localhost:5432/app?sslmode=disable&host=db.invalid",
+		"postgres://u:p@localhost:5432/app?HOST=db.invalid", // tên tham số không phân biệt hoa thường
+		"postgres://u:p@127.0.0.1:5432/app?host=db.invalid",
 	}
 	for _, raw := range refuse {
 		if err := guardLocalOnly(raw); err == nil {
@@ -649,6 +671,9 @@ func TestCloudLocalhostGuard(t *testing.T) {
 		"postgres://u:p@localhost:5432/app",
 		"postgres://u:p@127.0.0.1:54490/app?sslmode=disable",
 		"postgres://u:p@[::1]:5432/app",
+		// Query khác không đổi đích kết nối thì vẫn phải qua.
+		"postgres://u:p@localhost:5432/app?application_name=sqllens&connect_timeout=5",
+		"postgres://u:p@localhost:5432/app?sslmode=disable&dbname=app",
 	} {
 		if err := guardLocalOnly(raw); err != nil {
 			t.Fatalf("phải cho qua URL %q: %v", raw, err)
