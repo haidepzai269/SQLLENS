@@ -559,6 +559,11 @@ func TestRLSEdgeCases(t *testing.T) {
 // Hồi quy Task156: các phương thức tầng store (ReplaceCloudProject, DeleteCloudProject, GetCloudProject)
 // gọi qua cloudTx có WithTenant tuyệt đối không bị rò cross-tenant, kể cả khi kẻ tấn công biết ID
 // hoặc timestamp của nạn nhân. Chạy bằng role chủ non-superuser (chân dung Neon).
+//
+// Lưu ý về tính thật của test: ba phương thức này có sẵn mệnh đề `owner_id = $2` nên chúng chặn
+// được cả khi RLS tắt. Vì vậy cuối test có thêm một truy vấn KHÔNG lọc owner — đó mới là phép
+// khẳng định phụ thuộc RLS (bỏ FORCE ROW LEVEL SECURITY thì phép này đỏ, xem
+// TestRLSOwnerRoleStillBlocked).
 func TestRLSRegressionCrossTenantStoreMethods(t *testing.T) {
 	e := newRLSEnv(t)
 	ctx := context.Background()
@@ -617,5 +622,18 @@ func TestRLSRegressionCrossTenantStoreMethods(t *testing.T) {
 	}
 	if updated.Name != "Tên mới của An" || len(updated.Tabs) != 1 || updated.Tabs[0].SQL != "SELECT 'valid';" {
 		t.Fatalf("dự án của An sau khi cập nhật: %+v", updated)
+	}
+
+	// 5. Phép khẳng định PHỤ THUỘC RLS: cùng role chủ non-superuser, ngữ cảnh tenant của An,
+	// nhưng truy vấn KHÔNG có mệnh đề owner_id. Nếu FORCE ROW LEVEL SECURITY bị gỡ, câu này
+	// thấy dự án của Bình và test đỏ — đúng điều cần canh sau mọi thay đổi tầng cloud.
+	var leaked int
+	if err := ownerStore.WithTenant(ctx, rlsUserAn, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT count(*) FROM cloud_projects WHERE id = $1`, rlsProjectBinh).Scan(&leaked)
+	}); err != nil {
+		t.Fatalf("WithTenant(An) đọc chéo: %v", err)
+	}
+	if leaked != 0 {
+		t.Fatalf("RLS không chặn: ngữ cảnh của An thấy %d hàng của dự án Bình qua truy vấn không lọc owner", leaked)
 	}
 }

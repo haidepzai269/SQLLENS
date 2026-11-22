@@ -24,8 +24,8 @@ Role tạo bảng là owner thì **mặc định bỏ qua RLS**. Epic này phả
 | **STR103** | `Task152` | Test cross-tenant thật và test rò ngữ cảnh qua pool | Amelia | Hoàn thành 100% (chưa gọi reviewer độc lập) |
 | **STR104** | `Task153` | Kéo/đẩy dự án và xử lý xung đột | Amelia | Hoàn thành 100% + **đã sửa 2 lỗi chặn** (LỖI 4, 5) |
 | **STR104** | `Task154` | Cloud panel trong giao diện | Amelia | Hoàn thành 100% — 6/6 AC có test, 16/16 đo trên Chromium thật; **đã qua 5 vòng review độc lập** (xem `ban_giao_task154.md`) |
-| **STR105** | `Task155` | Cổng `security-audit` cho toàn Epic | Amelia | Chờ thực hiện |
-| **STR105** | `Task156` | Kiểm referrer/XSS của share và hồi quy RLS | Amelia | Chờ thực hiện |
+| **STR105** | `Task155` | Cổng `security-audit` cho toàn Epic | Amelia | Hoàn thành 100% — báo cáo `STR105/bao-cao-security-audit.md`; 0 lỗi critical/high; 3 việc còn lại vào `SP999` |
+| **STR105** | `Task156` | Kiểm referrer/XSS của share và hồi quy RLS | Amelia | Hoàn thành 100% + **đã review độc lập, sửa 3 lỗi** (`STR105/Task156/review_task156.md`) |
 
 ## Vòng sửa lỗi sau review độc lập (2026-11-21)
 
@@ -173,3 +173,25 @@ Reviewer vòng 8 **FAIL** với 4 lỗi Cao + 2 phụ. Chẩn đoán: **vòng 5,
 ## Không làm
 
 Không có cột `is_public` trên `cloud_projects` (share đã đi đường URL ở SP022). Không autosave ngầm lên cloud.
+
+## Đóng Epic: Task155 + Task156 (2026-11-22)
+
+**Task156** (kiểm referrer/XSS của share + hồi quy RLS) làm trước, rồi được **review độc lập** và
+sửa 3 lỗi — chi tiết `STR105/Task156/review_task156.md`:
+
+| Lỗi | Mức | Nội dung | Sửa |
+|---|---|---|---|
+| R1 | TB | `next.config.ts` đổi `turbopack.root` theo `process.platform` — ngoài phạm vi và vô nghĩa trên Windows (hai vế cùng ra `C:\`) | Revert |
+| R2 | TB | Test hồi quy RLS mới vẫn xanh khi tắt RLS, vì ba hàm store đều tự lọc `owner_id` | Thêm truy vấn **không lọc owner** phải trả 0 hàng; đột biến `NO FORCE` cho thấy 1 hàng |
+| R3 | Thấp | AC3 kiểm header bằng request phụ, không phải phản hồi tài liệu | Dùng `page.goto()` + `response.headers()` |
+
+**Task155** (cổng `security-audit` cho toàn Epic) chạy trên diff thật `12e078f^..a1dc71c`
+(149 file, +20.277/−165). Kết quả: **không có lỗi critical/high**; Core Rule 7 đúng (grep chạy trong
+`docker run --network none`: 0 lời gọi log nhắc tới sql/query/body/tab). Ba việc còn lại, đều không
+chặn đóng Epic, đã vào `SP999`: (F1) route cloud không có rate limit trong khi AI/MySQL có;
+(F2) trần dung lượng cloud ~100 MB/user phụ thuộc gói Neon — chờ chủ dự án; (F3) snapshot không
+giới hạn số tab.
+
+**Epic SP023 đóng 100%.** Số đo cuối: `go test ./...` 7/7 package ok (kèm 10/10 test RLS trên
+PostgreSQL 18-alpine), `npm run check` 1456 passed / 18 skipped, `npm run build` PASS, Playwright
+`share-security` 6/6 (và 18/18 khi `--repeat-each=3`).

@@ -1,23 +1,56 @@
 # Bàn giao Task156
 
-Đã làm: Khóa hai rủi ro bảo mật trọng yếu của đợt chia sẻ và cloud sync: (1) Kiểm thử bảo mật E2E Playwright trên Chromium thật chống tấn công XSS trong SQL, tab name, project name (`<img onerror>`, `<script>`, `javascript:`, `</textarea>`), mở trong iframe, và fork vào workspace — 0 dialog alert, không inject HTML DOM, dữ liệu hiển thị an toàn dưới dạng raw text; (2) Kiểm tra chặt chẽ header HTTP `Referrer-Policy: no-referrer` và thẻ `<meta name="referrer" content="no-referrer">`, chứng minh khi fetch hoặc click link ra domain ngoài thì header Referer hoàn toàn rỗng và không rò rỉ fragment `#d=`; (3) Thêm ca hồi quy RLS `TestRLSRegressionCrossTenantStoreMethods` trong `api/internal/store/tenant_rls_test.go` khẳng định các method tầng store (`ReplaceCloudProject`, `DeleteCloudProject`, `GetCloudProject`) kết nối bằng role chủ non-superuser (chân dung Neon) chặn đứng 100% truy cập trái phép cross-tenant.
+Đã làm: Khóa hai rủi ro bảo mật trọng yếu của đợt chia sẻ và cloud sync:
+
+1. Kiểm thử bảo mật E2E Playwright trên Chromium thật chống XSS trong SQL, tên tab, tên dự án
+   (`<img onerror>`, `<script>`, `javascript:`, `</textarea>`), mở trong iframe, và fork vào
+   workspace — 0 dialog alert, không inject HTML DOM, dữ liệu hiển thị an toàn dưới dạng raw text.
+2. Kiểm tra `Referrer-Policy: no-referrer` trên **phản hồi điều hướng thật** ở `/vi/share`,
+   `/en/share` và trên 307 của `/share`, kèm thẻ `<meta name="referrer" content="no-referrer">`;
+   chứng minh khi fetch hoặc click link ra domain ngoài thì header `Referer` rỗng, không rò `#d=`.
+3. Thêm ca hồi quy RLS `TestRLSRegressionCrossTenantStoreMethods` trong `api/internal/store/tenant_rls_test.go`:
+   các method tầng store (`ReplaceCloudProject`, `DeleteCloudProject`, `GetCloudProject`) kết nối
+   bằng role chủ non-superuser (chân dung Neon) không rò cross-tenant, **và** một phép khẳng định
+   không lọc `owner_id` để thật sự phụ thuộc RLS (xem mục Review bên dưới).
 
 File chính:
 - `web/e2e/share-security.spec.ts` (6 kịch bản E2E Playwright)
-- `web/next.config.ts` (bảo vệ kép `Referrer-Policy: no-referrer` cho cả `/:locale(vi|en)/share` và `/share`)
-- `web/src/app/[locale]/share/page.tsx` (thêm `referrer: "no-referrer"` vào Metadata cho thẻ meta DOM)
-- `api/internal/store/tenant_rls_test.go` (thêm test hồi quy `TestRLSRegressionCrossTenantStoreMethods`)
+- `web/next.config.ts` (`Referrer-Policy: no-referrer` cho `/:locale(vi|en)/share` và `/share`)
+- `web/src/app/[locale]/share/page.tsx` (`referrer: "no-referrer"` trong Metadata cho thẻ meta DOM)
+- `api/internal/store/tenant_rls_test.go` (`TestRLSRegressionCrossTenantStoreMethods`)
 
-Kết quả kiểm tra (số thật bằng máy):
-- E2E Playwright (`npx playwright test e2e/share-security.spec.ts`): 6/6 test PASS 100%. Chạy lặp 3 lần liên tiếp đạt chuẩn AC6 không flake: Lần 1 (8.5s), Lần 2 (12.8s), Lần 3 (11.1s).
-- RLS Tests (`go test ./internal/store/... -run RLS -v` với PostgreSQL 18.6 Docker): 9/9 test PASS 100% trong 10.58s (toàn bộ 8 test gốc của Task152 + ca hồi quy mới của Task156).
-- Toàn bộ backend Gin: `go vet ./...` sạch; `go test ./...` 7/7 package PASS 100%.
-- Toàn bộ frontend Next.js: `npm run check:i18n` sạch, `npm run typecheck` sạch, `npm run lint` sạch (0 error), `npm run test` vitest 117 file / 1.452 test PASS (18 skipped), `npm run build` PASS tối ưu production.
+## Kết quả kiểm tra (số thật bằng máy, phiên review chạy lại)
 
-Kết quả review: Sẵn sàng cho Agent DeepSeek review độc lập (Commit gốc: `dc12ee0`, Commit hiện tại: `9aa4035`).
+- E2E Playwright (`npx playwright test e2e/share-security.spec.ts`): **6/6 PASS**; lặp
+  `--repeat-each=3` hai lượt: **18/18 PASS** (12,4 s mỗi lượt) ⇒ AC6 không flake.
+- RLS (`RLS_TEST_DSN=postgres://postgres:t150@localhost:54492/app go test ./internal/store/... -run RLS -v`,
+  PostgreSQL 18-alpine Docker): **10/10 PASS**.
+- Backend: `go vet ./...` sạch; `go test ./...` **7/7 package ok**.
+- Frontend: `npm run check` **1456 passed / 18 skipped** (117 file), lint 0 error, `tsc` sạch;
+  `npm run build` **PASS**.
+- `curl -D - http://localhost:3128/share` → `307` kèm `Referrer-Policy: no-referrer`.
 
-Chưa làm được: Không có.
+## Review độc lập (2026-11-22) — 3 lỗi đã sửa
 
-Phát sinh: Không có.
+Chi tiết đầy đủ ở `_bmad-output/SP023/STR105/Task156/review_task156.md`. Tóm tắt:
 
-Việc tiếp theo cần biết: Route `/share` đã được bọc 2 lớp bảo vệ referrer (HTTP header trong `next.config.ts` và `<meta name="referrer">` trong Metadata) nên mọi navigation ra ngoài đều không phát sinh rò rỉ payload fragment. Sau khi Task156 nghiệm thu, toàn bộ Epic SP023 (Cloud sync & RLS) chính thức hoàn thành 100%.
+| Lỗi | Mức | Nội dung | Sửa |
+|---|---|---|---|
+| R1 | Trung bình | `next.config.ts` bị đổi `turbopack.root` sang nhánh `process.platform === "win32" ? path.resolve("/") : ...` — ngoài phạm vi task và **vô nghĩa** (trên Windows cả hai vế đều ra `C:\`) | Revert về `path.resolve(process.cwd(), "../../..")`; build lại PASS |
+| R2 | Trung bình | Test hồi quy mới **không thực sự phụ thuộc RLS**: ba hàm store đều có `owner_id = $2` nên vẫn xanh khi RLS tắt. Đột biến `NO FORCE` cho thấy dữ liệu chéo vẫn đọc được | Thêm bước 5: truy vấn **không lọc owner** qua `WithTenant(An)` phải trả 0 hàng. Đột biến `NO FORCE` ⇒ thấy 1 hàng, tức phép mới đỏ đúng lúc |
+| R3 | Thấp | AC3 kiểm header bằng `page.request.get` (request phụ), không phải phản hồi tài liệu mà trình duyệt nhận | Đổi sang `page.goto()` + `response.headers()["referrer-policy"]` cho cả vi và en |
+
+## Chưa làm được
+
+Không có.
+
+## Phát sinh
+
+Không phát sinh lỗi mới. Hai điểm ghi nhận **không** thuộc phạm vi task, đã ghi `SP999`
+(từ Task155): route cloud thiếu rate limit; snapshot không giới hạn số tab.
+
+## Việc tiếp theo cần biết
+
+Epic SP023 đóng sau Task155. Ba lớp bảo vệ referrer hiện có: header ở `next.config.ts` cho
+`/:locale(vi|en)/share` và `/share` (phủ cả 307), cộng `<meta name="referrer">` trong Metadata.
+Đừng bỏ entry `/share`: nó là thứ duy nhất phủ phản hồi chuyển hướng của đường dẫn không có locale.

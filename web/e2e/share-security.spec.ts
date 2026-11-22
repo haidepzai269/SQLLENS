@@ -180,15 +180,17 @@ test.describe("Bảo mật Share Snapshot (Task156)", () => {
   });
 
   test("AC3: Header Referrer-Policy: no-referrer có mặt trên /vi/share và /en/share", async ({ page }) => {
-    // 1. Kiểm tra HTTP response header trên /vi/share
-    const resVi = await page.request.get("/vi/share");
-    expect(resVi.headers()["referrer-policy"]).toBe("no-referrer");
+    // 1. Kiểm đúng response mà TRÌNH DUYỆT nhận được khi điều hướng thật, không phải một
+    // request phụ cùng đường dẫn: header trên tài liệu là thứ quyết định referrer của trang.
+    const navVi = await page.goto("/vi/share");
+    if (!navVi) throw new Error("không nhận được response khi mở /vi/share");
+    expect(navVi.headers()["referrer-policy"]).toBe("no-referrer");
 
-    // 2. Kiểm tra HTTP response header trên /en/share
-    const resEn = await page.request.get("/en/share");
-    expect(resEn.headers()["referrer-policy"]).toBe("no-referrer");
+    const navEn = await page.goto("/en/share");
+    if (!navEn) throw new Error("không nhận được response khi mở /en/share");
+    expect(navEn.headers()["referrer-policy"]).toBe("no-referrer");
 
-    // 3. Kiểm tra thẻ <meta name="referrer" content="no-referrer"> trong DOM
+    // 2. Kiểm tra thẻ <meta name="referrer" content="no-referrer"> trong DOM
     await page.goto("/vi/share");
     const meta = page.locator('meta[name="referrer"]');
     await expect(meta).toHaveAttribute("content", "no-referrer");

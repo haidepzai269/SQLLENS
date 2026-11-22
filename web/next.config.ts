@@ -38,7 +38,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
-    root: process.platform === "win32" ? path.resolve("/") : path.resolve(process.cwd(), "../../.."),
+    root: path.resolve(process.cwd(), "../../.."),
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],
