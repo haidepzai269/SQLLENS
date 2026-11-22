@@ -4,7 +4,7 @@
 // hỏng. Map đó nằm ở cấp module nên sống lâu hơn phiên đăng nhập. Nếu đăng xuất mà không dọn,
 // người đăng nhập sau trong cùng tab có thể PUT vào dự án cloud của người trước.
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "./auth-provider";
 
@@ -41,10 +41,26 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  cleanup();
   vi.unstubAllGlobals();
 });
 
 describe("AuthProvider — dọn bộ nhớ cloud khi mất phiên", () => {
+  // Mount mà /api/me trả 401: tab đang là khách. Map ở cấp module có thể còn liên kết của phiên
+  // trước (AuthProvider bị dựng lại khi đổi route), nên đường này cũng phải dọn.
+  it("mount gặp 401 cũng dọn liên kết còn sót", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) }) as Response));
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("mark-anon").textContent).toBe("anon"));
+    expect(forgetMock).toHaveBeenCalledTimes(1);
+  });
+
   it("markAnon xóa liên kết cloud còn kẹt trong bộ nhớ", async () => {
     render(
       <AuthProvider>
@@ -52,6 +68,7 @@ describe("AuthProvider — dọn bộ nhớ cloud khi mất phiên", () => {
       </AuthProvider>,
     );
     await waitFor(() => expect(screen.getByTestId("mark-anon").textContent).toBe("user"));
+    // Mount thành công thì không dọn gì: đang là người dùng thật.
     expect(forgetMock).not.toHaveBeenCalled();
 
     screen.getByTestId("mark-anon").click();
@@ -59,9 +76,7 @@ describe("AuthProvider — dọn bộ nhớ cloud khi mất phiên", () => {
     expect(forgetMock).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(screen.getByTestId("mark-anon").textContent).toBe("anon"));
   });
-
-  it("refreshUser gặp 401 cũng dọn, không chỉ markAnon", async () => {
-    let call = 0;
+  it("refreshUser gặp 401 cũng dọn, không chỉ markAnon", async () => {    let call = 0;
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {

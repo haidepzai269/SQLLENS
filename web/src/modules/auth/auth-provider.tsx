@@ -40,7 +40,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const ac = new AbortController();
     fetch("/api/me", { credentials: "same-origin", cache: "no-store", signal: ac.signal })
       .then(async (r) => {
-        if (r.status === 401) return setStatus("anon");
+        if (r.status === 401) {
+          // Lần mount đầu trong tab mới thì Map vốn rỗng, nhưng AuthProvider bị dựng lại khi đi
+          // qua lại giữa các route còn Map thì nằm ở cấp module — nên vẫn phải dọn ở đây.
+          forgetUnpersistedLinks();
+          return setStatus("anon");
+        }
         if (!r.ok) return setStatus("unavailable");
         const me = (await r.json()) as Me;
         if (typeof me?.id !== "string" || typeof me.name !== "string") return setStatus("unavailable");
