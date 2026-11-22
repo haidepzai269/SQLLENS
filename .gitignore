@@ -16,5 +16,8 @@ KEY_CAN_LAY.md
 Thumbs.db
 .claude/settings.local.json
 .claude/worktrees/
+# Junction tới .claude/skills, để DSH (DeepSeek Harness) quét được skill của dự án.
+# DSH không đọc .claude/skills; nó quét .agents/skills. Junction này không phải file thật.
+.agents/skills
 .worktrees/
 graphify-out/
