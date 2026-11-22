@@ -77,6 +77,20 @@ Vòng 2 tưởng đã ổn, nhưng reviewer độc lập kết luận **FAIL**: 
 
 Bài học test: hai ca đua ban đầu **xanh kể cả khi code sai** (đổi tên) hoặc **đỏ vì lý do khác** (xóa dự án). Phải ép đúng cửa sổ đua — thao tác **bên trong** vòng mạng — thì test mới canh đúng điều muốn canh. Đã kiểm bằng 6 đột biến ngược, cả 6 đều làm test đỏ.
 
+## Vòng sửa thứ tư: F3 chưa đóng hết, thêm 2 lỗi mới (2026-11-22)
+
+Reviewer vòng 4 xác nhận F1/F2/F4 đã đúng nhưng vẫn **FAIL**: F3 sửa nửa vời và bản sửa sinh thêm lỗi.
+
+| Lỗi | Mức | Đo được trước khi sửa |
+|---|---|---|
+| N1: `flushStrict()` chỉ thấy lỗi của chính nó, không thấy lỗi ghi đã xảy ra từ trước | Trung bình | `SAVE_STATE: error` nhưng `KET_QUA_PUSH: ok`, `PAYLOAD_SQL: ""` |
+| N2: `pullProject`/`pullIntoProject` không kiểm thế hệ phiên | Trung bình | `LINK_SAU_KHI_MAT_PHIEN: {"remoteId":"remote-cu",...}` |
+| N3: `disposeWorkspace()` chờ `projectWrites` không có trần | Thấp | `DISPOSE: TREO sau 3014 ms` |
+
+Đã sửa cả ba, `npm run check` **1436 passed / 18 skipped**, `tsc` sạch. Còn N4 (dự án mồ côi trên cloud khi phiên đổi giữa lúc đẩy) ghi vào "vấn đề đã biết".
+
+**Bài học cho Epic sau:** một bản sửa chỉ đóng được đúng cửa sổ nó nghĩ tới. F3 vòng 3 canh "ghi hỏng ngay trong lượt flush" nhưng bỏ sót "ghi đã hỏng từ trước". Khi sửa lỗi có trạng thái, phải hỏi: trạng thái hỏng ấy còn sống được qua bao lâu, và ai đó đọc nó ở đâu?
+
 ## Không làm
 
 Không có cột `is_public` trên `cloud_projects` (share đã đi đường URL ở SP022). Không autosave ngầm lên cloud.

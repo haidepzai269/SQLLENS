@@ -39,9 +39,25 @@ Cả ba đã sửa, mỗi lỗi có test đỏ trước / xanh sau, chứng minh
 
 **Bài học về test:** ca "đổi tên trong lúc chờ mạng" ban đầu **xanh kể cả khi code sai**, vì lượt ghi tên và lượt ghi đè chạy đua và trên máy này lượt ghi tên luôn về sau. Phải đổi tên **bên trong** vòng mạng rồi `await flushWorkspace()` mới tất định. Tương tự, ca "xóa dự án" ban đầu đỏ vì lý do khác (`LOCAL_NOT_FOUND` ở bước đọc trước khi gọi mạng) chứ không phải vì nhánh `!patched` — sửa lại cho đúng cửa sổ đua thì mới canh đúng điều muốn canh.
 
+## Vòng sửa thứ tư: F3 sửa nửa vời + 2 lỗi mới
+
+Reviewer vòng 4 xác nhận F1/F2/F4 đã đúng (8 đột biến đều làm test đỏ) nhưng kết luận **FAIL** vì F3 chưa đóng hết lỗ hổng và hai lỗi mới sinh ra từ chính bản sửa:
+
+| Lỗi | Mức | Nội dung | Đo được trước khi sửa |
+|---|---|---|---|
+| N1 | Trung bình | `flushStrict()` chỉ thấy lỗi của **chính nó**. Đĩa đầy từ lúc đang gõ thì lượt debounce hỏng, `pending` rỗng, lúc bấm Lưu không có gì để ghi nên "thành công" trong khi IndexedDB vẫn giữ bản cũ | `SAVE_STATE: error`, `KET_QUA_PUSH: ok`, `PAYLOAD_SQL: ""` |
+| N2 | Trung bình | Chỉ `pushProject` kiểm thế hệ phiên; `pullProject`/`pullIntoProject` thì không. Mất phiên giữa lúc đang kéo → dự án local bị gắn `cloud` của người dùng cũ | `LINK_SAU_KHI_MAT_PHIEN: {"remoteId":"remote-cu",...}` |
+| N3 | Thấp | `disposeWorkspace()` `await Promise.allSettled(projectWrites)` không có trần; một transaction treo làm treo cả `bootWorkspace()` | `DISPOSE: TREO sau 3014 ms` |
+
+Sửa: `autosave.ts` nhớ `lastFailure` tới khi có một lượt ghi thành công; `sync.ts` đọc `saveState` trước khi gọi mạng; `pullProject`/`pullIntoProject` kiểm thế hệ và ném `AUTH_REQUIRED` **trước** khi ghi; `disposeWorkspace` có trần 1500 ms.
+
+Hai lớp N1 bù nhau — đã kiểm: phá riêng lớp này thì lớp kia chặn, phá **cả hai** thì `calls: 1` và test đỏ. Ghi lại vì nếu chỉ phá một lớp mà test vẫn xanh thì rất dễ tưởng test vô dụng.
+
+**N4 (đã biết, không sửa):** khi `pushProject` phát hiện phiên đã đổi thì nó **đã POST xong**, nên có thể còn một dự án mồ côi trên cloud. Không ai dọn, và giao diện chỉ hiện `error.AUTH_REQUIRED`. Chấp nhận cho V1 — an toàn hơn ghi nhầm vào dự án của người khác — nhưng nếu sau này có dọn dẹp thì đây là chỗ cần xử lý.
+
 ## Kiểm tra
 
-- `npm run check`: **1434 passed | 18 skipped**, 117 file pass, 0 error.
+- `npm run check`: **1436 passed | 18 skipped**, 117 file pass, 0 error (1 cảnh báo cũ ngoài phạm vi ở `e2e/plan-explain.spec.ts`).
 - `npx tsc --noEmit`: sạch.
 - Trình duyệt thật (Chromium, bản `next build` + `next start`) — **16/16 PASS**:
 
