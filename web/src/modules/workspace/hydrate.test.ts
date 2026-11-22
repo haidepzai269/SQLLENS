@@ -1,8 +1,10 @@
 import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { openWorkspaceDb } from "./db";
 import { bootWorkspace, disposeWorkspace, flushWorkspace, hasUnflushedFailures } from "./hydrate";
+import { getRepository } from "./repository";
 import { useWorkspaceStore } from "./store";
-import type { WorkspaceScope } from "./types";
+import type { WorkspaceProject, WorkspaceScope, WorkspaceTab } from "./types";
 
 const GUEST_SCOPE: WorkspaceScope = { kind: "guest" };
 const USER_SCOPE: WorkspaceScope = { kind: "user", userId: "user-123" };
@@ -246,8 +248,8 @@ describe("Workspace Hydrate & Persistence (Task124)", () => {
     await disposeWorkspace();
     const elapsed = Date.now() - started;
 
-    // Phải trả về gần trần 1500 ms, không treo tới hạn test.
-    expect(elapsed).toBeLessThan(4000);
+    // Phải trả về gần ngân sách flush, không treo tới hạn test.
+    expect(elapsed).toBeLessThan(5000);
   }, 10000);
 
   // Reviewer vòng 6, lỗi 4a: xoá tab/project lúc đĩa hỏng làm `failedWrites` giữ key `tab:<id>`
@@ -403,7 +405,7 @@ describe("Workspace Hydrate & Persistence (Task124)", () => {
     await flushWorkspace();
     const elapsed = Date.now() - started;
 
-    expect(elapsed).toBeLessThan(4000);
+    expect(elapsed).toBeLessThan(5000);
   }, 15000);
 
   // Reviewer vòng 7, N4: trần tính cho TỪNG entry cộng dồn thành (số entry) × trần, và số entry
@@ -462,7 +464,7 @@ describe("Workspace Hydrate & Persistence (Task124)", () => {
     await flushWorkspace();
     const elapsed = Date.now() - started;
 
-    expect(elapsed).toBeLessThan(4000);
+    expect(elapsed).toBeLessThan(5000);
   }, 20000);
   // TÊN key nên đĩa hết lỗi rồi vẫn kẹt vĩnh viễn — `hasUnflushedFailures()` đúng mãi, chặn cả
   // những dự án khác không liên quan, và xoá chính dự án đó cũng không gỡ được.
@@ -558,4 +560,422 @@ describe("Workspace Hydrate & Persistence (Task124)", () => {
     const tabs = useWorkspaceStore.getState().tabs;
     expect(tabs.some((t) => t.id === second.id)).toBe(false);
   }, 15000);
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // Vòng 8: reviewer đo được 4 lỗi Cao + 2 phụ trên bản dùng "sổ nợ" thủ công. Bản viết lại bỏ hẳn
+  // sổ nợ và đối chiếu đĩa với store, nên các test dưới đây đo TRỰC TIẾP trên đĩa: đó là sự thật duy
+  // nhất mà code dựa vào, không phải một tập trạng thái có thể quên cập nhật.
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** Đọc thẳng nội dung đĩa, không đi qua store hay bộ nhớ đệm nào. */
+  async function readDisk(): Promise<{ projects: WorkspaceProject[]; tabs: WorkspaceTab[] }> {
+    const db = await openWorkspaceDb(factory);
+    try {
+      const repo = getRepository(db);
+      const projects = await repo.listProjects(GUEST_SCOPE);
+      const perProject = await Promise.all(projects.map((p) => repo.listTabs(p.id)));
+      return { projects, tabs: perProject.flat() };
+    } finally {
+      db.close();
+    }
+  }
+
+  /**
+   * Chặn `put` trên một store: ném lỗi quota khi `shouldFail` trả về true.
+   *
+   * `shouldFail` nhận giá trị sắp ghi để test chọn đúng lượt nào hỏng — nếu nó luôn trả false thì
+   * helper này KHÔNG chặn gì cả, và mọi test dùng nó sẽ xanh oan.
+   */
+  function sabotagePut(storeName: "projects" | "tabs", shouldFail: (value: { name?: string; sql?: string }) => boolean): IDBFactory {
+    const realOpen = factory.open.bind(factory);
+    return {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (name === storeName) {
+                const realPut = s.put.bind(s);
+                s.put = ((value: { name?: string; sql?: string }, key?: IDBValidKey) => {
+                  if (shouldFail(value)) {
+                    throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                  }
+                  return realPut(value, key);
+                }) as IDBObjectStore["put"];
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+  }
+
+  // Lỗi 1 (Cao): hàng project không có "thế hệ", nên một lượt ghi CŨ chạy muộn xoá mất dấu lỗi của
+  // lượt MỚI. Kịch bản reviewer đo: đổi tên TEN-A (chậm) → đổi tên TEN-B (hỏng) → TEN-A xong muộn
+  // → đĩa còn TEN-A, store là TEN-B, mà Lưu vẫn báo OK và đẩy TEN-A lên cloud.
+  //
+  // Bản đối chiếu không có "dấu lỗi" nào để xoá: nó đọc đĩa, thấy TEN-A ≠ TEN-B, ghi lại TEN-B.
+  it("V8-1: lượt ghi cũ chạy muộn không được để đĩa lệch store rồi Lưu báo thành công", async () => {
+    const flag = { broken: false };
+    const gateCtl: { release: () => void } = { release: () => undefined };
+    void new Promise<void>((resolve) => {
+      gateCtl.release = resolve;
+    });
+    let firstSeen = false;
+    // Lượt ghi TEN-A "xuống đĩa muộn": transaction của nó commit sau khi cổng mở, tức SAU lượt
+    // TEN-B. Mô phỏng đúng điều reviewer đo: lượt cũ settle muộn hơn lượt mới.
+    const lateWrites: Array<() => void> = [];
+
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (name === "projects") {
+                const realPut = s.put.bind(s);
+                s.put = ((value: { name?: string }, key?: IDBValidKey) => {
+                  if (!firstSeen && value?.name === "TEN-A") {
+                    firstSeen = true;
+                    // Ghi TEN-A vào một transaction KHÁC, chỉ mở khi cổng mở. Transaction hiện tại
+                    // commit ngay (rỗng) để không chặn store — đúng như một lượt ghi bị hoãn.
+                    lateWrites.push(() => {
+                      const late = opened.transaction(["projects"], "readwrite");
+                      late.objectStore("projects").put(value, key);
+                    });
+                    const fake = {} as IDBRequest<IDBValidKey>;
+                    queueMicrotask(() => fake.onsuccess?.(new Event("success") as never));
+                    return fake;
+                  }
+                  if (flag.broken && value?.name === "TEN-B") {
+                    throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                  }
+                  return realPut(value, key);
+                }) as IDBObjectStore["put"];
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const { projectId } = await bootWorkspace(GUEST_SCOPE, { factory: sabotaged, delayMs: 10 });
+
+    // Lượt 1: đổi tên TEN-A, bị hoãn.
+    useWorkspaceStore.getState().renameProject(projectId, "TEN-A");
+    await waitMs(30);
+    expect(firstSeen).toBe(true);
+
+    // Lượt 2: đổi tên TEN-B trong lúc đĩa hỏng → lượt này hỏng thật.
+    flag.broken = true;
+    useWorkspaceStore.getState().renameProject(projectId, "TEN-B");
+    await waitMs(30);
+
+    // Lượt 1 mới thật sự xuống đĩa, SAU lượt 2.
+    gateCtl.release();
+    await waitMs(0);
+    for (const write of lateWrites) write();
+    await waitMs(60);
+
+    // Đĩa hết lỗi rồi Lưu: đĩa phải khớp store (TEN-B), không được để TEN-A cũ nằm lại.
+    flag.broken = false;
+    await expect(flushWorkspace()).resolves.toBeUndefined();
+    expect(hasUnflushedFailures()).toBe(false);
+
+    const disk = await readDisk();
+    const onDisk = disk.projects.find((p) => p.id === projectId);
+    expect(onDisk?.name).toBe("TEN-B");
+    expect(useWorkspaceStore.getState().projects.find((p) => p.id === projectId)?.name).toBe("TEN-B");
+  }, 15000);
+
+  // Lỗi 2 (Cao): đường thử lại phát lại closure chụp lúc hỏng, nên nó ghi ĐĨA LÙI LẠI. Reviewer đo:
+  // đĩa TEN-B, store TEN-C, thử lại ghi TEN-B đè lên → đẩy TEN-B lên cloud.
+  //
+  // Bản đối chiếu luôn ghi giá trị HIỆN TẠI của store, nên không có closure cũ nào để phát lại.
+  // Test phải có HAI lần Lưu: lần đầu hỏng (tạo "nợ" để mà phát lại), rồi đổi tên tiếp, rồi Lưu
+  // lại. Chỉ một lần Lưu thì không có gì được phát lại và test sẽ xanh oan.
+  it("V8-2: thử lại phải ghi giá trị hiện tại của store, không ghi lại ảnh chụp cũ", async () => {
+    const flag = { broken: false };
+    const sabotaged = sabotagePut("projects", () => flag.broken);
+
+    const { projectId } = await bootWorkspace(GUEST_SCOPE, { factory: sabotaged, delayMs: 10 });
+
+    // TEN-B: lượt ghi hỏng (đĩa đầy).
+    flag.broken = true;
+    useWorkspaceStore.getState().renameProject(projectId, "TEN-B");
+    await waitMs(40);
+
+    // Lần Lưu ĐẦU: hỏng, và đây là lúc bản sổ nợ cũ chụp lại ảnh TEN-B.
+    await expect(flushWorkspace()).rejects.toThrow();
+    expect(hasUnflushedFailures()).toBe(true);
+
+    // TEN-C: đổi tên tiếp trong lúc vẫn hỏng → store là TEN-C, đĩa vẫn TEN-A cũ.
+    useWorkspaceStore.getState().renameProject(projectId, "TEN-C");
+    await waitMs(40);
+
+    // Đĩa hết lỗi rồi Lưu LẦN HAI. Thử lại phải ghi TEN-C, KHÔNG được phát lại ảnh TEN-B.
+    flag.broken = false;
+    await expect(flushWorkspace()).resolves.toBeUndefined();
+
+    const disk = await readDisk();
+    const onDisk = disk.projects.find((p) => p.id === projectId);
+    expect(onDisk?.name).toBe("TEN-C");
+    expect(onDisk?.name).not.toBe("TEN-B");
+  }, 15000);
+
+  // Lỗi 3 (Cao): `flushWorkspace()` không có trần cho các lượt ghi đang bay — reviewer đo được
+  // 8001 ms không trả về (treo vĩnh viễn). Và nếu chỉ đặt trần mà không ghi nhận "đĩa lệch store"
+  // thì lại tái sinh đúng lỗi gốc Task154: treo, không có nợ, Lưu báo OK và đẩy bản cũ.
+  //
+  // Bản đối chiếu: treo → hết ngân sách → `diskMatchesStore = false` → `hasUnflushedFailures()`
+  // đúng → chặn Lưu. Đo cả hai vế.
+  it("V8-3: lượt ghi treo vừa phải có trần, vừa phải bị coi là chưa xuống đĩa", async () => {
+    const flag = { hang: false };
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (name === "projects" && flag.hang) {
+                // Treo hẳn: không resolve, không reject.
+                s.put = (() => ({}) as IDBRequest<IDBValidKey>) as IDBObjectStore["put"];
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const { projectId } = await bootWorkspace(GUEST_SCOPE, { factory: sabotaged, delayMs: 10 });
+
+    flag.hang = true;
+    useWorkspaceStore.getState().renameProject(projectId, "TEN-TREO");
+    await waitMs(30);
+
+    const started = Date.now();
+    const outcome = await flushWorkspace().then(
+      () => "RESOLVED",
+      () => "THREW",
+    );
+    const elapsed = Date.now() - started;
+
+    // Vế 1: phải trả về trong hạn, không treo tới hạn test.
+    expect(elapsed).toBeLessThan(8000);
+    // Vế 2: và phải biết là đĩa chưa khớp store — nếu không thì `pushProject` đẩy bản cũ lên cloud.
+    expect(outcome).toBe("THREW");
+    expect(hasUnflushedFailures()).toBe(true);
+  }, 20000);
+
+  // Cùng lỗi 3 nhưng ở đường ĐỌC: `raceWithDeadline` chỉ bọc các lượt ghi đang bay, còn bước đối
+  // chiếu tự gọi `repo.listProjects()`/`listTabs()`. Một transaction đọc treo sẽ treo `flushWorkspace`
+  // vĩnh viễn nếu chính bước đó không có trần. Test trên không bắt được lớp này vì lượt ghi treo đã
+  // làm hết ngân sách trước khi tới bước đọc.
+  it("V8-3b: transaction ĐỌC treo cũng phải có trần, không treo nút Lưu", async () => {
+    const flag = { hangRead: false };
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            // Chỉ chặn đường ĐỌC: `flushWorkspace` gọi `listProjects`/`listTabs` để đối chiếu.
+            if (mode !== "readonly" || !flag.hangRead) return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              // Request không bao giờ resolve → transaction treo, `requestDone` chờ mãi.
+              s.getAll = (() => ({}) as IDBRequest<unknown[]>) as IDBObjectStore["getAll"];
+              s.index = (() => ({ getAll: (() => ({}) as IDBRequest<unknown[]>) as IDBIndex["getAll"] }) as unknown as IDBIndex) as IDBObjectStore["index"];
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    await bootWorkspace(GUEST_SCOPE, { factory: sabotaged, delayMs: 10 });
+
+    // Không có lượt ghi nào đang bay: chỉ có đường đọc bị treo.
+    flag.hangRead = true;
+
+    const started = Date.now();
+    const outcome = await flushWorkspace().then(
+      () => "RESOLVED",
+      () => "THREW",
+    );
+    const elapsed = Date.now() - started;
+
+    expect(elapsed).toBeLessThan(8000);
+    expect(outcome).toBe("THREW");
+    expect(hasUnflushedFailures()).toBe(true);
+  }, 20000);
+
+  // Lỗi 4 (Trung bình): `DISPOSE_WRITE_TIMEOUT_MS` (1500) < ngân sách thử lại (2000), nên lần thử
+  // lại bị cắt giữa chừng và bản ghi đã xoá SỐNG LẠI sau F5 — tái sinh đúng N5. Reviewer đo:
+  // `disposeElapsed=1501, ghostAliveInStore=true, ghostOnDisk=true, retryNeededMs=1600`.
+  //
+  // Đo hệ quả trực tiếp: lượt xoá treo hẳn thì `disposeWorkspace()` phải chờ ÍT NHẤT một ngân sách
+  // thử lại trước khi bỏ cuộc. Trần dispose nhỏ hơn ngân sách (1500 < 2000) sẽ trả về sớm hơn thế,
+  // và mọi lần thử lại cần nhiều hơn 1500 ms đều bị cắt ngang.
+  it("V8-4: đóng phiên phải cho đường thử lại trọn một ngân sách, không cắt ngang", async () => {
+    const flag = { broken: false };
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (name === "tabs" && flag.broken) {
+                // Lượt xoá hỏng thật (để có gì mà thử lại), rồi các lượt sau treo hẳn.
+                s.delete = (() => {
+                  throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                }) as IDBObjectStore["delete"];
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const { projectId } = await bootWorkspace(GUEST_SCOPE, { factory: sabotaged, delayMs: 10 });
+    const second = useWorkspaceStore.getState().createTab(projectId);
+    await waitMs(40);
+
+    // Xoá trong lúc đĩa hỏng → lượt xoá hỏng.
+    flag.broken = true;
+    useWorkspaceStore.getState().closeTab(second.id);
+    await waitMs(60);
+
+    const started = Date.now();
+    await disposeWorkspace();
+    const elapsed = Date.now() - started;
+
+    // Phải chờ đủ một ngân sách thử lại (2 s), không cắt ở 1,5 s.
+    expect(elapsed).toBeGreaterThanOrEqual(1900);
+  }, 20000);
+
+  // Lỗi 5 (Trung bình): tab cũng có "nợ" như project, nhưng bản sổ nợ chỉ thêm đường thử lại cho
+  // project (N3). Reviewer đo: đĩa hết lỗi rồi 5/5 lần bấm Lưu vẫn hỏng, `fetchCalls:0`, chỉ thoát
+  // khi người dùng gõ thêm một ký tự. Bản đối chiếu không phân biệt tab hay project.
+  it("V8-5: đĩa hết lỗi thì tab đã ghi hỏng cũng phải được ghi lại khi Lưu", async () => {
+    const flag = { broken: false };
+    const sabotaged = sabotagePut("tabs", () => flag.broken);
+
+    const { tabId } = await bootWorkspace(GUEST_SCOPE, { factory: sabotaged, delayMs: 10 });
+
+    // Gõ trong lúc đĩa hỏng: lượt debounce hỏng.
+    flag.broken = true;
+    useWorkspaceStore.getState().updateTabSql(tabId, "SELECT 'BAN-MOI'");
+    await waitMs(60);
+
+    // Đĩa hết lỗi. Bấm Lưu (không gõ thêm ký tự nào) phải ghi được bản mới xuống đĩa.
+    flag.broken = false;
+    await expect(flushWorkspace()).resolves.toBeUndefined();
+    expect(hasUnflushedFailures()).toBe(false);
+
+    const disk = await readDisk();
+    const onDisk = disk.tabs.find((t) => t.id === tabId);
+    expect(onDisk?.sql).toBe("SELECT 'BAN-MOI'");
+  }, 15000);
+
+  // Lỗi 6 (Thấp): ngân sách không dùng chung giữa hai Map, nên tổng là 2 × ngân sách. Reviewer đo
+  // `elapsedMs:3006` với `budgetMs:2000`. Bản đối chiếu chỉ có MỘT vòng lặp và MỘT deadline, nên
+  // lệch bao nhiêu loại cũng chỉ tốn một ngân sách.
+  it("V8-6: nhiều loại lệch khác nhau vẫn chỉ tốn một ngân sách", async () => {
+    const flag = { broken: false };
+    // Cả `put` lẫn `delete` đều hỏng NGAY (không treo): mỗi vòng đối chiếu hỏng ở cả hai loại, nên
+    // nếu mỗi loại có ngân sách riêng thì tổng sẽ là 2 × ngân sách.
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (flag.broken) {
+                s.put = (() => {
+                  throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                }) as IDBObjectStore["put"];
+                s.delete = (() => {
+                  throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                }) as IDBObjectStore["delete"];
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    const { projectId, tabId } = await bootWorkspace(GUEST_SCOPE, { factory: sabotaged, delayMs: 10 });
+    const second = useWorkspaceStore.getState().createTab(projectId);
+    await waitMs(40);
+
+    // Cả hai loại lệch cùng lúc: một tab cần GHI (gõ mới) và một tab cần XOÁ (đã đóng).
+    flag.broken = true;
+    useWorkspaceStore.getState().updateTabSql(tabId, "SELECT 'MOI'");
+    useWorkspaceStore.getState().closeTab(second.id);
+    await waitMs(60);
+
+    const started = Date.now();
+    await flushWorkspace().catch(() => undefined);
+    const elapsed = Date.now() - started;
+
+    // Một ngân sách (2 s), không phải 2 × 2 s.
+    expect(elapsed).toBeLessThan(3500);
+    expect(hasUnflushedFailures()).toBe(true);
+  }, 20000);
 });

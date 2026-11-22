@@ -313,10 +313,9 @@ export async function pushProject(projectId: string, options: SyncOptions = {}):
     } catch (err) {
       throw storageFailure(err);
     }
-    // Lượt ghi debounce có thể đã hỏng TRƯỚC khi bấm Lưu (đĩa đầy lúc đang gõ): khi đó `pending`
-    // rỗng nên `flushWorkspace` không có gì để ghi. `flushStrict` và `failedWrites` đã lo phần
-    // lớn, nhưng kiểm thêm ở đây là lớp cuối cho trường hợp một lượt ghi thành công của key KHÁC
-    // đã xóa dấu lỗi — đúng kịch bản "đĩa đầy vẫn đẩy bản cũ lên cloud rồi báo đã lưu".
+    // `flushWorkspace()` đã tự đo bằng cách đối chiếu đĩa với store, nên lần kiểm này là lớp cuối
+    // phòng khi bước đo không chạy được (ví dụ một transaction đọc treo hết ngân sách). Kiểm lại
+    // rẻ và không bao giờ báo nhầm theo hướng "đã xuống đĩa".
     if (hasUnflushedFailures()) {
       throw new CloudSyncError(
         "STORAGE_UNAVAILABLE",
