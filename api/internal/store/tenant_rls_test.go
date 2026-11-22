@@ -2,12 +2,14 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -551,5 +553,69 @@ func TestRLSEdgeCases(t *testing.T) {
 	}
 	if n := e.query(t, rlsUserChi, `SELECT count(*) FROM cloud_project_members`); n != 1 {
 		t.Fatalf("Chi thấy %d hàng thành viên, mong đợi 1", n)
+	}
+}
+
+// Hồi quy Task156: các phương thức tầng store (ReplaceCloudProject, DeleteCloudProject, GetCloudProject)
+// gọi qua cloudTx có WithTenant tuyệt đối không bị rò cross-tenant, kể cả khi kẻ tấn công biết ID
+// hoặc timestamp của nạn nhân. Chạy bằng role chủ non-superuser (chân dung Neon).
+func TestRLSRegressionCrossTenantStoreMethods(t *testing.T) {
+	e := newRLSEnv(t)
+	ctx := context.Background()
+	ownerStore := e.asNonSuperuserOwner(t)
+
+	// 1. An cố đọc dự án của Bình qua GetCloudProject: phải trả về ErrNotFound (không lộ tồn tại).
+	_, err := ownerStore.GetCloudProject(ctx, rlsUserAn, rlsProjectBinh)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("An đọc dự án của Bình: err=%v, mong đợi ErrNotFound", err)
+	}
+
+	// 2. An cố xóa dự án của Bình qua DeleteCloudProject: phải trả về ErrNotFound.
+	if err := ownerStore.DeleteCloudProject(ctx, rlsUserAn, rlsProjectBinh); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("An xóa dự án của Bình: err=%v, mong đợi ErrNotFound", err)
+	}
+
+	// 3. An cố sửa dự án của Bình qua ReplaceCloudProject: phải trả về ErrNotFound.
+	_, err = ownerStore.ReplaceCloudProject(ctx, rlsUserAn, rlsProjectBinh, "Hacked by An", "postgres", []CloudTab{
+		{Name: "hack.sql", SQL: "DROP TABLE users;"},
+	}, nil)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("An ghi đè dự án của Bình: err=%v, mong đợi ErrNotFound", err)
+	}
+
+	// Kiểm tra lại bằng role của Bình: dự án và tab của Bình vẫn nguyên vẹn 100%.
+	binhProject, err := ownerStore.GetCloudProject(ctx, rlsUserBinh, rlsProjectBinh)
+	if err != nil {
+		t.Fatalf("Bình đọc lại dự án của mình: %v", err)
+	}
+	if binhProject.Name != "Dự án của Bình" || len(binhProject.Tabs) != 1 || binhProject.Tabs[0].SQL != "SELECT 2" {
+		t.Fatalf("Dữ liệu của Bình bị thay đổi: %+v", binhProject)
+	}
+
+	// 4. An cập nhật dự án của chính mình với baseUpdatedAt:
+	anProject, err := ownerStore.GetCloudProject(ctx, rlsUserAn, rlsProjectAn)
+	if err != nil {
+		t.Fatalf("An đọc dự án của mình: %v", err)
+	}
+
+	// Cố tình truyền mốc cũ (lệch mốc) -> phải trả *CloudConflictError và không ghi gì.
+	staleTime := anProject.UpdatedAt.Add(-10 * time.Minute)
+	_, err = ownerStore.ReplaceCloudProject(ctx, rlsUserAn, rlsProjectAn, "Tên mới", "postgres", []CloudTab{
+		{Name: "tab.sql", SQL: "SELECT 99;"},
+	}, &staleTime)
+	var conflictErr *CloudConflictError
+	if !errors.As(err, &conflictErr) {
+		t.Fatalf("cập nhật lệch mốc: err=%v, mong đợi *CloudConflictError", err)
+	}
+
+	// Truyền mốc đúng -> thành công.
+	updated, err := ownerStore.ReplaceCloudProject(ctx, rlsUserAn, rlsProjectAn, "Tên mới của An", "postgres", []CloudTab{
+		{Name: "valid.sql", SQL: "SELECT 'valid';"},
+	}, &anProject.UpdatedAt)
+	if err != nil {
+		t.Fatalf("cập nhật đúng mốc: %v", err)
+	}
+	if updated.Name != "Tên mới của An" || len(updated.Tabs) != 1 || updated.Tabs[0].SQL != "SELECT 'valid';" {
+		t.Fatalf("dự án của An sau khi cập nhật: %+v", updated)
 	}
 }

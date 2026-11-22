@@ -25,6 +25,10 @@ const nextConfig: NextConfig = {
       source: "/:locale(vi|en)/share",
       headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
     },
+    {
+      source: "/share",
+      headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+    },
   ],
   // /lab cũ về màn hình chính; Next giữ nguyên query khi chuyển hướng.
   redirects: async () => [{ source: "/:locale(vi|en)/lab", destination: "/:locale", permanent: false }],
@@ -34,7 +38,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
-    root: path.resolve(process.cwd(), "../../.."),
+    root: process.platform === "win32" ? path.resolve("/") : path.resolve(process.cwd(), "../../.."),
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],

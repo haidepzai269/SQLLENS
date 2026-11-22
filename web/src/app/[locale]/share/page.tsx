@@ -19,6 +19,7 @@ export async function generateMetadata({
     title: t("view.metaTitle"),
     // Link chia sẻ là bản nháp của một người, không phải trang công khai cần index.
     robots: { index: false, follow: false },
+    referrer: "no-referrer",
   };
 }
 
