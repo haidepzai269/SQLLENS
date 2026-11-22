@@ -37,6 +37,8 @@ interface WorkspaceSession {
 
 let currentSession: WorkspaceSession | null = null;
 let bootLock: Promise<{ projectId: string; tabId: string }> | null = null;
+/** Trần chờ các lượt ghi project khi đóng phiên, xem `disposeWorkspace`. */
+const DISPOSE_WRITE_TIMEOUT_MS = 1500;
 
 /**
  * Ép mọi thay đổi đang chờ xuống IndexedDB rồi mới trả về.
@@ -67,7 +69,15 @@ export async function disposeWorkspace(): Promise<void> {
     await session.tabAutosave.dispose();
     // Lượt ghi project còn đang chạy phải xong trước khi đóng db, nếu không nó ném
     // InvalidStateError và thay đổi cuối cùng mất mà không ai báo.
-    await Promise.allSettled(Array.from(session.projectWrites));
+    //
+    // Nhưng phải có trần thời gian: một transaction IndexedDB có thể treo vĩnh viễn (tab bị đóng,
+    // db bị block bởi tab khác đang mở bản cũ), và `bootWorkspace` gọi hàm này trước khi mở phiên
+    // mới — treo ở đây là treo cả ứng dụng. Chờ quá hạn thì đóng db và đi tiếp; dữ liệu chưa ghi
+    // xong đã mất từ trước đó rồi, chờ thêm không cứu được.
+    await Promise.race([
+      Promise.allSettled(Array.from(session.projectWrites)),
+      new Promise<void>((resolve) => setTimeout(resolve, DISPOSE_WRITE_TIMEOUT_MS)),
+    ]);
     try {
       session.db.close();
     } catch {

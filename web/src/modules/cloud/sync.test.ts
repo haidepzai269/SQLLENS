@@ -394,7 +394,8 @@ describe("pushProject", () => {
     expect(calls).toEqual(["POST"]);
   });
 
-  it("lượt đẩy song song bị chặn không làm kẹt dự án: sau đó đẩy lại được", async () => {    await seedLocal(localProject(), []);
+  it("lượt đẩy song song bị chặn không làm kẹt dự án: sau đó đẩy lại được", async () => {
+    await seedLocal(localProject(), []);
     const pushed = { ...remote, id: "remote-9", updatedAt: "2026-11-21T08:30:00Z", tabs: undefined };
     let release: (() => void) | undefined;
     const gate = new Promise<void>((resolve) => {

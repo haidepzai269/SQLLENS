@@ -76,7 +76,8 @@ describe("AuthProvider — dọn bộ nhớ cloud khi mất phiên", () => {
     expect(forgetMock).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(screen.getByTestId("mark-anon").textContent).toBe("anon"));
   });
-  it("refreshUser gặp 401 cũng dọn, không chỉ markAnon", async () => {    let call = 0;
+  it("refreshUser gặp 401 cũng dọn, không chỉ markAnon", async () => {
+    let call = 0;
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {

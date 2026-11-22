@@ -18,6 +18,7 @@
 import { openWorkspaceDb } from "@/modules/workspace/db";
 import { flushWorkspace } from "@/modules/workspace/hydrate";
 import { getRepository, WorkspaceQuotaError } from "@/modules/workspace/repository";
+import { useWorkspaceStore } from "@/modules/workspace/store";
 import {
   scopeKey,
   type WorkspaceEngine,
@@ -101,6 +102,14 @@ export function forgetUnpersistedLinks(): void {
  * bắt đầu và so lại trước khi ghi liên kết: khác nhau nghĩa là phiên đã đổi, không được ghi.
  */
 let sessionEpoch = 0;
+
+/**
+ * Đọc thế hệ phiên hiện tại. `apply.ts` cần so trước khi ghi đè nội dung local, cùng lý do với
+ * `pushProject`/`pullProject`: mất phiên giữa lúc chờ mạng thì bản vừa đọc thuộc người dùng cũ.
+ */
+export function currentSessionEpoch(): number {
+  return sessionEpoch;
+}
 
 /**
  * Kết quả đẩy. `conflict` mang đủ hai mốc để UI hiển thị "bản trên cloud lúc X, bản trên máy
@@ -187,11 +196,19 @@ export async function pullProject(
   scope: WorkspaceScope,
   options: SyncOptions = {},
 ): Promise<WorkspaceProject> {
+  // Cùng lý do như `pushProject`: mất phiên giữa lúc đang kéo thì bản vừa kéo thuộc người dùng
+  // cũ. Ghi nó xuống máy kèm liên kết cloud là để người đăng nhập sau trong cùng tab mở đúng dự
+  // án của người trước và PUT đè lên đó.
+  const epoch = sessionEpoch;
   let remote;
   try {
     remote = await getCloudProject(remoteId, { fetchImpl: options.fetchImpl });
   } catch (err) {
     throw failure(err);
+  }
+
+  if (epoch !== sessionEpoch) {
+    throw new CloudSyncError("AUTH_REQUIRED", "Phiên đăng nhập đã đổi trong lúc đang kéo dự án");
   }
 
   const now = options.now ?? Date.now;
@@ -296,6 +313,17 @@ export async function pushProject(projectId: string, options: SyncOptions = {}):
       await flushWorkspace();
     } catch (err) {
       throw storageFailure(err);
+    }
+    // Lượt ghi debounce có thể đã hỏng TRƯỚC khi bấm Lưu (đĩa đầy lúc đang gõ): khi đó `pending`
+    // rỗng nên `flushWorkspace` không có gì để ghi và không thấy lỗi, nhưng IndexedDB vẫn đang
+    // giữ bản cũ. Store đã biết điều đó qua `saveState`, nên đọc lại và dừng trước khi gọi mạng —
+    // đúng kịch bản "đĩa đầy vẫn đẩy bản cũ lên cloud rồi báo đã lưu".
+    const { saveState, saveError } = useWorkspaceStore.getState();
+    if (saveState === "error") {
+      throw new CloudSyncError(
+        "STORAGE_UNAVAILABLE",
+        saveError ?? "Lần lưu gần nhất xuống máy bị lỗi nên chưa thể đẩy bản mới nhất lên cloud",
+      );
     }
     db = await openDb(options.factory);
   } catch (err) {

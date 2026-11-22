@@ -18,6 +18,7 @@ import { projectStamp } from "./status";
 import {
   CloudSyncError,
   closeDb,
+  currentSessionEpoch,
   failure,
   openDb,
   storageFailure,
@@ -39,6 +40,10 @@ export async function pullIntoProject(
   projectId: string,
   options: SyncOptions = {},
 ): Promise<PullIntoResult> {
+  // Như `pushProject`/`pullProject`: mất phiên giữa lúc đang kéo thì bản cloud vừa đọc thuộc
+  // người dùng cũ. Ghi đè nội dung local và gắn liên kết cloud của người cũ là sai — người đăng
+  // nhập sau trong cùng tab sẽ thấy nội dung của người trước và PUT đè lên dự án của họ.
+  const epoch = currentSessionEpoch();
   const db = await openDb(options.factory);
   try {
     const repo = getRepository(db);
@@ -81,6 +86,12 @@ export async function pullIntoProject(
     // bằng rỗng sẽ để lại dự án trống không mở được, nên báo lỗi và giữ nguyên bản trên máy.
     if (tabs.length === 0) {
       throw new CloudSyncError("REJECTED", "Dự án trên cloud không có tab nào", undefined, "empty_project");
+    }
+
+    // Kiểm TRƯỚC khi ghi: mất phiên giữa lúc chờ mạng thì phải dừng, không ghi nội dung của
+    // người dùng cũ đè lên dự án đang mở trên máy.
+    if (epoch !== currentSessionEpoch()) {
+      throw new CloudSyncError("AUTH_REQUIRED", "Phiên đăng nhập đã đổi trong lúc đang kéo dự án");
     }
 
     const project: WorkspaceProject = {

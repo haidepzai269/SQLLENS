@@ -8,7 +8,7 @@ import { getRepository } from "@/modules/workspace/repository";
 import { scopeKey, type WorkspaceProject, type WorkspaceTab } from "@/modules/workspace/types";
 import { pullIntoProject } from "./apply";
 import { projectCloudState, projectStamp } from "./status";
-import { CloudSyncError } from "./sync";
+import { CloudSyncError, forgetUnpersistedLinks } from "./sync";
 
 let factory: IDBFactory;
 
@@ -76,6 +76,29 @@ async function readLocal() {
 }
 
 describe("pullIntoProject", () => {
+  // Reviewer vòng 4 (N2): chỉ `pushProject` kiểm thế hệ phiên, `pullProject`/`pullIntoProject`
+  // thì không. Mất phiên giữa lúc đang kéo thì bản cloud vừa đọc thuộc người dùng cũ, và ghi nó
+  // đè lên dự án đang mở là để người đăng nhập sau trong cùng tab thấy nội dung của người trước.
+  it("mất phiên trong lúc chờ mạng thì KHÔNG ghi đè nội dung local", async () => {
+    await seedLocal();
+    const before = await readLocal();
+
+    const impl = (async () => {
+      // Đăng xuất đúng lúc vòng mạng đang chạy.
+      forgetUnpersistedLinks();
+      return jsonResponse(200, { project: remote });
+    }) as typeof fetch;
+
+    await expect(
+      pullIntoProject(project.id, { factory, fetchImpl: impl, now: () => 100, newId: sequentialIds() }),
+    ).rejects.toMatchObject({ code: "AUTH_REQUIRED" });
+
+    // Bản trên máy phải nguyên vẹn: không bị thay tab, không bị đổi tên.
+    const after = await readLocal();
+    expect(after.project?.name).toBe(before.project?.name);
+    expect(after.tabs.map((t) => t.sql)).toEqual(before.tabs.map((t) => t.sql));
+  });
+
   it("thay toàn bộ tab trong một dự án, giữ nguyên id dự án, xóa tab cũ", async () => {
     await seedLocal();
 

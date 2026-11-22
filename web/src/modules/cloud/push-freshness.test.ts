@@ -198,4 +198,59 @@ describe("pushProject — ghi máy hỏng thì không đẩy bản cũ lên clou
     // Điểm chính: KHÔNG có request nào, vì đẩy lúc này là đẩy bản cũ.
     expect(calls).toBe(0);
   });
+
+  // Reviewer vòng 4 (N1): `flushStrict()` chỉ thấy lỗi của CHÍNH nó. Đĩa đầy từ lúc đang gõ thì
+  // lượt debounce hỏng, `pending` rỗng, và lúc bấm Lưu không có gì để ghi nên "thành công" —
+  // trong khi IndexedDB vẫn giữ bản cũ. Đo được: `KET_QUA_PUSH: ok`, `PAYLOAD_SQL: ""`.
+  it("đĩa đã hỏng từ lúc đang gõ thì bấm Lưu phải báo lỗi, không đẩy bản cũ", async () => {
+    const flag = { broken: false };
+    const realOpen = factory.open.bind(factory);
+    const sabotaged = {
+      open: (...args: Parameters<IDBFactory["open"]>) => {
+        const req = realOpen(...args);
+        req.addEventListener("success", () => {
+          const opened = req.result;
+          const realTx = opened.transaction.bind(opened);
+          opened.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+            const tx = realTx(names, mode);
+            if (mode !== "readwrite") return tx;
+            const realStore = tx.objectStore.bind(tx);
+            tx.objectStore = ((name: string) => {
+              const s = realStore(name);
+              if (name === "tabs" && flag.broken) {
+                s.put = (() => {
+                  throw new DOMException("QuotaExceededError (giả lập)", "QuotaExceededError");
+                }) as IDBObjectStore["put"];
+              }
+              return s;
+            }) as IDBTransaction["objectStore"];
+            return tx;
+          }) as IDBDatabase["transaction"];
+        });
+        return req;
+      },
+    } as unknown as IDBFactory;
+
+    // `delayMs: 10` để lượt ghi debounce chạy và hỏng TRƯỚC khi người dùng bấm Lưu. Với mặc
+    // định 300 ms thì lúc bấm Lưu phần ghi vẫn còn trong `pending`, và ca này sẽ rơi vào đường
+    // của F3 (flush ghi hỏng) chứ không kiểm được cửa sổ mà N1 nói tới.
+    const { projectId, tabId } = await bootWorkspace(GUEST, { factory: sabotaged, delayMs: 10 });
+    flag.broken = true;
+    useWorkspaceStore.getState().updateTabSql(tabId, "SELECT 'ban moi nhat'");
+
+    // Đợi debounce chạy và hỏng: lúc này `pending` rỗng, `saveState` là "error".
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    expect(useWorkspaceStore.getState().saveState).toBe("error");
+
+    let calls = 0;
+    const impl = (async () => {
+      calls += 1;
+      return createdProject();
+    }) as typeof fetch;
+
+    await expect(pushProject(projectId, { factory: sabotaged, fetchImpl: impl })).rejects.toBeInstanceOf(
+      CloudSyncError,
+    );
+    expect(calls).toBe(0);
+  });
 });

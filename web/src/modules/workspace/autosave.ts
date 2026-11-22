@@ -34,6 +34,8 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
   const pending = new Map<string, PendingItem<T>>();
   const inFlight = new Set<Promise<void>>();
   let isDisposed = false;
+  // Lỗi ghi gần nhất chưa được xóa bởi một lượt ghi thành công. Xem `flushStrict`.
+  let lastFailure: unknown;
 
   const onPageHide = () => {
     void flush();
@@ -46,8 +48,13 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
   async function executeSave(key: string, payload: T): Promise<void> {
     try {
       await save(key, payload);
+      // Ghi được rồi thì lỗi cũ không còn nghĩa: đĩa đã nhận bản mới nhất.
+      lastFailure = undefined;
       onSuccess?.(key, payload);
     } catch (err) {
+      // Nhớ lại: đây là đường debounce, lỗi bị nuốt vào `onError`. Không nhớ thì lần bấm Lưu
+      // sau (khi `pending` đã rỗng) sẽ tưởng mọi thứ đã xuống đĩa và đẩy bản cũ lên cloud.
+      lastFailure = err;
       onError?.(err, key, payload);
     }
   }
@@ -121,6 +128,11 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
    * `executeSave` nuốt lỗi vào `onError` nên `flush()` resolve dù ghi hỏng. `flushStrict` chạy
    * lại cùng đường nhưng gom lỗi ra ngoài: bên gọi phải dừng khi dữ liệu chưa xuống đĩa, thay vì
    * tưởng đã tươi rồi đọc ra bản cũ.
+   *
+   * Quan trọng: lỗi ghi TRƯỚC ĐÓ cũng phải làm ném, không chỉ lỗi trong chính lượt này. Đĩa đầy
+   * lúc đang gõ thì lượt debounce hỏng và `pending` rỗng; lúc bấm Lưu, `flushStrict` không có gì
+   * để ghi nên sẽ "thành công" trong khi dữ liệu mới nhất chưa bao giờ xuống đĩa. Vì vậy nhớ lại
+   * lỗi gần nhất cho tới khi có một lượt ghi thành công.
    */
   async function flushStrict(): Promise<void> {
     const errors: unknown[] = [];
@@ -154,7 +166,14 @@ export function createAutosave<T = unknown>(options: AutosaveOptions<T>): Autosa
 
     await Promise.all([...currentInFlight, ...newPromises]);
 
-    if (errors.length > 0) throw errors[0];
+    if (errors.length > 0) {
+      lastFailure = errors[0];
+      throw errors[0];
+    }
+    // Không có lượt ghi nào trong lần này: vẫn phải báo lỗi còn treo từ lượt trước, nếu không
+    // "gõ khi đĩa đầy rồi bấm Lưu" sẽ đẩy bản cũ lên cloud và báo thành công.
+    if (lastFailure !== undefined && tasks.length === 0) throw lastFailure;
+    lastFailure = undefined;
   }
 
   async function dispose(): Promise<void> {
