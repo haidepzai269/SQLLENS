@@ -23,7 +23,7 @@ Role tạo bảng là owner thì **mặc định bỏ qua RLS**. Epic này phả
 | **STR103** | `Task151` | Policy RLS theo từng lệnh, `FORCE RLS`, helper transaction | Amelia | Hoàn thành 100% + **đã sửa 5 lỗi review** (xem `ban_giao_task151_fix.md`) |
 | **STR103** | `Task152` | Test cross-tenant thật và test rò ngữ cảnh qua pool | Amelia | Hoàn thành 100% (chưa gọi reviewer độc lập) |
 | **STR104** | `Task153` | Kéo/đẩy dự án và xử lý xung đột | Amelia | Hoàn thành 100% + **đã sửa 2 lỗi chặn** (LỖI 4, 5) |
-| **STR104** | `Task154` | Cloud panel trong giao diện | Amelia | Hoàn thành một phần: panel + `apply.ts` + `status.ts` đã có và chạy, **chưa có `ban_giao_task154.md`** |
+| **STR104** | `Task154` | Cloud panel trong giao diện | Amelia | Hoàn thành 100% — 6/6 AC có test, 16/16 đo trên Chromium thật (xem `ban_giao_task154.md`) |
 | **STR105** | `Task155` | Cổng `security-audit` cho toàn Epic | Amelia | Chờ thực hiện |
 | **STR105** | `Task156` | Kiểm referrer/XSS của share và hồi quy RLS | Amelia | Chờ thực hiện |
 
@@ -52,6 +52,18 @@ Reviewer độc lập vòng 2 kết luận **PASS**: cả 5 lỗi trên đã s�
 | Hổng test | Gỡ liên kết khi liên kết **chỉ nằm trong bộ nhớ** (`unpersistedLinks`) không có test; phá code thì không test nào đỏ | `web/src/modules/cloud/sync.test.ts` |
 
 Kết quả sau vòng 2: `go test ./...` 7/7 package ok, `npm run check` 1421 passed / 18 skipped, `gofmt` chỉ còn 2 file `internal/ai/*_test.go` lệch chuẩn từ trước.
+
+## Vòng hoàn tất Task154 (2026-11-22)
+
+Agent làm Task154 bị gián đoạn giữa đường. Panel đã chạy nhưng còn ba lỗ thật, đã sửa và mỗi lỗi có test FAIL trước / PASS sau:
+
+| Lỗi | Mức | Nội dung | Sửa ở đâu |
+|---|---|---|---|
+| A | CHẶN | `pushProject` đọc tab từ IndexedDB còn autosave ghi qua debounce 300 ms → "gõ thêm rồi Lưu ngay" đẩy **bản SQL cũ** lên cloud. Đo được payload `""` thay vì `"SELECT 42 AS cau_vua_go"` | `cloud/sync.ts` (gọi `flushWorkspace()` trước khi đọc) |
+| B | Trung bình | `unpersistedLinks` sống lâu hơn phiên đăng nhập; không dọn thì người đăng nhập sau trong cùng tab có thể PUT vào dự án của người trước | `auth/auth-provider.tsx` (`markAnon`) |
+| C | Thấp | Thiếu test cho ca biên "đổi ngôn ngữ khi panel mở" và "chạm trần 50 dự án" | `cloud-panel.test.tsx` |
+
+Sau vòng này: `npm run check` **1427 passed / 18 skipped**, 117 file pass, `tsc` sạch; Chromium thật **16/16 PASS** ở vi/1280, vi/390, en/390 và ca đổi ngôn ngữ khi panel đang mở. Task154 xong; còn lại Task155 (`security-audit`) và Task156 (referrer/XSS, hồi quy RLS).
 
 ## Không làm
 
