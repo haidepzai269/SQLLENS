@@ -47,6 +47,8 @@ function errorMessageKey(code: SnapshotErrorCode): string {
   switch (code) {
     case "SNAPSHOT_TOO_LARGE":
       return "view.errorTooLarge";
+    case "SNAPSHOT_TOO_MANY_TABS":
+      return "view.errorTooManyTabs";
     case "SNAPSHOT_VERSION_UNSUPPORTED":
       return "view.errorVersion";
     case "SNAPSHOT_CORRUPT":

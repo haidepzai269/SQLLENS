@@ -13,6 +13,7 @@ import {
   SnapshotV1,
   SnapshotError,
   SNAPSHOT_HARD_LIMIT_BYTES,
+  snapshotTabLimitExceeded,
   validateSnapshotStructure,
 } from "./snapshot";
 
@@ -207,6 +208,7 @@ async function decompressGzip(data: Uint8Array): Promise<Uint8Array> {
  * - Fallback không nén (khi không có CompressionStream): "u." + base64url(utf8Bytes)
  *
  * @throws {SnapshotError} "SNAPSHOT_VERSION_UNSUPPORTED" nếu version khác 1.
+ * @throws {SnapshotError} "SNAPSHOT_TOO_MANY_TABS" nếu snapshot có hơn 100 tab.
  * @throws {SnapshotError} "SNAPSHOT_CORRUPT" nếu cấu trúc snapshot không hợp lệ.
  * @throws {SnapshotError} "SNAPSHOT_TOO_LARGE" nếu chuỗi sau mã hóa vượt quá SNAPSHOT_HARD_LIMIT_BYTES (32KB).
  */
@@ -216,6 +218,14 @@ export async function encodeSnapshot(snapshot: SnapshotV1): Promise<string> {
       "SNAPSHOT_VERSION_UNSUPPORTED",
       `Phiên bản snapshot không được hỗ trợ: ${(snapshot as { v: unknown }).v}`,
       { version: (snapshot as { v: unknown }).v }
+    );
+  }
+
+  if (snapshotTabLimitExceeded(snapshot)) {
+    throw new SnapshotError(
+      "SNAPSHOT_TOO_MANY_TABS",
+      "Snapshot có quá 100 tab nên không tạo được liên kết",
+      snapshot
     );
   }
 
@@ -329,6 +339,14 @@ export async function decodeSnapshot(payload: string): Promise<SnapshotV1> {
       "SNAPSHOT_VERSION_UNSUPPORTED",
       `Phiên bản snapshot không được hỗ trợ: ${(parsed as Record<string, unknown>).v}`,
       { version: (parsed as Record<string, unknown>).v }
+    );
+  }
+
+  if (snapshotTabLimitExceeded(parsed)) {
+    throw new SnapshotError(
+      "SNAPSHOT_TOO_MANY_TABS",
+      "Snapshot có quá 100 tab nên không mở được",
+      parsed
     );
   }
 

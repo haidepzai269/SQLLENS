@@ -4,7 +4,9 @@ import {
   SnapshotError,
   SNAPSHOT_HARD_LIMIT_BYTES,
   SNAPSHOT_WARN_LIMIT_BYTES,
+  MAX_SNAPSHOT_TABS,
   isSnapshotWarnSize,
+  snapshotTabLimitExceeded,
   validateSnapshotStructure,
 } from "./snapshot";
 import {
@@ -466,6 +468,46 @@ describe("Snapshot Codec (Task 143)", () => {
 
       const recovered = base64UrlToBytes(b64url);
       expect(Array.from(recovered)).toEqual(Array.from(testBytes));
+    });
+  });
+
+  // SP999 (phát hiện mức thấp của cổng bảo mật Task155): link 32 KB vẫn nhét được cả nghìn tab,
+  // bấm Fork là ghi hết vào IndexedDB của người nhận.
+  describe("Trần số tab của snapshot", () => {
+    const withTabs = (n: number): SnapshotV1 => ({
+      v: 1,
+      project: { name: "Nhiều tab", engine: "postgres" },
+      tabs: Array.from({ length: n }, (_, i) => ({ name: `t${i}`, sql: "SELECT 1;" })),
+    });
+
+    it("đúng 100 tab vẫn hợp lệ, 101 tab bị coi là quá trần", () => {
+      expect(MAX_SNAPSHOT_TABS).toBe(100);
+      expect(validateSnapshotStructure(withTabs(MAX_SNAPSHOT_TABS))).toBe(true);
+      expect(snapshotTabLimitExceeded(withTabs(MAX_SNAPSHOT_TABS))).toBe(false);
+      expect(validateSnapshotStructure(withTabs(MAX_SNAPSHOT_TABS + 1))).toBe(false);
+      expect(snapshotTabLimitExceeded(withTabs(MAX_SNAPSHOT_TABS + 1))).toBe(true);
+    });
+
+    it("giải mã link chứa 101 tab ném SNAPSHOT_TOO_MANY_TABS, không trả về snapshot", async () => {
+      // Dựng tay payload không nén: encodeSnapshot đã chặn trước nên không dùng được để tạo mẫu xấu.
+      const json = JSON.stringify(withTabs(MAX_SNAPSHOT_TABS + 1));
+      const payload = "u." + bytesToBase64Url(new TextEncoder().encode(json));
+
+      await expect(decodeSnapshot(payload)).rejects.toBeInstanceOf(SnapshotError);
+      try {
+        await decodeSnapshot(payload);
+      } catch (err) {
+        expect((err as SnapshotError).code).toBe("SNAPSHOT_TOO_MANY_TABS");
+      }
+    });
+
+    it("mã hóa snapshot quá 100 tab bị chặn trước khi sinh link", async () => {
+      await expect(encodeSnapshot(withTabs(MAX_SNAPSHOT_TABS + 1))).rejects.toBeInstanceOf(SnapshotError);
+      try {
+        await encodeSnapshot(withTabs(MAX_SNAPSHOT_TABS + 1));
+      } catch (err) {
+        expect((err as SnapshotError).code).toBe("SNAPSHOT_TOO_MANY_TABS");
+      }
     });
   });
 });

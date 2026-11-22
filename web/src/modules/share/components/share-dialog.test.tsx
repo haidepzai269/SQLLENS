@@ -10,9 +10,10 @@ import {
   sanitizeFileName,
   ShareButton,
   ShareDialog,
+  statusForEncodeError,
 } from "./share-dialog";
 import { decodeSnapshot, encodeSnapshot } from "../codec";
-import { validateSnapshotStructure } from "../snapshot";
+import { SnapshotError, validateSnapshotStructure } from "../snapshot";
 import { useWorkspaceStore } from "@/modules/workspace/store";
 
 afterEach(() => {
@@ -301,6 +302,46 @@ describe("ShareDialog & ShareButton (Task144)", () => {
       expect(downloadBtn).toBeTruthy();
       expect(downloadBtn.textContent).toContain(messagesVi.download);
       expect(screen.getByTestId("share-download-hint").textContent).toContain(messagesVi.downloadHint);
+    });
+
+    it("quá 100 tab: báo đúng lý do số tab, KHÔNG báo nhầm 32 KB và KHÔNG mời tải file .sqllens", async () => {
+      // 101 tab rỗng: tổng chỉ vài KB nên nếu gộp lỗi, thông báo sẽ sai là "quá 32 KB".
+      const manyTabs = Array.from({ length: 101 }, (_, i) => ({
+        id: `t${i}`,
+        projectId: "p1",
+        name: `q${i}.sql`,
+        sql: "",
+        position: i,
+        updatedAt: 0,
+      }));
+      useWorkspaceStore.getState().hydrate({
+        projects: [{ id: "p1", name: "Dự án nhiều tab", engine: "postgres", scopeKey: "guest", createdAt: 0, updatedAt: 0 }],
+        tabs: manyTabs,
+        activeProjectId: "p1",
+        activeTabId: "t0",
+      });
+
+      renderShareDialog({ open: true });
+
+      const tabsAlert = await screen.findByTestId("share-too-many-tabs-warning");
+      expect(tabsAlert.textContent).toContain("100");
+      expect(tabsAlert.textContent).toContain("tab");
+      // Không được nói sai nguyên nhân là vượt 32 KB.
+      expect(tabsAlert.textContent).not.toContain("32 KB");
+      expect(screen.queryByTestId("share-blocked-warning")).toBeNull();
+      // File .sqllens cũng bị decodeSnapshot từ chối vì đúng lý do này, nên không mời tải.
+      expect(screen.queryByTestId("share-download-btn")).toBeNull();
+      expect(screen.queryByTestId("share-url-input")).toBeNull();
+      expect(screen.queryByTestId("share-copy-btn")).toBeNull();
+    });
+
+    it("mỗi mã lỗi mã hoá ra một trạng thái riêng, lỗi lạ không bị báo nhầm thành quá 32 KB", () => {
+      expect(statusForEncodeError(new SnapshotError("SNAPSHOT_TOO_MANY_TABS", "x"))).toBe("blocked-tabs");
+      expect(statusForEncodeError(new SnapshotError("SNAPSHOT_TOO_LARGE", "x"))).toBe("blocked");
+      expect(statusForEncodeError(new SnapshotError("SNAPSHOT_CORRUPT", "x"))).toBe("failed");
+      expect(statusForEncodeError(new SnapshotError("SNAPSHOT_VERSION_UNSUPPORTED", "x"))).toBe("failed");
+      expect(statusForEncodeError(new Error("boom"))).toBe("failed");
+      expect(statusForEncodeError(undefined)).toBe("failed");
     });
   });
 

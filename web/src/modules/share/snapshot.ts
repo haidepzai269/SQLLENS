@@ -24,8 +24,16 @@ export const SNAPSHOT_HARD_LIMIT_BYTES = 32 * 1024;
 /** Ngưỡng cảnh báo độ dài link URL: 8 KB (8.192 bytes) */
 export const SNAPSHOT_WARN_LIMIT_BYTES = 8 * 1024;
 
+/**
+ * Trần số tab của một snapshot: 100, trùng quota tab cloud (`store.MaxCloudTabs`).
+ * Link 32 KB vẫn nhét được ~1.400 tab rỗng, nên nếu không chặn thì bấm Fork sẽ ghi cả nghìn
+ * tab vào IndexedDB của người nhận (SP999, phát hiện mức thấp của cổng bảo mật Task155).
+ */
+export const MAX_SNAPSHOT_TABS = 100;
+
 export type SnapshotErrorCode =
   | "SNAPSHOT_TOO_LARGE"
+  | "SNAPSHOT_TOO_MANY_TABS"
   | "SNAPSHOT_CORRUPT"
   | "SNAPSHOT_VERSION_UNSUPPORTED";
 
@@ -40,6 +48,18 @@ export class SnapshotError extends Error {
     this.details = details;
     Object.setPrototypeOf(this, SnapshotError.prototype);
   }
+}
+
+/**
+ * Snapshot có quá `MAX_SNAPSHOT_TABS` tab hay không. Tách khỏi `validateSnapshotStructure`
+ * để bên gọi báo đúng mã lỗi thay vì gộp vào "dữ liệu hỏng".
+ */
+export function snapshotTabLimitExceeded(obj: unknown): boolean {
+  if (typeof obj !== "object" || obj === null) {
+    return false;
+  }
+  const tabs = (obj as Record<string, unknown>).tabs;
+  return Array.isArray(tabs) && tabs.length > MAX_SNAPSHOT_TABS;
 }
 
 /**
@@ -81,7 +101,7 @@ export function validateSnapshotStructure(obj: unknown): obj is SnapshotV1 {
     return false;
   }
 
-  if (!Array.isArray(candidate.tabs)) {
+  if (!Array.isArray(candidate.tabs) || candidate.tabs.length > MAX_SNAPSHOT_TABS) {
     return false;
   }
 

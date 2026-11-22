@@ -25,7 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { encodeSnapshot } from "../codec";
-import { isSnapshotWarnSize, SnapshotError, type SnapshotV1 } from "../snapshot";
+import { isSnapshotWarnSize, MAX_SNAPSHOT_TABS, SnapshotError, type SnapshotV1 } from "../snapshot";
 import { useWorkspaceStore } from "@/modules/workspace/store";
 
 export interface ShareDialogProps {
@@ -36,7 +36,31 @@ export interface ShareDialogProps {
   trigger?: ReactNode;
 }
 
-export type ShareStatus = "idle" | "loading" | "ok" | "warn" | "blocked";
+/**
+ * `blocked` = snapshot quá 32 KB nên không nhét vừa URL.
+ * `blocked-tabs` = snapshot quá 100 tab: khác hẳn nguyên nhân, và file `.sqllens` cũng không
+ * dùng được vì `decodeSnapshot` từ chối đúng ngưỡng đó, nên không được mời tải file.
+ * `failed` = lỗi khác (dữ liệu hỏng, phiên bản lạ) — không được báo nhầm thành "quá 32 KB".
+ */
+export type ShareStatus = "idle" | "loading" | "ok" | "warn" | "blocked" | "blocked-tabs" | "failed";
+
+/**
+ * Ánh xạ lỗi khi mã hoá snapshot sang trạng thái giao diện. Tách riêng để kiểm được cả ba
+ * nhánh mà không phải dựng cảnh encode hỏng từ bên ngoài.
+ */
+export function statusForEncodeError(err: unknown): ShareStatus {
+  if (!(err instanceof SnapshotError)) {
+    return "failed";
+  }
+  switch (err.code) {
+    case "SNAPSHOT_TOO_MANY_TABS":
+      return "blocked-tabs";
+    case "SNAPSHOT_TOO_LARGE":
+      return "blocked";
+    default:
+      return "failed";
+  }
+}
 
 /**
  * Làm sạch tên dự án cho tên file, thay thế các ký tự cấm: /\:*?"<>|
@@ -209,11 +233,10 @@ export function ShareDialog({
         if (cancelled) return;
         const snapshot = buildSnapshotFromStore(activeProjectId, projects, tabs);
         setCurrentSnapshot(snapshot);
-        if (err instanceof SnapshotError && err.code === "SNAPSHOT_TOO_LARGE") {
-          setStatus("blocked");
-        } else {
-          setStatus("blocked");
-        }
+        // Ba nguyên nhân khác nhau phải ra ba lời báo khác nhau: gộp hết vào "quá 32 KB" là
+        // nói sai lý do với người dùng (dự án 101 tab vẫn có thể rất nhỏ) và còn mời họ tải
+        // một file `.sqllens` mà `decodeSnapshot` sẽ từ chối đúng vì lý do đó.
+        setStatus(statusForEncodeError(err));
       }
     };
 
@@ -336,6 +359,30 @@ export function ShareDialog({
                   {t("downloadHint")}
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* Trạng thái Blocked vì quá số tab: KHÔNG mời tải file, vì file cũng bị từ chối */}
+          {status === "blocked-tabs" && (
+            <div className="flex flex-col gap-3" data-testid="share-too-many-tabs-section">
+              <Alert variant="destructive" data-testid="share-too-many-tabs-warning">
+                <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+                <AlertDescription className="text-xs leading-relaxed">
+                  {t("blockedTabs", { limit: MAX_SNAPSHOT_TABS })}
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+
+          {/* Trạng thái lỗi khác: nói đúng là không mã hoá được, không quy cho kích thước */}
+          {status === "failed" && (
+            <div className="flex flex-col gap-3" data-testid="share-failed-section">
+              <Alert variant="destructive" data-testid="share-failed-warning">
+                <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+                <AlertDescription className="text-xs leading-relaxed">
+                  {t("failed")}
+                </AlertDescription>
+              </Alert>
             </div>
           )}
 
