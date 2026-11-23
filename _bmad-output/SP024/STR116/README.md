@@ -22,7 +22,7 @@ Có
 
 | Task | Mô tả | Trạng thái |
 |---|---|---|
-| Task160 | Migration 006: schema phòng (invite token + Baton) | **Xong code** trên `task/Task160` — chờ reviewer độc lập. Xem `Task160/ban_giao_task160.md` |
+| Task160 | Migration 006: schema phòng (invite token + Baton) | **Đã merge** (`84083ef`) nhưng **chưa qua review độc lập**. Party-mode review 2026-11-23 dựng lại được 6 lỗi; việc sửa giao `SP999/STR117/Task171`. Xem `Task160/ban_giao_task160.md` |
 | Task161 | Gin API phòng: invite + Baton (mở rộng cloud API SP023) | Chờ |
 | Task162 | UI Mời cộng tác & danh sách thành viên | Chờ |
 | Task168 | Arena: chọn kịch bản + điều hướng bước | Chờ |

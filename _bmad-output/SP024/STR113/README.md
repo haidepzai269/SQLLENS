@@ -22,7 +22,7 @@ Có (UI: `InviteDialog`, `RoomMemberList`, nút "Mời cộng tác" trong toolba
 
 | Task | Mô tả | Trạng thái |
 |---|---|---|
-| Task160 | Migration **006**: `room_invite_tokens` + `room_baton`, RLS 6 policy + `GRANT` cho `sqllens_app` | Chờ |
+| Task160 | Migration **006**: `room_invite_tokens` + `room_baton`, RLS 6 policy + `GRANT` cho `sqllens_app` | **Đã merge** (`84083ef`), 6 lỗi đang sửa ở `SP999/STR117/Task171` |
 | Task161 | Gin API: invite, join, thu hồi thành viên, GET baton, baton/claim, arena-step (**6 endpoint**) | Chờ |
 | Task162 | UI: `InviteDialog`, `JoinRoomPage` tại `[locale]/join`, nút "Mời" vào `stage.tsx` | Chờ |
 

@@ -35,7 +35,7 @@ Có
 
 | Task | Mô tả | Trạng thái |
 |---|---|---|
-| Task163 | Thêm Yjs + WebRTC dep (phiên chính làm), Gin WebSocket signaling `/signal` + 3 Baton API | Chờ |
+| Task163 | Gin WebSocket signaling `/signal` (không thêm dep frontend, không có 3 Baton API — xem `Task163/task163.md` D1/D2) | Chờ |
 | Task164 | Yjs Provider + CodeMirror 6 binding (thêm `zustand` thành direct dep) | Chờ |
 | Task165 | UI The Baton: nút Play trong `lab-workspace.tsx:748-759`, toast xin quyền, i18n | Chờ |
 | Task166 | WebRTC DataChannel broadcast kết quả P2P + NAT warning | Chờ |
