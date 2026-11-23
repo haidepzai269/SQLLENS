@@ -67,8 +67,12 @@ type signalEnv struct {
 	room2 string // dự án 2
 }
 
-// newSignalEnv dựng database thật, router thật và hub đo được.
-func newSignalEnv(t *testing.T) *signalEnv {
+// newSignalEnv dựng database thật, router thật và hub đo được, với hạn sống mặc định.
+func newSignalEnv(t *testing.T) *signalEnv { return newSignalEnvLifetime(t, signalLifetime) }
+
+// newSignalEnvLifetime như newSignalEnv nhưng tiêm hạn sống, để test T4 đo được trần thời gian
+// sống mà không phải chờ 30 phút.
+func newSignalEnvLifetime(t *testing.T, lifetime time.Duration) *signalEnv {
 	t.Helper()
 	url := signalDSN()
 	if url == "" {
@@ -139,13 +143,15 @@ func newSignalEnv(t *testing.T) *signalEnv {
 		v, _ := c.Get("test.user")
 		s, _ := v.(string)
 		return s
-	}}, e.hub)
+	}}, e.hub, lifetime)
 	e.srv = httptest.NewServer(r)
 	t.Cleanup(e.srv.Close)
 	return e
 }
 
 // dial mở socket tới phòng của một người dùng; trả conn, phản hồi handshake và lỗi.
+// Client đặt trần đọc riêng 1 MB: mặc định của coder/websocket là 32 KB, thấp hơn trần 64 KB của
+// server, nên không đặt thì ca biên 60 KB sẽ chết ở phía client và test đo sai chỗ.
 func (e *signalEnv) dial(t *testing.T, user, room string) (*websocket.Conn, *http.Response, error) {
 	t.Helper()
 	h := http.Header{}
@@ -155,7 +161,11 @@ func (e *signalEnv) dial(t *testing.T, user, room string) (*websocket.Conn, *htt
 	url := "ws" + strings.TrimPrefix(e.srv.URL, "http") + "/api/v1/cloud/projects/" + room + "/signal"
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return websocket.Dial(ctx, url, &websocket.DialOptions{HTTPHeader: h})
+	c, resp, err := websocket.Dial(ctx, url, &websocket.DialOptions{HTTPHeader: h})
+	if c != nil {
+		c.SetReadLimit(1 << 20)
+	}
+	return c, resp, err
 }
 
 // mustDial mở socket và đóng nó khi test xong.
@@ -214,10 +224,11 @@ func TestRoomSignalHandshake(t *testing.T) {
 	e.waitPeers(t, e.room, 2)
 
 	// Handshake phải là 101, không phải 200 hay 426.
-	_, resp, err := e.dial(t, e.user, e.room)
+	c, resp, err := e.dial(t, e.user, e.room)
 	if err != nil {
 		t.Fatalf("dial thứ ba: %v", err)
 	}
+	t.Cleanup(func() { _ = c.CloseNow() })
 	if resp.StatusCode != http.StatusSwitchingProtocols {
 		t.Fatalf("handshake = %d, mong đợi 101", resp.StatusCode)
 	}
@@ -233,7 +244,8 @@ func TestRoomSignalHandshake(t *testing.T) {
 	}
 }
 
-// AC2: A gửi thì B cùng phòng nhận, C phòng khác không nhận (kiểm bằng hạn chờ).
+// AC2: A gửi thì B cùng phòng nhận, C phòng khác không nhận, và chính A không nhận lại
+// (hợp đồng: chuyển tiếp cho các peer *khác*).
 func TestRoomSignalRelay(t *testing.T) {
 	e := newSignalEnv(t)
 	a := e.mustDial(t, e.user, e.room)
@@ -251,6 +263,12 @@ func TestRoomSignalRelay(t *testing.T) {
 	// C ở phòng khác: hết hạn chờ mà không có gì. Đây là phép đo dương tính của "không nhận".
 	if got, err := readWithin(c, 400*time.Millisecond); err == nil {
 		t.Fatalf("C ở phòng khác nhận được message của phòng 1: %q", got)
+	}
+
+	// A là người gửi: không được nhận lại message của chính mình. Bỏ `p == from` trong relay thì
+	// khẳng định này đỏ.
+	if got, err := readWithin(a, 400*time.Millisecond); err == nil {
+		t.Fatalf("A nhận lại message của chính mình: %q", got)
 	}
 }
 
@@ -315,7 +333,7 @@ func TestRoomSignalZeroSQLInLog(t *testing.T) {
 func TestRoomSignalRoutes(t *testing.T) {
 	const path = "/api/v1/cloud/projects/:id/signal"
 	r := NewRouterWithLog(&syncBuf{})
-	mountRoomSignal(r, RoomSignalConfig{Store: nil, RequireUser: func(*gin.Context) {}}, newSignalHub())
+	mountRoomSignal(r, RoomSignalConfig{Store: nil, RequireUser: func(*gin.Context) {}}, newSignalHub(), signalLifetime)
 
 	n := 0
 	for _, rt := range r.Routes() {
@@ -389,6 +407,79 @@ func TestRoomSignalOversizeMessage(t *testing.T) {
 	e.write(t, b, `{"type":"ice"}`)
 	if got, err := readWithin(c, 5*time.Second); err != nil || !strings.Contains(got, `"ice"`) {
 		t.Fatalf("peer khác phải sống sau khi peer kia bị đóng: %q (%v)", got, err)
+	}
+}
+
+// Ca biên: message 60 KB (dưới trần 64 KB) phải qua nguyên vẹn. Ca này phân biệt trần 64 KB của
+// server với trần mặc định 32 KB của coder/websocket: bỏ `SetReadLimit(maxSignalBytes)` thì
+// message 60 KB chết trong khi ca 65 KB ở trên vẫn "đúng" vì cả hai mốc đều vượt.
+func TestRoomSignalLargeMessagePasses(t *testing.T) {
+	e := newSignalEnv(t)
+	a := e.mustDial(t, e.user, e.room)
+	b := e.mustDial(t, e.peer, e.room)
+	e.waitPeers(t, e.room, 2)
+
+	msg := `{"type":"offer","sdp":"` + strings.Repeat("y", 60<<10) + `"}`
+	e.write(t, a, msg)
+	got, err := readWithin(b, 10*time.Second)
+	if err != nil {
+		t.Fatalf("message 60 KB (dưới trần 64 KB) phải qua được: %v", err)
+	}
+	if len(got) != len(msg) {
+		t.Fatalf("message 60 KB bị cắt: nhận %d byte, gửi %d byte", len(got), len(msg))
+	}
+}
+
+// T1: đóng kết nối không được giữ khoá hub. `Conn.Close` chạy bắt tay đóng với hạn 5 giây, nên
+// nếu leave giữ h.mu suốt lúc đó thì một client không đọc làm đứng signaling của mọi phòng.
+// Đo trực tiếp: peer không đọc tự kích hoạt leave, rồi đo thời gian hub trả lời được.
+func TestRoomSignalCloseDoesNotHoldLock(t *testing.T) {
+	e := newSignalEnv(t)
+	a := e.mustDial(t, e.user, e.room) // không bao giờ đọc: không trả lời bắt tay đóng
+	e.waitPeers(t, e.room, 1)
+
+	// JSON hỏng làm server rời vòng đọc rồi gọi leave. Client không đọc nên bắt tay đóng treo.
+	e.write(t, a, `{not json`)
+
+	start := time.Now()
+	e.waitPeers(t, e.room, 0) // waitPeers lấy h.mu; giữ khoá khi đóng thì đây là chỗ chờ
+	if d := time.Since(start); d > 2*time.Second {
+		t.Fatalf("hub bị khoá %v trong lúc đóng kết nối, mong đợi dưới 2s", d)
+	}
+}
+
+// T4: kết nối có hạn sống. Tiêm hạn ngắn để đo được, không phải chờ 30 phút.
+func TestRoomSignalLifetime(t *testing.T) {
+	e := newSignalEnvLifetime(t, 500*time.Millisecond)
+	a := e.mustDial(t, e.user, e.room)
+	e.waitPeers(t, e.room, 1)
+
+	_, err := readWithin(a, 5*time.Second)
+	if err == nil {
+		t.Fatal("socket vẫn sống sau khi hết hạn sống")
+	}
+	if code := websocket.CloseStatus(err); code != websocket.StatusGoingAway {
+		t.Fatalf("hết hạn sống phải đóng 1001 Going Away, nhận %v", code)
+	}
+	e.waitPeers(t, e.room, 0) // và peer phải bị xoá khỏi hub
+}
+
+// D3: `to` so theo user id, nên hai tab của cùng một người đều nhận. Đây là hợp đồng có kiểm,
+// không phải lỗi ngầm: payload là JSON tự do nên client phải mang id tab của chính nó và tab
+// nhận tự lọc. Đổi sang peer id đòi server cấp id + kênh presence, thuộc task sau.
+func TestRoomSignalTargetUserReachesAllTabs(t *testing.T) {
+	e := newSignalEnv(t)
+	tab1 := e.mustDial(t, e.user, e.room)
+	tab2 := e.mustDial(t, e.user, e.room)
+	sender := e.mustDial(t, e.peer, e.room)
+	e.waitPeers(t, e.room, 3)
+
+	e.write(t, sender, `{"to":"`+e.user+`","type":"offer","tab":"t1"}`)
+	for i, tab := range []*websocket.Conn{tab1, tab2} {
+		got, err := readWithin(tab, 5*time.Second)
+		if err != nil || !strings.Contains(got, `"tab":"t1"`) {
+			t.Fatalf("tab %d của user đích phải nhận message có to trỏ user đó: %q (%v)", i+1, got, err)
+		}
 	}
 }
 

@@ -49,17 +49,22 @@ func newSignalHub() *signalHub {
 }
 
 type signalPeer struct {
-	conn *websocket.Conn
-	user string
-	send chan []byte
-	once sync.Once
+	conn     *websocket.Conn
+	user     string
+	send     chan []byte
+	sendOnce sync.Once
+	connOnce sync.Once
 }
 
-// close chạy đúng một lần: đóng hàng đợi để goroutine ghi thoát, rồi đóng kết nối với mã đã
-// chọn. conn có thể còn nil khi Accept thất bại.
-func (p *signalPeer) close(code websocket.StatusCode) {
-	p.once.Do(func() {
-		close(p.send)
+// closeSend đóng hàng đợi để goroutine ghi thoát. Chạy đúng một lần và chỉ trong lúc giữ h.mu,
+// nên relay không bao giờ gửi vào một hàng đợi đã đóng.
+func (p *signalPeer) closeSend() { p.sendOnce.Do(func() { close(p.send) }) }
+
+// closeConn đóng kết nối với mã đã chọn. Phải gọi NGOÀI h.mu: Close chạy bắt tay đóng với hạn
+// 5 giây, giữ khoá suốt thời gian đó thì một tab treo làm đứng signaling của mọi phòng. conn có
+// thể còn nil khi Accept thất bại.
+func (p *signalPeer) closeConn(code websocket.StatusCode) {
+	p.connOnce.Do(func() {
 		if p.conn != nil {
 			_ = p.conn.Close(code, "")
 		}
@@ -82,18 +87,22 @@ func (h *signalHub) join(room string, p *signalPeer) bool {
 	return true
 }
 
-// leave xoá peer khỏi phòng, xoá luôn phòng khi rỗng, rồi đóng peer — tất cả trong một lần giữ
-// khóa. Không xoá phòng rỗng thì bản đồ phình theo số lần vào/ra phòng (AC6). Đóng peer trong
-// cùng khóa để relay không bao giờ gửi vào một hàng đợi đã đóng.
+// leave xoá peer khỏi phòng và xoá luôn phòng khi rỗng, trong một lần giữ khóa. Không xoá phòng
+// rỗng thì bản đồ phình theo số lần vào/ra phòng (AC6).
+//
+// Việc đóng kết nối làm SAU khi nhả khóa: `Conn.Close` chạy bắt tay đóng với hạn 5 giây, nên giữ
+// khóa suốt lúc đó sẽ chặn relay của mọi phòng chỉ vì một client không đọc. Đóng hàng đợi gửi thì
+// vẫn phải trong khóa, nếu không relay có thể gửi vào channel đã đóng.
 func (h *signalHub) leave(room string, p *signalPeer, code websocket.StatusCode) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 	peers := h.rooms[room]
 	delete(peers, p)
 	if len(peers) == 0 {
 		delete(h.rooms, room)
 	}
-	p.close(code)
+	p.closeSend()
+	h.mu.Unlock()
+	p.closeConn(code)
 }
 
 // relay chuyển tiếp nguyên byte cho các peer khác trong cùng phòng, hoặc chỉ cho peer có user id
@@ -136,10 +145,14 @@ type RoomSignalConfig struct {
 
 // MountRoomSignal đăng ký /api/v1/cloud/projects/:id/signal. Phải gọi sau auth.Mount để hưởng
 // originCheck của các route đổi trạng thái.
-func MountRoomSignal(r *gin.Engine, cfg RoomSignalConfig) { mountRoomSignal(r, cfg, newSignalHub()) }
+func MountRoomSignal(r *gin.Engine, cfg RoomSignalConfig) {
+	mountRoomSignal(r, cfg, newSignalHub(), signalLifetime)
+}
 
-func mountRoomSignal(r *gin.Engine, cfg RoomSignalConfig, hub *signalHub) {
-	h := &signalHandler{hub: hub, s: cfg.Store, uid: cfg.UID, origin: cfg.Origin}
+// mountRoomSignal nhận hub và hạn sống từ ngoài để test đo được trần thời gian sống mà không
+// phải chờ 30 phút. Route và hành vi không đổi.
+func mountRoomSignal(r *gin.Engine, cfg RoomSignalConfig, hub *signalHub, lifetime time.Duration) {
+	h := &signalHandler{hub: hub, s: cfg.Store, uid: cfg.UID, origin: cfg.Origin, lifetime: lifetime}
 	if h.uid == nil {
 		h.uid = func(*gin.Context) string { return "" }
 	}
@@ -154,10 +167,11 @@ func mountRoomSignal(r *gin.Engine, cfg RoomSignalConfig, hub *signalHub) {
 }
 
 type signalHandler struct {
-	hub    *signalHub
-	s      *store.Store
-	uid    func(*gin.Context) string
-	origin string
+	hub      *signalHub
+	s        *store.Store
+	uid      func(*gin.Context) string
+	origin   string
+	lifetime time.Duration
 }
 
 func (h *signalHandler) signal(c *gin.Context) {
@@ -199,8 +213,11 @@ func (h *signalHandler) signal(c *gin.Context) {
 		return // Accept đã tự ghi phản hồi lỗi (400/403)
 	}
 	p.conn = conn
-	ctx, cancel := context.WithTimeout(c.Request.Context(), signalLifetime)
-	defer cancel()
+	// Hạn sống: đóng bằng close frame thật (1001 Going Away) để client biết phải mở lại. Đóng
+	// bằng hạn của context thì thư viện cắt kết nối thẳng, client chỉ thấy EOF không có mã.
+	stopLifetime := time.AfterFunc(h.lifetime, func() { p.closeConn(websocket.StatusGoingAway) })
+	defer stopLifetime.Stop()
+	ctx := c.Request.Context()
 	go h.write(ctx, p)
 	code := h.read(ctx, p, room)
 	h.hub.leave(room, p, code)
