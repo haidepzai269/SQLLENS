@@ -3,6 +3,7 @@ module github.com/haidepzai269/SQLLENS/api
 go 1.25.0
 
 require (
+	github.com/coder/websocket v1.8.15
 	github.com/gin-gonic/gin v1.12.0
 	github.com/jackc/pgx/v5 v5.7.6
 )
