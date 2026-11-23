@@ -82,7 +82,11 @@ func newRLSEnv(t *testing.T) *rlsEnv {
 		t.Fatal(err)
 	}
 	t.Cleanup(owner.Close)
-	if _, err := owner.pool.Exec(ctx, `DROP TABLE IF EXISTS cloud_project_members, cloud_tabs, cloud_projects,
+	// room_invite_tokens/room_baton (migration 006) đứng trước cloud_projects: chúng tham chiếu
+	// cloud_projects nên nếu chỉ DROP CASCADE bảng cha thì bảng con còn lại mà mất FK, và lần
+	// `Migrate` sau gặp `CREATE TABLE IF NOT EXISTS` nên không dựng lại FK — bảng sẽ sống thiếu ràng buộc.
+	if _, err := owner.pool.Exec(ctx, `DROP TABLE IF EXISTS room_invite_tokens, room_baton,
+		cloud_project_members, cloud_tabs, cloud_projects,
 		user_vip_redemptions, vip_codes, sessions, identities, users, schema_migrations CASCADE`); err != nil {
 		t.Fatal(err)
 	}
