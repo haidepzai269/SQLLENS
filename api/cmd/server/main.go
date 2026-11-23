@@ -68,6 +68,7 @@ func build(ctx context.Context) *gin.Engine {
 		Guards:      a.GateLimit(quota.CloudSync, false),
 		UID:         auth.UserID,
 	})
+	httpapi.MountRoomSignal(r, httpapi.RoomSignalConfig{Store: d.Store, RequireUser: a.RequireUser(), UID: auth.UserID, Origin: cfg.PublicOrigin})
 	return r
 }
 
