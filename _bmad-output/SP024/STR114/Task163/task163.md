@@ -8,11 +8,15 @@ Không làm: không đăng ký lại `GET /baton` (Task161 sở hữu), không �
 **Dependency Go — phiên chính đã chốt phiên bản, Amelia tự thêm:** chạy `cd api; go get github.com/coder/websocket@v1.8.15` **sau khi** file `room_signal.go` đã dùng nó, rồi `go mod tidy`. Phiên chính đã đo là `go get` lấy được bản này và `go build ./...` sạch, nhưng **không** commit sẵn vào `go.mod` vì `go mod tidy` sẽ xoá ngay một `require` chưa ai import — để lại `go.mod` có dòng thừa là tự tạo nợ. Dùng đúng `v1.8.15`, không `@latest`.
 
 
-## Hai sai lệch so với bản nháp v3 — bắt buộc reviewer đọc
+## Ba sai lệch so với bản nháp v3 — bắt buộc reviewer đọc
 
 **D1 — Ba endpoint Baton **rời khỏi** Task163, chuyển sang Task161.** Bản nháp v3 để Task163 làm `POST /baton/request`, `/baton/grant`, `/baton/heartbeat` với state **trong RAM Gin** (Sửa #16), trong khi Task161 đọc `GET /baton` từ **bảng `room_baton`** đã có ở migration 006. Hai nguồn sự thật cho cùng một trạng thái: Gin restart thì RAM về `null` còn bảng vẫn giữ `holder_id` cũ, nên `GET /baton` trả người giữ gậy đã mất quyền. Bảng đã merge và đã có RLS, nên **bảng là nguồn sự thật duy nhất**; cả 4 thao tác Baton nằm ở Task161, dùng chung một store và một file handler. Hệ quả: AC1 của bản nháp (`TestBatonLifecycle`) thuộc Task161; Task163 chỉ còn signaling. Đổi này cũng làm hai task không còn sửa cùng file, nên chạy song song được.
 
 **D2 — Không thêm dependency frontend ở task này.** Bản nháp để Task163 thêm `yjs`, `y-codemirror.next`, `lib0`, `y-webrtc` vào `web/package.json`. Task163 không có dòng TypeScript nào, nên thêm bây giờ là thêm dependency không ai dùng. `yjs` + `y-codemirror.next` + `lib0` thuộc Task164; `y-webrtc` thuộc Task166. Ghi vào bàn giao để hai task đó nhớ.
+
+**D3 — `to` so theo user id, không theo peer id (review vòng 1 chốt).** Dòng 25 dưới đây nói "chỉ gửi cho peer đó", nhưng server chỉ biết danh tính người dùng (`uid` từ phiên), không có id của từng tab/peer. Hệ quả: một người mở hai tab trong cùng phòng thì **cả hai tab đều nhận** message có `to` trỏ tới người đó. Muốn `to` trỏ đúng một peer thì server phải cấp id cho từng kết nối và có kênh presence để client biết id của nhau — việc của Task164/166, không phải task này. Chưa có frontend nào tiêu thụ endpoint nên chưa có gì để phá.
+
+Hệ quả **bắt buộc** cho frontend (Task164/166): payload là JSON tự do, nên client **phải** mang id tab/peer của chính nó trong payload và tab nhận **tự lọc** message không phải của mình. Server không diễn giải, đúng dòng 25. Hành vi này được khoá bằng `TestRoomSignalTargetUserReachesAllTabs` để nó là hợp đồng có kiểm, không phải lỗi ngầm.
 
 ## Hợp đồng endpoint
 
@@ -22,7 +26,7 @@ GET /api/v1/cloud/projects/:id/signal   (WebSocket upgrade, cần đăng nhập)
 
 - Chỉ thành viên phòng (hoặc owner) được mở. Người ngoài: **401** khi chưa đăng nhập, **404** khi đã đăng nhập nhưng không có quyền — không lộ dự án có tồn tại.
 - Sau khi nâng cấp, server giữ kết nối và chuyển tiếp message cho **các peer khác trong cùng `:id`**. Không lưu, không ghi log nội dung.
-- Message là JSON tự do có trường `to` (tuỳ chọn). Có `to` thì chỉ gửi cho peer đó; không có thì phát cho mọi peer khác trong phòng. Server **không** diễn giải SDP/ICE, chỉ chuyển tiếp.
+- Message là JSON tự do có trường `to` (tuỳ chọn). Có `to` thì chỉ gửi cho **người dùng** đó (xem D3: `to` là user id, không phải peer id — hai tab của cùng một người đều nhận, client tự lọc); không có thì phát cho mọi peer khác trong phòng. Server **không** diễn giải SDP/ICE, chỉ chuyển tiếp.
 - Trần một message: **64 KB**. Vượt thì đóng kết nối mã `1009`.
 - JSON hỏng: đóng kết nối mã `1007`, không làm sập hub.
 
@@ -59,7 +63,7 @@ Mỗi peer có một goroutine ghi (đọc từ `send`) để nhiều goroutine 
 ## Kiểm tra
 
 ```powershell
-$env:RLS_TEST_DSN="postgres://postgres:t152@localhost:54492/app163"
+$env:RLS_TEST_DSN="postgres://postgres:t152@localhost:54494/app163"
 $env:T149_DATABASE_URL=$env:RLS_TEST_DSN
 cd api
 go build ./...
@@ -68,7 +72,7 @@ go test -p 1 ./... -count=1
 go test -race -run RoomSignal ./internal/httpapi
 ```
 
-Container `t160-pg` (PostgreSQL 18, cổng 54492, mật khẩu `t152`). Database `app163` đã dựng sẵn và trống. Dùng `app163`, **không** dùng `app` (Task171 và Task161 chạy trên database khác).
+Container `t163-pg` (PostgreSQL 18, cổng **54494**, mật khẩu `t152`). Database `app163` đã dựng sẵn và trống. Dùng `app163`, **không** dùng `app` (Task171 và Task161 chạy trên database khác). `-race` cần cgo: `$env:PATH="C:\mingw64\bin;$env:PATH"; $env:CGO_ENABLED="1"; $env:CC="C:\mingw64\bin\gcc.exe"`.
 
 ## Góc review thêm
 
