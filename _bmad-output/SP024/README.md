@@ -67,3 +67,4 @@ Chủ dự án chốt hai câu hỏi còn treo của bản nháp Story SP024. Ch
 | Task | Nội dung | Trạng thái |
 |---|---|---|
 | Task159 | Cổng đo Tầng 0 | **Xong** (merge `33ff8d7`) — đo đủ 6 AC, 3 lần mỗi phép. Review độc lập chấm **no-go** đứng vững trên 6 lý do riêng; 5 lỗi Trung bình và 8 lỗi Thấp đã sửa ở `4e908c7` + `663cb16`. Báo cáo: `STR108/Task159/ket_qua_do.md`. Bàn giao: `STR108/Task159/ban_giao_task159.md` |
+| Task160 | Migration 006: schema phòng (invite token + Baton) | **Xong code** trên `task/Task160` — 3/3 test PASS trên PostgreSQL 18 thật bằng role non-superuser, `go test -p 1 ./...` 7/7 package. **Chưa review độc lập, chưa merge.** Bàn giao: `STR116/Task160/ban_giao_task160.md` |
