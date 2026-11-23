@@ -1,0 +1,143 @@
+{
+  "label": "compress-false",
+  "webOrigin": "http://localhost:3159",
+  "payloadChars": 3000,
+  "runs": [
+    {
+      "variant": "no-transform=1",
+      "run": 1,
+      "ttfbMs": 47.5,
+      "contentEncoding": null,
+      "cacheControl": "no-cache, no-transform",
+      "firstChunks": [
+        {
+          "at": 54.5,
+          "n": 26
+        },
+        {
+          "at": 1061,
+          "n": 3095
+        }
+      ],
+      "snapshotArrivedMs": 8,
+      "streamed": true
+    },
+    {
+      "variant": "no-transform=1",
+      "run": 2,
+      "ttfbMs": 15.599999994039536,
+      "contentEncoding": null,
+      "cacheControl": "no-cache, no-transform",
+      "firstChunks": [
+        {
+          "at": 18.599999994039536,
+          "n": 26
+        },
+        {
+          "at": 1037.4000000059605,
+          "n": 3095
+        }
+      ],
+      "snapshotArrivedMs": 16,
+      "streamed": true
+    },
+    {
+      "variant": "no-transform=1",
+      "run": 3,
+      "ttfbMs": 15.400000005960464,
+      "contentEncoding": null,
+      "cacheControl": "no-cache, no-transform",
+      "firstChunks": [
+        {
+          "at": 21.69999998807907,
+          "n": 26
+        },
+        {
+          "at": 1043.5999999940395,
+          "n": 3095
+        }
+      ],
+      "snapshotArrivedMs": 13,
+      "streamed": true
+    },
+    {
+      "variant": "no-transform=0",
+      "run": 1,
+      "ttfbMs": 15.5,
+      "contentEncoding": null,
+      "cacheControl": "no-cache",
+      "firstChunks": [
+        {
+          "at": 18.599999994039536,
+          "n": 26
+        },
+        {
+          "at": 1042.5999999940395,
+          "n": 3095
+        }
+      ],
+      "snapshotArrivedMs": 24,
+      "streamed": true
+    },
+    {
+      "variant": "no-transform=0",
+      "run": 2,
+      "ttfbMs": 16.899999976158142,
+      "contentEncoding": null,
+      "cacheControl": "no-cache",
+      "firstChunks": [
+        {
+          "at": 19.899999976158142,
+          "n": 26
+        },
+        {
+          "at": 1027,
+          "n": 3095
+        }
+      ],
+      "snapshotArrivedMs": 9,
+      "streamed": true
+    },
+    {
+      "variant": "no-transform=0",
+      "run": 3,
+      "ttfbMs": 14.800000011920929,
+      "contentEncoding": null,
+      "cacheControl": "no-cache",
+      "firstChunks": [
+        {
+          "at": 18,
+          "n": 26
+        },
+        {
+          "at": 1031,
+          "n": 3095
+        }
+      ],
+      "snapshotArrivedMs": 8,
+      "streamed": true
+    }
+  ],
+  "byVariant": {
+    "no-transform=1": {
+      "ttfbMs": 15.599999994039536,
+      "snapshotArrivedMs": 13,
+      "streamed": true,
+      "contentEncoding": [
+        null,
+        null,
+        null
+      ]
+    },
+    "no-transform=0": {
+      "ttfbMs": 15.5,
+      "snapshotArrivedMs": 9,
+      "streamed": true,
+      "contentEncoding": [
+        null,
+        null,
+        null
+      ]
+    }
+  }
+}

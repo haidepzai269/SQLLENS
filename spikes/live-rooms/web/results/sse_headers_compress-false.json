@@ -1,0 +1,37 @@
+{
+  "label": "compress-false",
+  "webOrigin": "http://localhost:3159",
+  "pageResponses": [
+    {
+      "url": "http://localhost:3159/api/room/hdr-1795400204642/events",
+      "status": 200,
+      "headers": {
+        "transfer-encoding": "chunked",
+        "cache-control": "no-cache, no-transform",
+        "x-accel-buffering": "no",
+        "date": "Mon, 23 Nov 2026 02:16:45 GMT",
+        "content-type": "text/event-stream",
+        "connection": "keep-alive"
+      }
+    },
+    {
+      "url": "http://localhost:3159/api/room/hdr-1795400204642/events",
+      "status": 200,
+      "headers": {
+        "transfer-encoding": "chunked",
+        "cache-control": "no-cache, no-transform",
+        "x-accel-buffering": "no",
+        "date": "Mon, 23 Nov 2026 02:16:50 GMT",
+        "content-type": "text/event-stream",
+        "connection": "keep-alive"
+      }
+    }
+  ],
+  "manualFetch": {
+    "firstByte": 22.80000001192093,
+    "bytes": 26,
+    "chunks": 1,
+    "contentType": "text/event-stream",
+    "encoding": null
+  }
+}

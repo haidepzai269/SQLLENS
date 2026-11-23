@@ -1,0 +1,11 @@
+{
+  "note": "payload giả 3894 B để khớp AC2; đo kích thước khung, không đo nội dung",
+  "pollResponse200Bytes": 3969,
+  "publishResponseBytes": 20,
+  "sseSnapshotFrameBytes": 3991,
+  "sseHelloFrameBytes": 26,
+  "ssePingFrameBytes": 37,
+  "heartbeatMs": 15000,
+  "sseOverheadPerEvent": 97,
+  "pollOverheadPerEvent": 75
+}

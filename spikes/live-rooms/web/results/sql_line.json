@@ -1,0 +1,173 @@
+{
+  "method": "số snapshot × 1.700 B / cửa sổ × 60.000",
+  "sqlPerSnapshot": 1700,
+  "ac1PayloadBytes": 3909,
+  "note": "chỉ nhân byte SQL với sự kiện snapshot; hello/ping/khung SSE không chở SQL",
+  "ac2": {
+    "sse": [
+      {
+        "run": 1,
+        "windowMs": 63174,
+        "bodyBytes": 20186,
+        "viewerEvents": 6,
+        "snapshots": 5,
+        "sqlBpm": 8072.941399943015,
+        "sqlBpmNaiveWrong": 8337.702486531067,
+        "overstatePct": 3.2796111537477524
+      },
+      {
+        "run": 2,
+        "windowMs": 63102,
+        "bodyBytes": 20231,
+        "viewerEvents": 6,
+        "snapshots": 5,
+        "sqlBpm": 8082.152705144053,
+        "sqlBpmNaiveWrong": 8365.824066399044,
+        "overstatePct": 3.5098490662573534
+      },
+      {
+        "run": 3,
+        "windowMs": 63129,
+        "bodyBytes": 20192,
+        "viewerEvents": 6,
+        "snapshots": 5,
+        "sqlBpm": 8078.696003421566,
+        "sqlBpmNaiveWrong": 8346.125848098656,
+        "overstatePct": 3.310309542082357
+      }
+    ],
+    "poll": [
+      {
+        "run": 1,
+        "windowMs": 63131,
+        "bodyBytes": 23857,
+        "snapshots": 6,
+        "sqlBpm": 9694.128082875292,
+        "sqlBpmNaiveWrong": 9860.698118579168,
+        "overstatePct": 1.7182570137289854
+      },
+      {
+        "run": 2,
+        "windowMs": 63142,
+        "bodyBytes": 23852,
+        "snapshots": 6,
+        "sqlBpm": 9692.43926388141,
+        "sqlBpmNaiveWrong": 9856.914015609253,
+        "overstatePct": 1.696938688496652
+      },
+      {
+        "run": 3,
+        "windowMs": 63108,
+        "bodyBytes": 23863,
+        "snapshots": 6,
+        "sqlBpm": 9697.661152310326,
+        "sqlBpmNaiveWrong": 9866.77274996083,
+        "overstatePct": 1.7438390040078522
+      }
+    ],
+    "idle": {
+      "runs": [
+        {
+          "run": 1,
+          "bodyBytes": 162,
+          "snapshots": 0,
+          "sqlBpm": 0
+        },
+        {
+          "run": 2,
+          "bodyBytes": 162,
+          "snapshots": 0,
+          "sqlBpm": 0
+        },
+        {
+          "run": 3,
+          "bodyBytes": 162,
+          "snapshots": 0,
+          "sqlBpm": 0
+        }
+      ],
+      "sqlBpm": 0,
+      "note": "thân 162 B là hello+ping, không chở SQL"
+    },
+    "sseMedian": {
+      "sqlBpm": 8078.696003421566,
+      "sqlBpmNaiveWrong": 8346.125848098656
+    },
+    "pollMedian": {
+      "sqlBpm": 9694.128082875292,
+      "sqlBpmNaiveWrong": 9860.698118579168
+    }
+  },
+  "ac4": {
+    "sseEventDeltas": [
+      1770,
+      1770
+    ],
+    "sse": [
+      {
+        "run": 1,
+        "windowMs": 601149,
+        "perViewerBytes": 236909.23333333334,
+        "snapshotsPerViewer": 59,
+        "sqlBpm": 10010.829261963341,
+        "sqlBpmNaiveWrong": 10283.343893416906,
+        "overstatePct": 2.722198374604168
+      },
+      {
+        "run": 2,
+        "windowMs": 601125,
+        "perViewerBytes": 236939.23333333334,
+        "snapshotsPerViewer": 59,
+        "sqlBpm": 10011.228945726762,
+        "sqlBpmNaiveWrong": 10285.056697169826,
+        "overstatePct": 2.7352061662713867
+      },
+      {
+        "run": 3,
+        "windowMs": 601069,
+        "perViewerBytes": 236977,
+        "snapshotsPerViewer": 59,
+        "sqlBpm": 10012.161665299656,
+        "sqlBpmNaiveWrong": 10287.654456502885,
+        "overstatePct": 2.7515815306702107
+      }
+    ],
+    "poll": [
+      {
+        "run": 1,
+        "windowMs": 601024,
+        "perViewerBytes": 237351,
+        "snapshotsPerViewer": 60,
+        "sqlBpm": 10182.621659035247,
+        "sqlBpmNaiveWrong": 10304.662033741259,
+        "overstatePct": 1.1985162445638187
+      },
+      {
+        "run": 2,
+        "windowMs": 600972,
+        "perViewerBytes": 237381,
+        "snapshotsPerViewer": 60,
+        "sqlBpm": 10183.502725584553,
+        "sqlBpmNaiveWrong": 10306.856231354936,
+        "overstatePct": 1.211307239703241
+      },
+      {
+        "run": 3,
+        "windowMs": 600876,
+        "perViewerBytes": 237420,
+        "snapshotsPerViewer": 60,
+        "sqlBpm": 10185.129710622492,
+        "sqlBpmNaiveWrong": 10310.196537460528,
+        "overstatePct": 1.2279355333844943
+      }
+    ],
+    "sseMedian": {
+      "sqlBpm": 10011.228945726762,
+      "sqlBpmNaiveWrong": 10285.056697169826
+    },
+    "pollMedian": {
+      "sqlBpm": 10183.502725584553,
+      "sqlBpmNaiveWrong": 10306.856231354936
+    }
+  }
+}

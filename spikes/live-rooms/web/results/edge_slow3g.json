@@ -1,0 +1,119 @@
+{
+  "what": "slow3g",
+  "runs": [
+    {
+      "run": 1,
+      "profile": {
+        "downloadThroughput": 51200,
+        "uploadThroughput": 51200,
+        "latency": 400
+      },
+      "samples": [
+        {
+          "latencyMs": 63,
+          "bodyBytes": 3881,
+          "arrived": true
+        },
+        {
+          "latencyMs": 79,
+          "bodyBytes": 3881,
+          "arrived": true
+        },
+        {
+          "latencyMs": 95,
+          "bodyBytes": 3881,
+          "arrived": true
+        },
+        {
+          "latencyMs": 63,
+          "bodyBytes": 3881,
+          "arrived": true
+        },
+        {
+          "latencyMs": 96,
+          "bodyBytes": 3881,
+          "arrived": true
+        }
+      ],
+      "latencyMedianMs": 79,
+      "eventsSeen": 7
+    },
+    {
+      "run": 2,
+      "profile": {
+        "downloadThroughput": 51200,
+        "uploadThroughput": 51200,
+        "latency": 400
+      },
+      "samples": [
+        {
+          "latencyMs": 80,
+          "bodyBytes": 3881,
+          "arrived": true
+        },
+        {
+          "latencyMs": 79,
+          "bodyBytes": 3881,
+          "arrived": true
+        },
+        {
+          "latencyMs": 94,
+          "bodyBytes": 3881,
+          "arrived": true
+        },
+        {
+          "latencyMs": 61,
+          "bodyBytes": 3881,
+          "arrived": true
+        },
+        {
+          "latencyMs": 91,
+          "bodyBytes": 3881,
+          "arrived": true
+        }
+      ],
+      "latencyMedianMs": 80,
+      "eventsSeen": 7
+    },
+    {
+      "run": 3,
+      "profile": {
+        "downloadThroughput": 51200,
+        "uploadThroughput": 51200,
+        "latency": 400
+      },
+      "samples": [
+        {
+          "latencyMs": 63,
+          "bodyBytes": 3881,
+          "arrived": true
+        },
+        {
+          "latencyMs": 79,
+          "bodyBytes": 3881,
+          "arrived": true
+        },
+        {
+          "latencyMs": 92,
+          "bodyBytes": 3881,
+          "arrived": true
+        },
+        {
+          "latencyMs": 63,
+          "bodyBytes": 3881,
+          "arrived": true
+        },
+        {
+          "latencyMs": 77,
+          "bodyBytes": 3881,
+          "arrived": true
+        }
+      ],
+      "latencyMedianMs": 77,
+      "eventsSeen": 7
+    }
+  ],
+  "median": {
+    "latencyMedianMs": 79
+  }
+}

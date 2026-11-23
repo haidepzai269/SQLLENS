@@ -1,0 +1,116 @@
+{
+  "label": "compress-true",
+  "webOrigin": "http://localhost:3159",
+  "payloadChars": 3000,
+  "runs": [
+    {
+      "variant": "no-transform=1",
+      "run": 1,
+      "ttfbMs": 17.200000017881393,
+      "contentEncoding": null,
+      "cacheControl": "no-cache, no-transform",
+      "firstChunks": [
+        {
+          "at": 20.200000017881393,
+          "n": 26
+        },
+        {
+          "at": 1042.7000000178814,
+          "n": 3095
+        }
+      ],
+      "snapshotArrivedMs": 13,
+      "streamed": true
+    },
+    {
+      "variant": "no-transform=1",
+      "run": 2,
+      "ttfbMs": 12.799999982118607,
+      "contentEncoding": null,
+      "cacheControl": "no-cache, no-transform",
+      "firstChunks": [
+        {
+          "at": 18.099999994039536,
+          "n": 26
+        },
+        {
+          "at": 1034.5,
+          "n": 3095
+        }
+      ],
+      "snapshotArrivedMs": 18,
+      "streamed": true
+    },
+    {
+      "variant": "no-transform=1",
+      "run": 3,
+      "ttfbMs": 15.099999994039536,
+      "contentEncoding": null,
+      "cacheControl": "no-cache, no-transform",
+      "firstChunks": [
+        {
+          "at": 28,
+          "n": 26
+        },
+        {
+          "at": 1036.7999999821186,
+          "n": 3095
+        }
+      ],
+      "snapshotArrivedMs": 11,
+      "streamed": true
+    },
+    {
+      "variant": "no-transform=0",
+      "run": 1,
+      "ttfbMs": 13.699999988079071,
+      "contentEncoding": "gzip",
+      "cacheControl": "no-cache",
+      "firstChunks": [],
+      "snapshotArrivedMs": null,
+      "streamed": false
+    },
+    {
+      "variant": "no-transform=0",
+      "run": 2,
+      "ttfbMs": 39.29999998211861,
+      "contentEncoding": "gzip",
+      "cacheControl": "no-cache",
+      "firstChunks": [],
+      "snapshotArrivedMs": null,
+      "streamed": false
+    },
+    {
+      "variant": "no-transform=0",
+      "run": 3,
+      "ttfbMs": 41.099999994039536,
+      "contentEncoding": "gzip",
+      "cacheControl": "no-cache",
+      "firstChunks": [],
+      "snapshotArrivedMs": null,
+      "streamed": false
+    }
+  ],
+  "byVariant": {
+    "no-transform=1": {
+      "ttfbMs": 15.099999994039536,
+      "snapshotArrivedMs": 13,
+      "streamed": true,
+      "contentEncoding": [
+        null,
+        null,
+        null
+      ]
+    },
+    "no-transform=0": {
+      "ttfbMs": 39.29999998211861,
+      "snapshotArrivedMs": null,
+      "streamed": false,
+      "contentEncoding": [
+        "gzip",
+        "gzip",
+        "gzip"
+      ]
+    }
+  }
+}

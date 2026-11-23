@@ -1,0 +1,206 @@
+{
+  "mode": "poll",
+  "config": {
+    "viewers": 30,
+    "minutes": 10,
+    "pollMs": 2000,
+    "publishEveryMs": 10000,
+    "heartbeatMs": 15000,
+    "payloadBytes": 3880
+  },
+  "runs": [
+    {
+      "run": 1,
+      "mode": "poll",
+      "viewers": 30,
+      "windowMs": 601024,
+      "openMs": 2327,
+      "requests": {
+        "poll": 9037,
+        "publish": 60
+      },
+      "bytesByRoute": {
+        "poll": 7120530,
+        "publish": 1251
+      },
+      "statusByRoute": {
+        "poll_200": 1800,
+        "poll_304": 7237,
+        "publish_200": 60
+      },
+      "totalBytes": 7121781,
+      "bytesPerMinuteAllViewers": 710964.7202108401,
+      "bytesPerViewerPerMinute": 23698.824007028004,
+      "sqlBytesPerViewerPerMinute": 10306.472451252906,
+      "sseOpenAt30": 0,
+      "sseTotal": 93,
+      "sseEvents": 5325,
+      "goroutinesAt30": 19,
+      "goroutinesEnd": 19,
+      "heapAllocAt30": 1879872,
+      "heapAllocEnd": 2049184,
+      "ram0": {
+        "gin": 42020864,
+        "next": 129949696
+      },
+      "ram1": {
+        "gin": 42020864,
+        "next": 126832640
+      },
+      "ram30": {
+        "gin": 41259008,
+        "next": 128143360
+      },
+      "ramEnd": {
+        "gin": 43347968,
+        "next": 129417216
+      },
+      "viewerEvents": 60,
+      "viewerPolls": 306,
+      "viewerErrors": 0,
+      "wireFirstViewer": {
+        "requests": 306,
+        "body": 238119,
+        "headers": 43016
+      },
+      "connectionRelease": {
+        "releasedMs": 683,
+        "sseOpenAfterClose": 0,
+        "closesRecorded": 0,
+        "livedMs": []
+      }
+    },
+    {
+      "run": 2,
+      "mode": "poll",
+      "viewers": 30,
+      "windowMs": 600972,
+      "openMs": 2124,
+      "requests": {
+        "poll": 9038,
+        "publish": 60
+      },
+      "bytesByRoute": {
+        "poll": 7121430,
+        "publish": 1281
+      },
+      "statusByRoute": {
+        "poll_200": 1800,
+        "poll_304": 7238,
+        "publish_200": 60
+      },
+      "totalBytes": 7122711,
+      "bytesPerMinuteAllViewers": 711119.0870789321,
+      "bytesPerViewerPerMinute": 23703.969569297737,
+      "sqlBytesPerViewerPerMinute": 10308.710224560285,
+      "sseOpenAt30": 0,
+      "sseTotal": 93,
+      "sseEvents": 5325,
+      "goroutinesAt30": 19,
+      "goroutinesEnd": 19,
+      "heapAllocAt30": 2809808,
+      "heapAllocEnd": 3336200,
+      "ram0": {
+        "gin": 43347968,
+        "next": 129437696
+      },
+      "ram1": {
+        "gin": 43347968,
+        "next": 129667072
+      },
+      "ram30": {
+        "gin": 43347968,
+        "next": 130469888
+      },
+      "ramEnd": {
+        "gin": 43634688,
+        "next": 128622592
+      },
+      "viewerEvents": 60,
+      "viewerPolls": 305,
+      "viewerErrors": 0,
+      "wireFirstViewer": {
+        "requests": 305,
+        "body": 238145,
+        "headers": 43044
+      },
+      "connectionRelease": {
+        "releasedMs": 352,
+        "sseOpenAfterClose": 0,
+        "closesRecorded": 0,
+        "livedMs": []
+      }
+    },
+    {
+      "run": 3,
+      "mode": "poll",
+      "viewers": 30,
+      "windowMs": 600876,
+      "openMs": 1644,
+      "requests": {
+        "poll": 9043,
+        "publish": 60
+      },
+      "bytesByRoute": {
+        "poll": 7122600,
+        "publish": 1320
+      },
+      "statusByRoute": {
+        "poll_200": 1800,
+        "poll_304": 7243,
+        "publish_200": 60
+      },
+      "totalBytes": 7123920,
+      "bytesPerMinuteAllViewers": 711353.4240009586,
+      "bytesPerViewerPerMinute": 23711.780800031953,
+      "sqlBytesPerViewerPerMinute": 10312.10728064833,
+      "sseOpenAt30": 0,
+      "sseTotal": 93,
+      "sseEvents": 5325,
+      "goroutinesAt30": 19,
+      "goroutinesEnd": 19,
+      "heapAllocAt30": 1518664,
+      "heapAllocEnd": 1833488,
+      "ram0": {
+        "gin": 43634688,
+        "next": 128622592
+      },
+      "ram1": {
+        "gin": 43646976,
+        "next": 128974848
+      },
+      "ram30": {
+        "gin": 43651072,
+        "next": 128811008
+      },
+      "ramEnd": {
+        "gin": 43577344,
+        "next": 90570752
+      },
+      "viewerEvents": 60,
+      "viewerPolls": 305,
+      "viewerErrors": 0,
+      "wireFirstViewer": {
+        "requests": 305,
+        "body": 238292,
+        "headers": 43245
+      },
+      "connectionRelease": {
+        "releasedMs": 803,
+        "sseOpenAfterClose": 0,
+        "closesRecorded": 0,
+        "livedMs": []
+      }
+    }
+  ],
+  "median": {
+    "openMs": 2124,
+    "totalBytes": 7122711,
+    "bytesPerMinuteAllViewers": 711119.0870789321,
+    "bytesPerViewerPerMinute": 23703.969569297737,
+    "sqlBytesPerViewerPerMinute": 10308.710224560285,
+    "goroutinesAt30": 19,
+    "goroutinesEnd": 19,
+    "releasedMs": 683
+  }
+}

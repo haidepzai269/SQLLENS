@@ -1,0 +1,116 @@
+{
+  "mode": "poll",
+  "config": {
+    "windowMs": 60000,
+    "publishEveryMs": 10000,
+    "pollMs": 2000,
+    "payloadBytes": 3888,
+    "sqlBytes": 3629
+  },
+  "sqlShareOfPayload": 0.4348938347403428,
+  "runs": [
+    {
+      "run": 1,
+      "mode": "poll",
+      "publishing": true,
+      "windowMs": 63131,
+      "requests": 32,
+      "bodyBytes": 23857,
+      "headerBytes": 4454,
+      "totalBytes": 28311,
+      "byStatus": {
+        "200": 6,
+        "304": 26
+      },
+      "byUrl": {
+        "/api/room/ac2-poll/poll": {
+          "requests": 32,
+          "body": 23857,
+          "headers": 4454
+        }
+      },
+      "viewerEvents": 6,
+      "viewerPolls": 32,
+      "viewerNotModified": 26,
+      "viewerErrors": 0,
+      "publishesInWindow": 6,
+      "errors": [],
+      "bytesPerMinute": 26906.907858262977,
+      "bodyPerMinute": 22673.8052620741,
+      "sqlShareOfPayload": 0.4348938347403428,
+      "sqlBytesPerMinute": 9860.698118579168
+    },
+    {
+      "run": 2,
+      "mode": "poll",
+      "publishing": true,
+      "windowMs": 63142,
+      "requests": 32,
+      "bodyBytes": 23852,
+      "headerBytes": 4464,
+      "totalBytes": 28316,
+      "byStatus": {
+        "200": 6,
+        "304": 26
+      },
+      "byUrl": {
+        "/api/room/ac2-poll/poll": {
+          "requests": 32,
+          "body": 23852,
+          "headers": 4464
+        }
+      },
+      "viewerEvents": 6,
+      "viewerPolls": 32,
+      "viewerNotModified": 26,
+      "viewerErrors": 0,
+      "publishesInWindow": 6,
+      "errors": [],
+      "bytesPerMinute": 26906.97158784961,
+      "bodyPerMinute": 22665.104051186216,
+      "sqlShareOfPayload": 0.4348938347403428,
+      "sqlBytesPerMinute": 9856.914015609253
+    },
+    {
+      "run": 3,
+      "mode": "poll",
+      "publishing": true,
+      "windowMs": 63108,
+      "requests": 32,
+      "bodyBytes": 23863,
+      "headerBytes": 4486,
+      "totalBytes": 28349,
+      "byStatus": {
+        "200": 6,
+        "304": 26
+      },
+      "byUrl": {
+        "/api/room/ac2-poll/poll": {
+          "requests": 32,
+          "body": 23863,
+          "headers": 4486
+        }
+      },
+      "viewerEvents": 6,
+      "viewerPolls": 32,
+      "viewerNotModified": 26,
+      "viewerErrors": 0,
+      "publishesInWindow": 6,
+      "errors": [],
+      "bytesPerMinute": 26952.842745769158,
+      "bodyPerMinute": 22687.773340939344,
+      "sqlShareOfPayload": 0.4348938347403428,
+      "sqlBytesPerMinute": 9866.77274996083
+    }
+  ],
+  "median": {
+    "requests": 32,
+    "bodyBytes": 23857,
+    "headerBytes": 4464,
+    "totalBytes": 28316,
+    "bytesPerMinute": 26906.97158784961,
+    "bodyPerMinute": 22673.8052620741,
+    "sqlBytesPerMinute": 9860.698118579168,
+    "viewerEvents": 6
+  }
+}

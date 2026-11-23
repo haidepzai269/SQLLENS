@@ -1,0 +1,607 @@
+{
+  "runs": [
+    {
+      "run": 1,
+      "/viewer?mode=poll&room=w&interval=2000": {
+        "workers": 0,
+        "pageCount": 11,
+        "pageTotal": 139361,
+        "pageJs": 137861,
+        "pageWasm": 0,
+        "workerCount": 0,
+        "workerTotal": 0,
+        "workerWasm": 0,
+        "pageEntries": [
+          {
+            "name": "/_next/static/chunks/0j1we3cwg31qe.js",
+            "transferSize": 6255,
+            "encodedBodySize": 5955,
+            "decodedBodySize": 17026
+          },
+          {
+            "name": "/_next/static/chunks/33ppi7mt0ja_6.js",
+            "transferSize": 50075,
+            "encodedBodySize": 49775,
+            "decodedBodySize": 186788
+          },
+          {
+            "name": "/_next/static/chunks/34-s9nvef5sdp.js",
+            "transferSize": 72052,
+            "encodedBodySize": 71752,
+            "decodedBodySize": 229288
+          },
+          {
+            "name": "/_next/static/chunks/turbopack-2u1d16houkiyo.js",
+            "transferSize": 4205,
+            "encodedBodySize": 3905,
+            "decodedBodySize": 9974
+          },
+          {
+            "name": "/_next/static/chunks/3qfy96eoyh-ek.js",
+            "transferSize": 3815,
+            "encodedBodySize": 3515,
+            "decodedBodySize": 13994
+          },
+          {
+            "name": "/_next/static/chunks/3h_2nwkj6ryk-.js",
+            "transferSize": 1459,
+            "encodedBodySize": 1159,
+            "decodedBodySize": 2199
+          },
+          {
+            "name": "/api/room/w/poll",
+            "transferSize": 300,
+            "encodedBodySize": 0,
+            "decodedBodySize": 0
+          },
+          {
+            "name": "/api/room/w/poll",
+            "transferSize": 300,
+            "encodedBodySize": 0,
+            "decodedBodySize": 0
+          },
+          {
+            "name": "/api/room/w/poll",
+            "transferSize": 300,
+            "encodedBodySize": 0,
+            "decodedBodySize": 0
+          },
+          {
+            "name": "/api/room/w/poll",
+            "transferSize": 300,
+            "encodedBodySize": 0,
+            "decodedBodySize": 0
+          },
+          {
+            "name": "/api/room/w/poll",
+            "transferSize": 300,
+            "encodedBodySize": 0,
+            "decodedBodySize": 0
+          }
+        ],
+        "workerEntries": [],
+        "total": 139361,
+        "wasm": 0
+      },
+      "/ac1": {
+        "workers": 1,
+        "pageCount": 7,
+        "pageTotal": 143103,
+        "pageJs": 143103,
+        "pageWasm": 0,
+        "workerCount": 9,
+        "workerTotal": 9844906,
+        "workerWasm": 9674266,
+        "pageEntries": [
+          {
+            "name": "/_next/static/chunks/0j1we3cwg31qe.js",
+            "transferSize": 6255,
+            "encodedBodySize": 5955,
+            "decodedBodySize": 17026
+          },
+          {
+            "name": "/_next/static/chunks/33ppi7mt0ja_6.js",
+            "transferSize": 50075,
+            "encodedBodySize": 49775,
+            "decodedBodySize": 186788
+          },
+          {
+            "name": "/_next/static/chunks/34-s9nvef5sdp.js",
+            "transferSize": 72052,
+            "encodedBodySize": 71752,
+            "decodedBodySize": 229288
+          },
+          {
+            "name": "/_next/static/chunks/turbopack-2u1d16houkiyo.js",
+            "transferSize": 4205,
+            "encodedBodySize": 3905,
+            "decodedBodySize": 9974
+          },
+          {
+            "name": "/_next/static/chunks/3qfy96eoyh-ek.js",
+            "transferSize": 3815,
+            "encodedBodySize": 3515,
+            "decodedBodySize": 13994
+          },
+          {
+            "name": "/_next/static/chunks/0ost2-siiiprz.js",
+            "transferSize": 5474,
+            "encodedBodySize": 5174,
+            "decodedBodySize": 12883
+          },
+          {
+            "name": "/_next/static/chunks/turbopack-worker-1hrsqshz0gfey.js",
+            "transferSize": 1227,
+            "encodedBodySize": 927,
+            "decodedBodySize": 927
+          }
+        ],
+        "workerEntries": [
+          {
+            "name": "/_next/static/chunks/turbopack-15rb02pz3wcs4.js",
+            "transferSize": 554,
+            "encodedBodySize": 254,
+            "decodedBodySize": 254
+          },
+          {
+            "name": "/_next/static/chunks/317pno25qtt_v.js",
+            "transferSize": 40532,
+            "encodedBodySize": 40232,
+            "decodedBodySize": 125152
+          },
+          {
+            "name": "/_next/static/chunks/2i4-ubu6kft8r.js",
+            "transferSize": 110313,
+            "encodedBodySize": 110013,
+            "decodedBodySize": 433246
+          },
+          {
+            "name": "/_next/static/chunks/3m-1tfumswh7r.js",
+            "transferSize": 2823,
+            "encodedBodySize": 2523,
+            "decodedBodySize": 6452
+          },
+          {
+            "name": "/_next/static/chunks/turbopack-2u1d16houkiyo.js",
+            "transferSize": 0,
+            "encodedBodySize": 3905,
+            "decodedBodySize": 9974
+          },
+          {
+            "name": "/pglite/pglite.wasm",
+            "transferSize": 3293275,
+            "encodedBodySize": 3292975,
+            "decodedBodySize": 9087748
+          },
+          {
+            "name": "/pglite/initdb.wasm",
+            "transferSize": 132182,
+            "encodedBodySize": 131882,
+            "decodedBodySize": 300109
+          },
+          {
+            "name": "/pglite/pglite.data",
+            "transferSize": 6248809,
+            "encodedBodySize": 6248509,
+            "decodedBodySize": 6248509
+          },
+          {
+            "name": "/pglite/pageinspect.tar.gz",
+            "transferSize": 16418,
+            "encodedBodySize": 16118,
+            "decodedBodySize": 16118
+          }
+        ],
+        "total": 9988009,
+        "wasm": 9674266
+      }
+    },
+    {
+      "run": 2,
+      "/viewer?mode=poll&room=w&interval=2000": {
+        "workers": 0,
+        "pageCount": 11,
+        "pageTotal": 139361,
+        "pageJs": 137861,
+        "pageWasm": 0,
+        "workerCount": 0,
+        "workerTotal": 0,
+        "workerWasm": 0,
+        "pageEntries": [
+          {
+            "name": "/_next/static/chunks/0j1we3cwg31qe.js",
+            "transferSize": 6255,
+            "encodedBodySize": 5955,
+            "decodedBodySize": 17026
+          },
+          {
+            "name": "/_next/static/chunks/33ppi7mt0ja_6.js",
+            "transferSize": 50075,
+            "encodedBodySize": 49775,
+            "decodedBodySize": 186788
+          },
+          {
+            "name": "/_next/static/chunks/34-s9nvef5sdp.js",
+            "transferSize": 72052,
+            "encodedBodySize": 71752,
+            "decodedBodySize": 229288
+          },
+          {
+            "name": "/_next/static/chunks/turbopack-2u1d16houkiyo.js",
+            "transferSize": 4205,
+            "encodedBodySize": 3905,
+            "decodedBodySize": 9974
+          },
+          {
+            "name": "/_next/static/chunks/3qfy96eoyh-ek.js",
+            "transferSize": 3815,
+            "encodedBodySize": 3515,
+            "decodedBodySize": 13994
+          },
+          {
+            "name": "/_next/static/chunks/3h_2nwkj6ryk-.js",
+            "transferSize": 1459,
+            "encodedBodySize": 1159,
+            "decodedBodySize": 2199
+          },
+          {
+            "name": "/api/room/w/poll",
+            "transferSize": 300,
+            "encodedBodySize": 0,
+            "decodedBodySize": 0
+          },
+          {
+            "name": "/api/room/w/poll",
+            "transferSize": 300,
+            "encodedBodySize": 0,
+            "decodedBodySize": 0
+          },
+          {
+            "name": "/api/room/w/poll",
+            "transferSize": 300,
+            "encodedBodySize": 0,
+            "decodedBodySize": 0
+          },
+          {
+            "name": "/api/room/w/poll",
+            "transferSize": 300,
+            "encodedBodySize": 0,
+            "decodedBodySize": 0
+          },
+          {
+            "name": "/api/room/w/poll",
+            "transferSize": 300,
+            "encodedBodySize": 0,
+            "decodedBodySize": 0
+          }
+        ],
+        "workerEntries": [],
+        "total": 139361,
+        "wasm": 0
+      },
+      "/ac1": {
+        "workers": 1,
+        "pageCount": 7,
+        "pageTotal": 143103,
+        "pageJs": 143103,
+        "pageWasm": 0,
+        "workerCount": 9,
+        "workerTotal": 9844906,
+        "workerWasm": 9674266,
+        "pageEntries": [
+          {
+            "name": "/_next/static/chunks/0j1we3cwg31qe.js",
+            "transferSize": 6255,
+            "encodedBodySize": 5955,
+            "decodedBodySize": 17026
+          },
+          {
+            "name": "/_next/static/chunks/33ppi7mt0ja_6.js",
+            "transferSize": 50075,
+            "encodedBodySize": 49775,
+            "decodedBodySize": 186788
+          },
+          {
+            "name": "/_next/static/chunks/34-s9nvef5sdp.js",
+            "transferSize": 72052,
+            "encodedBodySize": 71752,
+            "decodedBodySize": 229288
+          },
+          {
+            "name": "/_next/static/chunks/turbopack-2u1d16houkiyo.js",
+            "transferSize": 4205,
+            "encodedBodySize": 3905,
+            "decodedBodySize": 9974
+          },
+          {
+            "name": "/_next/static/chunks/3qfy96eoyh-ek.js",
+            "transferSize": 3815,
+            "encodedBodySize": 3515,
+            "decodedBodySize": 13994
+          },
+          {
+            "name": "/_next/static/chunks/0ost2-siiiprz.js",
+            "transferSize": 5474,
+            "encodedBodySize": 5174,
+            "decodedBodySize": 12883
+          },
+          {
+            "name": "/_next/static/chunks/turbopack-worker-1hrsqshz0gfey.js",
+            "transferSize": 1227,
+            "encodedBodySize": 927,
+            "decodedBodySize": 927
+          }
+        ],
+        "workerEntries": [
+          {
+            "name": "/_next/static/chunks/turbopack-15rb02pz3wcs4.js",
+            "transferSize": 554,
+            "encodedBodySize": 254,
+            "decodedBodySize": 254
+          },
+          {
+            "name": "/_next/static/chunks/317pno25qtt_v.js",
+            "transferSize": 40532,
+            "encodedBodySize": 40232,
+            "decodedBodySize": 125152
+          },
+          {
+            "name": "/_next/static/chunks/2i4-ubu6kft8r.js",
+            "transferSize": 110313,
+            "encodedBodySize": 110013,
+            "decodedBodySize": 433246
+          },
+          {
+            "name": "/_next/static/chunks/3m-1tfumswh7r.js",
+            "transferSize": 2823,
+            "encodedBodySize": 2523,
+            "decodedBodySize": 6452
+          },
+          {
+            "name": "/_next/static/chunks/turbopack-2u1d16houkiyo.js",
+            "transferSize": 0,
+            "encodedBodySize": 3905,
+            "decodedBodySize": 9974
+          },
+          {
+            "name": "/pglite/pglite.wasm",
+            "transferSize": 3293275,
+            "encodedBodySize": 3292975,
+            "decodedBodySize": 9087748
+          },
+          {
+            "name": "/pglite/initdb.wasm",
+            "transferSize": 132182,
+            "encodedBodySize": 131882,
+            "decodedBodySize": 300109
+          },
+          {
+            "name": "/pglite/pglite.data",
+            "transferSize": 6248809,
+            "encodedBodySize": 6248509,
+            "decodedBodySize": 6248509
+          },
+          {
+            "name": "/pglite/pageinspect.tar.gz",
+            "transferSize": 16418,
+            "encodedBodySize": 16118,
+            "decodedBodySize": 16118
+          }
+        ],
+        "total": 9988009,
+        "wasm": 9674266
+      }
+    },
+    {
+      "run": 3,
+      "/viewer?mode=poll&room=w&interval=2000": {
+        "workers": 0,
+        "pageCount": 11,
+        "pageTotal": 139361,
+        "pageJs": 137861,
+        "pageWasm": 0,
+        "workerCount": 0,
+        "workerTotal": 0,
+        "workerWasm": 0,
+        "pageEntries": [
+          {
+            "name": "/_next/static/chunks/0j1we3cwg31qe.js",
+            "transferSize": 6255,
+            "encodedBodySize": 5955,
+            "decodedBodySize": 17026
+          },
+          {
+            "name": "/_next/static/chunks/33ppi7mt0ja_6.js",
+            "transferSize": 50075,
+            "encodedBodySize": 49775,
+            "decodedBodySize": 186788
+          },
+          {
+            "name": "/_next/static/chunks/turbopack-2u1d16houkiyo.js",
+            "transferSize": 4205,
+            "encodedBodySize": 3905,
+            "decodedBodySize": 9974
+          },
+          {
+            "name": "/_next/static/chunks/34-s9nvef5sdp.js",
+            "transferSize": 72052,
+            "encodedBodySize": 71752,
+            "decodedBodySize": 229288
+          },
+          {
+            "name": "/_next/static/chunks/3qfy96eoyh-ek.js",
+            "transferSize": 3815,
+            "encodedBodySize": 3515,
+            "decodedBodySize": 13994
+          },
+          {
+            "name": "/_next/static/chunks/3h_2nwkj6ryk-.js",
+            "transferSize": 1459,
+            "encodedBodySize": 1159,
+            "decodedBodySize": 2199
+          },
+          {
+            "name": "/api/room/w/poll",
+            "transferSize": 300,
+            "encodedBodySize": 0,
+            "decodedBodySize": 0
+          },
+          {
+            "name": "/api/room/w/poll",
+            "transferSize": 300,
+            "encodedBodySize": 0,
+            "decodedBodySize": 0
+          },
+          {
+            "name": "/api/room/w/poll",
+            "transferSize": 300,
+            "encodedBodySize": 0,
+            "decodedBodySize": 0
+          },
+          {
+            "name": "/api/room/w/poll",
+            "transferSize": 300,
+            "encodedBodySize": 0,
+            "decodedBodySize": 0
+          },
+          {
+            "name": "/api/room/w/poll",
+            "transferSize": 300,
+            "encodedBodySize": 0,
+            "decodedBodySize": 0
+          }
+        ],
+        "workerEntries": [],
+        "total": 139361,
+        "wasm": 0
+      },
+      "/ac1": {
+        "workers": 1,
+        "pageCount": 7,
+        "pageTotal": 143103,
+        "pageJs": 143103,
+        "pageWasm": 0,
+        "workerCount": 9,
+        "workerTotal": 9844906,
+        "workerWasm": 9674266,
+        "pageEntries": [
+          {
+            "name": "/_next/static/chunks/0j1we3cwg31qe.js",
+            "transferSize": 6255,
+            "encodedBodySize": 5955,
+            "decodedBodySize": 17026
+          },
+          {
+            "name": "/_next/static/chunks/33ppi7mt0ja_6.js",
+            "transferSize": 50075,
+            "encodedBodySize": 49775,
+            "decodedBodySize": 186788
+          },
+          {
+            "name": "/_next/static/chunks/34-s9nvef5sdp.js",
+            "transferSize": 72052,
+            "encodedBodySize": 71752,
+            "decodedBodySize": 229288
+          },
+          {
+            "name": "/_next/static/chunks/turbopack-2u1d16houkiyo.js",
+            "transferSize": 4205,
+            "encodedBodySize": 3905,
+            "decodedBodySize": 9974
+          },
+          {
+            "name": "/_next/static/chunks/3qfy96eoyh-ek.js",
+            "transferSize": 3815,
+            "encodedBodySize": 3515,
+            "decodedBodySize": 13994
+          },
+          {
+            "name": "/_next/static/chunks/0ost2-siiiprz.js",
+            "transferSize": 5474,
+            "encodedBodySize": 5174,
+            "decodedBodySize": 12883
+          },
+          {
+            "name": "/_next/static/chunks/turbopack-worker-1hrsqshz0gfey.js",
+            "transferSize": 1227,
+            "encodedBodySize": 927,
+            "decodedBodySize": 927
+          }
+        ],
+        "workerEntries": [
+          {
+            "name": "/_next/static/chunks/turbopack-15rb02pz3wcs4.js",
+            "transferSize": 554,
+            "encodedBodySize": 254,
+            "decodedBodySize": 254
+          },
+          {
+            "name": "/_next/static/chunks/317pno25qtt_v.js",
+            "transferSize": 40532,
+            "encodedBodySize": 40232,
+            "decodedBodySize": 125152
+          },
+          {
+            "name": "/_next/static/chunks/2i4-ubu6kft8r.js",
+            "transferSize": 110313,
+            "encodedBodySize": 110013,
+            "decodedBodySize": 433246
+          },
+          {
+            "name": "/_next/static/chunks/3m-1tfumswh7r.js",
+            "transferSize": 2823,
+            "encodedBodySize": 2523,
+            "decodedBodySize": 6452
+          },
+          {
+            "name": "/_next/static/chunks/turbopack-2u1d16houkiyo.js",
+            "transferSize": 0,
+            "encodedBodySize": 3905,
+            "decodedBodySize": 9974
+          },
+          {
+            "name": "/pglite/pglite.wasm",
+            "transferSize": 3293275,
+            "encodedBodySize": 3292975,
+            "decodedBodySize": 9087748
+          },
+          {
+            "name": "/pglite/initdb.wasm",
+            "transferSize": 132182,
+            "encodedBodySize": 131882,
+            "decodedBodySize": 300109
+          },
+          {
+            "name": "/pglite/pglite.data",
+            "transferSize": 6248809,
+            "encodedBodySize": 6248509,
+            "decodedBodySize": 6248509
+          },
+          {
+            "name": "/pglite/pageinspect.tar.gz",
+            "transferSize": 16418,
+            "encodedBodySize": 16118,
+            "decodedBodySize": 16118
+          }
+        ],
+        "total": 9988009,
+        "wasm": 9674266
+      }
+    }
+  ],
+  "median": {
+    "/viewer?mode=poll&room=w&interval=2000|total": 139361,
+    "/viewer?mode=poll&room=w&interval=2000|wasm": 0,
+    "/viewer?mode=poll&room=w&interval=2000|pageTotal": 139361,
+    "/viewer?mode=poll&room=w&interval=2000|workerTotal": 0,
+    "/viewer?mode=poll&room=w&interval=2000|workerWasm": 0,
+    "/viewer?mode=poll&room=w&interval=2000|workers": 0,
+    "/ac1|total": 9988009,
+    "/ac1|wasm": 9674266,
+    "/ac1|pageTotal": 143103,
+    "/ac1|workerTotal": 9844906,
+    "/ac1|workerWasm": 9674266,
+    "/ac1|workers": 1
+  },
+  "instrumentProven": true
+}

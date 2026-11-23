@@ -1,0 +1,44 @@
+{
+  "label": "compress-true-big",
+  "webOrigin": "http://localhost:3159",
+  "runs": [
+    {
+      "run": 1,
+      "label": "compress-true-big",
+      "helloMs": 90,
+      "snapshotLatencyMs": [
+        23,
+        51,
+        25
+      ],
+      "streamed": true
+    },
+    {
+      "run": 2,
+      "label": "compress-true-big",
+      "helloMs": 115,
+      "snapshotLatencyMs": [
+        13,
+        25,
+        58
+      ],
+      "streamed": true
+    },
+    {
+      "run": 3,
+      "label": "compress-true-big",
+      "helloMs": 95,
+      "snapshotLatencyMs": [
+        16,
+        22,
+        34
+      ],
+      "streamed": true
+    }
+  ],
+  "median": {
+    "helloMs": 95,
+    "snapshotLatencyMs": 25
+  },
+  "streamed": true
+}

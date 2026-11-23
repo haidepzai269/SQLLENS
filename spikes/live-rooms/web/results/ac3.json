@@ -1,0 +1,218 @@
+{
+  "runs": [
+    {
+      "run": 1,
+      "plan": {
+        "normalizedJsonBytes": 551,
+        "normalizedGzipBytes": 324,
+        "normalizedPayloadBytes": 434,
+        "rawJsonBytes": 2255,
+        "rawGzipBytes": 612,
+        "nodeCount": 3
+      },
+      "btrees": {
+        "orders_customer_id_idx": {
+          "height": 2,
+          "rootPage": 3,
+          "totalPages": 89,
+          "indexBytes": 729088,
+          "nodesRead": 88,
+          "hidden": [],
+          "keysInModel": 2087,
+          "totalKeysInModel": 2087,
+          "readMs": 57.79999999701977,
+          "jsonBytes": 18775,
+          "jsonPathBytes": 18832,
+          "gzipBytes": 5941,
+          "gzipPathBytes": 5984,
+          "sharePayloadBytes": 7905,
+          "sharePayloadWithPathBytes": 7957,
+          "hasPath": true,
+          "pathPages": 2
+        },
+        "orders_pkey": {
+          "height": 2,
+          "rootPage": 3,
+          "totalPages": 276,
+          "indexBytes": 2260992,
+          "nodesRead": 3,
+          "hidden": [
+            {
+              "level": 0,
+              "count": 272
+            }
+          ],
+          "keysInModel": 474,
+          "totalKeysInModel": 1006,
+          "readMs": 34.79999999701977,
+          "jsonBytes": 4579,
+          "jsonPathBytes": 4636,
+          "gzipBytes": 2003,
+          "gzipPathBytes": 2042,
+          "sharePayloadBytes": 2653,
+          "sharePayloadWithPathBytes": 2700,
+          "hasPath": true,
+          "pathPages": 2
+        }
+      },
+      "result": {
+        "rows": 100,
+        "bytes": 5595
+      },
+      "errors": []
+    },
+    {
+      "run": 2,
+      "plan": {
+        "normalizedJsonBytes": 549,
+        "normalizedGzipBytes": 322,
+        "normalizedPayloadBytes": 432,
+        "rawJsonBytes": 2251,
+        "rawGzipBytes": 606,
+        "nodeCount": 3
+      },
+      "btrees": {
+        "orders_customer_id_idx": {
+          "height": 2,
+          "rootPage": 3,
+          "totalPages": 89,
+          "indexBytes": 729088,
+          "nodesRead": 88,
+          "hidden": [],
+          "keysInModel": 2087,
+          "totalKeysInModel": 2087,
+          "readMs": 59.20000000298023,
+          "jsonBytes": 18775,
+          "jsonPathBytes": 18832,
+          "gzipBytes": 5941,
+          "gzipPathBytes": 5984,
+          "sharePayloadBytes": 7905,
+          "sharePayloadWithPathBytes": 7957,
+          "hasPath": true,
+          "pathPages": 2
+        },
+        "orders_pkey": {
+          "height": 2,
+          "rootPage": 3,
+          "totalPages": 276,
+          "indexBytes": 2260992,
+          "nodesRead": 3,
+          "hidden": [
+            {
+              "level": 0,
+              "count": 272
+            }
+          ],
+          "keysInModel": 474,
+          "totalKeysInModel": 1006,
+          "readMs": 27.299999997019768,
+          "jsonBytes": 4579,
+          "jsonPathBytes": 4636,
+          "gzipBytes": 2003,
+          "gzipPathBytes": 2042,
+          "sharePayloadBytes": 2653,
+          "sharePayloadWithPathBytes": 2700,
+          "hasPath": true,
+          "pathPages": 2
+        }
+      },
+      "result": {
+        "rows": 100,
+        "bytes": 5595
+      },
+      "errors": []
+    },
+    {
+      "run": 3,
+      "plan": {
+        "normalizedJsonBytes": 552,
+        "normalizedGzipBytes": 324,
+        "normalizedPayloadBytes": 434,
+        "rawJsonBytes": 2252,
+        "rawGzipBytes": 609,
+        "nodeCount": 3
+      },
+      "btrees": {
+        "orders_customer_id_idx": {
+          "height": 2,
+          "rootPage": 3,
+          "totalPages": 89,
+          "indexBytes": 729088,
+          "nodesRead": 88,
+          "hidden": [],
+          "keysInModel": 2087,
+          "totalKeysInModel": 2087,
+          "readMs": 50.1000000089407,
+          "jsonBytes": 18775,
+          "jsonPathBytes": 18832,
+          "gzipBytes": 5941,
+          "gzipPathBytes": 5984,
+          "sharePayloadBytes": 7905,
+          "sharePayloadWithPathBytes": 7957,
+          "hasPath": true,
+          "pathPages": 2
+        },
+        "orders_pkey": {
+          "height": 2,
+          "rootPage": 3,
+          "totalPages": 276,
+          "indexBytes": 2260992,
+          "nodesRead": 3,
+          "hidden": [
+            {
+              "level": 0,
+              "count": 272
+            }
+          ],
+          "keysInModel": 474,
+          "totalKeysInModel": 1006,
+          "readMs": 26.899999991059303,
+          "jsonBytes": 4579,
+          "jsonPathBytes": 4636,
+          "gzipBytes": 2003,
+          "gzipPathBytes": 2042,
+          "sharePayloadBytes": 2653,
+          "sharePayloadWithPathBytes": 2700,
+          "hasPath": true,
+          "pathPages": 2
+        }
+      },
+      "result": {
+        "rows": 100,
+        "bytes": 5595
+      },
+      "errors": []
+    }
+  ],
+  "median": {
+    "planNormalizedJsonBytes": 551,
+    "planNormalizedGzipBytes": 324,
+    "planNormalizedPayloadBytes": 434,
+    "planRawJsonBytes": 2252,
+    "planRawGzipBytes": 609,
+    "planNodeCount": 3,
+    "mainJsonBytes": 18775,
+    "mainJsonPathBytes": 18832,
+    "mainGzipBytes": 5941,
+    "mainGzipPathBytes": 5984,
+    "mainSharePayloadBytes": 7905,
+    "mainSharePayloadWithPathBytes": 7957,
+    "mainHeight": 2,
+    "mainTotalPages": 89,
+    "mainIndexBytes": 729088,
+    "mainNodesRead": 88,
+    "mainKeysInModel": 2087,
+    "mainTotalKeys": 2087,
+    "mainReadMs": 57.79999999701977,
+    "pkJsonBytes": 4579,
+    "pkGzipBytes": 2003,
+    "pkSharePayloadBytes": 2653,
+    "pkHeight": 2,
+    "pkTotalPages": 276,
+    "pkIndexBytes": 2260992,
+    "pkNodesRead": 3,
+    "pkTotalKeys": 1006,
+    "pkReadMs": 27.299999997019768,
+    "resultBytes": 5595
+  }
+}
