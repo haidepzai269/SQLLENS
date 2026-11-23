@@ -468,7 +468,7 @@ Ghi rõ, không thay bằng số khác:
 | Brotli so với gzip | Codec SP022 chỉ dùng `CompressionStream("gzip")`; trình duyệt không có Brotli qua Web Streams. Con số 13.841 B là gzip, **không phải** Brotli như văn kiện gốc giả định |
 | Hành vi khi hơn 30 viewer | Task yêu cầu đúng 30; chưa đo trên 30. Không ngoại suy tuyến tính vì chưa biết điểm gãy |
 | MySQL | Ngoài phạm vi task (chỉ PostgreSQL/PGlite) |
-| `DE_XUAT_STORY_SP024_TEAM_MULTIPLAYER.md` | File **không tồn tại** trong worktree này (task159.md dòng 45 có nhắc). Không đọc được, nên không đối chiếu được phần phản biện |
+| `DE_XUAT_STORY_SP024_TEAM_MULTIPLAYER.md` | File **không có trong worktree này** vì nhánh `task/Task159` tách trước commit `d60afab`; file **có trên `main`**. Nên phần phản biện trong đó chưa được đối chiếu ở lượt đo này (task159.md dòng 45 có nhắc) |
 
 ---
 
@@ -478,7 +478,7 @@ Ghi rõ, không thay bằng số khác:
 2. **`SP999/README.md` dòng 36** ghi `compress: false` "chưa đưa vào `web/next.config.ts`" — vẫn đúng, và giờ biết thêm là `no-transform` ở `api/internal/ai/ai.go:349` đã che phần lớn rủi ro đó. Cần ghi lại khi có dịp.
 3. **`encodeSnapshot` chặn trần 32 KB và 100 tab ở client, Gin không kiểm.** Đo được: gửi 3 MB thẳng vào `/publish` vẫn 200. Nếu làm live room thật, phải kiểm ở server. Ghi vào `SP999`.
 4. **Core Rule 7 cần chủ dự án quyết trước mọi story gửi SQL qua mạng.** Số đầu vào: **10.011,2 B/phút/viewer là SQL** (SSE, 30 viewer; polling 10.183,5). Không sửa Core Rule 7 trong task này.
-5. **`DE_XUAT_STORY_SP024_TEAM_MULTIPLAYER.md` được task159.md nhắc nhưng không có trong repo.** Cần bổ sung hoặc sửa dòng tham chiếu.
+5. **`DE_XUAT_STORY_SP024_TEAM_MULTIPLAYER.md` có trên `main` nhưng thiếu trong worktree `Task159`** (nhánh tách trước `d60afab`), nên lượt đo này không đối chiếu được phần phản biện 5 điểm trong đó. Sau khi merge thì file có mặt; ai đọc báo cáo này nên mở nó ra đối chiếu — đặc biệt mục 2 (3 tầng có cổng) và mục 6.1 (hướng A/B), vì kết luận no-go ở đây chỉ nói về **Tầng 1**, không nói Tầng 2/3 có nên làm hay không.
 6. **Hai script đo từng tính sai dòng SQL và byte mỗi viewer; đã sửa tại chỗ, số cũ giữ lại để đối chiếu.** Hai việc khác nhau, hai script khác nhau:
    - **Byte mỗi viewer** → `tools/ac4-recompute.mjs`. `ac4.mjs` chia **tổng** byte cho số viewer, gồm cả byte của host gọi `publish`.
    - **Dòng SQL** → `tools/sql-line.mjs`. `ac2.mjs` và `ac4.mjs` nhân tỉ lệ SQL với **toàn bộ** byte thân, kể cả `hello`/`ping` không chở SQL — thổi số lên **1,2–3,5 %**. `ac4-recompute.mjs` **cũng** từng làm vậy, nên nó **không** phải nguồn của dòng SQL; trường `sqlBpm` ở đó đã đổi tên thành `sqlBpm_naiveWrong`.
