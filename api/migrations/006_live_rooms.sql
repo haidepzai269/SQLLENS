@@ -13,13 +13,43 @@
 --
 -- Core Rule 7: hai bảng này không có cột nào chứa SQL hay kết quả truy vấn của người dùng.
 
+-- 0. Điều kiện tiên quyết: 006 dựa vào hai bảng của 003/004 (policy `room_baton_select` đọc
+--    `cloud_project_members`). Thiếu bảng nền thì Postgres báo `relation ... does not exist` ở
+--    giữa file, không nói được schema đang thiếu gì — nên kiểm trước và nêu tên.
+DO $$
+DECLARE
+    bad text;
+BEGIN
+    SELECT string_agg(v.tbl, ', ')
+      INTO bad
+      FROM (VALUES ('cloud_projects'), ('cloud_project_members')) AS v(tbl)
+     WHERE NOT EXISTS (SELECT 1 FROM pg_class c
+                        WHERE c.relnamespace = 'public'::regnamespace
+                          AND c.relname = v.tbl AND c.relkind IN ('r', 'p'));
+    IF bad IS NOT NULL THEN
+        RAISE EXCEPTION '006_live_rooms: thiếu bảng nền (%). Chạy lại 003/004 trước.', bad;
+    END IF;
+
+    SELECT string_agg(v.col, ', ')
+      INTO bad
+      FROM (VALUES ('project_id'), ('user_id')) AS v(col)
+     WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = 'public' AND table_name = 'cloud_project_members'
+                          AND column_name = v.col);
+    IF bad IS NOT NULL THEN
+        RAISE EXCEPTION '006_live_rooms: cloud_project_members thiếu cột (%). Chạy lại 003/004 trước.', bad;
+    END IF;
+END
+$$;
+
 -- 1. Bảng invite token.
+--    Chỉ lưu sha256 của token trong URL, không bao giờ lưu token gốc — cùng khuôn
+--    `sessions.token_hash` (001_init.sql:18-20).
 CREATE TABLE IF NOT EXISTS public.room_invite_tokens (
-    token       TEXT PRIMARY KEY,
+    token_hash  BYTEA PRIMARY KEY CHECK (octet_length(token_hash) = 32),
     project_id  UUID NOT NULL REFERENCES public.cloud_projects(id) ON DELETE CASCADE,
     role        TEXT NOT NULL CHECK (role IN ('editor', 'viewer')),
-    expires_at  TIMESTAMPTZ NOT NULL,
-    used_at     TIMESTAMPTZ
+    expires_at  TIMESTAMPTZ NOT NULL
 );
 
 -- FK có ON DELETE CASCADE không tự sinh index: thiếu index thì mỗi lần xoá một dự án
@@ -33,6 +63,11 @@ CREATE TABLE IF NOT EXISTS public.room_baton (
     holder_id   UUID REFERENCES public.users(id) ON DELETE SET NULL,
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Cùng lý do như index của token: FK không tự sinh index, và `ON DELETE SET NULL` phải
+-- quét bảng để tìm hàng có holder_id sắp bị xoá.
+CREATE INDEX IF NOT EXISTS room_baton_holder_id_idx
+    ON public.room_baton (holder_id);
 
 -- 3. RLS: ENABLE + FORCE trên cả hai bảng.
 --    FORCE là lớp bảo vệ cho chính role chủ: API đang dùng một pool role chủ (đọc users,
@@ -112,6 +147,11 @@ DO $$
 DECLARE
     n int;
     bad text;
+    tbl text;
+    exp text[];
+    act text[];
+    miss text[];
+    extra text[];
 BEGIN
     -- 6a. Hai bảng phải tồn tại.
     SELECT string_agg(v.tbl, ', ')
@@ -174,6 +214,29 @@ BEGIN
             RAISE EXCEPTION '006_live_rooms: sqllens_app thiếu quyền trên bảng mới, test cross-tenant sẽ xanh giả. Kiểm phần 5.';
         END IF;
     END IF;
+
+    -- 6g. Tập cột phải khớp đúng tên + kiểu. `CREATE TABLE IF NOT EXISTS` bỏ qua bảng đã có,
+    --     nên bảng dở dang từ một bản thử trước vẫn sống sót qua CREATE; phải làm migration
+    --     thất bại thay vì in NOTICE thành công (003 đã làm vậy, xem TestCloudPreexistingPartialTable).
+    FOR tbl IN SELECT unnest(ARRAY['room_invite_tokens', 'room_baton']) LOOP
+        exp := CASE tbl
+            WHEN 'room_invite_tokens' THEN
+                ARRAY['expires_at:timestamp with time zone', 'project_id:uuid',
+                      'role:text', 'token_hash:bytea']
+            ELSE
+                ARRAY['holder_id:uuid', 'project_id:uuid', 'updated_at:timestamp with time zone']
+        END;
+        SELECT COALESCE(array_agg(column_name || ':' || data_type ORDER BY column_name), '{}')
+          INTO act
+          FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = tbl;
+        SELECT array_agg(e) INTO miss FROM unnest(exp) e WHERE e <> ALL (act);
+        SELECT array_agg(a) INTO extra FROM unnest(act) a WHERE a <> ALL (exp);
+        IF miss IS NOT NULL OR extra IS NOT NULL THEN
+            RAISE EXCEPTION '006_live_rooms: % sai tập cột. Thiếu: %. Thừa/lạ: %. Migration KHÔNG xoá dữ liệu; sửa tay bảng đó rồi chạy lại.',
+                tbl, COALESCE(miss, '{}'), COALESCE(extra, '{}');
+        END IF;
+    END LOOP;
 
     RAISE NOTICE '006_live_rooms: 2 bảng mới đã ENABLE + FORCE RLS, 6 policy theo lệnh, có GRANT cho sqllens_app.';
 END

@@ -49,7 +49,8 @@ func newTenantEnv(t *testing.T) *tenantEnv {
 		t.Fatal(err)
 	}
 	t.Cleanup(super.Close)
-	if _, err := super.pool.Exec(ctx, `DROP TABLE IF EXISTS cloud_project_members, cloud_tabs, cloud_projects,
+	if _, err := super.pool.Exec(ctx, `DROP TABLE IF EXISTS room_invite_tokens, room_baton,
+		cloud_project_members, cloud_tabs, cloud_projects,
 		user_vip_redemptions, vip_codes, sessions, identities, users, schema_migrations CASCADE`); err != nil {
 		t.Fatal(err)
 	}

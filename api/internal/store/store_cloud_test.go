@@ -148,7 +148,8 @@ func dropCloudRole(t *testing.T, s *Store) {
 func cleanupCloudTables(t *testing.T, s *Store) {
 	t.Helper()
 	ctx := context.Background()
-	if _, err := s.pool.Exec(ctx, `DROP TABLE IF EXISTS cloud_project_members, cloud_tabs, cloud_projects CASCADE`); err != nil {
+	if _, err := s.pool.Exec(ctx, `DROP TABLE IF EXISTS room_invite_tokens, room_baton,
+		cloud_project_members, cloud_tabs, cloud_projects CASCADE`); err != nil {
 		t.Errorf("dọn bảng cloud: %v", err)
 	}
 	dropCloudRole(t, s)
@@ -160,6 +161,7 @@ func resetCloud(t *testing.T, s *Store) {
 	t.Helper()
 	ctx := context.Background()
 	if _, err := s.pool.Exec(ctx, `DROP TABLE IF EXISTS
+		room_invite_tokens, room_baton,
 		cloud_project_members, cloud_tabs, cloud_projects,
 		user_vip_redemptions, vip_codes, sessions, identities, users, schema_migrations CASCADE`); err != nil {
 		t.Fatalf("dọn bảng: %v", err)
@@ -940,7 +942,7 @@ func TestCloudPublicCreatePrivilegeFails(t *testing.T) {
 func TestCloudPreexistingPartialTable(t *testing.T) {
 	s := newCloudStore(t)
 	ctx := context.Background()
-	if _, err := s.pool.Exec(ctx, `DROP TABLE cloud_project_members, cloud_tabs, cloud_projects CASCADE`); err != nil {
+	if _, err := s.pool.Exec(ctx, `DROP TABLE room_invite_tokens, room_baton, cloud_project_members, cloud_tabs, cloud_projects CASCADE`); err != nil {
 		t.Fatal(err)
 	}
 	var userID string
@@ -985,7 +987,7 @@ func TestCloudPreexistingPartialTable(t *testing.T) {
 func TestCloudPreexistingTableMissingCascade(t *testing.T) {
 	s := newCloudStore(t)
 	ctx := context.Background()
-	if _, err := s.pool.Exec(ctx, `DROP TABLE cloud_project_members, cloud_tabs, cloud_projects CASCADE`); err != nil {
+	if _, err := s.pool.Exec(ctx, `DROP TABLE room_invite_tokens, room_baton, cloud_project_members, cloud_tabs, cloud_projects CASCADE`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.pool.Exec(ctx, `CREATE TABLE cloud_projects (

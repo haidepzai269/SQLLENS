@@ -29,7 +29,10 @@ func newStore(t *testing.T) *Store {
 		t.Fatal(err)
 	}
 	t.Cleanup(s.Close)
-	if _, err := s.pool.Exec(ctx, `DROP TABLE IF EXISTS cloud_project_members, cloud_tabs, cloud_projects,
+	// room_* (006) phải đứng trước cloud_projects: CASCADE chỉ xóa FK chứ không xóa bảng con
+	// không có tên trong danh sách, và `CREATE TABLE IF NOT EXISTS` lần sau không dựng lại FK.
+	if _, err := s.pool.Exec(ctx, `DROP TABLE IF EXISTS room_invite_tokens, room_baton,
+		cloud_project_members, cloud_tabs, cloud_projects,
 		sessions, identities, users, schema_migrations CASCADE`); err != nil {
 		t.Fatal(err)
 	}
