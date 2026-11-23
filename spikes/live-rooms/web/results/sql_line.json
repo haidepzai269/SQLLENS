@@ -109,6 +109,7 @@
         "windowMs": 601149,
         "perViewerBytes": 236909.23333333334,
         "snapshotsPerViewer": 59,
+        "snapshotsInferred": true,
         "sqlBpm": 10010.829261963341,
         "sqlBpmNaiveWrong": 10283.343893416906,
         "overstatePct": 2.722198374604168
@@ -118,6 +119,7 @@
         "windowMs": 601125,
         "perViewerBytes": 236939.23333333334,
         "snapshotsPerViewer": 59,
+        "snapshotsInferred": false,
         "sqlBpm": 10011.228945726762,
         "sqlBpmNaiveWrong": 10285.056697169826,
         "overstatePct": 2.7352061662713867
@@ -127,6 +129,7 @@
         "windowMs": 601069,
         "perViewerBytes": 236977,
         "snapshotsPerViewer": 59,
+        "snapshotsInferred": false,
         "sqlBpm": 10012.161665299656,
         "sqlBpmNaiveWrong": 10287.654456502885,
         "overstatePct": 2.7515815306702107

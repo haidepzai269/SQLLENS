@@ -192,7 +192,7 @@ for (let i = 1; i <= RUNS; i++) {
   };
   runs.push(run);
   console.log(
-    `lần ${i}: ${elapsed}ms, tổng byte ra=${totalBytes}, ${(run.bytesPerViewerPerMinute).toFixed(1)} B/viewer/phút, SQL≈${run.sqlBytesPerViewerPerMinute.toFixed(1)}; nhả kết nối sau ${releasedMs}ms (sseOpen=${openAfter}); goroutines ${m30.goroutines}→${mEnd.goroutines}`,
+    `lần ${i}: ${elapsed}ms, tổng byte ra=${totalBytes}, ${(run.bytesPerViewerPerMinute).toFixed(1)} B/viewer/phút; nhả kết nối sau ${releasedMs}ms (sseOpen=${openAfter}); goroutines ${m30.goroutines}→${mEnd.goroutines}`,
   );
   await sleep(2_000);
 }
@@ -207,7 +207,7 @@ const summary = {
     totalBytes: median(pick("totalBytes")),
     bytesPerMinuteAllViewers: median(pick("bytesPerMinuteAllViewers")),
     bytesPerViewerPerMinute: median(pick("bytesPerViewerPerMinute")),
-    sqlBytesPerViewerPerMinute: median(pick("sqlBytesPerViewerPerMinute")),
+    sqlBytesPerViewerPerMinute_naiveWrong: median(pick("sqlBytesPerViewerPerMinute_naiveWrong")),
     goroutinesAt30: median(pick("goroutinesAt30")),
     goroutinesEnd: median(pick("goroutinesEnd")),
     releasedMs: median(pick("connectionRelease").map((c) => c.releasedMs)),

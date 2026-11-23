@@ -127,7 +127,7 @@ for (let i = 1; i <= RUNS; i++) {
   run.bodyPerMinute = (run.bodyBytes / elapsed) * 60_000;
   // Byte quy được cho SQL. CHỈ nhân tỉ lệ SQL với byte của sự kiện `snapshot`, KHÔNG nhân
   // với toàn bộ byte thân: thân còn chứa `hello` (một lần khi nối) và `ping` (heartbeat
-  // 15 giây), hai loại này không chở SQL. Nhân lên toàn bộ thổi số lên 3,1-3,9 %.
+  // 15 giây), hai loại này không chở SQL. Nhân lên toàn bộ thổi số lên 1,2-3,5 %.
   // Xem tools/sql-line.mjs để biết cách tính đầy đủ (gồm cả AC4).
   run.sqlShareOfPayload = ac1.runs[0].sqlAttributableLive / PAYLOAD_BYTES;
   if (!PUBLISH) {

@@ -41,6 +41,7 @@ node tools/ac4.mjs
 - Không thêm dependency vào `web/package.json` hay `api/go.mod`.
 - Không gọi Neon, Upstash, Render, Cloudflare. Mọi thứ chạy localhost.
 - Không gửi SQL ra ngoài máy. Server không đọc nội dung payload.
-- `codec.ts`, `snapshot.ts`, `btree-read.ts`, `btree-key.ts`, `normalize/postgres.ts` là
-  bản sao nguyên văn từ `web/src/`; hash ghi trong `ket_qua_do.md`. Sửa bản gốc thì phải
-  chép lại, không sửa tay ở đây.
+- `codec.ts`, `snapshot.ts`, `btree-read.ts`, `btree-key.ts`, `normalize/postgres.ts`,
+  `contracts/*.ts` là bản sao nguyên văn từ `web/src/`; bảng SHA256 đối chiếu nằm ở mục
+  cuối `_bmad-output/SP024/STR108/Task159/ket_qua_do.md`. Sửa bản gốc thì phải chép lại,
+  không sửa tay ở đây.

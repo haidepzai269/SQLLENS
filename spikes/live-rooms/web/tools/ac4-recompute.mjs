@@ -4,6 +4,10 @@
 // Route publish không phải lưu lượng của viewer, nên số đó cao hơn thực tế. Ở đây tách:
 //   - byte chỉ của viewer = bytes.events + bytes.poll
 //   - rồi mới chia cho 30 viewer và cho số phút
+//
+// Script này KHÔNG tính dòng SQL. Dòng SQL cần số `snapshot` thật, mà tỉ lệ phần trăm
+// SQL trong payload là cách tính sai (xem tools/sql-line.mjs). Muốn số SQL: chạy
+// tools/sql-line.mjs.
 // Chạy: node tools/ac4-recompute.mjs
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -34,7 +38,8 @@ for (const [mode, fn] of [
       viewerBytes,
       hostBytes,
       bpmViewer,
-      sqlBpm: bpmViewer * SQL_SHARE,
+      // Tên mang chữ `_naiveWrong` để không ai đọc nhầm đây là số đúng.
+      sqlBpm_naiveWrong: bpmViewer * SQL_SHARE,
       requests: r.requests,
       status: r.statusByRoute,
     };
@@ -44,7 +49,7 @@ for (const [mode, fn] of [
     median: {
       viewerBytes: med(rows.map((x) => x.viewerBytes)),
       bpmViewer: med(rows.map((x) => x.bpmViewer)),
-      sqlBpm: med(rows.map((x) => x.sqlBpm)),
+      sqlBpm_naiveWrong: med(rows.map((x) => x.sqlBpm_naiveWrong)),
     },
   };
 }

@@ -10,6 +10,8 @@ import { chromium } from "@playwright/test";
 import { save, median, WEB, sleep } from "./lib.mjs";
 
 const RUNS = Number(process.env.RUNS ?? 3);
+// Nhãn bản build đang chạy, để hai lần đo (compress bật/tắt) không ghi đè nhau.
+const LABEL = process.argv[2] ?? "compress-false";
 const PAGES = ["/viewer?mode=poll&room=w&interval=2000", "/ac1"];
 
 const entryOf = (e) => ({
@@ -104,6 +106,6 @@ const summary = {
   // Chỉ dùng được số của viewer nếu trang đối chứng CÓ engine thật sự cho ra WASM > 0.
   instrumentProven: runs.every((r) => r[PAGES[1]].wasm > 0),
 };
-save("weight.json", summary);
+save(`weight_${LABEL}.json`, summary);
 console.log(JSON.stringify(summary.median, null, 2));
 console.log(`phép đo chứng minh được: ${summary.instrumentProven}`);

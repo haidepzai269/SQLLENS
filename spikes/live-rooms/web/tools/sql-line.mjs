@@ -85,8 +85,9 @@ out.ac2.idle = {
 
 // ---------- AC4 ----------
 // `sseEvents` cộng dồn qua các lần chạy (reset endpoint không xóa nó), nên số mỗi
-// lần là hiệu hai lần liền kề; lần 1 không suy được -> dùng hiệu của lần 2 (=1.770),
-// và ghi rõ là suy từ lần sau.
+// lần là hiệu hai lần liền kề. Lần 1 KHÔNG có mốc trước, nên số của nó là SUY RA
+// bằng hiệu của lần 2 — không phải số đo. Cờ `snapshotsInferred` đánh dấu đúng chỗ đó
+// để không ai đọc nhầm thành số đo trực tiếp.
 const ac4sse = read("ac4_sse.json");
 const deltas = [];
 for (let i = 1; i < ac4sse.runs.length; i++) {
@@ -105,6 +106,7 @@ out.ac4.sse = ac4sse.runs.map((r, i) => {
     windowMs: r.windowMs,
     perViewerBytes: perViewer,
     snapshotsPerViewer: snapshots,
+    snapshotsInferred: i === 0,
     sqlBpm,
     sqlBpmNaiveWrong: naive,
     overstatePct: (naive / sqlBpm - 1) * 100,

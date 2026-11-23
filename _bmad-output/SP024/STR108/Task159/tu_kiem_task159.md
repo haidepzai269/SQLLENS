@@ -1,13 +1,12 @@
-# Tự kiểm Task159 — không có reviewer độc lập
+# Tự kiểm Task159 (đã có reviewer độc lập sau đó)
 
-**Chưa có reviewer độc lập.** Session này là subagent ở độ sâu 1/1, hết lượt uỷ thác
-(`subagent` và `subagent_fork` đều trả `remaining levels 0`), nên **không gọi được
-reviewer mới** như `QUY_TRINH.md` yêu cầu. Toàn bộ phần dưới là **tự kiểm**, chạy
-theo `bmad-review` với thấu kính đối kháng và thấu kính ca biên. Cần `lead` bố trí
-reviewer độc lập trước khi coi Task159 là đã qua review.
+**Cập nhật 2026-11-23:** file này là **tự kiểm** ở vòng đầu, khi session chưa gọi được
+reviewer (subagent độ sâu 1/1, hết lượt uỷ thác). **Sau đó `lead` đã bố trí reviewer độc
+lập.** Reviewer chấm phần số đo và kết luận no-go **đạt** (tự tính lại 16 con số từ JSON
+thô, khớp hết), nhưng chặn merge vì 5 lỗi Trung bình — cả 5 đã sửa. Xem mục "Kết quả
+review" trong `ban_giao_task159.md`. File này giữ nguyên làm bản ghi vòng tự kiểm đầu.
 
-Nội dung kiểm: diff `5e60a13..HEAD` (80 file, +10.687 dòng) và
-`_bmad-output/SP024/STR108/Task159/ket_qua_do.md`.
+Nội dung kiểm: diff `5e60a13..HEAD` và `_bmad-output/SP024/STR108/Task159/ket_qua_do.md`.
 
 ## Thấu kính bỏ qua
 
@@ -44,5 +43,5 @@ Nội dung kiểm: diff `5e60a13..HEAD` (80 file, +10.687 dòng) và
 
 ## Chưa làm được
 
-- **Không có reviewer độc lập** (lý do ở đầu file). Đây là điều kiện của `QUY_TRINH.md` mà task này chưa thoả.
+- **Vòng tự kiểm này không có reviewer độc lập** (lý do ở đầu file). Điều kiện đó đã được thoả ở vòng sau: `lead` bố trí reviewer độc lập, reviewer chấm đạt phần số đo và nêu 5 lỗi Trung bình, cả 5 đã sửa.
 - Không kiểm được `DE_XUAT_STORY_SP024_TEAM_MULTIPLAYER.md`: file không tồn tại trong worktree.

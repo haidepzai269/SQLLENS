@@ -79,6 +79,8 @@ Host phát payload thật của AC1 (3.906 B) mỗi 10 giây. Cửa sổ danh ng
 
 Polling: 32 request/phút, trong đó 6 trả 200 và 26 trả 304 (ETag `"vN"` hoạt động). SSE: **1 request cho cả phút** — một kết nối duy nhất giữ suốt cửa sổ.
 
+**Dòng "trung vị" lấy trung vị riêng từng cột**, không phải một lần chạy cụ thể, nên các cột không cộng lại đúng bằng cột Tổng của chính dòng đó (polling: 23.857 + 4.464 = 28.321, trong khi trung vị cột Tổng là 28.316). Muốn một dòng tự cộng khớp thì đọc từng lần chạy ở trên.
+
 **Một lỗi đo đã tìm ra và sửa, số cũ bị thay.** Lần đo đầu cho SSE **2 request** và polling **33**. Nguyên nhân: `app/viewer/page.tsx` khởi tạo `room = "r1"` rồi mới đọc `?room=` trong `useEffect`; ở lần render đầu trang mở một `EventSource` rác tới `/api/room/r1/events` trước khi nối phòng thật. Request rác đó mang **0 byte** nên không làm sai byte, nhưng làm sai **số request**. Đã sửa bằng cờ `ready` chặn hiệu ứng nối mạng ở lần render đầu, rồi **đo lại cả ba chế độ**. Bảng trên là số sau khi sửa. Con số request cũ (2 và 33) đã bị thay, không còn dùng.
 
 **Dòng SQL tách riêng — và một lỗi tính đã sửa.** Cách tính đúng không dùng tỉ lệ phần trăm: AC1 đo trực tiếp **1.700 B là SQL của người dùng trong một payload** (phép trừ: payload có SQL so với payload thay SQL bằng chuỗi rỗng). Mỗi `snapshot` chở đúng một payload, nên:
@@ -241,11 +243,18 @@ Gin local (`:18160`) + `next start` local (`:3159`), 30 tab Chromium thật, m�
 
 **Cách tính lại dòng B/viewer/phút.** Bản ghi thô của `ac4.mjs` chia **tổng** byte (gồm cả route `publish` do host gọi) cho 30 viewer. Route `publish` không phải lưu lượng của viewer, nên số thô cao hơn thực tế. Bảng trên chỉ dùng byte của viewer (`events` hoặc `poll`), tính lại bằng `tools/ac4-recompute.mjs`. Số thô là 23.653,8 (SSE) và 23.704,0 (polling); số đúng là 23.649,6 và 23.699,7. Chênh nhỏ nhưng đã sửa cho đúng nguồn.
 
+**Hai trường trong JSON thô không được dùng:**
+
+- `ac4_poll.json` vẫn mang trường `sse*` di sản (`sseTotal: 93`, `sseEvents: 5325`) do `ac4.mjs` ghi chung một khuôn cho cả hai chế độ. Chế độ polling **không mở stream** nên hai số đó vô nghĩa ở đây — **đừng đọc**.
+- `ramEnd` (RAM đo **sau khi đóng** 30 tab) là rác: lần chạy 3 ra `gin` 42,0 MB và `next` 116,3 MB, cao hơn cả `ram30`, vì phép đo rơi đúng lúc trình duyệt đang dọn. Bảng RAM ở trên chỉ dùng `ram0 → ram1 → ram30`, **không dùng `ramEnd`**.
+
 **Lỗi đếm sự kiện SSE, đã tìm ra và ghi lại.** `POST /metrics/reset` của spike xóa `req`, `bytes`, `status` và `closes` nhưng **không** xóa `sseTotal`/`sseEvents` (`server/main.go:337-347`). Vì vậy số `sseEvents` đọc được là **cộng dồn qua các lần chạy**: 1.785 rồi 3.555 rồi 5.325. Số sự kiện **mỗi lần** là hiệu hai lần liền kề: `3.555 − 1.785 = 1.770` và `5.325 − 3.555 = 1.770`. Hai hiệu khớp nhau nên con số 1.770 là đúng, nhưng **lần chạy 1 không suy được** vì không có mốc trước đó — ghi "chưa xác định", không đoán. Đây là lỗi của dụng cụ đo, không phải của server fan-out; nó không ảnh hưởng byte hay request (những bộ đếm đó có reset). Nếu chạy lại thì phải reset cả hai biến đó.
 
 **Vì sao AC2 ra 19.384 còn AC4 ra 23.650 — nguyên nhân thật, đã kiểm bằng số.**
 
 1. **AC2 nhận ít bản tin hơn trên mỗi phút.** AC2 có 3 giây chờ kết nối ổn định *trước* khi vòng phát bắt đầu, và cửa sổ đóng trước khi lần phát thứ 6 kịp tới. Kết quả: **5 `snapshot` trong 63,17 giây = 4,75 bản tin/phút**. AC4 phát đều 10 giây/lần suốt 601 giây: **59 `snapshot`/viewer = 5,89 bản tin/phút**. Tỉ lệ **1,24×**. Đây là nguyên nhân chính.
+
+   **Một chênh lệch nhỏ phải nói rõ:** SSE ra **59 `snapshot`/viewer**, polling ra **60**. Số 59 là **suy ra**, không đo trực tiếp: bộ đếm `sseEvents` cộng dồn qua các lần chạy nên mỗi lần chỉ lấy được bằng hiệu hai lần liền kề, và **lần chạy 1 không có mốc trước** — `tools/sql-line.mjs` lấy hiệu của lần 2 cho cả lần 1, và đánh dấu bằng cờ `snapshotsInferred: true`. Polling đếm trực tiếp từ số phản hồi 200 nên chắc chắn là 60. Chênh 1 bản tin này làm dòng SQL của SSE thấp hơn khoảng 1,7 % so với nếu là 60 — nằm trong cùng bậc với các sai số khác và **không đổi kết luận**, nhưng đây là lý do SSE ra 10.011,2 còn polling ra 10.183,5.
 2. **AC2 đếm thêm header HTTP** (203 B/phút cho SSE), AC4 đọc `/metrics` của Gin nên chỉ có byte thân. Đây là nguyên nhân phụ, nhỏ.
 
 Kiểm chứng: `5 × 3.906 = 19.530` B thân cho 5 bản tin, cộng `656` B bản tin `hello` và `203` B header ra `20.389` B — khớp đúng số đo `20.389`. Vậy phép tách là đúng, không phải suy đoán.
@@ -269,7 +278,7 @@ RAM **không** phải nút cổ chai. Nút cổ chai là số giờ Render (AC5)
 
 ### Rò kết nối
 
-- Đóng bình thường (gọi `__viewerStop()` rồi đóng context): `sseOpen` về 0 sau **798 ms** (SSE) và **683 ms** (polling), 30/30 sự kiện close ghi được, goroutine không tăng.
+- Đóng bình thường (gọi `__viewerStop()` rồi đóng context): `sseOpen` về 0 sau **798 ms** (SSE, `closesRecorded` = 30/30) và **683 ms** (polling), goroutine không tăng. **Polling không ghi sự kiện close** (`closesRecorded` = 0, `livedMs` = `[]`) vì chế độ polling không mở stream, nên con số 683 ms chỉ dựa trên gauge `sseOpen`, không có sự kiện close đối chiếu.
 - **Giết đột ngột** (`taskkill /T /F` cả cây Chromium, không có FIN sạch) — 3 lần, `tools/edge.mjs kill`:
 
 | Số đo | Lần 1 | Lần 2 | Lần 3 | Trung vị | Nhãn |
@@ -295,6 +304,8 @@ Phép đo tách hai biến: `compress` của Next (`NEXT_COMPRESS=1` hoặc khô
 | **true** | **không** | 39,3 ms | **gzip** | **không bao giờ** | **KHÔNG** | Thật |
 
 Đối chứng rằng `NEXT_COMPRESS=1` thật sự bật nén (`tools/compress-check.mjs`): với `compress: true`, HTML có `content-encoding: gzip` và `transfer-encoding: chunked`; với `compress: false`, HTML có `content-length: 6242` và không nén. Vậy phép thử có hiệu lực, không phải "nén chưa từng chạy".
+
+**Bằng chứng "gzip giết stream" nằm ở đâu — đọc đúng file.** Nó nằm ở `results/sse_flush_compress-true.json`, **nhánh `no-transform=0`**: 3/3 lần có `contentEncoding: "gzip"`, `cacheControl: "no-cache"` (mất `no-transform`), `snapshotArrivedMs: null`, `streamed: false`. **Đừng** lấy `results/sse_through_compress-true-big_300000.json` làm bằng chứng cho điều này: file đó ghi `streamed: true` vì nó chạy ở nhánh **còn** `no-transform`, tức đúng trường hợp stream sống — đọc nhầm file đó sẽ thấy mâu thuẫn không có thật.
 
 **Đọc bảng này cho đúng:**
 
@@ -406,7 +417,11 @@ Văn kiện gốc hứa "0MB WASM Engine!" cho viewer. Đây là phép đo, khô
 
 Một phiên xem 1 giờ: `/share` gửi **1.860 B**; live room gửi **1.419.000 B** cho một viewer (gấp **763×**), và **42,6 MB** cho 30 viewer. Đổi lại, viewer nhận được một thứ `/share` không có: nội dung cập nhật theo host. Nhưng cái giá là băng thông tăng 763 lần, một tầng server mới, và SQL rời khỏi máy.
 
-Con số quyết định: **`/share` đã giải quyết đúng bài toán "cho người khác xem" với 1.860 B và 0 đồng hạ tầng.** Live Rooms không rẻ hơn ở bất kỳ chiều nào.
+**Phép so 763× này phải đọc kèm một điều kiện, nếu không là không công bằng với `/share`.** `/share` rẻ vì nó **không chạy engine**: muốn xem cây B-Tree hay plan thì viewer phải bấm "Chạy thử", và lúc đó tải engine. Đo ở `/ac1`: **16.692.968 B** cho một lần tải engine (WASM 15.637.266 B). Số đó bằng **11,8 giờ stream** của live room cho một viewer, hoặc **0,4 giờ** nếu chia cho 30 viewer xem cùng lúc. Nên 763× chỉ đúng khi viewer **chỉ xem, không chạy**; nếu mỗi viewer đều bấm "Chạy thử" thì khoảng cách hẹp lại rất nhiều, và với 30 viewer cùng chạy thì `/share` thậm chí **đắt hơn** trong giờ đầu.
+
+Điều đó **không đổi kết luận**, vì hai lý do đo được: (1) `/share` tải engine **một lần rồi thôi**, còn live room trả 1.419.000 B **mỗi giờ, mỗi viewer**, không có điểm dừng — sau khoảng 12 giờ stream thì hoà, sau đó live room đắt mãi; (2) cái mất đi khi chọn live room không phải byte mà là **quyền chạy câu mới** — viewer thành người xem ảnh chụp, và SQL phải nằm trên server. Nói cách khác: 763× là con số của chế độ "chỉ xem", và chính chế độ đó là chế độ duy nhất live room làm được.
+
+Con số quyết định: **`/share` đã giải quyết đúng bài toán "cho người khác xem" với 1.860 B và 0 đồng hạ tầng.** Live Rooms không rẻ hơn ở bất kỳ chiều nào **khi viewer chỉ xem** — và khi viewer muốn chạy, `/share` làm được còn Live Rooms thì không.
 
 ### (b) Phần nào của văn kiện gốc đứng được với số đo
 
@@ -464,10 +479,10 @@ Ghi rõ, không thay bằng số khác:
 3. **`encodeSnapshot` chặn trần 32 KB và 100 tab ở client, Gin không kiểm.** Đo được: gửi 3 MB thẳng vào `/publish` vẫn 200. Nếu làm live room thật, phải kiểm ở server. Ghi vào `SP999`.
 4. **Core Rule 7 cần chủ dự án quyết trước mọi story gửi SQL qua mạng.** Số đầu vào: **10.011,2 B/phút/viewer là SQL** (SSE, 30 viewer; polling 10.183,5). Không sửa Core Rule 7 trong task này.
 5. **`DE_XUAT_STORY_SP024_TEAM_MULTIPLAYER.md` được task159.md nhắc nhưng không có trong repo.** Cần bổ sung hoặc sửa dòng tham chiếu.
-6. **Hai script đo từng tính sai dòng SQL và byte mỗi viewer; đã sửa tại chỗ, số cũ giữ lại để đối chiếu.**
-   - `ac4.mjs` chia **tổng** byte cho số viewer, gồm cả byte của host gọi `publish`. Số đúng ở `tools/ac4-recompute.mjs`.
-   - `ac2.mjs` và `ac4.mjs` nhân tỉ lệ SQL với **toàn bộ** byte thân, kể cả `hello`/`ping` không chở SQL — thổi số lên 1,6–3,9 %. Số đúng ở `tools/sql-line.mjs`.
-   - Trường sai đã đổi tên thành `sqlBytesPerViewerPerMinute_naiveWrong` / `sqlBytesPerMinute_naiveWrong` để không ai đọc nhầm. **JSON trong `results/` vẫn mang số cũ ở trường `sqlBytesPerMinute`** (sinh trước khi sửa) — muốn số đúng thì chạy `tools/sql-line.mjs`, nó ghi `results/sql_line.json`.
+6. **Hai script đo từng tính sai dòng SQL và byte mỗi viewer; đã sửa tại chỗ, số cũ giữ lại để đối chiếu.** Hai việc khác nhau, hai script khác nhau:
+   - **Byte mỗi viewer** → `tools/ac4-recompute.mjs`. `ac4.mjs` chia **tổng** byte cho số viewer, gồm cả byte của host gọi `publish`.
+   - **Dòng SQL** → `tools/sql-line.mjs`. `ac2.mjs` và `ac4.mjs` nhân tỉ lệ SQL với **toàn bộ** byte thân, kể cả `hello`/`ping` không chở SQL — thổi số lên **1,2–3,5 %**. `ac4-recompute.mjs` **cũng** từng làm vậy, nên nó **không** phải nguồn của dòng SQL; trường `sqlBpm` ở đó đã đổi tên thành `sqlBpm_naiveWrong`.
+   - **JSON trong `results/` sinh trước khi sửa, nên vẫn mang số sai ở trường tên sạch** `sqlBytesPerViewerPerMinute` (`ac4_sse.json` trung vị 10.286,910; `ac4_poll.json` 10.308,710) và `sqlBytesPerMinute`. **Đừng đọc hai trường đó.** Số đúng ở `results/sql_line.json`.
 7. **`ac2.mjs` từng báo `publishesInWindow` theo danh nghĩa, không theo thực tế.** Nó tính `floor(elapsed / 10000)`, nên ở chế độ **phòng đứng yên** (không phát gì) vẫn báo `6` lần phát. Đã sửa thành đếm thật (`publishesDone++` sau mỗi lần `publish()`). Không ảnh hưởng số byte đã báo (byte đo từ CDP), nhưng nếu ai đọc trường đó để suy số `snapshot` thì sẽ sai — và đúng là đã suy sai một lần trong quá trình tự kiểm.
 
 ---
@@ -490,7 +505,21 @@ cd spikes/live-rooms/web && node tools/ac1.mjs && node tools/ac3.mjs && node too
 node tools/ac2.mjs sse && node tools/ac2.mjs poll && PUBLISH=0 node tools/ac2.mjs sse
 node tools/ac4.mjs sse 30 10 && node tools/ac4.mjs poll 30 10 && node tools/ac4-recompute.mjs && node tools/sql-line.mjs
 node tools/edge.mjs kill && node tools/edge.mjs slow3g && node tools/edge-publish.mjs
-node tools/sse-flush.mjs compress-false && node tools/weight.mjs && node tools/ac5.mjs && node tools/frame-size.mjs
+node tools/sse-flush.mjs compress-false && node tools/weight.mjs compress-false && node tools/ac5.mjs && node tools/frame-size.mjs
 ```
 
-Mọi mã trong `web/lib/`, `web/ac3/`, `web/contracts/` là bản sao nguyên văn từ `web/src/` (SHA256 đã ghi trong `spikes/live-rooms/README.md`), để phép đo đi đúng code của sản phẩm chứ không phải bản viết lại.
+Mọi mã trong `web/lib/`, `web/ac3/`, `web/contracts/` là bản sao nguyên văn từ `web/src/`, để phép đo đi đúng code của sản phẩm chứ không phải bản viết lại. Đối chiếu ngày 2026-11-23, cả 9 file **giống hệt từng byte** (SHA256 của bản trong spike = của bản sản phẩm):
+
+| File trong spike | File sản phẩm | SHA256 (giống nhau) |
+|---|---|---|
+| `lib/codec.ts` | `web/src/modules/share/codec.ts` | `B55144222A16A7A312A9E4554AABDFD7BF46FB58843C2F57EAC366475784C233` |
+| `lib/snapshot.ts` | `web/src/modules/share/snapshot.ts` | `87F3E289B2FEEAA2A97BAEF093AB7AA964AD74E7E6FDD62958CDDE84BD6A54EA` |
+| `lib/normalize/postgres.ts` | `web/src/modules/plan-runner/normalize/postgres.ts` | `3530E099E1AA3947B175E1F430B75B5B820E8A1F9EFE343CBDEBC196B89A5181` |
+| `ac3/btree-read.ts` | `web/src/engines/postgres/btree-read.ts` | `EBD380A0F2A03B3D7128230E13E43FFC1326F6E0EFBF392A57EEBF75699DB43A` |
+| `ac3/btree-key.ts` | `web/src/engines/postgres/btree-key.ts` | `52F64E65ADC7DCDFA3FD9E39B5478C6B60F8E5CACFE754243AEC09B74F043AC3` |
+| `contracts/btree.ts` | `web/src/contracts/btree.ts` | `78ACE5FE58D11F055E1F2F840F89307E7E3662C9AB33C3BFC64E04AB21F4A9CC` |
+| `contracts/conclusion.ts` | `web/src/contracts/conclusion.ts` | `AA493D68150FE3E94DD163D8C074EE920A1B709028F5DC63EB197768800AC064` |
+| `contracts/engine.ts` | `web/src/contracts/engine.ts` | `AA8B1C1A4E9858356D18C66AA6B64FBCEF7DBC37CBCD08470A8103B8591EC9CF` |
+| `contracts/plan.ts` | `web/src/contracts/plan.ts` | `41A3D7D6F8BCBFD24C30521EB5C2DCA52F96AD9474FCB73B27E7D6D07398AFE1` |
+
+Ba file `lib/fixture.ts`, `lib/measure.ts`, `ac3/btree.worker.ts` là mã riêng của spike, không chép từ sản phẩm. Sửa bản gốc thì phải chép lại và cập nhật bảng này; đừng sửa tay bản trong spike.
