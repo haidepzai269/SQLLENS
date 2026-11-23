@@ -32,7 +32,14 @@ const nextConfig: NextConfig = {
   ],
   // /lab cũ về màn hình chính; Next giữ nguyên query khi chuyển hướng.
   redirects: async () => [{ source: "/:locale(vi|en)/lab", destination: "/:locale", permanent: false }],
-  rewrites: async () => [{ source: "/api/:path*", destination: `${apiOrigin()}/:path*` }],
+  rewrites: async () => [
+    // Route cloud của Gin đăng ký CÓ tiền tố /api, các route Gin khác thì không. Rule chung bên
+    // dưới cắt /api nên phải có rule riêng này đứng trước: Next áp rule khớp đầu tiên, đổi thứ
+    // tự là cloud rơi vào NoRoute 404 và trần body 3MB của route cloud mất tác dụng.
+    // shortcut: hai quy ước tiền tố song song, gộp về một khi được đổi tên route Gin.
+    { source: "/api/v1/cloud/:path*", destination: `${apiOrigin()}/api/v1/cloud/:path*` },
+    { source: "/api/:path*", destination: `${apiOrigin()}/:path*` },
+  ],
   // request.ts đọc messages/ bằng fs lúc chạy, nên phải kèm vào bản deploy.
   outputFileTracingIncludes: { "/**": ["./messages/**/*.json"] },
   cacheComponents: true,
