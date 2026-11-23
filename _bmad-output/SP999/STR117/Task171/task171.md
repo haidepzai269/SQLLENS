@@ -7,15 +7,19 @@ Nguồn: party-mode review Task160 ngày 2026-11-23. Task160 đã merge vào `ma
 
 **Điều kiện thi công:** migration 006 **chưa chạy ở đâu ngoài database test** — `main` đang đi trước `origin/main` 5 commit, 006 chưa push, Neon production không thể có nó. Vì vậy **được sửa thẳng file 006**, không cần migration mới. Ghi rõ điều này trong bàn giao để người sau không tưởng là sửa lịch sử đã deploy.
 
-**Phạm vi file (8):**
-- `api/migrations/006_live_rooms.sql` (sửa — 4 lỗi)
+**Phạm vi file (10: 8 sửa, 2 mới — tất cả trong `api/`):**
+- `api/migrations/006_live_rooms.sql` (sửa — 4 lỗi L2–L6; lỗi L1 nằm ở các helper dọn database)
+- `api/migrations/tables.go` (mới — một chỗ duy nhất giữ danh sách bảng để dọn, thay cho 8 bản chép tay)
+- `api/migrations/tables_test.go` (mới — canh danh sách đó và cấm chép tay lại)
 - `api/internal/store/live_rooms_006_test.go` (sửa — test mới cho từng lỗi)
 - `api/internal/store/store_test.go` (dòng 32: thêm 2 bảng vào DROP list)
 - `api/internal/store/store_cloud_test.go` (dòng 151, 162, 943, 988: thêm 2 bảng)
 - `api/internal/store/tenant_test.go` (dòng 52: thêm 2 bảng)
+- `api/internal/store/tenant_rls_test.go` (dòng 88: thêm 2 bảng)
 - `api/internal/httpapi/cloud_projects_test.go` (dòng 92: thêm 2 bảng)
 - `api/internal/auth/auth_test.go` (dòng 605: thêm 2 bảng)
-- `_bmad-output/SP024/STR116/Task161/task161.md` (sửa sai lệch 1 và 5 — xem dưới)
+
+**Ghi chú so với bản đầu của task:** `_bmad-output/SP024/STR116/Task161/task161.md` **không cần sửa**. Base `e375517` đã có sẵn hai chỗ sửa cho sai lệch 1 (`token_hash BYTEA … octet_length = 32`) và sai lệch 5 (`used_at` đã bỏ), nên task này không chạm file đó. Danh sách trên vì vậy là 10 đường dẫn nhưng 8 file sửa + 2 file mới, tất cả trong `api/`.
 
 Không chạm frontend. Không thêm dependency. Không đổi `store.Migrate`.
 
@@ -79,15 +83,20 @@ Khóa ngoại `holder_id → users(id) ON DELETE SET NULL` không có index, nê
 ## Kiểm tra
 
 ```powershell
-$env:RLS_TEST_DSN="postgres://postgres:t152@localhost:54492/app171"
+$env:RLS_TEST_DSN="postgres://postgres:t152@localhost:54493/app171"
 $env:T149_DATABASE_URL=$env:RLS_TEST_DSN
+$env:T041_DATABASE_URL=$env:RLS_TEST_DSN
+$env:T151_DATABASE_URL=$env:RLS_TEST_DSN
+$env:T150_DATABASE_URL=$env:RLS_TEST_DSN
 cd api
 go test -p 1 ./... -count=1
 go test -p 1 ./... -count=1
 go test -p 1 ./internal/store -shuffle=on -count=1
 ```
 
-Container `t160-pg` (PostgreSQL 18, cổng 54492, mật khẩu `t152`). Database `app171` đã dựng sẵn và trống. Dùng `app171`, **không** dùng `app` (Task161/Task163 chạy song song trên database khác).
+Container `t171-pg` (PostgreSQL 18, cổng 54493, mật khẩu `t152`). Database `app171` đã dựng sẵn và trống. Dùng `app171`, **không** dùng `app` (Task161/Task163 chạy song song trên database khác).
+
+**Vì sao phải là cluster riêng:** role trong PostgreSQL là đối tượng cấp cluster, còn `GRANT` là cấp database. Hai task chạy song song trên cùng một cluster thì `DROP ROLE sqllens_app` của task này vướng quyền mà task kia đã cấp trong database của nó — `DROP ROLE` báo `DETAIL: N objects in database …` và không xoá được. Tách cluster là cách duy nhất đúng; nới lỏng test để tránh `DROP ROLE` chỉ tạo ra xanh giả.
 
 ## Góc review thêm
 

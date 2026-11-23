@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/haidepzai269/SQLLENS/api/migrations"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -85,9 +86,8 @@ func newRLSEnv(t *testing.T) *rlsEnv {
 	// room_invite_tokens/room_baton (migration 006) đứng trước cloud_projects: chúng tham chiếu
 	// cloud_projects nên nếu chỉ DROP CASCADE bảng cha thì bảng con còn lại mà mất FK, và lần
 	// `Migrate` sau gặp `CREATE TABLE IF NOT EXISTS` nên không dựng lại FK — bảng sẽ sống thiếu ràng buộc.
-	if _, err := owner.pool.Exec(ctx, `DROP TABLE IF EXISTS room_invite_tokens, room_baton,
-		cloud_project_members, cloud_tabs, cloud_projects,
-		user_vip_redemptions, vip_codes, sessions, identities, users, schema_migrations CASCADE`); err != nil {
+	// Danh sách dùng chung ở migrations.DropAllTablesSQL — xem lý do ở đó.
+	if _, err := owner.pool.Exec(ctx, `DROP TABLE IF EXISTS `+migrations.DropAllTablesSQL+` CASCADE`); err != nil {
 		t.Fatal(err)
 	}
 	if err := owner.Migrate(ctx); err != nil {

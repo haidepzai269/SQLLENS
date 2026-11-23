@@ -22,6 +22,7 @@ import (
 	"github.com/haidepzai269/SQLLENS/api/internal/httpapi"
 	"github.com/haidepzai269/SQLLENS/api/internal/quota"
 	"github.com/haidepzai269/SQLLENS/api/internal/store"
+	"github.com/haidepzai269/SQLLENS/api/migrations"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -601,13 +602,10 @@ func resetDB(t *testing.T, url string) {
 	// Phải có CASCADE và phải kể tên 3 bảng cloud: migration 003 thêm khóa ngoại
 	// cloud_projects.owner_id -> users(id), nên DROP users trần bị Postgres chặn
 	// (SQLSTATE 2BP01) và mọi test sau test đầu tiên đều chết. Thứ tự theo phụ thuộc:
-	// con trước cha. Cùng danh sách với resetCloud/newTenantEnv trong package store.
-	// room_invite_tokens/room_baton (006) cũng phải có tên: chúng tham chiếu cloud_projects,
-	// thiếu tên thì CASCADE chỉ xóa FK và bảng con sống thiếu ràng buộc vĩnh viễn.
+	// con trước cha. Danh sách dùng chung ở migrations.DropAllTablesSQL — xem lý do ở đó:
+	// bảng con không có tên trong danh sách sẽ sống sót qua CASCADE và vĩnh viễn mất khóa ngoại.
 	if _, err := c.Exec(context.Background(), `DROP TABLE IF EXISTS
-		room_invite_tokens, room_baton,
-		cloud_project_members, cloud_tabs, cloud_projects,
-		user_vip_redemptions, vip_codes, sessions, identities, users, schema_migrations CASCADE`); err != nil {
+		`+migrations.DropAllTablesSQL+` CASCADE`); err != nil {
 		t.Fatal(err)
 	}
 }

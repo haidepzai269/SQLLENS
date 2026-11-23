@@ -16,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/haidepzai269/SQLLENS/api/internal/quota"
 	"github.com/haidepzai269/SQLLENS/api/internal/store"
+	"github.com/haidepzai269/SQLLENS/api/migrations"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -89,9 +90,7 @@ func newCloudEnv(t *testing.T, guards ...gin.HandlerFunc) *cloudEnv {
 		t.Fatal(err)
 	}
 	t.Cleanup(raw.Close)
-	if _, err := raw.Exec(ctx, `DROP TABLE IF EXISTS room_invite_tokens, room_baton,
-		cloud_project_members, cloud_tabs, cloud_projects,
-		user_vip_redemptions, vip_codes, sessions, identities, users, schema_migrations CASCADE`); err != nil {
+	if _, err := raw.Exec(ctx, `DROP TABLE IF EXISTS `+migrations.DropAllTablesSQL+` CASCADE`); err != nil {
 		t.Fatal(err)
 	}
 	st, err := store.Open(ctx, url)
