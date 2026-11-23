@@ -21,7 +21,7 @@ import (
 )
 
 // Test signaling WebSocket (Task163). Cần Postgres thật:
-//   $env:RLS_TEST_DSN="postgres://postgres:t152@localhost:54492/app163"; cd api
+//   $env:RLS_TEST_DSN="postgres://postgres:t152@localhost:54494/app163"; cd api
 //   go test -p 1 ./internal/httpapi -run RoomSignal -v
 
 const signalMark = "ZZSIGNALSQL"
