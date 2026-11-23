@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Party Mode — Review Task160 · SQLLens · 23/11/2026</title>
+<style>
+  :root{
+    --ink:#0d1117; --ink-2:#1c2230; --line:#2b3444;
+    --paper:#f6f3ec; --paper-2:#efe9dc;
+    --amber:#e0a458; --jade:#5fbf9f; --rose:#e07a8b; --sky:#6fa8dc; --violet:#a98cd8;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Consolas,monospace;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--serif); font-size:17px; line-height:1.62;
+    background-image:radial-gradient(circle at 12% 8%,rgba(224,164,88,.09),transparent 42%),
+                     radial-gradient(circle at 88% 92%,rgba(95,191,159,.09),transparent 46%);
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:0 24px 96px}
+
+  /* ---------- masthead ---------- */
+  header{padding:72px 0 40px;border-bottom:1px solid var(--line)}
+  .eyebrow{
+    font-family:var(--mono);font-size:11.5px;letter-spacing:.22em;text-transform:uppercase;
+    color:#7a6a55;margin:0 0 20px
+  }
+  h1{
+    font-size:clamp(30px,5.4vw,50px);line-height:1.06;margin:0 0 18px;
+    font-weight:600;letter-spacing:-.02em
+  }
+  h1 em{font-style:italic;color:#8a6b3f}
+  .standfirst{font-size:19px;color:#3b4454;max-width:64ch;margin:0}
+  .stamp{
+    display:inline-flex;gap:10px;align-items:center;margin-top:28px;
+    font-family:var(--mono);font-size:12px;color:#6b6152;
+    border:1px solid #d8cfbc;border-radius:999px;padding:7px 15px;background:var(--paper-2)
+  }
+  .stamp b{color:var(--ink);font-weight:600}
+
+  /* ---------- verdict strip ---------- */
+  .verdict{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin:44px 0 8px}
+  .verdict div{background:var(--paper-2);padding:20px 18px}
+  .verdict .n{font-family:var(--mono);font-size:32px;font-weight:600;line-height:1;display:block}
+  .verdict .k{font-family:var(--sans);font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:#6b6152;margin-top:9px;display:block}
+  .n.sev{color:#b3403f}.n.med{color:#a2762a}.n.low{color:#5a7a68}.n.tot{color:#3f6b57}
+
+  /* ---------- sections ---------- */
+  section{padding-top:52px}
+  .num{font-family:var(--mono);font-size:11.5px;letter-spacing:.2em;color:#8a7c64;text-transform:uppercase}
+  h2{font-size:clamp(22px,3.4vw,30px);margin:10px 0 6px;font-weight:600;letter-spacing:-.015em}
+  h3{font-size:19px;margin:34px 0 8px;font-weight:600}
+  p{margin:0 0 16px}
+
+  /* ---------- persona card ---------- */
+  .turn{
+    display:grid;grid-template-columns:58px 1fr;gap:20px;
+    padding:26px 0;border-bottom:1px dashed #d8cfbc
+  }
+  .turn:last-of-type{border-bottom:0}
+  .avatar{
+    width:58px;height:58px;border-radius:14px;display:grid;place-items:center;
+    background:var(--paper-2);border:1px solid #ddd3c0
+  }
+  .who{font-family:var(--sans);font-size:13.5px;font-weight:700;letter-spacing:.01em;margin:0 0 2px}
+  .role{font-family:var(--mono);font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:#7a6a55;margin:0 0 12px}
+  .turn p{font-size:16.5px;color:#26303f}
+  .turn p:last-child{margin-bottom:0}
+  .quote{border-left:2px solid var(--amber);padding-left:16px;font-style:italic;color:#3b4454}
+
+  /* ---------- evidence ---------- */
+  pre{
+    font-family:var(--mono);font-size:13px;line-height:1.6;
+    background:var(--ink);color:#d6dde8;border-radius:10px;
+    padding:18px 20px;overflow-x:auto;margin:18px 0;
+    border:1px solid #000
+  }
+  pre .c{color:#7d8a9c}
+  pre .bad{color:#ff8f8f}
+  pre .good{color:#7fd6b0}
+  code{font-family:var(--mono);font-size:.9em;background:#e8e1d2;padding:1px 5px;border-radius:4px}
+  pre code{background:none;padding:0;font-size:inherit}
+
+  .finding{border:1px solid #ddd3c0;background:var(--paper-2);border-radius:10px;padding:20px 22px;margin:18px 0}
+  .finding h4{margin:0 0 6px;font-size:16.5px;font-family:var(--sans);font-weight:700}
+  .finding .tag{
+    display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+    text-transform:uppercase;padding:2px 8px;border-radius:4px;margin-left:8px;vertical-align:2px
+  }
+  .tag.sev{background:#f2d5d4;color:#8e2f2e}
+  .tag.med{background:#f0e2c4;color:#7d5a19}
+  .tag.low{background:#dfe9e2;color:#3f6b57}
+  .finding p{margin:0 0 10px;font-size:16px}
+  .finding p:last-child{margin-bottom:0}
+
+  /* ---------- closing ---------- */
+  .close{margin-top:56px;padding:32px;border:1px solid var(--line);border-radius:12px;background:var(--ink);color:#cfd8e4}
+  .close h2{color:#fff;margin-top:0}
+  .close p{color:#b6c1d0}
+  .close code{background:#232c3b;color:#e6ecf5}
+  footer{margin-top:56px;padding-top:24px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:#7a6a55;letter-spacing:.05em}
+
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .pulse{animation:draw 1.6s ease-out forwards}
+  @media (prefers-reduced-motion:reduce){.pulse{animation:none;stroke-dashoffset:0}}
+  @media (max-width:560px){
+    .turn{grid-template-columns:44px 1fr;gap:14px}
+    .avatar{width:44px;height:44px;border-radius:11px}
+    .wrap{padding:0 18px 72px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Party Mode · Biên bản họp · SQLLens</p>
+  <h1>Test xanh trên một <em>database đã hỏng</em></h1>
+  <p class="standfirst">
+    Hội đồng họp ngày 23/11/2026 để review task đầu tiên của SP024 — Task160, migration 006 cùng
+    RLS cho phòng cộng tác. Đây là task SP024 duy nhất chưa từng qua review độc lập. Mọi kết luận
+    dưới đây do phiên chính đo lại trên PostgreSQL 18 thật, không phải suy luận.
+  </p>
+  <span class="stamp">Task160 · merged <b>84083ef</b> · review sau merge</span>
+</header>
+
+<div class="verdict">
+  <div><span class="n sev">2</span><span class="k">Nghiêm trọng</span></div>
+  <div><span class="n med">3</span><span class="k">Trung bình</span></div>
+  <div><span class="n low">2</span><span class="k">Thấp</span></div>
+  <div><span class="n tot">7/7</span><span class="k">Package vẫn xanh</span></div>
+</div>
+
+<section>
+  <p class="num">Phần một</p>
+  <h2>Số đo mở màn</h2>
+  <p>
+    Bộ test của Task160 chạy hai lần liên tiếp trên cùng một database, xanh cả hai lượt. Nhìn từ
+    ngoài, task này xong. Nhưng câu hỏi đúng không phải “test có xanh không”, mà “test xanh có nghĩa gì”.
+    Sau khi chạy đúng <em>một</em> test cũ khác, số khoá ngoại của hai bảng mới rơi từ 1 xuống 0.
+  </p>
+<pre><span class="c"># trước khi chạy test cũ</span>
+fk_truoc = 1
+
+<span class="c"># chạy đúng một test cũ (TestCloudPrivileges)</span>
+<span class="bad">fk_sau   = 0</span>
+
+<span class="c"># cả hai test đều báo ok</span>
+ok  github.com/haidepzai269/SQLLENS/api/internal/store  16.639s
+ok  github.com/haidepzai269/SQLLENS/api/internal/store  18.342s</pre>
+  <p>
+    Và hệ quả cuối, đo bằng tay: sau khi mất khoá ngoại, <code>DELETE FROM cloud_projects</code>
+    để lại <b>một hàng token mồ côi</b>. Bảng mồ côi là thứ sẽ sống trong Neon production nếu ai đó
+    chạy đúng chuỗi này ở đó.
+  </p>
+</section>
+
+<section>
+  <p class="num">Phần hai</p>
+  <h2>Hội đồng</h2>
+
+  <div class="turn">
+    <div class="avatar" aria-hidden="true">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="#a2762a" stroke-width="1.6">
+        <path d="M4 24V13M10 24V8M16 24V17M22 24V5M28 24V11" stroke-linecap="round" class="pulse" stroke-dasharray="30" stroke-dashoffset="30"/>
+      </svg>
+    </div>
+    <div>
+      <p class="who">Mary</p>
+      <p class="role">Business Analyst · người cầm số</p>
+      <p class="quote">“Câu hỏi của tôi không phải test có xanh không, mà test xanh có nghĩa gì.”</p>
+      <p>
+        Tôi mở bằng con số vì con số là thứ duy nhất không cãi được. Bộ test xanh 7/7 package, chạy
+        hai lần liên tiếp, 16,6 giây rồi 18,3 giây. Nhưng khi tôi đo thứ mà bộ test <em>tưởng</em>
+        đang bảo vệ, nó đã biến mất từ lâu. Không test nào trong 12 assertion của
+        <code>TestLiveRoom006Migration</code> khẳng định khoá ngoại tồn tại.
+      </p>
+    </div>
+  </div>
+
+  <div class="turn">
+    <div class="avatar" aria-hidden="true">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="#5a7a68" stroke-width="1.6">
+        <rect x="5" y="3" width="20" height="24" rx="2"/>
+        <path d="M9 9h12M9 14h12M9 19h7" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <p class="who">John</p>
+      <p class="role">Product Manager · người giữ quy trình</p>
+      <p class="quote">“Không có reviewer độc lập nghĩa là không ai từng hỏi: điều gì sẽ làm hỏng cái này?”</p>
+      <p>
+        Task159 có reviewer, chấm không-merge, Amelia sửa 5 lỗi. Task160 không có, và bây giờ ta có
+        hai lỗi Nghiêm trọng. Quy trình không phải thủ tục giấy tờ — nó là thứ duy nhất bắt được
+        đúng lớp lỗi này. Tôi không muốn nghe “lần sau sẽ gọi reviewer”. Tôi muốn thấy việc gọi
+        reviewer nằm trong định nghĩa “xong”.
+      </p>
+    </div>
+  </div>
+
+  <div class="turn">
+    <div class="avatar" aria-hidden="true">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="#4a6f8a" stroke-width="1.6">
+        <path d="M15 3l10 5v7c0 6-4.5 10-10 12-5.5-2-10-6-10-12V8z"/>
+        <path d="M10 15l3.5 3.5L21 12" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div>
+      <p class="who">Winston</p>
+      <p class="role">System Architect · người chỉ cơ chế</p>
+      <p class="quote">“Trộn <code>IF NOT EXISTS</code> với <code>DROP CASCADE</code> là hai cơ chế idempotent không khớp nhau.”</p>
+      <p>
+        Đây là lỗi kiến trúc, không phải lỗi gõ nhầm. Sáu helper dọn database trong test làm
+        <code>DROP TABLE ... cloud_projects ... CASCADE</code>. <code>CASCADE</code> xoá ba khoá
+        ngoại trỏ tới <code>cloud_projects</code> và <code>users</code>, nhưng
+        <code>room_invite_tokens</code> và <code>room_baton</code> không nằm trong danh sách DROP,
+        nên chúng sống sót — mất khoá ngoại, còn bảng. Lần <code>Migrate</code> sau chạy lại 006,
+        gặp <code>CREATE TABLE IF NOT EXISTS</code>, thấy bảng đã có, bỏ qua. Khoá ngoại không bao
+        giờ quay lại.
+      </p>
+    </div>
+  </div>
+
+  <div class="turn">
+    <div class="avatar" aria-hidden="true">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="#8e5f74" stroke-width="1.6">
+        <circle cx="15" cy="15" r="10"/>
+        <circle cx="11.5" cy="13" r="1.4" fill="#8e5f74" stroke="none"/>
+        <circle cx="18.5" cy="13" r="1.4" fill="#8e5f74" stroke="none"/>
+        <path d="M11 19c1.4-1.6 6.6-1.6 8 0" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <p class="who">Sally</p>
+      <p class="role">UX Designer · người đọc sản phẩm</p>
+      <p class="quote">“Cách sửa đúng cho <code>used_at</code> là xoá cột, không phải viết văn giải thích.”</p>
+      <p>
+        <code>used_at</code> là cột chết: không policy <code>UPDATE</code>, nên không role nào ghi
+        được vào nó. Test còn khẳng định <code>UPDATE ... SET used_at</code> ảnh hưởng 0 hàng — tức
+        bộ test đang đóng băng cột chết đó làm hợp đồng. Task161 chọn “link dùng chung như Google
+        Docs”, và tôi đồng ý với lựa chọn đó, vì phòng cần nhiều người vào bằng một link. Nhưng để
+        cột lại rồi viết văn giải thích là tự tạo nợ.
+      </p>
+    </div>
+  </div>
+
+  <div class="turn">
+    <div class="avatar" aria-hidden="true">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="#5fbf9f" stroke-width="1.6">
+        <path d="M11 10L5 15l6 5M19 10l6 5-6 5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M17 6l-4 18" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <p class="who">Amelia</p>
+      <p class="role">Senior Developer · người viết 006</p>
+      <p class="quote">“Tôi viết khối kiểm để tự trấn an, chứ không để bắt lỗi.”</p>
+      <p>
+        Tôi đã viết 006 và tôi đã tự khai là chưa review. Nhưng chỗ nặng nhất trong phần của tôi
+        không phải khoá ngoại — nó là khối tự kiểm <code>DO $$</code> cuối file. Tôi dựng
+        <code>room_invite_tokens (token, project_id)</code>, chạy 006, nó exit <b>0</b>, chỉ in
+        NOTICE, bảng vẫn thiếu <code>role</code>, <code>expires_at</code>, <code>used_at</code>, và
+        khối <code>DO</code> vẫn in thông báo thành công. Nó in thông báo thành công cho một schema
+        hỏng.
+      </p>
+      <p>
+        Cùng lỗi đó ở chỗ khác: <code>token TEXT PRIMARY KEY</code> giữ vé mời dạng thô, trong khi
+        <code>001_init.sql</code> đã chốt khuôn đúng cho phiên —
+        <code>token_hash bytea PRIMARY KEY CHECK (octet_length(token_hash) = 32)</code>, kèm comment
+        “không bao giờ lưu token gốc”. Tôi biết khuôn đó. Tôi vẫn làm khác.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="num">Phần ba</p>
+  <h2>Bảy phát hiện, kèm bằng chứng</h2>
+
+  <div class="finding">
+    <h4>L1 — Mất khoá ngoại vĩnh viễn, test vẫn xanh<span class="tag sev">Nghiêm trọng</span></h4>
+    <p>
+      Sáu helper dọn database trong test xoá <code>cloud_projects</code> bằng <code>CASCADE</code>
+      mà không liệt kê hai bảng con. <code>CASCADE</code> xoá khoá ngoại, để nguyên bảng; lần
+      <code>Migrate</code> sau gặp <code>CREATE TABLE IF NOT EXISTS</code> nên bỏ qua. Khoá ngoại
+      không bao giờ được dựng lại. Đo: <code>fk 1 → 0</code>, rồi
+      <code>DELETE FROM cloud_projects</code> để lại <code>token_mo_coi = 1</code>.
+    </p>
+    <p><b>Sửa:</b> thêm <code>room_invite_tokens, room_baton</code> vào đầu cả sáu danh sách DROP, cộng hai câu DROP cứng.</p>
+  </div>
+
+  <div class="finding">
+    <h4>L2 — 006 hỏng trên schema đã thoái hoá<span class="tag sev">Nghiêm trọng</span></h4>
+    <p>
+      Sau L1, chạy thẳng file 006 báo <code>ERROR: relation "public.cloud_project_members" does not
+      exist</code> (exit 3), vì policy <code>room_baton_select</code> đọc bảng đã bị helper cũ xoá.
+      Không manh mối nào nói schema đang thiếu bảng nền.
+    </p>
+    <p><b>Sửa:</b> khối kiểm điều kiện tiên quyết, <code>RAISE EXCEPTION</code> nêu tên bảng thiếu.</p>
+  </div>
+
+  <div class="finding">
+    <h4>L3 — Khối tự kiểm không kiểm cột<span class="tag med">Trung bình</span></h4>
+    <p>
+      Bảng dở dang <code>(token, project_id)</code> vẫn exit 0 và in thông báo thành công. Trong khi
+      <code>TestCloudPreexistingPartialTable</code> chứng minh 003 <em>từ chối</em> bảng dở dang.
+      006 không có gì tương đương.
+    </p>
+    <p><b>Sửa:</b> kiểm tập cột của cả hai bảng, lệch thì <code>RAISE EXCEPTION</code>.</p>
+  </div>
+
+  <div class="finding">
+    <h4>L4 — <code>used_at</code> là cột chết<span class="tag med">Trung bình</span></h4>
+    <p>Không policy <code>UPDATE</code>, nên không role nào ghi được. Test còn khẳng định <code>UPDATE</code> ảnh hưởng 0 hàng.</p>
+    <p><b>Sửa:</b> xoá cột khỏi 006, xoá luôn assertion khẳng định nó là cột chết.</p>
+  </div>
+
+  <div class="finding">
+    <h4>L5 — Vé mời lưu dạng thô<span class="tag med">Trung bình</span></h4>
+    <p>
+      <code>token TEXT PRIMARY KEY</code> giữ nguyên bí mật của link mời, trái khuôn
+      <code>sessions.token_hash bytea</code> ở <code>001_init.sql:18-20</code>. Task161 định lưu
+      sha256 vào cột tên <code>token</code> kiểu <code>TEXT</code> — cột nói dối về nội dung.
+    </p>
+    <p><b>Sửa:</b> <code>token_hash BYTEA PRIMARY KEY CHECK (octet_length(token_hash) = 32)</code>. 006 chưa chạy ở production nên đổi bây giờ miễn phí.</p>
+  </div>
+
+  <div class="finding">
+    <h4>L6 — <code>room_baton.holder_id</code> không có index<span class="tag low">Thấp</span></h4>
+    <p>
+      Khoá ngoại <code>holder_id → users(id) ON DELETE SET NULL</code> không có index, nên xoá một
+      user buộc PostgreSQL quét toàn bảng <code>room_baton</code>. Đo: 0 index khớp.
+    </p>
+    <p><b>Sửa:</b> thêm <code>room_baton_holder_id_idx</code>.</p>
+  </div>
+
+  <div class="finding">
+    <h4>L7 — Tài liệu nói sai về git<span class="tag low">Thấp</span></h4>
+    <p>
+      Bốn file trạng thái còn ghi Task160 “chưa review độc lập, chưa merge” trong khi <code>main</code>
+      đã có <code>84083ef</code>. Đây là lần thứ hai trong SP024 tài liệu lệch git — lần đầu là
+      <code>DE_XUAT_STORY_SP024</code> có trên main nhưng thiếu trong worktree, sửa ở <code>663cb16</code>.
+    </p>
+    <p><b>Sửa:</b> cập nhật <code>SP024/README.md</code>, <code>STR113</code>, <code>STR114</code>, <code>STR116</code>, cộng biên bản phòng. Commit <code>e375517</code> và <code>493b579</code>.</p>
+  </div>
+</section>
+
+<section>
+  <p class="num">Phần bốn</p>
+  <h2>Quyết định</h2>
+  <p>
+    <b>Task171</b> (<code>SP999/STR117</code>) sửa cả bảy phát hiện. Migration 006 chưa chạy ở đâu
+    ngoài database test — <code>main</code> đang đi trước <code>origin/main</code> năm commit và
+    chưa push — nên <b>được sửa thẳng file 006</b>, không cần migration mới. Điều này ghi rõ trong
+    task để người sau không tưởng là sửa lịch sử đã deploy.
+  </p>
+  <p>
+    <b>Task163</b> (<code>SP024/STR114</code>) làm Gin WebSocket signaling <code>/signal</code>, và
+    được viết lại hai điểm so với bản nháp v3. Thứ nhất, ba endpoint Baton trả về Task161, vì bảng
+    <code>room_baton</code> đã là nguồn sự thật duy nhất — state trong RAM Gin sẽ lệch với bảng sau
+    mỗi lần restart. Thứ hai, không thêm dependency frontend, vì Task163 không có dòng TypeScript nào.
+  </p>
+  <p>
+    <b>Task161 chờ Task171 merge</b>, vì migration 007 khoá policy theo cột
+    <code>token_hash BYTEA</code> mà chỉ Task171 mới tạo ra.
+  </p>
+</section>
+
+<div class="close">
+  <h2>Điều đáng nhớ nhất</h2>
+  <p>
+    Không phải lỗi SQL. Là chuyện bộ test xanh trên một database đã hỏng, hai lần liên tiếp, và
+    không có gì trong bộ test phản đối. Mọi task sau đó tin vào bộ test đó.
+  </p>
+  <p>
+    Một khối tự kiểm in thông báo thành công không chứng minh được gì, nếu nó không kiểm đúng thứ
+    có thể hỏng. Đó là bài học của 006, và là lý do Task171 có AC1 và AC6 là phép phản chứng bắt
+    buộc: chạy hai lần trên cùng database, và xoá cha để xem con có mồ côi không.
+  </p>
+</div>
+
+<footer>
+  SQLLens · SP024 Live Rooms · Party Mode biên bản 23/11/2026 · PostgreSQL 18 (container t160-pg) · mọi số đo tại chỗ
+</footer>
+
+</div>
+</body>
+</html>
