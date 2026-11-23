@@ -1,0 +1,290 @@
+{
+  "mode": "sse",
+  "config": {
+    "viewers": 30,
+    "minutes": 10,
+    "pollMs": 2000,
+    "publishEveryMs": 10000,
+    "heartbeatMs": 15000,
+    "payloadBytes": 3892
+  },
+  "runs": [
+    {
+      "run": 1,
+      "mode": "sse",
+      "viewers": 30,
+      "windowMs": 601149,
+      "openMs": 2331,
+      "requests": {
+        "publish": 60
+      },
+      "bytesByRoute": {
+        "events": 7107277,
+        "publish": 1251
+      },
+      "statusByRoute": {
+        "publish_200": 60
+      },
+      "totalBytes": 7108528,
+      "bytesPerMinuteAllViewers": 709494.1187625696,
+      "bytesPerViewerPerMinute": 23649.80395875232,
+      "sqlBytesPerViewerPerMinute": 10285.153934479136,
+      "sseOpenAt30": 30,
+      "sseTotal": 33,
+      "sseEvents": 1785,
+      "goroutinesAt30": 63,
+      "goroutinesEnd": 63,
+      "heapAllocAt30": 1487512,
+      "heapAllocEnd": 1640528,
+      "ram0": {
+        "gin": 11239424,
+        "next": 82190336
+      },
+      "ram1": {
+        "gin": 11239424,
+        "next": 80633856
+      },
+      "ram30": {
+        "gin": 12414976,
+        "next": 83103744
+      },
+      "ramEnd": {
+        "gin": 14897152,
+        "next": 80789504
+      },
+      "viewerEvents": 60,
+      "viewerPolls": 0,
+      "viewerErrors": 0,
+      "wireFirstViewer": {
+        "requests": 1,
+        "body": 237980,
+        "headers": 203
+      },
+      "connectionRelease": {
+        "releasedMs": 854,
+        "sseOpenAfterClose": 0,
+        "closesRecorded": 30,
+        "livedMs": [
+          616138,
+          609024,
+          609052,
+          608895,
+          608559,
+          608004,
+          608016,
+          608164,
+          608514,
+          608183,
+          608195,
+          608202,
+          608219,
+          608165,
+          608234,
+          608194,
+          608132,
+          608143,
+          608161,
+          608164,
+          608176,
+          608180,
+          608194,
+          608198,
+          608202,
+          608224,
+          608232,
+          608233,
+          608257,
+          608248
+        ]
+      }
+    },
+    {
+      "run": 2,
+      "mode": "sse",
+      "viewers": 30,
+      "windowMs": 601125,
+      "openMs": 2374,
+      "requests": {
+        "publish": 60
+      },
+      "bytesByRoute": {
+        "events": 7108177,
+        "publish": 1281
+      },
+      "statusByRoute": {
+        "publish_200": 60
+      },
+      "totalBytes": 7109458,
+      "bytesPerMinuteAllViewers": 709615.2713661884,
+      "bytesPerViewerPerMinute": 23653.84237887295,
+      "sqlBytesPerViewerPerMinute": 10286.91021849169,
+      "sseOpenAt30": 30,
+      "sseTotal": 63,
+      "sseEvents": 3555,
+      "goroutinesAt30": 63,
+      "goroutinesEnd": 63,
+      "heapAllocAt30": 1951344,
+      "heapAllocEnd": 1614040,
+      "ram0": {
+        "gin": 14925824,
+        "next": 79781888
+      },
+      "ram1": {
+        "gin": 14925824,
+        "next": 80191488
+      },
+      "ram30": {
+        "gin": 15069184,
+        "next": 80900096
+      },
+      "ramEnd": {
+        "gin": 15151104,
+        "next": 67702784
+      },
+      "viewerEvents": 60,
+      "viewerPolls": 0,
+      "viewerErrors": 0,
+      "wireFirstViewer": {
+        "requests": 1,
+        "body": 238010,
+        "headers": 203
+      },
+      "connectionRelease": {
+        "releasedMs": 742,
+        "sseOpenAfterClose": 0,
+        "closesRecorded": 30,
+        "livedMs": [
+          615997,
+          608854,
+          608864,
+          608868,
+          608353,
+          607936,
+          607915,
+          607921,
+          608375,
+          608350,
+          608014,
+          608028,
+          608006,
+          608000,
+          608011,
+          608017,
+          608048,
+          608038,
+          608177,
+          608058,
+          608058,
+          608069,
+          608079,
+          608086,
+          608058,
+          608050,
+          608065,
+          608081,
+          608052,
+          608058
+        ]
+      }
+    },
+    {
+      "run": 3,
+      "mode": "sse",
+      "viewers": 30,
+      "windowMs": 601069,
+      "openMs": 1931,
+      "requests": {
+        "publish": 60
+      },
+      "bytesByRoute": {
+        "events": 7109310,
+        "publish": 1320
+      },
+      "statusByRoute": {
+        "publish_200": 60
+      },
+      "totalBytes": 7110630,
+      "bytesPerMinuteAllViewers": 709798.3758936162,
+      "bytesPerViewerPerMinute": 23659.94586312054,
+      "sqlBytesPerViewerPerMinute": 10289.564586161403,
+      "sseOpenAt30": 30,
+      "sseTotal": 93,
+      "sseEvents": 5325,
+      "goroutinesAt30": 63,
+      "goroutinesEnd": 63,
+      "heapAllocAt30": 1917872,
+      "heapAllocEnd": 1718560,
+      "ram0": {
+        "gin": 15159296,
+        "next": 66621440
+      },
+      "ram1": {
+        "gin": 15159296,
+        "next": 67055616
+      },
+      "ram30": {
+        "gin": 15179776,
+        "next": 67846144
+      },
+      "ramEnd": {
+        "gin": 42020864,
+        "next": 116330496
+      },
+      "viewerEvents": 60,
+      "viewerPolls": 0,
+      "viewerErrors": 0,
+      "wireFirstViewer": {
+        "requests": 1,
+        "body": 238049,
+        "headers": 203
+      },
+      "connectionRelease": {
+        "releasedMs": 798,
+        "sseOpenAfterClose": 0,
+        "closesRecorded": 30,
+        "livedMs": [
+          615377,
+          608570,
+          608572,
+          608477,
+          608370,
+          608622,
+          608077,
+          607710,
+          608271,
+          607735,
+          608123,
+          608088,
+          607932,
+          607939,
+          608119,
+          607966,
+          607975,
+          607860,
+          607936,
+          608006,
+          607864,
+          607911,
+          607885,
+          607896,
+          607906,
+          607911,
+          607920,
+          607930,
+          607933,
+          607951
+        ]
+      }
+    }
+  ],
+  "median": {
+    "openMs": 2331,
+    "totalBytes": 7109458,
+    "bytesPerMinuteAllViewers": 709615.2713661884,
+    "bytesPerViewerPerMinute": 23653.84237887295,
+    "sqlBytesPerViewerPerMinute": 10286.91021849169,
+    "goroutinesAt30": 63,
+    "goroutinesEnd": 63,
+    "releasedMs": 798
+  }
+}

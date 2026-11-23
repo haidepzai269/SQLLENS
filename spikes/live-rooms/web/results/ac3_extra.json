@@ -1,0 +1,98 @@
+{
+  "runs": [
+    {
+      "run": 1,
+      "main": {
+        "nodes": 88,
+        "hidden": [],
+        "hiddenTotal": 0,
+        "keysShown": 2087,
+        "totalKeys": 2087,
+        "pathPages": 2,
+        "height": 2,
+        "totalPages": 89
+      },
+      "pk": {
+        "nodes": 3,
+        "hidden": [
+          {
+            "level": 0,
+            "count": 272
+          }
+        ],
+        "hiddenTotal": 272,
+        "keysShown": 474,
+        "totalKeys": 1006,
+        "pathPages": 2,
+        "height": 2,
+        "totalPages": 276
+      }
+    },
+    {
+      "run": 2,
+      "main": {
+        "nodes": 88,
+        "hidden": [],
+        "hiddenTotal": 0,
+        "keysShown": 2087,
+        "totalKeys": 2087,
+        "pathPages": 2,
+        "height": 2,
+        "totalPages": 89
+      },
+      "pk": {
+        "nodes": 3,
+        "hidden": [
+          {
+            "level": 0,
+            "count": 272
+          }
+        ],
+        "hiddenTotal": 272,
+        "keysShown": 474,
+        "totalKeys": 1006,
+        "pathPages": 2,
+        "height": 2,
+        "totalPages": 276
+      }
+    },
+    {
+      "run": 3,
+      "main": {
+        "nodes": 88,
+        "hidden": [],
+        "hiddenTotal": 0,
+        "keysShown": 2087,
+        "totalKeys": 2087,
+        "pathPages": 2,
+        "height": 2,
+        "totalPages": 89
+      },
+      "pk": {
+        "nodes": 3,
+        "hidden": [
+          {
+            "level": 0,
+            "count": 272
+          }
+        ],
+        "hiddenTotal": 272,
+        "keysShown": 474,
+        "totalKeys": 1006,
+        "pathPages": 2,
+        "height": 2,
+        "totalPages": 276
+      }
+    }
+  ],
+  "median": {
+    "mainNodes": 88,
+    "mainHiddenTotal": 0,
+    "mainKeysShown": 2087,
+    "mainTotalKeys": 2087,
+    "pkNodes": 3,
+    "pkHiddenTotal": 272,
+    "pkKeysShown": 474,
+    "pkTotalKeys": 1006
+  }
+}

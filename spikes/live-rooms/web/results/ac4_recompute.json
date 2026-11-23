@@ -1,0 +1,110 @@
+{
+  "sqlShareOfPayload": 0.4348938347403428,
+  "modes": {
+    "sse": {
+      "runs": [
+        {
+          "run": 1,
+          "viewerBytes": 7107277,
+          "hostBytes": 1251,
+          "bpmViewer": 23645.641929039222,
+          "sqlBpm_naiveWrong": 10283.343893416904,
+          "requests": {
+            "publish": 60
+          },
+          "status": {
+            "publish_200": 60
+          }
+        },
+        {
+          "run": 2,
+          "viewerBytes": 7108177,
+          "hostBytes": 1281,
+          "bpmViewer": 23649.580370139323,
+          "sqlBpm_naiveWrong": 10285.056697169826,
+          "requests": {
+            "publish": 60
+          },
+          "status": {
+            "publish_200": 60
+          }
+        },
+        {
+          "run": 3,
+          "viewerBytes": 7109310,
+          "hostBytes": 1320,
+          "bpmViewer": 23655.553688511638,
+          "sqlBpm_naiveWrong": 10287.654456502887,
+          "requests": {
+            "publish": 60
+          },
+          "status": {
+            "publish_200": 60
+          }
+        }
+      ],
+      "median": {
+        "viewerBytes": 7108177,
+        "bpmViewer": 23649.580370139323,
+        "sqlBpm_naiveWrong": 10285.056697169826
+      }
+    },
+    "poll": {
+      "runs": [
+        {
+          "run": 1,
+          "viewerBytes": 7120530,
+          "hostBytes": 1251,
+          "bpmViewer": 23694.66111170269,
+          "sqlBpm_naiveWrong": 10304.662033741259,
+          "requests": {
+            "poll": 9037,
+            "publish": 60
+          },
+          "status": {
+            "poll_200": 1800,
+            "poll_304": 7237,
+            "publish_200": 60
+          }
+        },
+        {
+          "run": 2,
+          "viewerBytes": 7121430,
+          "hostBytes": 1281,
+          "bpmViewer": 23699.706475509676,
+          "sqlBpm_naiveWrong": 10306.856231354937,
+          "requests": {
+            "poll": 9038,
+            "publish": 60
+          },
+          "status": {
+            "poll_200": 1800,
+            "poll_304": 7238,
+            "publish_200": 60
+          }
+        },
+        {
+          "run": 3,
+          "viewerBytes": 7122600,
+          "hostBytes": 1320,
+          "bpmViewer": 23707.387214666585,
+          "sqlBpm_naiveWrong": 10310.196537460526,
+          "requests": {
+            "poll": 9043,
+            "publish": 60
+          },
+          "status": {
+            "poll_200": 1800,
+            "poll_304": 7243,
+            "publish_200": 60
+          }
+        }
+      ],
+      "median": {
+        "viewerBytes": 7121430,
+        "bpmViewer": 23699.706475509676,
+        "sqlBpm_naiveWrong": 10306.856231354937
+      }
+    }
+  }
+}

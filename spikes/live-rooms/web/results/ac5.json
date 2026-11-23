@@ -1,0 +1,60 @@
+{
+  "label": "Ước lượng",
+  "inputs": {
+    "cron": "*/10 0-16 * * *",
+    "pingEveryMin": 10,
+    "hourFromUtc": 0,
+    "hourToUtc": 16,
+    "firstPingUtcMin": 0,
+    "lastPingUtcMin": 1010,
+    "idleSleepMin": 15,
+    "capHoursPerMonth": 750,
+    "daysPerMonth": 30,
+    "sourceFile": ".github/workflows/keep-awake.yml"
+  },
+  "awakeWindow": {
+    "hoursPerDay": 17.083333333333332,
+    "minutesPerDay": 1025,
+    "note": "keep-awake ping 10 phút/lần, Render ngủ sau 15 phút → thức liền mạch cả khung"
+  },
+  "cases": {
+    "baseMonth": {
+      "hours": 512.5,
+      "headroom": 237.5,
+      "usedPctOfCap": 68.33333333333333
+    },
+    "insideWindow": {
+      "extraHours": 0,
+      "note": "máy đã thức sẵn, giờ máy không tăng"
+    },
+    "outsideOnce30min": {
+      "extraHours": 0.75,
+      "note": "thức theo request rồi ngủ lại sau 15 phút"
+    },
+    "outsideAllNight": {
+      "nightMinutes": 415,
+      "extraHoursPerMonth": 207.5,
+      "totalHoursPerMonth": 720,
+      "usedPctOfCap": 96,
+      "overCap": false
+    },
+    "twoRenderServices": {
+      "hours": 1025,
+      "usedPctOfCap": 136.66666666666666,
+      "overCap": true,
+      "note": "một service thứ hai cho realtime cũng thức cùng khung"
+    }
+  },
+  "formula": {
+    "awakeHoursPerDay": "(lastPingUtcMin - firstPingUtcMin + idleSleepMin) / 60",
+    "baseHoursPerMonth": "awakeHoursPerDay * daysPerMonth",
+    "nightExtraHoursPerMonth": "((1440 - awakeMinutes) / 60) * daysPerMonth",
+    "insideExtraHours": "0 (máy đã thức)"
+  },
+  "caveats": [
+    "Không đo được giờ Render thật: task cấm gọi Render thật, và giờ instance chỉ hiện trong dashboard.",
+    "Chưa biết Render có tính một kết nối SSE đang mở là 'lưu lượng vào' hay không. Nếu CÓ, phòng live mở qua đêm sẽ tự giữ máy thức và ca 3 thành hiện thực. Nếu KHÔNG, SSE đứt sau 15 phút và phòng live ngoài khung thức không dùng được — cả hai đều là tin xấu cho tính năng.",
+    "Cron của GitHub Actions chạy trễ vài phút tới vài chục phút lúc cao điểm; khung thức thực tế có thể ngắn hơn, nên số giờ nền là cận trên.",
+    "Render free còn bị giới hạn băng thông 100 GB/tháng; chưa tính ở đây."
+  ]
+}

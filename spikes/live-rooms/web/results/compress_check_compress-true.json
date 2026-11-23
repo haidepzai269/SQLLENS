@@ -1,0 +1,30 @@
+{
+  "label": "compress-true",
+  "html": {
+    "path": "/",
+    "status": 200,
+    "contentEncoding": "gzip",
+    "contentType": "text/html; charset=utf-8",
+    "transferEncoding": "chunked",
+    "contentLength": null,
+    "bytesOnWire": 6242
+  },
+  "chunk": {
+    "path": "/_next/static/chunks/0j1we3cwg31qe.js",
+    "status": 200,
+    "contentEncoding": "gzip",
+    "contentType": "application/javascript; charset=UTF-8",
+    "transferEncoding": "chunked",
+    "contentLength": null,
+    "bytesOnWire": 17026
+  },
+  "api": {
+    "path": "/api/healthz",
+    "status": 200,
+    "contentEncoding": null,
+    "contentType": "application/json; charset=utf-8",
+    "transferEncoding": null,
+    "contentLength": "29",
+    "bytesOnWire": 29
+  }
+}

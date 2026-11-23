@@ -1,0 +1,113 @@
+{
+  "mode": "sse",
+  "config": {
+    "windowMs": 60000,
+    "publishEveryMs": 10000,
+    "pollMs": 2000,
+    "payloadBytes": 3894,
+    "sqlBytes": 3629
+  },
+  "sqlShareOfPayload": 0.4348938347403428,
+  "runs": [
+    {
+      "run": 1,
+      "mode": "sse",
+      "publishing": true,
+      "windowMs": 63174,
+      "requests": 1,
+      "bodyBytes": 20186,
+      "headerBytes": 203,
+      "totalBytes": 20389,
+      "byStatus": {
+        "200": 1
+      },
+      "byUrl": {
+        "/api/room/ac2-sse/events": {
+          "requests": 1,
+          "body": 20186,
+          "headers": 203
+        }
+      },
+      "viewerEvents": 6,
+      "viewerPolls": 0,
+      "viewerNotModified": 0,
+      "viewerErrors": 0,
+      "publishesInWindow": 6,
+      "errors": [],
+      "bytesPerMinute": 19364.6120239339,
+      "bodyPerMinute": 19171.81118814702,
+      "sqlShareOfPayload": 0.4348938347403428,
+      "sqlBytesPerMinute": 8337.702486531067
+    },
+    {
+      "run": 2,
+      "mode": "sse",
+      "publishing": true,
+      "windowMs": 63102,
+      "requests": 1,
+      "bodyBytes": 20231,
+      "headerBytes": 203,
+      "totalBytes": 20434,
+      "byStatus": {
+        "200": 1
+      },
+      "byUrl": {
+        "/api/room/ac2-sse/events": {
+          "requests": 1,
+          "body": 20231,
+          "headers": 203
+        }
+      },
+      "viewerEvents": 6,
+      "viewerPolls": 0,
+      "viewerNotModified": 0,
+      "viewerErrors": 0,
+      "publishesInWindow": 6,
+      "errors": [],
+      "bytesPerMinute": 19429.495103166304,
+      "bodyPerMinute": 19236.474279737566,
+      "sqlShareOfPayload": 0.4348938347403428,
+      "sqlBytesPerMinute": 8365.824066399044
+    },
+    {
+      "run": 3,
+      "mode": "sse",
+      "publishing": true,
+      "windowMs": 63129,
+      "requests": 1,
+      "bodyBytes": 20192,
+      "headerBytes": 203,
+      "totalBytes": 20395,
+      "byStatus": {
+        "200": 1
+      },
+      "byUrl": {
+        "/api/room/ac2-sse/events": {
+          "requests": 1,
+          "body": 20192,
+          "headers": 203
+        }
+      },
+      "viewerEvents": 6,
+      "viewerPolls": 0,
+      "viewerNotModified": 0,
+      "viewerErrors": 0,
+      "publishesInWindow": 6,
+      "errors": [],
+      "bytesPerMinute": 19384.118234092097,
+      "bodyPerMinute": 19191.17996483391,
+      "sqlShareOfPayload": 0.4348938347403428,
+      "sqlBytesPerMinute": 8346.125848098656
+    }
+  ],
+  "median": {
+    "requests": 1,
+    "bodyBytes": 20192,
+    "headerBytes": 203,
+    "totalBytes": 20395,
+    "bytesPerMinute": 19384.118234092097,
+    "bodyPerMinute": 19191.17996483391,
+    "sqlBytesPerMinute": 8346.125848098656,
+    "viewerEvents": 6
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "room": "edge-pub-1795401486390",
+  "cases": [
+    {
+      "note": "đúng 32 KB (trần codec)",
+      "payloadBytes": 32770,
+      "status": 200,
+      "body": "{\"bytes\":32770,\"v\":1}"
+    },
+    {
+      "note": "32 KB + 1 B",
+      "payloadBytes": 32771,
+      "status": 200,
+      "body": "{\"bytes\":32771,\"v\":2}"
+    },
+    {
+      "note": "1 MB",
+      "payloadBytes": 1048578,
+      "status": 200,
+      "body": "{\"bytes\":1048578,\"v\":3}"
+    },
+    {
+      "note": "3 MB",
+      "payloadBytes": 3145730,
+      "status": 200,
+      "body": "{\"bytes\":3145730,\"v\":4}"
+    },
+    {
+      "note": "5 MB (trần server 4 MB)",
+      "payloadBytes": 5242882,
+      "status": 413,
+      "body": "{\"error\":\"payload_too_large_or_bad_json\"}"
+    },
+    {
+      "note": "101 tab gửi thẳng JSON (không qua codec)",
+      "status": 200,
+      "body": "{\"bytes\":3383,\"v\":5}"
+    }
+  ]
+}

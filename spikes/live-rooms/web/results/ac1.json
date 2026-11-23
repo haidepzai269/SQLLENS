@@ -1,0 +1,262 @@
+{
+  "runs": [
+    {
+      "run": 1,
+      "wallMs": 2485,
+      "livePayloadBytes": 3909,
+      "liveJsonBytes": 11774,
+      "liveGzipBytes": 2930,
+      "sharePayloadBytes": 1860,
+      "shareJsonBytes": 3905,
+      "rawSqlBytes": 3629,
+      "sqlAttributableLive": 1700,
+      "sqlAttributableShare": 1652,
+      "planJsonBytes": 2256,
+      "resultBytes": 5595,
+      "resultRowCount": 100,
+      "tabSqlBytes": [
+        {
+          "name": "01_schema.sql",
+          "sqlBytes": 802
+        },
+        {
+          "name": "02_seed.sql",
+          "sqlBytes": 515
+        },
+        {
+          "name": "03_report.sql",
+          "sqlBytes": 2275
+        }
+      ],
+      "limits": {
+        "hard": 32768,
+        "warn": 8192,
+        "maxTabs": 100
+      },
+      "edges": {
+        "result_500_rows": {
+          "ok": true,
+          "bytes": 5736
+        },
+        "result_2000_rows": {
+          "ok": true,
+          "bytes": 11700
+        },
+        "result_5000_rows": {
+          "ok": true,
+          "bytes": 23056
+        },
+        "result_10000_rows": {
+          "ok": false,
+          "code": "SNAPSHOT_TOO_LARGE",
+          "message": "Kích thước snapshot (41490 bytes) vượt quá giới hạn cứng 32768 bytes"
+        },
+        "result_20000_rows": {
+          "ok": false,
+          "code": "SNAPSHOT_TOO_LARGE",
+          "message": "Kích thước snapshot (78345 bytes) vượt quá giới hạn cứng 32768 bytes"
+        },
+        "sql_20000_chars": {
+          "ok": true,
+          "bytes": 1990
+        },
+        "sql_40000_chars": {
+          "ok": true,
+          "bytes": 2062
+        },
+        "sql_80000_chars": {
+          "ok": true,
+          "bytes": 2166
+        },
+        "tabs_101": {
+          "ok": false,
+          "code": "SNAPSHOT_TOO_MANY_TABS",
+          "message": "Snapshot có quá 100 tab nên không tạo được liên kết"
+        },
+        "tabs_100": {
+          "ok": true,
+          "bytes": 522
+        }
+      },
+      "errors": []
+    },
+    {
+      "run": 2,
+      "wallMs": 2365,
+      "livePayloadBytes": 3901,
+      "liveJsonBytes": 11774,
+      "liveGzipBytes": 2924,
+      "sharePayloadBytes": 1860,
+      "shareJsonBytes": 3905,
+      "rawSqlBytes": 3629,
+      "sqlAttributableLive": 1701,
+      "sqlAttributableShare": 1652,
+      "planJsonBytes": 2256,
+      "resultBytes": 5595,
+      "resultRowCount": 100,
+      "tabSqlBytes": [
+        {
+          "name": "01_schema.sql",
+          "sqlBytes": 802
+        },
+        {
+          "name": "02_seed.sql",
+          "sqlBytes": 515
+        },
+        {
+          "name": "03_report.sql",
+          "sqlBytes": 2275
+        }
+      ],
+      "limits": {
+        "hard": 32768,
+        "warn": 8192,
+        "maxTabs": 100
+      },
+      "edges": {
+        "result_500_rows": {
+          "ok": true,
+          "bytes": 5726
+        },
+        "result_2000_rows": {
+          "ok": true,
+          "bytes": 11690
+        },
+        "result_5000_rows": {
+          "ok": true,
+          "bytes": 23048
+        },
+        "result_10000_rows": {
+          "ok": false,
+          "code": "SNAPSHOT_TOO_LARGE",
+          "message": "Kích thước snapshot (41481 bytes) vượt quá giới hạn cứng 32768 bytes"
+        },
+        "result_20000_rows": {
+          "ok": false,
+          "code": "SNAPSHOT_TOO_LARGE",
+          "message": "Kích thước snapshot (78336 bytes) vượt quá giới hạn cứng 32768 bytes"
+        },
+        "sql_20000_chars": {
+          "ok": true,
+          "bytes": 1990
+        },
+        "sql_40000_chars": {
+          "ok": true,
+          "bytes": 2062
+        },
+        "sql_80000_chars": {
+          "ok": true,
+          "bytes": 2166
+        },
+        "tabs_101": {
+          "ok": false,
+          "code": "SNAPSHOT_TOO_MANY_TABS",
+          "message": "Snapshot có quá 100 tab nên không tạo được liên kết"
+        },
+        "tabs_100": {
+          "ok": true,
+          "bytes": 522
+        }
+      },
+      "errors": []
+    },
+    {
+      "run": 3,
+      "wallMs": 2387,
+      "livePayloadBytes": 3906,
+      "liveJsonBytes": 11771,
+      "liveGzipBytes": 2928,
+      "sharePayloadBytes": 1860,
+      "shareJsonBytes": 3905,
+      "rawSqlBytes": 3629,
+      "sqlAttributableLive": 1700,
+      "sqlAttributableShare": 1652,
+      "planJsonBytes": 2253,
+      "resultBytes": 5595,
+      "resultRowCount": 100,
+      "tabSqlBytes": [
+        {
+          "name": "01_schema.sql",
+          "sqlBytes": 802
+        },
+        {
+          "name": "02_seed.sql",
+          "sqlBytes": 515
+        },
+        {
+          "name": "03_report.sql",
+          "sqlBytes": 2275
+        }
+      ],
+      "limits": {
+        "hard": 32768,
+        "warn": 8192,
+        "maxTabs": 100
+      },
+      "edges": {
+        "result_500_rows": {
+          "ok": true,
+          "bytes": 5733
+        },
+        "result_2000_rows": {
+          "ok": true,
+          "bytes": 11697
+        },
+        "result_5000_rows": {
+          "ok": true,
+          "bytes": 23053
+        },
+        "result_10000_rows": {
+          "ok": false,
+          "code": "SNAPSHOT_TOO_LARGE",
+          "message": "Kích thước snapshot (41488 bytes) vượt quá giới hạn cứng 32768 bytes"
+        },
+        "result_20000_rows": {
+          "ok": false,
+          "code": "SNAPSHOT_TOO_LARGE",
+          "message": "Kích thước snapshot (78342 bytes) vượt quá giới hạn cứng 32768 bytes"
+        },
+        "sql_20000_chars": {
+          "ok": true,
+          "bytes": 1990
+        },
+        "sql_40000_chars": {
+          "ok": true,
+          "bytes": 2062
+        },
+        "sql_80000_chars": {
+          "ok": true,
+          "bytes": 2166
+        },
+        "tabs_101": {
+          "ok": false,
+          "code": "SNAPSHOT_TOO_MANY_TABS",
+          "message": "Snapshot có quá 100 tab nên không tạo được liên kết"
+        },
+        "tabs_100": {
+          "ok": true,
+          "bytes": 522
+        }
+      },
+      "errors": []
+    }
+  ],
+  "median": {
+    "livePayloadBytes": 3906,
+    "liveJsonBytes": 11774,
+    "liveGzipBytes": 2928,
+    "sharePayloadBytes": 1860,
+    "shareJsonBytes": 3905,
+    "rawSqlBytes": 3629,
+    "sqlAttributableLive": 1700,
+    "sqlAttributableShare": 1652,
+    "planJsonBytes": 2256,
+    "resultBytes": 5595,
+    "wallMs": 2387
+  },
+  "ratio": {
+    "liveOverShare": 2.1016129032258064,
+    "liveOverHardLimitPct": 11.9293212890625,
+    "liveOverWarnLimitPct": 47.71728515625
+  }
+}

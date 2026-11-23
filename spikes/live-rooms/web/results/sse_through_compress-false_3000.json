@@ -1,0 +1,44 @@
+{
+  "label": "compress-false",
+  "webOrigin": "http://localhost:3159",
+  "runs": [
+    {
+      "run": 1,
+      "label": "compress-false",
+      "helloMs": 92,
+      "snapshotLatencyMs": [
+        5,
+        7,
+        6
+      ],
+      "streamed": true
+    },
+    {
+      "run": 2,
+      "label": "compress-false",
+      "helloMs": 90,
+      "snapshotLatencyMs": [
+        5,
+        7,
+        7
+      ],
+      "streamed": true
+    },
+    {
+      "run": 3,
+      "label": "compress-false",
+      "helloMs": 92,
+      "snapshotLatencyMs": [
+        5,
+        5,
+        4
+      ],
+      "streamed": true
+    }
+  ],
+  "median": {
+    "helloMs": 92,
+    "snapshotLatencyMs": 5
+  },
+  "streamed": true
+}

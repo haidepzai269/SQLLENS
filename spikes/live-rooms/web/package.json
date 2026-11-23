@@ -1,0 +1,23 @@
+{
+  "name": "live-rooms-spike",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "prebuild": "node scripts/copy-pglite.mjs",
+    "build": "next build",
+    "start": "next start",
+    "check": "playwright test"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.14",
+    "next": "16.4.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}

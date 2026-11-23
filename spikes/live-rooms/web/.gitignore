@@ -1,0 +1,12 @@
+node_modules
+.next
+test-results
+next-env.d.ts
+out
+tsconfig.tsbuildinfo
+public/pglite
+*.log
+*.exe
+pid.txt
+nextpid.txt
+results/*.log

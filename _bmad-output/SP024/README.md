@@ -26,7 +26,7 @@ Văn kiện gốc không có một số đo nào, nên Epic này **không** bắ
 
 | Tầng | Nội dung | Trạng thái |
 |---|---|---|
-| 0 | Đo & quyết định (STR108 / Task159) | **Đang làm** |
+| 0 | Đo & quyết định (STR108 / Task159) | **Đang review** — đã đo đủ 6 AC, reviewer chấm đạt phần số đo và kết luận no-go, còn 5 lỗi Trung bình đang sửa. Xem `STR108/Task159/ket_qua_do.md` |
 | 1 | Live Presentation: host phát, N viewer xem | Chờ kết quả Tầng 0 |
 | 2 | Nhiều người sửa: quyền khi chia sẻ, soạn thảo chung, chạy engine có kiểm soát | Chưa mở |
 | 3 | Đấu trường tranh chấp, nhãn Mô phỏng | Chưa mở |
@@ -35,4 +35,4 @@ Văn kiện gốc không có một số đo nào, nên Epic này **không** bắ
 
 | Task | Nội dung | Trạng thái |
 |---|---|---|
-| Task159 | Cổng đo Tầng 0 | Đang làm |
+| Task159 | Cổng đo Tầng 0 | **Đang review** — đo đủ 6 AC, 3 lần mỗi phép. Reviewer chấm đạt phần số đo và kết luận **no-go**; 5 lỗi Trung bình đang được sửa. Báo cáo: `STR108/Task159/ket_qua_do.md`. Bàn giao: `STR108/Task159/ban_giao_task159.md` |

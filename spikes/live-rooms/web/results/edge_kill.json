@@ -1,0 +1,59 @@
+{
+  "what": "kill",
+  "runs": [
+    {
+      "run": 1,
+      "pid": 32932,
+      "sseOpenBeforeKill": 1,
+      "killedAt": 1795399786672,
+      "releasedMs": 211,
+      "sseOpenAfter": 0,
+      "closeEvents": 1,
+      "lastClose": {
+        "id": 95,
+        "openedAt": 1795399783573,
+        "closedAt": 1795399787024,
+        "livedMs": 3450,
+        "events": 0
+      },
+      "goroutines": 18
+    },
+    {
+      "run": 2,
+      "pid": 30900,
+      "sseOpenBeforeKill": 1,
+      "killedAt": 1795399791697,
+      "releasedMs": 209,
+      "sseOpenAfter": 0,
+      "closeEvents": 1,
+      "lastClose": {
+        "id": 96,
+        "openedAt": 1795399788654,
+        "closedAt": 1795399792078,
+        "livedMs": 3423,
+        "events": 0
+      },
+      "goroutines": 17
+    },
+    {
+      "run": 3,
+      "pid": 21016,
+      "sseOpenBeforeKill": 1,
+      "killedAt": 1795399796672,
+      "releasedMs": 225,
+      "sseOpenAfter": 0,
+      "closeEvents": 1,
+      "lastClose": {
+        "id": 97,
+        "openedAt": 1795399793626,
+        "closedAt": 1795399797065,
+        "livedMs": 3439,
+        "events": 0
+      },
+      "goroutines": 16
+    }
+  ],
+  "median": {
+    "releasedMs": 211
+  }
+}
