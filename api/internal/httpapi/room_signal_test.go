@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/haidepzai269/SQLLENS/api/internal/store"
+	"github.com/haidepzai269/SQLLENS/api/migrations"
 )
 
 // Test signaling WebSocket (Task163). Cần Postgres thật:
@@ -85,9 +86,7 @@ func newSignalEnvLifetime(t *testing.T, lifetime time.Duration) *signalEnv {
 	}
 	t.Cleanup(raw.Close)
 	// Cùng danh sách bảng với newCloudEnv: hai bộ test trong một package dùng chung database.
-	if _, err := raw.Exec(ctx, `DROP TABLE IF EXISTS cloud_project_members, cloud_tabs, cloud_projects,
-		room_baton, room_invite_tokens,
-		user_vip_redemptions, vip_codes, sessions, identities, users, schema_migrations CASCADE`); err != nil {
+	if _, err := raw.Exec(ctx, `DROP TABLE IF EXISTS `+migrations.DropAllTablesSQL+` CASCADE`); err != nil {
 		t.Fatal(err)
 	}
 	st, err := store.Open(ctx, url)
