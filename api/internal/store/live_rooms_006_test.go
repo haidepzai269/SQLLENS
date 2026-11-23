@@ -24,6 +24,21 @@ import (
 // roomTables là hai bảng của migration 006, tách khỏi `cloudTables` (ba bảng của SP023).
 var roomTables = []string{"room_invite_tokens", "room_baton"}
 
+// roomPolicies006 là đúng sáu policy mà chính 006 tạo ra, đọc theo tên chứ không đếm tổng số
+// policy trên hai bảng. Lý do: migration 007 (Task161) thêm một policy CHỈ ĐỌC
+// `room_invite_tokens_select_invite` khoá theo `app.invite_hash` để người có vé mời đọc được hàng
+// vé của mình — không có nó thì `POST /join` không có đường chạy. Đếm tổng sẽ báo 7 và test này
+// đỏ vì một thay đổi hợp lệ, không phải vì 006 hỏng. Vẫn giữ nguyên tinh thần khẳng định: sáu
+// policy này phải có đủ, và chạy lại 006 không được nhân đôi chúng.
+var roomPolicies006 = []string{
+	"room_invite_tokens_select",
+	"room_invite_tokens_insert",
+	"room_invite_tokens_delete",
+	"room_baton_select",
+	"room_baton_insert",
+	"room_baton_update",
+}
+
 const (
 	roomTokenAn     = "inv-an-0001-0000000000000000000000000000000000000000"
 	roomTokenAnOld  = "inv-an-0002-0000000000000000000000000000000000000000"
@@ -80,7 +95,7 @@ func TestLiveRoom006Catalog(t *testing.T) {
 		}
 	}
 
-	// 2. Đủ 6 policy, không FOR ALL, lệnh ghi có WITH CHECK; đếm đúng theo từng lệnh.
+	// 2. Đủ 6 policy của 006, không FOR ALL, lệnh ghi có WITH CHECK; đếm đúng theo từng lệnh.
 	rows, err := e.owner.pool.Query(ctx, `SELECT c.relname, p.polname, p.polcmd::text, p.polwithcheck IS NOT NULL
 		FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid
 		WHERE c.relnamespace = 'public'::regnamespace AND c.relname = ANY($1)`, roomTables)
@@ -89,14 +104,14 @@ func TestLiveRoom006Catalog(t *testing.T) {
 	}
 	defer rows.Close()
 	perTable := map[string]map[string]bool{}
-	total := 0
+	seen := map[string]bool{}
 	for rows.Next() {
 		var tbl, pol, cmd string
 		var hasCheck bool
 		if err := rows.Scan(&tbl, &pol, &cmd, &hasCheck); err != nil {
 			t.Fatal(err)
 		}
-		total++
+		seen[pol] = true
 		if cmd == "*" {
 			t.Fatalf("policy FOR ALL còn tồn tại: %s.%s", tbl, pol)
 		}
@@ -111,8 +126,10 @@ func TestLiveRoom006Catalog(t *testing.T) {
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
-	if total != 6 {
-		t.Fatalf("có %d policy trên hai bảng mới, mong đợi đúng 6", total)
+	for _, pol := range roomPolicies006 {
+		if !seen[pol] {
+			t.Fatalf("thiếu policy %s của 006 (đã thấy %v)", pol, seen)
+		}
 	}
 	// Token: SELECT/INSERT/DELETE (không UPDATE — token dùng một lần). Baton: SELECT/INSERT/UPDATE.
 	for _, cmd := range []string{"r", "a", "d"} {
@@ -188,7 +205,9 @@ func TestLiveRoom006Catalog(t *testing.T) {
 		t.Fatalf("CHECK trên token_hash không phải 32 byte: %s", checkDef)
 	}
 
-	// 6. Ca biên: chạy lại nguyên file migration không lỗi và không nhân đôi policy.
+	// 6. Ca biên: chạy lại nguyên file migration không lỗi và không nhân đôi policy của 006.
+	//    Đếm theo tên sáu policy của 006 (xem roomPolicies006): policy của 007 không thuộc file
+	//    này nên không được tính vào đây.
 	body, err := os.ReadFile(filepath.Join("..", "..", "migrations", "006_live_rooms.sql"))
 	if err != nil {
 		t.Fatal(err)
@@ -198,11 +217,11 @@ func TestLiveRoom006Catalog(t *testing.T) {
 	}
 	var after int
 	if err := e.owner.pool.QueryRow(ctx, `SELECT count(*) FROM pg_policies
-		WHERE schemaname = 'public' AND tablename = ANY($1)`, roomTables).Scan(&after); err != nil {
+		WHERE schemaname = 'public' AND policyname = ANY($1)`, roomPolicies006).Scan(&after); err != nil {
 		t.Fatal(err)
 	}
-	if after != 6 {
-		t.Fatalf("sau khi chạy lại 006: %d policy, mong đợi 6", after)
+	if after != len(roomPolicies006) {
+		t.Fatalf("sau khi chạy lại 006: %d policy, mong đợi %d", after, len(roomPolicies006))
 	}
 }
 

@@ -438,6 +438,14 @@ func (e *rlsEnv) asNonSuperuserOwner(t *testing.T) *Store {
 			t.Fatalf("chuyển quyền sở hữu %s sang %s: %v", tbl, rlsOwnerRole, err)
 		}
 	}
+	// Migration 007 thêm policy CHỈ-ĐỌC trên `cloud_projects` có đọc `room_invite_tokens` (để người
+	// có vé mời thấy đúng dự án của vé). Vì vậy bất kỳ role nào đọc `cloud_projects` cũng cần quyền
+	// đọc bảng vé; thiếu quyền thì Postgres trả `permission denied for table room_invite_tokens`
+	// (SQLSTATE 42501) chứ không trả danh sách rỗng. Role `sqllens_app` đã có quyền này từ khối
+	// GRANT của 006, nên role chủ dựng ở đây phải được cấp đúng quyền đó để giống chân dung Neon.
+	if _, err := e.owner.pool.Exec(ctx, fmt.Sprintf(`GRANT SELECT ON TABLE public.room_invite_tokens TO %s`, rlsOwnerRole)); err != nil {
+		t.Fatalf("cấp quyền đọc bảng vé cho role chủ: %v", err)
+	}
 	t.Cleanup(func() {
 		// Trả quyền sở hữu rồi mới xóa role; DROP OWNED BY khi role còn sở hữu bảng sẽ xóa bảng.
 		for _, tbl := range cloudTables {

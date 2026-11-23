@@ -166,6 +166,19 @@ func TestTenantRLSCatalog(t *testing.T) {
 func TestTenantMigrationTwice(t *testing.T) {
 	e := newTenantEnv(t)
 	ctx := context.Background()
+	countPolicies := func() int {
+		t.Helper()
+		var n int
+		if err := e.super.pool.QueryRow(ctx, `SELECT count(*) FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid
+			WHERE c.relnamespace = 'public'::regnamespace AND c.relname = ANY($1)`, cloudTables).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	// Đếm trước rồi so, không hard-code con số: migration 007 (Task161) thêm policy CHỈ-ĐỌC trên
+	// `cloud_projects`, nên tổng số policy không còn là 12 của riêng 004. Điều AC6 thật sự cần là
+	// chạy lại 004 không sinh thêm policy nào.
+	before := countPolicies()
 	body, err := os.ReadFile(filepath.Join("..", "..", "migrations", "004_cloud_rls.sql"))
 	if err != nil {
 		t.Fatal(err)
@@ -173,13 +186,8 @@ func TestTenantMigrationTwice(t *testing.T) {
 	if _, err := e.super.pool.Exec(ctx, string(body)); err != nil {
 		t.Fatalf("chạy lại 004: %v", err)
 	}
-	var n int
-	if err := e.super.pool.QueryRow(ctx, `SELECT count(*) FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid
-		WHERE c.relnamespace = 'public'::regnamespace AND c.relname = ANY($1)`, cloudTables).Scan(&n); err != nil {
-		t.Fatal(err)
-	}
-	if n != 12 {
-		t.Fatalf("số policy sau khi chạy lại = %d, mong đợi 12", n)
+	if after := countPolicies(); after != before {
+		t.Fatalf("chạy lại 004 làm số policy đổi từ %d thành %d", before, after)
 	}
 }
 

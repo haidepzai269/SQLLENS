@@ -202,11 +202,29 @@ func (s *Store) ListCloudProjects(ctx context.Context, ownerID string) ([]CloudP
 
 // GetCloudProject trả dự án kèm tab theo đúng thứ tự position. Dự án của người khác trả ErrNotFound:
 // không phân biệt "không có" với "không phải của bạn" để không lộ sự tồn tại.
+//
+// Người đọc được dự án là chủ dự án HOẶC thành viên (sai lệch 4 của task161.md): AC2 chỉ có nghĩa
+// nếu trước khi bị xoá, thành viên đọc được dự án. Bản cũ chỉ lọc `owner_id = $2` nên thành viên
+// luôn nhận 404 và AC2 vô nghĩa.
+//
+// Vì sao vẫn viết điều kiện thành viên ngay trong câu SQL thay vì để RLS quyết hoàn toàn: RLS là
+// lớp bảo vệ thứ hai, nhưng nó chỉ có hiệu lực khi connection chạy bằng role bị RLS chặn. Bộ test
+// của gói này nối thẳng bằng `postgres` (superuser), nên ở đó RLS không chặn gì; nếu bỏ hẳn điều
+// kiện thì người ngoài đọc được dự án của người khác và `TestCloudCrossTenant` đỏ — đúng như đã
+// tái hiện. Viết rõ quyền đọc trong câu SQL giữ được đẳng thức "không thấy = không tồn tại" ở mọi
+// môi trường, còn RLS vẫn chặn độc lập ở môi trường thật.
+//
+// `ListCloudProjects` thì VẪN lọc `owner_id`: đó là danh sách dự án của chính mình để chọn, không
+// phải danh sách phòng được chia sẻ.
 func (s *Store) GetCloudProject(ctx context.Context, ownerID, id string) (CloudProject, error) {
 	var out CloudProject
 	err := s.cloudTx(ctx, ownerID, func(tx pgx.Tx) error {
 		err := tx.QueryRow(ctx, `SELECT id::text, name, engine, created_at, updated_at
-			FROM cloud_projects WHERE id = $1 AND owner_id = $2`, id, ownerID).
+			FROM cloud_projects
+			WHERE id = $1
+			  AND (owner_id = $2
+			       OR EXISTS (SELECT 1 FROM cloud_project_members m
+			                   WHERE m.project_id = cloud_projects.id AND m.user_id = $2))`, id, ownerID).
 			Scan(&out.ID, &out.Name, &out.Engine, &out.CreatedAt, &out.UpdatedAt)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
