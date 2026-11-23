@@ -18,10 +18,15 @@ Có
 
 ## Task
 
+> Ba task nền phòng (Task160–162) nằm trong Epic này theo bản nháp v3 vì Arena cần phòng để nhiều người vào cùng link. Chúng không vẽ gì lên Arena.
+
 | Task | Mô tả | Trạng thái |
 |---|---|---|
+| Task160 | Migration 006: schema phòng (invite token + Baton) | **Xong code** trên `task/Task160` — chờ reviewer độc lập. Xem `Task160/ban_giao_task160.md` |
+| Task161 | Gin API phòng: invite + Baton (mở rộng cloud API SP023) | Chờ |
+| Task162 | UI Mời cộng tác & danh sách thành viên | Chờ |
 | Task168 | Arena: chọn kịch bản + điều hướng bước | Chờ |
-| Task169 | Arena: đồ thị Cytoscape + viewer sync qua polling 2 s gọi `arena-step` | **Chờ đo D17** |
+| Task169 | Arena: đồ thị Cytoscape + viewer sync qua polling **3 s** gọi `arena-step` | Chờ (D17 đã chốt 2026-11-23) |
 | Task170 | Arena: AI Mentor phân tích kịch bản (VIP only, gọi `/api/ai/inline-complete`) | Chờ |
 
 ## Tiêu chí nghiệm thu Story
