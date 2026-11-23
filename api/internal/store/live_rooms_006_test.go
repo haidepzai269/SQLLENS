@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,6 +33,13 @@ const (
 	roomOwnerRole   = "room_test_owner"
 	roomOwnerPass   = "t160owner"
 )
+
+// roomHash là giá trị duy nhất được phép nằm trong `room_invite_tokens.token_hash`: bảng chỉ
+// giữ sha256 của vé, không giữ vé. Test cũng đi đúng đường đó để không dạy sai người sau.
+func roomHash(token string) []byte {
+	sum := sha256.Sum256([]byte(token))
+	return sum[:]
+}
 
 func (e *rlsEnv) queryErr(user, sql string, args ...any) (int, error) {
 	var n int
@@ -141,8 +149,46 @@ func TestLiveRoom006Catalog(t *testing.T) {
 	if !hasIndex {
 		t.Fatal("room_invite_tokens không có index trên project_id")
 	}
+	// AC5: `room_baton.holder_id` cũng là FK (`ON DELETE SET NULL`) nên cũng phải có index.
+	// Đọc `pg_indexes`, không tin câu CREATE INDEX vừa chạy.
+	var holderIdx string
+	if err := e.owner.pool.QueryRow(ctx, `SELECT indexdef FROM pg_indexes
+		WHERE schemaname = 'public' AND tablename = 'room_baton'
+		  AND indexdef LIKE '%(holder_id)%'`).Scan(&holderIdx); err != nil {
+		t.Fatalf("room_baton không có index trên holder_id: %v", err)
+	}
+	if !strings.Contains(holderIdx, "room_baton_holder_id_idx") {
+		t.Fatalf("index trên holder_id tên lạ: %s", holderIdx)
+	}
 
-	// 5. Ca biên: chạy lại nguyên file migration không lỗi và không nhân đôi policy.
+	// 5. AC4: `used_at` đã bị xoá (bảng không có policy UPDATE nên cột đó không role nào ghi
+	//    được), và `token_hash` đúng khuôn sha256 như `sessions.token_hash`.
+	var usedAt bool
+	if err := e.owner.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = 'room_invite_tokens' AND column_name = 'used_at')`).Scan(&usedAt); err != nil {
+		t.Fatal(err)
+	}
+	if usedAt {
+		t.Fatal("room_invite_tokens vẫn còn cột used_at: không policy UPDATE nào ghi được cột này")
+	}
+	var tokenType, checkDef string
+	if err := e.owner.pool.QueryRow(ctx, `SELECT data_type FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = 'room_invite_tokens' AND column_name = 'token_hash'`).Scan(&tokenType); err != nil {
+		t.Fatalf("thiếu cột token_hash: %v", err)
+	}
+	if tokenType != "bytea" {
+		t.Fatalf("token_hash kiểu %q, mong đợi bytea (không lưu vé thô)", tokenType)
+	}
+	if err := e.owner.pool.QueryRow(ctx, `SELECT pg_get_constraintdef(oid) FROM pg_constraint
+		WHERE conrelid = 'public.room_invite_tokens'::regclass AND contype = 'c'
+		  AND pg_get_constraintdef(oid) LIKE '%octet_length%'`).Scan(&checkDef); err != nil {
+		t.Fatalf("token_hash thiếu CHECK độ dài 32 byte: %v", err)
+	}
+	if !strings.Contains(checkDef, "32") {
+		t.Fatalf("CHECK trên token_hash không phải 32 byte: %s", checkDef)
+	}
+
+	// 6. Ca biên: chạy lại nguyên file migration không lỗi và không nhân đôi policy.
 	body, err := os.ReadFile(filepath.Join("..", "..", "migrations", "006_live_rooms.sql"))
 	if err != nil {
 		t.Fatal(err)
@@ -160,6 +206,284 @@ func TestLiveRoom006Catalog(t *testing.T) {
 	}
 }
 
+// roomFKs đếm khóa ngoại của hai bảng mới bằng cách đọc catalog, không tin câu lệnh migration.
+func roomFKs(t *testing.T, s *Store) []string {
+	t.Helper()
+	rows, err := s.pool.Query(context.Background(), `SELECT t.relname || ':' || k.conname
+		FROM pg_constraint k
+		JOIN pg_class t ON t.oid = k.conrelid
+		JOIN pg_namespace n ON n.oid = t.relnamespace
+		WHERE n.nspname = 'public' AND t.relname = ANY($1) AND k.contype = 'f'
+		ORDER BY 1`, roomTables)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, name)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+// runMigration006 chạy nguyên văn file 006 như người vận hành sẽ chạy.
+func runMigration006(t *testing.T, s *Store) error {
+	t.Helper()
+	body, err := os.ReadFile(filepath.Join("..", "..", "migrations", "006_live_rooms.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.pool.Exec(context.Background(), string(body))
+	return err
+}
+
+// AC1: khóa ngoại phải sống sót qua vòng DROP + Migrate của helper dọn database. Đây là phép
+// phản chứng cho L1: trước khi sửa, CASCADE xóa FK nhưng để lại hai bảng con, và
+// `CREATE TABLE IF NOT EXISTS` không dựng lại FK — bảng sống thiếu ràng buộc mà test vẫn xanh.
+func TestLiveRoom006FKSurvivesReset(t *testing.T) {
+	e := newRLSEnv(t)
+	ctx := context.Background()
+
+	if got := roomFKs(t, e.owner); len(got) != 3 {
+		t.Fatalf("sau Migrate có %d khóa ngoại (%v), mong đợi 3", len(got), got)
+	}
+	// Dữ liệu mồ côi chỉ phát hiện được nếu FK còn: chèn một token rồi xoá dự án.
+	if _, err := e.owner.pool.Exec(ctx, `INSERT INTO room_invite_tokens (token_hash, project_id, role, expires_at)
+		VALUES ($1, $2, 'viewer', now() + interval '1 hour')`, roomHash(roomTokenAn), rlsProjectAn); err != nil {
+		t.Fatalf("chèn token: %v", err)
+	}
+
+	// Đúng đường đi của sáu helper cũ: DROP rồi Migrate lại.
+	resetCloud(t, e.owner)
+	if err := e.owner.Migrate(ctx); err != nil {
+		t.Fatalf("Migrate lại sau resetCloud: %v", err)
+	}
+
+	if got := roomFKs(t, e.owner); len(got) != 3 {
+		t.Fatalf("sau DROP + Migrate còn %d khóa ngoại (%v), mong đợi 3 — L1 chưa chết", len(got), got)
+	}
+
+	// Và FK phải thật sự thi hành: xoá dự án không được để lại hàng mồ côi ở bảng con nào.
+	// resetCloud đã xoá cả `users` nên phải dựng lại người dùng trước khi tạo dự án.
+	if _, err := e.owner.pool.Exec(ctx, `INSERT INTO users (id, display_name) VALUES ($1, 'Người tạm')`, roomTempUser); err != nil {
+		t.Fatalf("tạo user tạm: %v", err)
+	}
+	if _, err := e.owner.pool.Exec(ctx, `INSERT INTO cloud_projects (id, owner_id, name, engine)
+		VALUES ($1, $2, 'Dự án tạm', 'postgres')`, roomTempProject, roomTempUser); err != nil {
+		t.Fatalf("tạo dự án tạm: %v", err)
+	}
+	if _, err := e.owner.pool.Exec(ctx, `INSERT INTO room_invite_tokens (token_hash, project_id, role, expires_at)
+		VALUES ($1, $2, 'viewer', now() + interval '1 hour')`, roomHash(roomTokenBinh), roomTempProject); err != nil {
+		t.Fatalf("chèn token cho dự án tạm: %v", err)
+	}
+	if _, err := e.owner.pool.Exec(ctx, `INSERT INTO room_baton (project_id, holder_id) VALUES ($1, $2)`, roomTempProject, roomTempUser); err != nil {
+		t.Fatalf("chèn Baton cho dự án tạm: %v", err)
+	}
+	if _, err := e.owner.pool.Exec(ctx, `DELETE FROM cloud_projects WHERE id = $1`, roomTempProject); err != nil {
+		t.Fatalf("xoá dự án tạm: %v", err)
+	}
+	for _, tbl := range roomTables {
+		var n int
+		if err := e.owner.pool.QueryRow(ctx, `SELECT count(*) FROM public.`+tbl+` WHERE project_id = $1`, roomTempProject).Scan(&n); err != nil {
+			t.Fatalf("%s: %v", tbl, err)
+		}
+		if n != 0 {
+			t.Fatalf("%s còn %d hàng mồ côi sau khi xoá dự án: khóa ngoại ON DELETE CASCADE không tồn tại", tbl, n)
+		}
+	}
+}
+
+// F1: mọi helper dọn database trong package này phải dọn ĐÚNG thứ nó nhận dọn. Trước khi sửa,
+// năm helper DROP thiếu tên hai bảng room_*, nên `DROP ... CASCADE` chỉ xoá khoá ngoại còn bảng
+// con sống sót, rồi `CREATE TABLE IF NOT EXISTS` ở lần Migrate sau bỏ qua nó: bảng vĩnh viễn mất
+// khoá ngoại mà test vẫn xanh. Test này đi đúng từng đường dọn rồi đếm FK thật từ catalog.
+//
+// Bốn helper còn lại của cả repo nằm ở package khác (httpapi, auth) nên không gọi được từ đây;
+// chúng dùng chung một hằng số với các đường dưới, và TestNoHandCopiedDropList canh việc đó.
+func TestLiveRoom006FKSurvivesEveryResetHelper(t *testing.T) {
+	e := newRLSEnv(t)
+	ctx := context.Background()
+
+	// Đường RESET: dọn sạch rồi dựng lại từ đầu, nên sau Migrate phải đủ 3 khoá ngoại.
+	for _, c := range []struct {
+		name string
+		env  func(*testing.T) *Store
+	}{
+		{"newStore", newStore},
+		{"newTenantEnv", func(t *testing.T) *Store { return newTenantEnv(t).super }},
+		{"newRLSEnv", func(t *testing.T) *Store { return newRLSEnv(t).owner }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			s := c.env(t)
+			if got := roomFKs(t, s); len(got) != 3 {
+				t.Fatalf("sau %s còn %d khóa ngoại (%v), mong đợi 3 — helper này DROP thiếu bảng nên bảng con sống sót mà mất FK", c.name, len(got), got)
+			}
+		})
+	}
+
+	// resetCloud: dọn sạch rồi Migrate lại ngay trên cùng kết nối.
+	t.Run("resetCloud", func(t *testing.T) {
+		resetCloud(t, e.owner)
+		if err := e.owner.Migrate(ctx); err != nil {
+			t.Fatalf("Migrate lại sau resetCloud: %v", err)
+		}
+		if got := roomFKs(t, e.owner); len(got) != 3 {
+			t.Fatalf("sau resetCloud còn %d khóa ngoại (%v), mong đợi 3 — helper này DROP thiếu bảng nên bảng con sống sót mà mất FK", len(got), got)
+		}
+	})
+
+	// cleanupCloudTables là TEARDOWN, không phải reset: nó cố ý giữ `schema_migrations` để lần
+	// Migrate sau không chạy lại 001–006. Bất biến của nó là dọn SẠCH, không để lại bảng con mồ
+	// côi — nếu DROP thiếu tên thì hai bảng room_* còn nguyên và mất FK, đúng lỗi L1.
+	t.Run("cleanupCloudTables", func(t *testing.T) {
+		cleanupCloudTables(t, e.owner)
+		var con []string
+		rows, err := e.owner.pool.Query(ctx, `SELECT c.relname FROM pg_class c
+			JOIN pg_namespace n ON n.oid = c.relnamespace
+			WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname = ANY($1)
+			ORDER BY 1`, roomTables)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var name string
+			if err := rows.Scan(&name); err != nil {
+				t.Fatal(err)
+			}
+			con = append(con, name)
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatal(err)
+		}
+		if len(con) != 0 {
+			t.Fatalf("cleanupCloudTables để lại bảng %v: bảng con sống sót qua CASCADE và mất khóa ngoại (lỗi L1)", con)
+		}
+	})
+}
+
+// AC2: database đã thoái hóa (thiếu bảng nền) thì 006 phải nói rõ thiếu bảng nào, thay vì để
+// policy `room_baton_select` nổ `relation ... does not exist`.
+func TestLiveRoom006MissingPrerequisite(t *testing.T) {
+	e := newRLSEnv(t)
+	ctx := context.Background()
+
+	// CASCADE vì policy room_baton_select phụ thuộc cloud_project_members.
+	if _, err := e.owner.pool.Exec(ctx, `DROP TABLE public.cloud_project_members CASCADE`); err != nil {
+		t.Fatalf("dựng cảnh xấu: %v", err)
+	}
+	err := runMigration006(t, e.owner)
+	if err == nil {
+		t.Fatal("006 chạy được trên schema thiếu cloud_project_members: phải RAISE EXCEPTION")
+	}
+	if !strings.Contains(err.Error(), "cloud_project_members") {
+		t.Fatalf("lỗi phải nêu tên bảng nền thiếu, nhận: %v", err)
+	}
+	if strings.Contains(err.Error(), "does not exist") {
+		t.Fatalf("lỗi vẫn là lỗi thô của Postgres, không phải thông báo điều kiện tiên quyết: %v", err)
+	}
+}
+
+// AC3: bảng dở dang cùng tên phải làm 006 thất bại và nêu tên cột thiếu. Đối chứng với 003:
+// `TestCloudPreexistingPartialTable` chứng minh 003 đã từ chối bảng dở dang từ trước.
+func TestLiveRoom006PreexistingPartialTable(t *testing.T) {
+	e := newRLSEnv(t)
+	ctx := context.Background()
+
+	// Ca 1: bảng thiếu hẳn cột.
+	t.Run("thieu_cot", func(t *testing.T) {
+		if _, err := e.owner.pool.Exec(ctx, `DROP TABLE public.room_invite_tokens CASCADE`); err != nil {
+			t.Fatalf("dựng cảnh xấu: %v", err)
+		}
+		if _, err := e.owner.pool.Exec(ctx, `CREATE TABLE public.room_invite_tokens (
+			token text PRIMARY KEY,
+			project_id uuid NOT NULL)`); err != nil {
+			t.Fatalf("tạo bảng dở dang: %v", err)
+		}
+		err := runMigration006(t, e.owner)
+		if err == nil {
+			t.Fatal("006 nhận bảng dở dang rồi in NOTICE thành công: phải RAISE EXCEPTION")
+		}
+		for _, col := range []string{"token_hash", "role", "expires_at"} {
+			if !strings.Contains(err.Error(), col) {
+				t.Fatalf("lỗi phải nêu cột thiếu %q, nhận: %v", col, err)
+			}
+		}
+		// Bảng dở dang phải còn nguyên: migration không được DROP để dựng lại.
+		var cols int
+		if err := e.owner.pool.QueryRow(ctx, `SELECT count(*) FROM information_schema.columns
+			WHERE table_schema = 'public' AND table_name = 'room_invite_tokens'`).Scan(&cols); err != nil {
+			t.Fatal(err)
+		}
+		if cols != 2 {
+			t.Fatalf("số cột room_invite_tokens = %d, mong đợi giữ nguyên 2 (không DROP dữ liệu)", cols)
+		}
+	})
+
+	// Ca 2: bảng ĐỦ cột, ĐỦ ràng buộc, nhưng một cột sai kiểu. Đây là ca duy nhất mà khối 6g
+	// (kiểm cột + kiểu) bắt được còn khối 6h (kiểm PK/FK/CHECK/NOT NULL) không bắt được — nhờ
+	// vậy test này đỏ nếu ai xoá 6g. Xoá 6g thì 006 in NOTICE thành công trên bảng sai kiểu, và
+	// `room_baton.updated_at` giữ kiểu text trong khi code Go đọc bằng time.Time.
+	t.Run("sai_kieu_cot", func(t *testing.T) {
+		// Ca trước để lại room_invite_tokens dở dang; xoá cả hai để 006 dựng lại bảng token cho
+		// đúng, chỉ còn room_baton là bảng sai kiểu cần bắt.
+		if _, err := e.owner.pool.Exec(ctx, `DROP TABLE public.room_invite_tokens, public.room_baton CASCADE`); err != nil {
+			t.Fatalf("dựng cảnh xấu: %v", err)
+		}
+		if _, err := e.owner.pool.Exec(ctx, `CREATE TABLE public.room_baton (
+			project_id uuid PRIMARY KEY REFERENCES public.cloud_projects (id) ON DELETE CASCADE,
+			holder_id uuid REFERENCES public.users (id) ON DELETE SET NULL,
+			updated_at text NOT NULL)`); err != nil {
+			t.Fatalf("tạo bảng sai kiểu: %v", err)
+		}
+		err := runMigration006(t, e.owner)
+		if err == nil {
+			t.Fatal("006 nhận bảng có cột updated_at kiểu text: phải RAISE EXCEPTION, không được in NOTICE thành công")
+		}
+		if !strings.Contains(err.Error(), "updated_at") || !strings.Contains(err.Error(), "timestamp with time zone") {
+			t.Fatalf("lỗi phải nêu cột updated_at và kiểu mong đợi, nhận: %v", err)
+		}
+		// Không được sửa kiểu hộ: đổi kiểu text -> timestamptz có thể mất dữ liệu.
+		var typ string
+		if err := e.owner.pool.QueryRow(ctx, `SELECT data_type FROM information_schema.columns
+			WHERE table_schema = 'public' AND table_name = 'room_baton' AND column_name = 'updated_at'`).Scan(&typ); err != nil {
+			t.Fatal(err)
+		}
+		if typ != "text" {
+			t.Fatalf("kiểu updated_at bị đổi thành %q, migration không được sửa kiểu cột có sẵn", typ)
+		}
+	})
+
+	// Ca 3: bảng ĐỦ cột, ĐÚNG kiểu, nhưng khóa ngoại thiếu ON DELETE SET NULL. Chỉ khối 6h bắt
+	// được ca này — 6g qua hết vì cột và kiểu đều đúng. Thiếu SET NULL nghĩa là xoá một user sẽ
+	// bị Postgres chặn bởi khóa ngoại thay vì nhả Baton, đúng hành vi mà 006 muốn có.
+	t.Run("fk_thieu_set_null", func(t *testing.T) {
+		if _, err := e.owner.pool.Exec(ctx, `DROP TABLE IF EXISTS public.room_invite_tokens, public.room_baton CASCADE`); err != nil {
+			t.Fatalf("dựng cảnh xấu: %v", err)
+		}
+		if _, err := e.owner.pool.Exec(ctx, `CREATE TABLE public.room_baton (
+			project_id uuid PRIMARY KEY REFERENCES public.cloud_projects (id) ON DELETE CASCADE,
+			holder_id uuid REFERENCES public.users (id),
+			updated_at timestamptz NOT NULL DEFAULT now())`); err != nil {
+			t.Fatalf("tạo bảng thiếu SET NULL: %v", err)
+		}
+		err := runMigration006(t, e.owner)
+		if err == nil {
+			t.Fatal("006 nhận khóa ngoại room_baton.holder_id thiếu ON DELETE SET NULL: phải RAISE EXCEPTION")
+		}
+		if !strings.Contains(err.Error(), "holder_id") || !strings.Contains(err.Error(), "SET NULL") {
+			t.Fatalf("lỗi phải nêu khóa ngoại holder_id và ON DELETE SET NULL, nhận: %v", err)
+		}
+	})
+}
+
 // AC1 (+ ca biên): cross-tenant trên hai bảng mới, chạy bằng role `sqllens_app` (non-superuser).
 //
 // Mọi câu SELECT ở đây đều lọc `project_id` chứ KHÔNG lọc owner, nên chúng thật sự phụ thuộc
@@ -169,20 +493,22 @@ func TestLiveRoom006Migration(t *testing.T) {
 	ctx := context.Background()
 
 	// 1. Owner tạo token cho dự án của mình: phải chạy được (không chặn nhầm người được phép).
-	if n := e.exec(t, rlsUserAn, `INSERT INTO room_invite_tokens (token, project_id, role, expires_at)
-		VALUES ($1, $2, 'viewer', now() + interval '1 hour')`, roomTokenAn, rlsProjectAn); n != 1 {
+	if n := e.exec(t, rlsUserAn, `INSERT INTO room_invite_tokens (token_hash, project_id, role, expires_at)
+		VALUES ($1, $2, 'viewer', now() + interval '1 hour')`, roomHash(roomTokenAn), rlsProjectAn); n != 1 {
 		t.Fatalf("An tạo token cho dự án của mình: %d hàng, mong đợi 1", n)
 	}
 	// 2. An không chèn được token vào dự án của Bình — WITH CHECK của policy chặn.
-	if _, err := e.execErr(rlsUserAn, `INSERT INTO room_invite_tokens (token, project_id, role, expires_at)
-		VALUES ($1, $2, 'editor', now() + interval '1 hour')`, roomTokenBinh, rlsProjectBinh); err == nil || !strings.Contains(err.Error(), "row-level security") {
+	if _, err := e.execErr(rlsUserAn, `INSERT INTO room_invite_tokens (token_hash, project_id, role, expires_at)
+		VALUES ($1, $2, 'editor', now() + interval '1 hour')`, roomHash(roomTokenBinh), rlsProjectBinh); err == nil || !strings.Contains(err.Error(), "row-level security") {
 		t.Fatalf("An chèn token vào dự án của Bình: err=%v, mong đợi vi phạm row-level security", err)
 	}
 	// 3. An không đọc, sửa, xoá được token của Bình.
 	if n := e.query(t, rlsUserAn, `SELECT count(*) FROM room_invite_tokens WHERE project_id = $1`, rlsProjectBinh); n != 0 {
 		t.Fatalf("An đọc được %d token của Bình", n)
 	}
-	if n := e.exec(t, rlsUserAn, `UPDATE room_invite_tokens SET used_at = now() WHERE project_id = $1`, rlsProjectAn); n != 0 {
+	// Bảng không có policy UPDATE (vé dùng nhiều lần được, xem L4): UPDATE khớp 0 hàng vì RLS,
+	// và cột `used_at` không còn tồn tại nên câu cũ `SET used_at` giờ là lỗi cú pháp.
+	if n := e.exec(t, rlsUserAn, `UPDATE room_invite_tokens SET role = 'viewer' WHERE project_id = $1`, rlsProjectAn); n != 0 {
 		t.Fatalf("An sửa được %d token (bảng không có policy UPDATE)", n)
 	}
 	if n := e.exec(t, rlsUserAn, `DELETE FROM room_invite_tokens WHERE project_id = $1`, rlsProjectBinh); n != 0 {
@@ -194,8 +520,8 @@ func TestLiveRoom006Migration(t *testing.T) {
 	}
 
 	// 5. Bình tạo token của Bình, rồi kiểm hai chiều: Bình không thấy token của An.
-	if n := e.exec(t, rlsUserBinh, `INSERT INTO room_invite_tokens (token, project_id, role, expires_at)
-		VALUES ($1, $2, 'editor', now() + interval '1 hour')`, roomTokenBinh, rlsProjectBinh); n != 1 {
+	if n := e.exec(t, rlsUserBinh, `INSERT INTO room_invite_tokens (token_hash, project_id, role, expires_at)
+		VALUES ($1, $2, 'editor', now() + interval '1 hour')`, roomHash(roomTokenBinh), rlsProjectBinh); n != 1 {
 		t.Fatalf("Bình tạo token: %d hàng, mong đợi 1", n)
 	}
 	if n := e.query(t, rlsUserBinh, `SELECT count(*) FROM room_invite_tokens WHERE project_id = $1`, rlsProjectAn); n != 0 {
@@ -238,29 +564,49 @@ func TestLiveRoom006Migration(t *testing.T) {
 	}
 
 	// 8. Ca biên: role ngoài ('owner') bị CHECK chặn ở tầng bảng.
-	if _, err := e.execErr(rlsUserAn, `INSERT INTO room_invite_tokens (token, project_id, role, expires_at)
-		VALUES ('inv-bad-role-000000000000000000000000000000000000', $1, 'owner', now() + interval '1 hour')`, rlsProjectAn); err == nil || !strings.Contains(err.Error(), "check") {
+	if _, err := e.execErr(rlsUserAn, `INSERT INTO room_invite_tokens (token_hash, project_id, role, expires_at)
+		VALUES ($1, $2, 'owner', now() + interval '1 hour')`, roomHash("inv-bad-role-000000000000000000000000000000000000"), rlsProjectAn); err == nil || !strings.Contains(err.Error(), "check") {
 		t.Fatalf("role 'owner' trong token: err=%v, mong đợi vi phạm CHECK", err)
 	}
 
-	// 9. Ca biên: DB KHÔNG kiểm hạn token — token hết hạn vẫn đọc được. Task161 phải tự kiểm
-	//    `expires_at > now()` và `used_at IS NULL`; RLS không làm hộ.
-	if n := e.exec(t, rlsUserAn, `INSERT INTO room_invite_tokens (token, project_id, role, expires_at, used_at)
-		VALUES ($1, $2, 'viewer', now() - interval '1 hour', now())`, roomTokenAnOld, rlsProjectAn); n != 1 {
+	// 9. AC4: độ dài khoá phải đúng 32 byte. Vé 31 byte và 33 byte bị CHECK từ chối; vé 32 byte
+	//    và NULL cũng bị (NULL vào PRIMARY KEY là NOT NULL).
+	for _, c := range []struct {
+		name string
+		hash []byte
+	}{
+		{"31 byte", make([]byte, 31)},
+		{"33 byte", make([]byte, 33)},
+		{"NULL", nil},
+	} {
+		if _, err := e.execErr(rlsUserAn, `INSERT INTO room_invite_tokens (token_hash, project_id, role, expires_at)
+			VALUES ($1, $2, 'viewer', now() + interval '1 hour')`, c.hash, rlsProjectAn); err == nil {
+			t.Fatalf("token_hash %s: chèn được, mong đợi bị từ chối", c.name)
+		}
+	}
+	if n := e.exec(t, rlsUserAn, `INSERT INTO room_invite_tokens (token_hash, project_id, role, expires_at)
+		VALUES ($1, $2, 'viewer', now() + interval '1 hour')`, make([]byte, 32), rlsProjectAn); n != 1 {
+		t.Fatalf("token_hash 32 byte: %d hàng, mong đợi 1", n)
+	}
+
+	// 10. Ca biên: DB KHÔNG kiểm hạn token — token hết hạn vẫn đọc được. Task161 phải tự kiểm
+	//     `expires_at > now()`; RLS không làm hộ.
+	if n := e.exec(t, rlsUserAn, `INSERT INTO room_invite_tokens (token_hash, project_id, role, expires_at)
+		VALUES ($1, $2, 'viewer', now() - interval '1 hour')`, roomHash(roomTokenAnOld), rlsProjectAn); n != 1 {
 		t.Fatalf("chèn token hết hạn: %d hàng, mong đợi 1", n)
 	}
 	if n := e.query(t, rlsUserAn, `SELECT count(*) FROM room_invite_tokens
-		WHERE token = $1 AND expires_at < now() AND used_at IS NOT NULL`, roomTokenAnOld); n != 1 {
-		t.Fatalf("token hết hạn/đã dùng vẫn đọc được: %d hàng, mong đợi 1 (DB không kiểm hạn)", n)
+		WHERE token_hash = $1 AND expires_at < now()`, roomHash(roomTokenAnOld)); n != 1 {
+		t.Fatalf("token hết hạn vẫn đọc được: %d hàng, mong đợi 1 (DB không kiểm hạn)", n)
 	}
 
-	// 10. ON DELETE CASCADE: xoá dự án thì token và Baton của nó biến mất.
+	// 11. ON DELETE CASCADE: xoá dự án thì token và Baton của nó biến mất.
 	if _, err := e.owner.pool.Exec(ctx, `INSERT INTO cloud_projects (id, owner_id, name, engine)
 		VALUES ($1, $2, 'Dự án tạm', 'postgres')`, roomTempProject, rlsUserAn); err != nil {
 		t.Fatalf("tạo dự án tạm: %v", err)
 	}
-	if n := e.exec(t, rlsUserAn, `INSERT INTO room_invite_tokens (token, project_id, role, expires_at)
-		VALUES ('inv-temp-000000000000000000000000000000000000', $1, 'viewer', now() + interval '1 hour')`, roomTempProject); n != 1 {
+	if n := e.exec(t, rlsUserAn, `INSERT INTO room_invite_tokens (token_hash, project_id, role, expires_at)
+		VALUES ($1, $2, 'viewer', now() + interval '1 hour')`, roomHash("inv-temp-000000000000000000000000000000000000"), roomTempProject); n != 1 {
 		t.Fatal("không tạo được token cho dự án tạm")
 	}
 	if n := e.exec(t, rlsUserAn, `INSERT INTO room_baton (project_id, holder_id) VALUES ($1, $2)`, roomTempProject, rlsUserAn); n != 1 {
@@ -280,7 +626,7 @@ func TestLiveRoom006Migration(t *testing.T) {
 		t.Fatalf("sau khi xoá dự án: %d token, %d Baton còn lại (mong đợi 0, 0)", tokensLeft, batonsLeft)
 	}
 
-	// 11. ON DELETE SET NULL: xoá user đang giữ Baton thì hàng Baton còn, holder_id về NULL.
+	// 12. ON DELETE SET NULL: xoá user đang giữ Baton thì hàng Baton còn, holder_id về NULL.
 	if _, err := e.owner.pool.Exec(ctx, `INSERT INTO users (id, display_name) VALUES ($1, 'Người tạm')`, roomTempUser); err != nil {
 		t.Fatalf("tạo user tạm: %v", err)
 	}
@@ -298,7 +644,7 @@ func TestLiveRoom006Migration(t *testing.T) {
 		t.Fatalf("holder_id = %q sau khi xoá user, mong đợi NULL", *holder)
 	}
 
-	// 12. Phép phản chứng: tắt RLS thì cùng câu SELECT thấy token của người khác. Không có
+	// 13. Phép phản chứng: tắt RLS thì cùng câu SELECT thấy token của người khác. Không có
 	//     phép này thì toàn bộ test trên xanh cả khi RLS hỏng.
 	restore := func() {
 		for _, stmt := range []string{
@@ -334,12 +680,12 @@ func TestLiveRoom006ForceBlocksNonSuperuserOwner(t *testing.T) {
 	ctx := context.Background()
 
 	// Dữ liệu: mỗi người một token trong dự án của mình (ghi bằng role app, ngữ cảnh từng owner).
-	if n := e.exec(t, rlsUserAn, `INSERT INTO room_invite_tokens (token, project_id, role, expires_at)
-		VALUES ($1, $2, 'viewer', now() + interval '1 hour')`, roomTokenAn, rlsProjectAn); n != 1 {
+	if n := e.exec(t, rlsUserAn, `INSERT INTO room_invite_tokens (token_hash, project_id, role, expires_at)
+		VALUES ($1, $2, 'viewer', now() + interval '1 hour')`, roomHash(roomTokenAn), rlsProjectAn); n != 1 {
 		t.Fatal("không tạo được token của An")
 	}
-	if n := e.exec(t, rlsUserBinh, `INSERT INTO room_invite_tokens (token, project_id, role, expires_at)
-		VALUES ($1, $2, 'viewer', now() + interval '1 hour')`, roomTokenBinh, rlsProjectBinh); n != 1 {
+	if n := e.exec(t, rlsUserBinh, `INSERT INTO room_invite_tokens (token_hash, project_id, role, expires_at)
+		VALUES ($1, $2, 'viewer', now() + interval '1 hour')`, roomHash(roomTokenBinh), rlsProjectBinh); n != 1 {
 		t.Fatal("không tạo được token của Bình")
 	}
 

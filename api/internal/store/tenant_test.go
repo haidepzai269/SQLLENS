@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/haidepzai269/SQLLENS/api/migrations"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -49,8 +50,7 @@ func newTenantEnv(t *testing.T) *tenantEnv {
 		t.Fatal(err)
 	}
 	t.Cleanup(super.Close)
-	if _, err := super.pool.Exec(ctx, `DROP TABLE IF EXISTS cloud_project_members, cloud_tabs, cloud_projects,
-		user_vip_redemptions, vip_codes, sessions, identities, users, schema_migrations CASCADE`); err != nil {
+	if _, err := super.pool.Exec(ctx, `DROP TABLE IF EXISTS `+migrations.DropAllTablesSQL+` CASCADE`); err != nil {
 		t.Fatal(err)
 	}
 	if err := super.Migrate(ctx); err != nil {
