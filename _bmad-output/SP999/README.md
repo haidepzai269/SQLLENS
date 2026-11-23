@@ -33,7 +33,7 @@ Khi đến lượt làm, chủ dự án và party mode chia thành `STR0xx` và 
 | Task016 | Mới kiểm trên MySQL 8.4.13, chưa kiểm 8.0 hay 9.x | Chưa làm |
 | Task012 | Đo PGlite trên máy RAM thấp thật trước khi chốt mức 500k, vì đỉnh RAM lúc khởi tạo khoảng 1,1 GB | Chưa làm |
 | Task012 | Chưa chạy lại `npm run measure` sau bản sửa `clearTimeout`, chưa thử `npm ci` từ thư mục sạch | Chưa làm |
-| Task010 | `compress: false` của Task014 chưa đưa vào `web/next.config.ts`. Chỉ cần nếu tự host bằng `next start` | Chưa làm |
+| Task010 | `compress: false` của Task014 chưa đưa vào `web/next.config.ts`. **Task159 đo lại (2026-11-23): không cần nữa.** Có **hai lớp độc lập, mỗi lớp một mình đã đủ**: header `Cache-Control: no-cache, no-transform` ở `api/internal/ai/ai.go:349` (đã có sẵn) và `compress: false`. Phản chứng: `NEXT_COMPRESS=1` + bỏ `no-transform` → stream chết 3/3; thêm lại `no-transform` → sống 3/3. `main` không có `compress` mà SSE vẫn chạy. Chỉ cần thêm nếu sau này tự host và bỏ header đó | Đã đóng |
 | Task010 | `next start` thiếu `API_ORIGIN` lúc chạy vẫn rơi về `localhost:8080`, không báo lỗi | Chưa làm |
 | Task010 | GitHub tắt workflow theo lịch sau 60 ngày repo không có hoạt động, làm `keep-awake` ngừng | Chưa làm |
 | Task010 | AC7 chưa làm: chưa đo cookie và stream qua Vercel thật vì `api/` chưa có route stream. Đo khi SP005 có cookie đăng nhập và SP012 có stream AI | Chưa làm |
