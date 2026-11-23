@@ -1,0 +1,158 @@
+{
+  "title": "Deadlock Arena",
+  "subtitle": "Interactive simulation of lock contention and deadlock between transactions",
+  "simulationBadgeNote": "Local simulation of two contending transaction sessions. Runs entirely inside the browser without network egress.",
+  "scenarios": {
+    "label": "Scenario",
+    "deadlock_reverse_order": "Deadlock from updates in reverse order",
+    "lost_update": "Lost update",
+    "write_skew": "Write skew",
+    "double_booking": "Double booking",
+    "non_repeatable_read": "Non-repeatable read",
+    "about": {
+      "deadlock_reverse_order": "Two sessions update two rows in opposite order, creating a mutual wait-for cycle.",
+      "lost_update": "Two sessions read the same value and overwrite it; one update vanishes.",
+      "write_skew": "Two transactions read shared data but update separate rows, violating an overall business rule.",
+      "double_booking": "Two sessions both see an empty slot and simultaneously book it.",
+      "non_repeatable_read": "One session reads the same row twice and observes different values because another session committed in between."
+    }
+  },
+  "controls": {
+    "prev": "Previous",
+    "next": "Next",
+    "play": "Auto Play",
+    "pause": "Pause",
+    "reset": "Reset",
+    "stepProgress": "Step {current} / {total}",
+    "speed": "{speed}ms"
+  },
+  "view": {
+    "currentStep": "Current Step: {step}",
+    "transactionsTitle": "Active Transactions",
+    "sessionA": "Transaction A",
+    "sessionB": "Transaction B",
+    "deadlockAlert": "deadlock detected",
+    "conflictAlert": "Data conflict detected",
+    "deadlockDetail": "Detected circular wait-for cycle (SQLSTATE 40P01). Transaction A was aborted to resolve deadlock.",
+    "conflictDetail": "Conflict occurred when two transactions operated on competing data.",
+    "status": {
+      "idle": "Idle",
+      "active": "Active",
+      "waiting": "Waiting for lock",
+      "aborted": "Aborted",
+      "committed": "Committed"
+    }
+  },
+  "steps": {
+    "deadlock_reverse_order": {
+      "step0": {
+        "title": "Data initialization",
+        "description": "Table accounts is created with two rows id=1 (100) and id=2 (100)."
+      },
+      "step1": {
+        "title": "Start 2 transactions",
+        "description": "Transaction A and Transaction B both start with READ COMMITTED isolation level."
+      },
+      "step2": {
+        "title": "Update accounts in order",
+        "description": "Transaction A updates and locks account 1. Transaction B updates and locks account 2."
+      },
+      "step3": {
+        "title": "Circular wait-for conflict",
+        "description": "Transaction A requests lock on account 2 (held by B). Transaction B requests lock on account 1 (held by A) -> Deadlock cycle appears!"
+      },
+      "step4": {
+        "title": "Lock release and completion",
+        "description": "PostgreSQL engine aborts Transaction A with error 40P01 (deadlock detected). Transaction B resumes and completes COMMIT."
+      }
+    },
+    "lost_update": {
+      "step0": {
+        "title": "Data initialization",
+        "description": "Table accounts is created with row id=1 (100)."
+      },
+      "step1": {
+        "title": "Start 2 transactions",
+        "description": "Transaction A and Transaction B both start with READ COMMITTED."
+      },
+      "step2": {
+        "title": "Read balance concurrently",
+        "description": "Both transactions read balance = 100."
+      },
+      "step3": {
+        "title": "Overwrite balance",
+        "description": "Transaction A updates balance = 110. Transaction B updates balance = 120."
+      },
+      "step4": {
+        "title": "Lost update occurs",
+        "description": "Transaction B commits last and completely overwrites Transaction A's update."
+      }
+    },
+    "write_skew": {
+      "step0": {
+        "title": "Data initialization",
+        "description": "Table doctors has 2 doctors on call (id=1, id=2 on_call = true)."
+      },
+      "step1": {
+        "title": "Start 2 transactions",
+        "description": "Transaction A and Transaction B start with REPEATABLE READ."
+      },
+      "step2": {
+        "title": "Check on-call count",
+        "description": "Both transactions check and see count = 2 (sufficient doctors to request leave)."
+      },
+      "step3": {
+        "title": "Simultaneous leave request",
+        "description": "Transaction A sets doctor 1 off call. Transaction B sets doctor 2 off call."
+      },
+      "step4": {
+        "title": "Constraint broken (Write Skew)",
+        "description": "Both transactions commit successfully, but zero doctors remain on call (count = 0)."
+      }
+    },
+    "double_booking": {
+      "step0": {
+        "title": "Data initialization",
+        "description": "Bookings and rooms setup, slot 1 is vacant."
+      },
+      "step1": {
+        "title": "Start 2 transactions",
+        "description": "Transaction A and B both start with READ COMMITTED."
+      },
+      "step2": {
+        "title": "Check room vacancy",
+        "description": "Both transactions check and observe slot 1 is currently vacant."
+      },
+      "step3": {
+        "title": "Concurrent reservation",
+        "description": "Transaction A and B both dispatch INSERT queries to claim slot 1."
+      },
+      "step4": {
+        "title": "Duplicate reservation (Double Booking)",
+        "description": "Both transactions commit, resulting in duplicate reservations for the same slot."
+      }
+    },
+    "non_repeatable_read": {
+      "step0": {
+        "title": "Data initialization",
+        "description": "Table accounts is created with row id=1 (100)."
+      },
+      "step1": {
+        "title": "Start 2 transactions",
+        "description": "Transaction A and B both start with READ COMMITTED."
+      },
+      "step2": {
+        "title": "First read and update",
+        "description": "Transaction A reads balance = 100. Transaction B updates balance = 200 and commits."
+      },
+      "step3": {
+        "title": "Second read in same transaction",
+        "description": "Transaction A reads row id=1 again and sees balance = 200 instead of 100."
+      },
+      "step4": {
+        "title": "Transaction completion",
+        "description": "Transaction A commits with inconsistent read values."
+      }
+    }
+  }
+}

@@ -1,0 +1,158 @@
+{
+  "title": "Deadlock Arena",
+  "subtitle": "Đấu trường mô phỏng tranh chấp khóa và deadlock",
+  "simulationBadgeNote": "Mô phỏng cục bộ hai phiên kết nối cạnh tranh khóa. Dữ liệu chạy hoàn toàn trong trình duyệt, không gửi ra mạng.",
+  "scenarios": {
+    "label": "Kịch bản",
+    "deadlock_reverse_order": "Deadlock do cập nhật ngược thứ tự",
+    "lost_update": "Lost update",
+    "write_skew": "Write skew",
+    "double_booking": "Double booking",
+    "non_repeatable_read": "Non-repeatable read",
+    "about": {
+      "deadlock_reverse_order": "Hai session cập nhật hai dòng theo thứ tự ngược nhau, tạo chu trình chờ khóa lẫn nhau.",
+      "lost_update": "Hai session cùng đọc một giá trị rồi ghi đè, một lần cập nhật biến mất.",
+      "write_skew": "Hai transaction đọc cùng dữ liệu nhưng cập nhật các dòng riêng biệt vi phạm ràng buộc tổng thể.",
+      "double_booking": "Hai session cùng kiểm tra chỗ trống và đồng thời đặt cùng một chỗ.",
+      "non_repeatable_read": "Một session đọc cùng một dòng hai lần và nhận hai giá trị khác nhau do session khác commit ở giữa."
+    }
+  },
+  "controls": {
+    "prev": "Bước trước",
+    "next": "Bước sau",
+    "play": "Tự động chạy",
+    "pause": "Tạm dừng",
+    "reset": "Về đầu",
+    "stepProgress": "Bước {current} / {total}",
+    "speed": "{speed}ms"
+  },
+  "view": {
+    "currentStep": "Bước hiện tại: {step}",
+    "transactionsTitle": "Các giao dịch đang chạy",
+    "sessionA": "Giao dịch A",
+    "sessionB": "Giao dịch B",
+    "deadlockAlert": "deadlock detected",
+    "conflictAlert": "Phát hiện xung đột dữ liệu",
+    "deadlockDetail": "Phát hiện chu trình khóa vòng tròn (SQLSTATE 40P01). Giao dịch A bị hủy để giải phóng khóa.",
+    "conflictDetail": "Xung đột xảy ra khi hai giao dịch cùng thao tác trên dữ liệu tranh chấp.",
+    "status": {
+      "idle": "Chờ",
+      "active": "Đang chạy",
+      "waiting": "Đang chờ khóa",
+      "aborted": "Bị hủy (Aborted)",
+      "committed": "Đã commit"
+    }
+  },
+  "steps": {
+    "deadlock_reverse_order": {
+      "step0": {
+        "title": "Khởi tạo dữ liệu",
+        "description": "Bảng accounts được tạo với hai dòng id=1 (100) và id=2 (100)."
+      },
+      "step1": {
+        "title": "Bắt đầu 2 giao dịch",
+        "description": "Giao dịch A và Giao dịch B cùng mở transaction với mức cô lập READ COMMITTED."
+      },
+      "step2": {
+        "title": "Cập nhật tài khoản đối ứng",
+        "description": "Giao dịch A cập nhật và giữ khóa tài khoản 1. Giao dịch B cập nhật và giữ khóa tài khoản 2."
+      },
+      "step3": {
+        "title": "Xung đột khóa vòng tròn",
+        "description": "Giao dịch A yêu cầu khóa tài khoản 2 (bị B giữ). Giao dịch B yêu cầu khóa tài khoản 1 (bị A giữ) -> Chu trình khóa xuất hiện!"
+      },
+      "step4": {
+        "title": "Giải phóng khóa và hoàn tất",
+        "description": "Engine PostgreSQL hủy Giao dịch A với mã 40P01 (deadlock detected). Giao dịch B tiếp tục và hoàn tất COMMIT."
+      }
+    },
+    "lost_update": {
+      "step0": {
+        "title": "Khởi tạo dữ liệu",
+        "description": "Bảng accounts được tạo với dòng id=1 (100)."
+      },
+      "step1": {
+        "title": "Bắt đầu 2 giao dịch",
+        "description": "Giao dịch A và Giao dịch B cùng mở transaction READ COMMITTED."
+      },
+      "step2": {
+        "title": "Cùng đọc số dư",
+        "description": "Cả hai giao dịch đều đọc được balance = 100."
+      },
+      "step3": {
+        "title": "Ghi đè số dư",
+        "description": "Giao dịch A cập nhật balance = 110. Giao dịch B cập nhật balance = 120."
+      },
+      "step4": {
+        "title": "Mất bản cập nhật (Lost Update)",
+        "description": "Giao dịch B commit sau và ghi đè hoàn toàn thay đổi của Giao dịch A."
+      }
+    },
+    "write_skew": {
+      "step0": {
+        "title": "Khởi tạo dữ liệu",
+        "description": "Bảng doctors có 2 bác sĩ đang trực (id=1, id=2 on_call = true)."
+      },
+      "step1": {
+        "title": "Bắt đầu 2 giao dịch",
+        "description": "Giao dịch A và Giao dịch B cùng mở transaction REPEATABLE READ."
+      },
+      "step2": {
+        "title": "Kiểm tra số người trực",
+        "description": "Cả hai giao dịch đều đếm được count = 2 (đủ điều kiện để xin nghỉ trực)."
+      },
+      "step3": {
+        "title": "Đồng thời xin nghỉ",
+        "description": "Giao dịch A tắt trực bác sĩ 1. Giao dịch B tắt trực bác sĩ 2."
+      },
+      "step4": {
+        "title": "Vi phạm ràng buộc (Write Skew)",
+        "description": "Cả hai commit thành công nhưng không còn bác sĩ nào trực (count = 0)."
+      }
+    },
+    "double_booking": {
+      "step0": {
+        "title": "Khởi tạo dữ liệu",
+        "description": "Hệ thống phòng và đặt chỗ, vị trí slot 1 còn trống."
+      },
+      "step1": {
+        "title": "Bắt đầu 2 giao dịch",
+        "description": "Giao dịch A và B cùng mở transaction READ COMMITTED."
+      },
+      "step2": {
+        "title": "Kiểm tra phòng trống",
+        "description": "Cả hai giao dịch cùng kiểm tra và thấy slot 1 chưa có ai đặt."
+      },
+      "step3": {
+        "title": "Đồng thời đặt chỗ",
+        "description": "Giao dịch A và B cùng gửi lệnh INSERT đặt slot 1."
+      },
+      "step4": {
+        "title": "Trùng lặp đặt chỗ (Double Booking)",
+        "description": "Cả hai giao dịch commit, dẫn đến hai người cùng được đặt một phòng."
+      }
+    },
+    "non_repeatable_read": {
+      "step0": {
+        "title": "Khởi tạo dữ liệu",
+        "description": "Bảng accounts được tạo với dòng id=1 (100)."
+      },
+      "step1": {
+        "title": "Bắt đầu 2 giao dịch",
+        "description": "Giao dịch A và B cùng mở transaction READ COMMITTED."
+      },
+      "step2": {
+        "title": "Đọc lần 1 và cập nhật",
+        "description": "Giao dịch A đọc balance = 100. Giao dịch B cập nhật balance = 200 và commit."
+      },
+      "step3": {
+        "title": "Đọc lần 2 trong cùng giao dịch",
+        "description": "Giao dịch A đọc lại dòng id=1 và nhận balance = 200 thay vì 100."
+      },
+      "step4": {
+        "title": "Kết thúc giao dịch",
+        "description": "Giao dịch A commit với dữ liệu không nhất quán giữa hai lần đọc."
+      }
+    }
+  }
+}
