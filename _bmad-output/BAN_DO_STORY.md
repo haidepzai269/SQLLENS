@@ -230,3 +230,18 @@ Kết quả của Epic này là số đo ghi vào `CLAUDE.md`, không phải tí
 | STR072 Sandbox Reset & Smart Run Scope    | Khởi động lại Sandbox sạch thực sự (`fresh()`), hỗ trợ chạy đoạn bôi đen (Run Selection) và chạy câu lệnh tại con trỏ (Ctrl+Enter) tránh xung đột DDL (Đã xong - Task101)                                                                              | Có  | Thật |
 | STR073 Tái thiết kế Terminal & ResultGrid | Accordion phân loại câu lệnh có ngữ cảnh DDL/DML, bảng bordered cell kèm cột `#` tự động, ngăn kéo system log tách biệt (Đã xong - Task102)                                                                                                            | Có  | Thật |
 | STR106 Dọn phát hiện cổng bảo mật Task155 | Route cloud có hạn mức `quota.CloudSync` (120/5 phút/user, 429 kèm `Retry-After`, thiếu Upstash vẫn chạy) và snapshot chặn quá 100 tab ở cả hai chiều với mã `SNAPSHOT_TOO_MANY_TABS` (Đã xong - Task157)                                    | Có  | Thật |
+
+## SP024 Live Rooms (Team Multiplayer)
+
+| Story | Hành vi khi xong | GD | Nhãn |
+| --- | --- | --- | --- |
+| STR107 | **Không cấp.** Số này chưa từng được dùng; bỏ trống để sổ số liệu khớp `DE_XUAT`. | | |
+| STR108 Cổng đo Tầng 0 | Đo 6 chỉ số hạ tầng trước khi băm story: byte mỗi lần publish so với link `/share`, byte riêng phần SQL, Plan/B-Tree xem được khi không có WASM, fan-out 30 viewer qua SSE, giờ Render, và được phép kết luận no-go. Kết luận: **no-go cho Live Rooms** — đắt hơn `/share` 763× băng thông, SQL phải nằm trên server, SSE chỉ hơn polling 0,2 % (Đã xong - Task159, merge `33ff8d7`, review độc lập `4e908c7`) | | Thật |
+| STR109 | **Số đã đốt — KHÔNG dùng lại.** Cấp ở `DE_XUAT:75` cho Tầng 1 (Live Room SSE), Tầng 1 đã NO-GO nên không có thư mục, không có task. | | |
+| STR110 | **Số đã đốt — KHÔNG dùng lại.** Cấp ở `DE_XUAT:76` cho Tầng 1, đã hủy cùng STR109. | | |
+| STR111 | **Số đã đốt — KHÔNG dùng lại.** Cấp ở `DE_XUAT:77` cho Tầng 1, đã hủy cùng STR109. | | |
+| STR112 | **Số đã đốt — KHÔNG dùng lại.** Cấp ở `DE_XUAT:78` cho Tầng 1, đã hủy cùng STR109. | | |
+| STR113 Pair-Programming | Nhiều người cùng sửa văn bản SQL qua Yjs CRDT, nhiều editor và nhiều viewer cùng lúc; quyền theo `cloud_project_members` (Chưa mở — Task163-167 nằm trong `BAN_NHAP_STORY_SP024.md` bản nháp v3, chờ chủ dự án duyệt) | Có | Chưa đo |
+| STR114 The Baton | Một người giữ quyền chạy engine tại một thời điểm, chuyển giao qua Gin signaling + WebRTC DataChannel, kết quả broadcast P2P (Chưa mở — cùng bản nháp) | Có | Chưa đo |
+| STR115 Fork to Local Sandbox | Fork phòng thành dự án riêng trong IndexedDB, trần 512 KB mỗi lần và tối đa 5 phòng fork đồng thời (Chưa mở — cùng bản nháp) | Có | Chưa đo |
+| STR116 Deadlock Arena | Đấu trường mô phỏng tranh chấp khóa nhiều người xem cùng lúc, đi trước Tầng 2 vì không cần Yjs/WebRTC, dùng polling `{step: N}` (Chưa mở — cùng bản nháp) | Có | Mô phỏng |

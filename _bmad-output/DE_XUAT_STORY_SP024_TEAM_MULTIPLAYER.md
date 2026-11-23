@@ -1,118 +1,144 @@
 # ĐỀ XUẤT STORY: Team Multiplayer Collaboration (SP024 / SP025 / SP026)
 
-> Trạng thái: **CHỜ CHỦ DỰ ÁN DUYỆT**. Chưa task nào được cấp số, chưa dòng code nào được viết.
-> Nguồn: `_bmad-output/Y_TUONG_TEAM_MULTIPLAYER_COLLABORATION.md` (bản 2.5), phản biện của party mode ngày 2026-11-22.
-> Nguyên tắc: chỉ giữ thứ đứng được trước `CLAUDE.md` — ngân sách 0 đồng, nhãn kết luận, Core Rule 7, và "không đoán khi chưa mô phỏng được".
+> Trạng thái: **ĐÃ ĐƯỢC CHỦ DỰ ÁN DUYỆT ĐỊNH HƯỚNG (2026-11-23)**. Chốt Hướng A (Pass the Baton) & Quy chế Zero-Log Transit. Sẵn sàng khởi động Tầng 0 (STR108 - Cổng đo lường).
+> Nguồn: `_bmad-output/Y_TUONG_TEAM_MULTIPLAYER_COLLABORATION.md` (bản 2.5), phản biện của party mode ngày 2026-11-22 và hội đồng BMAD ngày 2026-11-23.
+> Nguyên tắc cốt lõi: Chỉ giữ thứ đứng vững trước `CLAUDE.md` — ngân sách 0 đồng, nhãn kết luận Thật/Mô phỏng, bảo toàn Core Rule 7 (Zero-Log Transit), và "không đoán khi chưa đo đếm thực nghiệm".
 
 ---
 
-## 1. Kết luận phản biện: 5 chỗ văn kiện tự mâu thuẫn
+## 1. Kết luận phản biện: 5 chỗ mâu thuẫn & Lời giải 3 câu hỏi tử huyệt
 
-| # | Văn kiện nói | Đối chiếu với dự án | Hệ quả |
+### 1.1. Năm điểm mâu thuẫn đã được chỉnh đốn
+
+| # | Luận điểm cũ (v2.5) | Đối chiếu thực tế hạ tầng | Giải pháp chuẩn hóa đã chốt |
 |---|---|---|---|
-| **M1** | Viewer "0 MB WASM, chỉ kéo dữ liệu qua Edge CDN", "Free Unlimited Viewers" | Snapshot của một phòng là **trạng thái thay đổi liên tục**. CDN chỉ rẻ khi nội dung bất biến; phòng live đổi theo từng lần bấm Run thì tỉ lệ cache hit gần 0, mỗi viewer là một request thật. Thêm nữa Cloudflare là **nhà cung cấp thứ 4** (Vercel + Render + Neon + Upstash đã đủ), trong khi Vercel đã có edge cache. | Xóa luồng "CDN", thay bằng publish qua Gin + polling/SSE trong khung giờ Render thức. |
-| **M2** | Mục 3.3: "Broadcast Schema Dump sẽ sập Web Worker máy nhận" | Mục 5.5 lại đề xuất **Fork to Local Sandbox**: nhân bản schema + dữ liệu sang worker của người nhận. Cùng một thao tác, chương trước gọi là tử huyệt, chương sau gọi là giải pháp. | Fork phải có trần byte và dùng lại codec SP022, hoặc bỏ. |
-| **M3** | Mục 4: 5 hiểm họa concurrency khi 2 Editor dùng chung một engine | Đó là vấn đề **do chính thiết kế tạo ra**. Nếu chỉ một người được chạy engine và người kia là viewer, cả 5 hiểm họa biến mất — không cần lease token, không cần `idle_in_transaction_session_timeout`. | Bỏ "shared engine". Một writer, N viewer. Đây là thay đổi kiến trúc lớn nhất. |
-| **M4** | Snapshot JSON có `sql` và `result_sample`, gửi qua mạng cho viewer | Core Rule 7: **không ghi log SQL của người dùng**. SP022 đã chốt ngược lại: snapshot nằm trong fragment `#`, đo thật ở Task148 là **0 request mang payload**. Multiplayer nghĩa là SQL rời khỏi trình duyệt và đi qua Gin/Neon. | Phải có quyết định mới của chủ dự án. Không được tự đổi. |
-| **M5** | "ĐÃ CHỐT PHƯƠNG ÁN KIẾN TRÚC", sẵn sàng lập Epic | Cả văn kiện **không có một số đo nào**: không byte, không ms, không RAM, không giá. `CLAUDE.md` yêu cầu mọi kết luận phải có nhãn và số thật. | Đổi trạng thái thành đề xuất; mở bằng một story đo trước khi cam kết. |
-
-### Ba câu hỏi chưa ai trả lời trong văn kiện
-
-1. **Ai trả tiền cho máy chạy engine?** PGlite đo thật: đỉnh **1,1 GB RAM** lúc khởi tạo. Render free không đủ. Vậy engine chỉ có thể ở trình duyệt của **một** người — người đó là "host". Nếu host đóng tab thì phòng chết. Văn kiện không nói gì về chuyện này.
-2. **Viewer được gì hơn một cái link?** SP022 đã có link snapshot miễn phí, không lộ dữ liệu, đã đo 0 byte ra mạng. "Live" hơn ở đúng một điểm: thấy thay đổi ngay khi host bấm Run. Đó có đáng một Epic không?
-3. **Hai người sửa cùng một file `.sql` để làm gì?** Nếu engine chỉ chạy trên máy một người, người thứ hai sửa chữ nhưng không chạy được thì họ đang làm gì?
+| **M1** | Viewer "0 MB WASM, chỉ kéo dữ liệu qua Edge CDN", "Free Unlimited Viewers" | Snapshot phòng live là **trạng thái thay đổi liên tục**. CDN chỉ rẻ khi nội dung tĩnh; live room đổi theo từng lần bấm Run thì cache hit xấp xỉ 0%. Thêm Cloudflare là nhà cung cấp thứ 4 gây phức tạp. | Bỏ Cloudflare CDN. Chuyển sang SSE/PubSub trực tiếp qua Gin trong khung giờ Render thức (7h-24h). |
+| **M2** | Mục 3.3: "Broadcast Schema Dump sẽ sập Web Worker máy nhận" | Mục 5.5 lại đòi **Fork to Local Sandbox** (nhân bản toàn bộ schema + dữ liệu). Tự đấm nhau giữa tử huyệt và tính năng. | Giới hạn Fork bằng trần byte nghiêm ngặt (`MAX_SNAPSHOT_TABS = 100`, trần cứng 32 KB, cảnh báo 8 KB — đúng hằng số đang có trong `web/src/modules/share/snapshot.ts:22,25`) và tái sử dụng codec SP022. |
+| **M3** | Mục 4: 5 hiểm họa concurrency khi 2 Editor dùng chung một engine | PGlite là đơn luồng, đơn tiến trình Web Worker. Dùng chung engine sinh ra hàng loạt race condition và session poisoning. | **Loại bỏ hoàn toàn Shared Engine**. Duy nhất 1 máy Host chạy engine. Người khác sửa văn bản và luân phiên nhận quyền chạy. |
+| **M4** | Snapshot JSON có `sql` và `result_sample` gửi qua mạng | Core Rule 7: Tuyệt đối không lưu vết hoặc rò rỉ SQL của người dùng. | **Quy chế Zero-Log Transit**: Server Gin/Upstash chỉ là broker chuyển tiếp payload trong RAM; tuyệt đối 0 byte lưu DB Neon, 0 dòng log SQL. |
+| **M5** | "ĐÃ CHỐT KIẾN TRÚC", sẵn sàng lập Epic ngay | Chưa có một con số thực nghiệm nào về RAM, byte/request hay thời lượng sống của Render free. | Mở đầu bằng **Tầng 0 (STR108: Đo lường thực nghiệm)** trước khi viết bất kỳ dòng code tính năng nào. |
 
 ---
 
-## 2. Phạm vi đề xuất: cắt còn 3 tầng, mỗi tầng có cổng
+### 1.2. Ba câu hỏi tử huyệt & Lời giải chính thức (Chủ dự án duyệt 2026-11-23)
 
-### Tầng 0 — Quyết định & đo (bắt buộc làm trước, kể cả khi sau đó dừng)
+#### ❓ Câu hỏi 1: Ai trả tiền cho máy chạy engine? PGlite đỉnh 1,1 GB RAM. Nếu engine ở máy Host, Host đóng tab thì phòng chết. Giải quyết thế nào?
+* **Lời giải chính thức:** **0 ĐỒNG HẠ TẦNG. Engine bắt buộc chạy 100% tại Client của Host.**
+  * Render free chỉ có 512 MB RAM, nếu đẩy PGlite lên server sẽ bị OOMKilled ngay lập tức. Đặt engine trên Cloud trả tiền (VPS 4-8GB RAM) sẽ phá vỡ cam kết ngân sách 0 đồng.
+  * **Định vị sản phẩm:** Multiplayer của SQLLens không phải là Cloud Database vĩnh cửu, mà là **Ephemeral Session (Cuộc họp tạm thời)** — tương tự Google Meet / Zoom.
+  * Khi Host kết thúc buổi làm việc (đóng tab/tắt máy), sự kiện `pagehide` lập tức báo Gin đổi trạng thái phòng sang `offline`.
+  * Giao diện Viewer nhận thông báo rõ ràng: *"Host đã đóng phiên làm việc. Bạn có muốn tải bản Snapshot (SP022) về máy để tiếp tục nghiên cứu cá nhân không?"*. Trải nghiệm minh bạch, không treo tiến trình rác trên server.
 
-| Story | Hành vi khi xong | GD | Nhãn | Điều kiện vào |
-|---|---|---|---|---|
-| **STR108** Đo & quyết định | Có số thật: byte/lần publish, số request/viewer/phút, thời gian Render free thức thêm, chi phí; so sánh thẳng với link SP022. Chủ dự án đọc xong quyết go/no-go cho tầng 1. Kèm bản ghi quyết định về Core Rule 7 (SQL rời máy). | Không | Thật | Không |
+#### ❓ Câu hỏi 2: Viewer được gì hơn một cái link? SP022 đã có link snapshot miễn phí 0 byte. "Live" hơn ở đúng một điểm: thấy kết quả khi host bấm Run. Có đáng một Epic không?
+* **Lời giải chính thức:** **CỰC KỲ ĐÁNG MỘT EPIC.**
+  * Link snapshot SP022 là **"Ảnh chụp tĩnh sau cùng" (Static Post-Mortem)**. Live Room là **"Trải nghiệm tương tác đồng bộ" (Interactive Livestream)**.
+  * **Giá trị vượt trội của Live:**
+    1. *Đồng bộ con trỏ & Focus:* Khi Host giải thích Execution Plan, di chuột đến Node `Index Scan` hay `Hash Join` nào thì màn hình toàn bộ Viewer sáng bừng tại Node đó trong thời gian thực.
+    2. *Presence & Tương tác tức thời:* Thấy đồng đội đang soạn thảo, thấy biểu tượng cảm xúc (Emoji reaction) khi query được tối ưu từ 500ms xuống 2ms.
+    3. *Đồng bộ nhịp độ tư duy (Synchronicity):* Trong phiên debug khẩn cấp 15 phút hoặc buổi giảng dạy, không ai muốn copy paste 10 cái link SP022 vào Slack rồi bảo nhau F5 liên tục.
+  * **Thị trường mục tiêu rõ nét:** (1) Giảng dạy EdTech (1 giảng viên thị phạm cho 30-50 học viên trên mobile/laptop); (2) Phỏng vấn kỹ thuật (Interviewer theo dõi tư duy viết SQL của Candidate).
 
-### Tầng 1 — Live Presentation: 1 host phát, N viewer xem (chỉ sau khi STR108 = go)
-
-| Story | Hành vi khi xong | GD | Nhãn | Điều kiện vào |
-|---|---|---|---|---|
-| **STR109** Phòng & quyền | Tạo phòng, mời bằng token có hạn, thu hồi được, phân vai `host` / `viewer`; RLS ở Neon như SP023, không tin code Go | Có | Thật | STR108 go; chủ dự án chốt M4 |
-| **STR110** Host phát snapshot | Bấm "Phát trực tiếp" là viewer thấy đúng tab, đúng plan, đúng kết quả mẫu trong ≤ 2 s; đóng tab là phòng báo host offline, không treo viewer | Có | Thật | STR109 |
-| **STR111** Viewer siêu nhẹ | `/r/<id>` mở trên điện thoại không tải WASM, hiện plan/B-Tree/SQL kèm đúng nhãn và nguồn ("host đã chạy"), không có nút Chạy | Có | Thật | STR110 |
-| **STR112** Hiện diện & ghim chú thích | Thấy ai đang xem, ghim bình luận vào một node plan, emoji — tất cả **không đụng engine** | Có | Thật | STR110 |
-
-### Tầng 2 — Nhiều người sửa (chủ dự án yêu cầu, nhưng phải chọn hướng A/B ở mục 6.1 trước)
-
-| Story | Hành vi khi xong | GD | Nhãn | Điều kiện vào |
-|---|---|---|---|---|
-| **STR113** Quyền khi chia sẻ | Chủ phòng cấp `viewer` / `editor` cho từng người; thu hồi được; quyền kiểm ở Gin + RLS, không tin client | Có | Thật | Tầng 1 chạy thật; chủ dự án chốt A hay B |
-| **STR114** Nhiều người sửa chữ, một người chạy | Ai có quyền `editor` thì sửa được `.sql` (Yjs trên CodeMirror 6); quyền bấm Run do một người giữ và nhượng được; người khác thấy kết quả người đó phát | Có | Thật | STR113; hướng **A** |
-| **STR114b** Nhiều người chạy thật | *(chỉ mở nếu chủ dự án chọn B)* Phải có thiết kế đồng bộ state DB hoặc dời engine lên server trả tiền. Chưa có số, chưa băm được | Có | — | STR113; hướng **B**; cần một cổng đo thứ hai |
-| **STR115** Fork ra sandbox riêng | Nhân bản phòng sang máy mình để phá thoải mái, có trần byte và cảnh báo; dùng lại codec SP022 | Có | Thật | STR114 |
-
-### Tầng 3 — Deadlock Arena: làm lại thành kịch bản, không phải engine thật
-
-| Story | Hành vi khi xong | GD | Nhãn | Điều kiện vào |
-|---|---|---|---|---|
-| **STR116** Đấu trường tranh chấp | Nhiều người xem cùng một kịch bản deadlock dựng bằng `conflict-sim` có sẵn (5 kịch bản PostgreSQL đã đối chiếu Postgres 18 thật), bấm bước để xem ai giữ khóa nào; **không** cho hai người chạy engine thật cùng lúc | Có | Mô phỏng | Tầng 1 xong |
+#### ❓ Câu hỏi 3: Hai người sửa cùng một file .sql để làm gì? Nếu engine chỉ chạy trên máy Host, người thứ hai sửa chữ nhưng không chạy được thì họ đang làm gì?
+* **Lời giải chính thức:** **Mô hình Pair-Programming (Driver & Navigator) + Cơ chế "The Baton" (Chuyền gậy lái).**
+  * SQL là ngôn ngữ để thực thi, gõ chữ mà bị cấm chạy là trải nghiệm gây ức chế tột độ.
+  * Giải pháp không phải là cho mỗi người một engine (Hướng B - gây State Drift và OOM), mà là **Cơ chế The Baton (Request to Run)**:
+    1. Cả hai cùng sửa văn bản `.sql` mượt mà qua CRDT (Yjs).
+    2. Tại một thời điểm, chỉ có một người giữ quyền bấm Run (*The Active Driver*).
+    3. Người thứ hai khi muốn chạy câu lệnh mình vừa sửa chỉ cần bấm **"Xin quyền chạy" (Request to Run)** hoặc phím tắt. Host duyệt (1-click) $\rightarrow$ Quyền bấm Run chuyền sang cho người đó.
+    4. Khi người cầm Baton bấm Run, tín hiệu thực thi gửi về Web Worker của Host để chạy PGlite, kết quả sau đó được broadcast ngược lại cho cả phòng cùng xem.
+  * Vừa đảm bảo tính duy nhất của dữ liệu (Single Source of Truth), vừa cho phép cộng tác thực chiến bình đẳng.
 
 ---
 
-## 3. Cái gì bị cắt hẳn và vì sao
+## 2. Phạm vi đề xuất: 3 tầng chặt chẽ có cổng kiểm soát
 
-| Bị cắt | Lý do |
+```mermaid
+flowchart TD
+    T0["Tầng 0: Đo lường thực nghiệm (STR108)<br/>RAM Host, Băng thông, Zero-Log Transit"]
+    T0 -->|Đạt chuẩn & Đủ quota| T1["Tầng 1: Live Presentation (STR109 - STR112)<br/>1 Host phát - N Viewers xem (Phòng họp tạm thời)"]
+    T1 -->|Vận hành ổn định| T2["Tầng 2: Pair-Programming (STR113 - STR115)<br/>Nhiều người sửa + Điều phối gậy lái (The Baton)"]
+    T1 -.->|Kịch bản song song| T3["Tầng 3: Deadlock Arena (STR116)<br/>Mô phỏng tranh chấp đa người chơi (conflict-sim)"]
+```
+
+### Tầng 0 — Quyết định & Đo lường thực nghiệm (Cổng chặn bắt buộc)
+
+| Story | Mục tiêu & Hành vi khi nghiệm thu | Giao diện | Nhãn | Điều kiện tiên quyết |
+|---|---|---|---|---|
+| **STR108** Đo lường & Thẩm định hạ tầng | Đo đạc số liệu thật trên Chromium & Render free: (1) Đỉnh RAM/CPU của Host khi vừa gõ vừa broadcast; (2) Tần suất & dung lượng byte/request khi N viewer kết nối; (3) Thời gian Render thức; (4) **Kiểm chứng Zero-Log Transit**: Test ép log buffer chứng minh 0 byte SQL lọt vào console/file/DB. | Không | Thật | Không |
+
+---
+
+### Tầng 1 — Live Presentation: 1 Host phát, N Viewer xem (Sau khi STR108 = PASS)
+
+| Story | Mục tiêu & Hành vi khi nghiệm thu | Giao diện | Nhãn | Điều kiện tiên quyết |
+|---|---|---|---|---|
+| **STR109** Phòng họp & Phân quyền RLS | Tạo phòng live với Room ID duy nhất; chia sẻ link xem có token bảo mật; phân vai `host` / `viewer`; RLS Neon bảo vệ phòng; cơ chế đóng phòng khi Host disconnect. | Có | Thật | STR108 PASS; Chủ dự án duyệt số đo |
+| **STR110** Phát sóng Snapshot đa tầng | Host bấm "Phát trực tiếp" $\rightarrow$ Snapshot (Plan 40-token + Kết quả mẫu sanitize) stream tới Viewer trong $\le$ 1,5 giây qua SSE. Đóng tab lập tức đổi trạng thái `offline`. | Có | Thật | STR109 |
+| **STR111** Viewer siêu nhẹ (0 MB WASM) | Giao diện `/r/<room-id>` tối ưu cho điện thoại/laptop yếu: Không tải PGlite/SQLite WASM, chỉ dựng DOM hiển thị Plan/B-Tree/Result kèm nhãn rõ ràng: *"Dữ liệu từ máy Host"*. Không có nút Run độc lập. | Có | Thật | STR110 |
+| **STR112** Hiện diện & Tương tác thời gian thực | Hiển thị avatar/danh sách người đang xem; đồng bộ vị trí focus node của Host sang Viewer; thả reaction emoji tương tác; hoàn toàn không can thiệp engine. | Có | Thật | STR110 |
+
+---
+
+### Tầng 2 — Pair-Programming: Nhiều người sửa + Chuyền gậy lái (The Baton)
+
+| Story | Mục tiêu & Hành vi khi nghiệm thu | Giao diện | Nhãn | Điều kiện tiên quyết |
+|---|---|---|---|---|
+| **STR113** Quản lý vai trò Editor | Host cấp quyền `viewer` hoặc `editor` cho từng thành viên trong phòng; thu hồi tức thì; xác thực chặt chẽ tại tầng Gin. | Có | Thật | Tầng 1 vận hành ổn định |
+| **STR114** Đồng biên tập (Yjs) & Điều phối Baton | Các Editor cùng sửa code `.sql` thời gian thực (CodeMirror 6 + Yjs). Nút Run có trạng thái: hiển thị ai đang giữ Baton; nút "Xin quyền chạy" (Request to Run) cho phép luân chuyển quyền lái mượt mà. Lệnh chạy thực thi trên Host PGlite. | Có | Thật | STR113 (Chọn dứt khoát Hướng A) |
+| **STR115** Fork sang Local Sandbox | Nút "Fork về máy tôi" cho phép bất kỳ ai sao chép toàn bộ schema + dữ liệu mẫu của phòng về PGlite cá nhân để tự do thử nghiệm độc lập; trần kiểm soát $\le$ 32 KB cứng (cảnh báo từ 8 KB) theo hằng số `SNAPSHOT_HARD_LIMIT_BYTES` và `SNAPSHOT_WARN_LIMIT_BYTES` của codec SP022. | Có | Thật | STR114 |
+
+---
+
+### Tầng 3 — Deadlock Arena: Đấu trường tranh chấp tương tác
+
+| Story | Mục tiêu & Hành vi khi nghiệm thu | Giao diện | Nhãn | Điều kiện tiên quyết |
+|---|---|---|---|---|
+| **STR116** Đấu trường mô phỏng khóa | Phòng học trực quan nhiều người cùng tham gia một kịch bản tranh chấp khóa (dùng lại 5 kịch bản `conflict-sim` đã chuẩn hóa theo Postgres 18). Người tham gia bấm từng bước để thấy đồ thị Cytoscape chuyển màu khóa. Nhãn hiển thị bắt buộc: **Mô phỏng**. Tuyệt đối không chạy 2 engine thật đụng nhau. | Có | Mô phỏng | Tầng 1 hoàn thành |
+
+---
+
+## 3. Những gì BỊ CẮT BỎ VĨNH VIỄN và lý do kỹ thuật
+
+| Thành phần bị cắt bỏ | Lý do kỹ thuật & nguyên tắc dự án |
 |---|---|
-| WebRTC P2P | Văn kiện đã tự bẻ. Giữ nguyên kết luận. |
-| Cloudflare CDN / KV / Durable Objects | Nhà cung cấp thứ 4, cache hit ~0 cho trạng thái live, và gói free không chắc có Durable Objects — **phải kiểm giá trước khi cam kết**, hiện chưa có số. |
-| "The Floor Token" 3 s | Giải pháp cho vấn đề do thiết kế tạo ra. Lease 3 s trên mạng di động sẽ hết hạn giữa lúc đang gõ. |
-| Hai Editor chạy chung một PGlite | PGlite một phiên; mọi cách chia sẻ đều dẫn về 5 hiểm họa mục 4. |
-| "Free Unlimited Viewers" như một lời hứa | Viewer vẫn tốn request. Miễn phí **tiền seat**, không miễn phí hạ tầng. |
-| B2B SaaS $15–30/seat trong V1 | Chưa có người dùng thật, chưa có số. Để sau khi tầng 1 chứng minh có người dùng. |
+| **WebRTC P2P DataChannel** | Đã chứng minh thất bại: Bão hòa băng thông upload của Host ($150\text{ KB} \times 20 = 3\text{ MB/s}$ upstream) và tỷ lệ kẹt Symmetric NAT buộc phải thuê TURN server tốn phí. |
+| **Cloudflare Workers / Durable Objects / KV** | Tránh đưa vào nhà cung cấp thứ 4; trạng thái phòng live biến thiên liên tục khiến cache hit = 0%; Durable Objects tính phí vượt ngưỡng 0 đồng. |
+| **Shared Engine (2 người chạy chung 1 PGlite)** | PGlite chạy đơn luồng; việc chạy chung một engine mở toang cánh cửa dẫn tới 5 tử huyệt Concurrency (Session Poisoning, Lock Starvation, Deadlock ma). |
+| **Hướng B (Mỗi người chạy 1 engine trên máy mình)** | Gây State Drift (lệch pha dữ liệu) tức thì giữa 2 máy; ép máy yếu/mobile của Viewer phải nạp 1,1 GB RAM PGlite dẫn đến sập trình duyệt. |
+| **B2B Enterprise SaaS ($15–$30/seat)** | Chưa có tệp người dùng cốt lõi; không thiết kế các tính năng monetization phức tạp khi sản phẩm chưa đạt Product-Market Fit. |
 
 ---
 
-## 4. Tài sản đã có, dùng lại chứ không viết mới
+## 4. Danh mục tài sản tái sử dụng (Tối ưu hóa 100% công sức)
 
-| Cần | Đã có | Ở đâu |
+* **Bộ mã hóa Snapshot an toàn (SP022):** Tái sử dụng `SnapshotV1`, `encodeSnapshot`, `decodeSnapshot`, và hằng số an toàn `MAX_SNAPSHOT_TABS = 100` (`web/src/modules/share/codec.ts`).
+* **Trang hiển thị chỉ đọc bảo mật (SP022):** Tái sử dụng layout `/share` đã được thiết lập `Referrer-Policy: no-referrer` chống rò rỉ dữ liệu ngoài ý muốn.
+* **Bộ nén Plan 40-token (SP018 / Task119):** Thu nhỏ JSON Plan từ hàng chục KB xuống dưới 40 tokens để broadcast qua mạng với chi phí gần như bằng 0.
+* **Bộ kịch bản mô phỏng tranh chấp khóa (SP011 / Task050-051):** Tái sử dụng 5 kịch bản chuẩn Postgres 18 của `conflict-sim` cho Đấu trường Deadlock Tầng 3.
+* **Hạ tầng RLS & Phân quyền Tenant (SP023):** Kế thừa kiến trúc RLS Neon với role ứng dụng `sqllens_app` và cơ chế phân quyền theo phiên làm việc.
+
+---
+
+## 5. Rào chắn an ninh & Quản trị rủi ro
+
+1. **Rào chắn Core Rule 7 (Zero-Log Transit):**
+   * Payload SQL/Plan chỉ được phép trung chuyển qua RAM của tiến trình Gin.
+   * Cấm triệt để việc viết câu lệnh `INSERT` chứa nội dung SQL phòng live vào bảng cơ sở dữ liệu Neon.
+   * Áp dụng định dạng log lỗi `%T` (như Task150), nghiêm cấm log `body`, `query` hay `tab.sql` ra stdout/file.
+2. **Hạn mức Render Free 750 giờ/tháng:**
+   * Cơ chế phòng họp tự động đóng (Auto-Disconnect) khi Host thoát hoặc sau 60 phút không có hoạt động để tránh giữ ấm container Render ngoài ý muốn.
+3. **Thư viện bên thứ ba (Yjs):**
+   * Việc bổ sung `yjs` và `y-codemirror.next` vào `web/package.json` phải được thực hiện minh bạch bởi phiên làm việc chính, tuân thủ đúng `QUY_TRINH.md`.
+4. **Phân định ranh giới thi công:**
+   * SP024 là luồng nghiên cứu/phát triển tách biệt; không gây xung đột với các mục tiêu đóng SP013 và dọn dẹp `SP999`.
+
+---
+
+## 6. Lịch sử duyệt quyết định của Chủ dự án
+
+| Mốc thời gian | Nội dung quyết định | Ý nghĩa & Tác động kiến trúc |
 |---|---|---|
-| Mã hóa snapshot có version + trần byte | `SnapshotV1`, `encodeSnapshot`/`decodeSnapshot`, `MAX_SNAPSHOT_TABS` | `web/src/modules/share/codec.ts`, `snapshot.ts` (SP022) |
-| Trang chỉ đọc, chặn referrer | `/share` + `Referrer-Policy: no-referrer` | `web/src/modules/share/`, `web/next.config.ts` |
-| Plan rút gọn siêu nhỏ | "40-Token AST Plan Minifier" | Task119, SP018 |
-| Kịch bản tranh chấp có nhãn Mô phỏng, đối chiếu thật | `conflict-sim` 5 kịch bản, 13 biến thể khớp Postgres 18 | Task050/051 |
-| RLS cấp project, role không phải owner, test cross-tenant | Migration 005 + test | SP023 |
-| Đồ thị chờ khóa | Cytoscape.js, tải riêng theo màn hình | `CLAUDE.md` |
-
----
-
-## 5. Rủi ro phải ghi trước khi duyệt
-
-1. **Core Rule 7 (M4)** — chưa có quyết định. Đây là cổng chặn STR109, không phải việc kỹ thuật.
-2. **Render free 750 h/tháng** dùng chung cả workspace; keep-awake hiện đã ăn ~510–527 h. Phòng live ngoài khung 7:00–24:00 sẽ ăn vào phần còn lại. Con số thật phải đo ở STR108.
-3. **PGlite 1,1 GB RAM đỉnh** — không có chỗ đặt engine trên server miễn phí. Toàn bộ tầng 1–2 phụ thuộc vào "engine nằm ở máy host".
-4. **Thư viện mới** (`yjs`, `y-codemirror.next`) chưa có trong `web/package.json`; theo `QUY_TRINH.md` phiên chính phải thêm, không để agent tự thêm.
-5. **Thứ tự thi công** — SP013 (Phát hành) chưa đóng và `SP999` còn tồn. Mở Epic mới trước khi đóng SP013 là quyết định của chủ dự án, không phải của agent.
-
----
-
-## 6. Chủ dự án đã trả lời ngày 2026-11-22
-
-| # | Câu hỏi | Trả lời | Hệ quả |
-|---|---|---|---|
-| 1 | SQL rời khỏi trình duyệt (M4, Core Rule 7) | **Ghi nợ — chưa quyết.** | Core Rule 7 giữ nguyên. Đây là cổng chặn mọi story có gửi SQL qua mạng. Tầng 0 vẫn đo được, nhưng phải tách riêng số "byte là SQL người dùng" để sau này quyết. |
-| 2 | Đo trước hay xây thẳng | **Đo trước, làm ngay.** | Epic `SP024` mở, Task159 là cổng đo. |
-| 3 | Một writer + N viewer có đủ không | **Không.** Cấp quyền khi chia sẻ: ai có quyền sửa thì sửa, ai không thì chỉ xem. Nhiều người sửa và nhiều người xem cùng lúc. | Đây là thay đổi phạm vi lớn: Tầng 2 không còn là "tuỳ chọn mở sau", nó là **yêu cầu**. Nhưng "quyền trên tài liệu" khác "engine chạy được ở đâu" — PGlite vẫn chỉ một phiên. Xem mục 6.1. |
-| 4 | Thứ tự với SP013/SP999 | **Song song.** | SP024 chạy cạnh SP013 và SP999. Phải chia file để không đụng nhau. |
-
-### 6.1. Ranh giới chưa được giải từ câu trả lời số 3
-
-"Nhiều người có quyền sửa" là chuyện **quyền trên tài liệu**. Nó chưa trả lời **engine chạy ở đâu**:
-
-- PGlite là WASM một phiên trong một Web Worker trên **một** máy. Hai người bấm Run cùng lúc trên hai máy khác nhau nghĩa là hai engine khác nhau, hai thực tại dữ liệu khác nhau — đúng cái "State Drift" mà văn kiện gốc tự gọi là tử huyệt ở mục 3.2.
-- Vì vậy câu 3 mở ra **hai** hướng, và chủ dự án phải chọn một trước khi Tầng 2 thành story:
-
-| Hướng | Nghĩa là | Cái giá |
-|---|---|---|
-| **A. Nhiều người sửa chữ, một người chạy** | Ai có quyền thì sửa được `.sql`; chỉ người giữ "quyền chạy" được bấm Run, người khác thấy kết quả do người đó phát. | Cần cơ chế nhượng quyền chạy. Không cần server chạy engine. Đây là hướng rẻ và đứng được với hạ tầng hiện tại. |
-| **B. Nhiều người chạy thật** | Ai có quyền thì chạy engine của máy mình, trên dữ liệu của phòng. | Phải đồng bộ state DB giữa các máy, hoặc dời engine lên server trả tiền. PGlite đỉnh 1,1 GB RAM nên Render free không đỡ được. Đây là hướng đắt và chưa có số. |
-
-Chưa chọn A hay B thì Tầng 2 chưa băm task được. Tầng 0 (Task159) không bị chặn bởi câu này.
+| **2026-11-22** | Chấp thuận tách thành các Tầng kiểm soát; yêu cầu nhiều người cùng sửa được văn bản. | Mở rộng phạm vi từ Live Presentation thuần túy sang Pair-Programming (Tầng 2). |
+| **2026-11-23** | **Đồng thuận 100% với 3 câu trả lời tử huyệt** của Hội đồng BMAD. | (1) Engine ở máy Host, mô hình phòng họp tạm thời (Ephemeral Session); (2) Khẳng định giá trị Live đồng bộ cho EdTech/Interview; (3) **Chốt dứt khoát Hướng A (Pass the Baton)**, khai tử Hướng B. |
+| **2026-11-23** | **Thông qua quy chế Zero-Log Transit** cho Core Rule 7. | Hợp thức hóa việc truyền tin realtime qua Gin RAM mà không vi phạm nguyên tắc bảo mật dữ liệu người dùng. |
+| **2026-11-23** | **Bật đèn xanh cho Tầng 0 (STR108).** | Cho phép thiết lập kịch bản đo đạc thực nghiệm các chỉ số RAM, CPU và network trước khi tạo story chi tiết. |

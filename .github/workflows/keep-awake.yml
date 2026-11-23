@@ -1,9 +1,8 @@
 name: keep-awake
 
+# Lịch tự động đã chuyển sang cron-job.org vì GitHub Actions dồn nhịp cron
+# (đo 2026-11-23: 3,1 lần/ngày thay vì 144). File này giữ lại để bấm tay.
 on:
-  schedule:
-    # UTC 00:00-16:50 = 07:00-23:50 giờ Việt Nam
-    - cron: "*/10 0-16 * * *"
   workflow_dispatch:
 
 permissions: {}
