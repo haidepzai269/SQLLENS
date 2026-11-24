@@ -23,7 +23,7 @@ Có
 | Task | Mô tả | Trạng thái |
 |---|---|---|
 | Task160 | Migration 006: schema phòng (invite token + Baton) | **Đã merge** (`84083ef`) nhưng **chưa qua review độc lập**. Party-mode review 2026-11-23 dựng lại được 6 lỗi; việc sửa giao `SP999/STR117/Task171`. Xem `Task160/ban_giao_task160.md` |
-| Task161 | Gin API phòng: invite + Baton (mở rộng cloud API SP023) | Chờ |
+| Task161 | Gin API phòng: invite + Baton (mở rộng cloud API SP023) | **Xong 100%** — Reviewer độc lập nghiệm thu PASS 100% (5/5 AC, 9 ca biên, 8/8 package ok, 7 đột biến M1–M7). Đã merge vào `main`. Xem `Task161/ban_giao_task161.md` |
 | Task162 | UI Mời cộng tác & danh sách thành viên | Chờ |
 | Task168 | Arena: chọn kịch bản + điều hướng bước | **Xong 100%** — Reviewer độc lập nghiệm thu PASS 100% (23/23 tests, 0 byte mạng, AC1-AC6). Đã merge vào `main`. Xem `Task168/ban_giao_task168.md` |
 | Task169 | Arena: đồ thị Cytoscape + viewer sync qua polling **3 s** gọi `arena-step` | Chờ (D17 đã chốt 2026-11-23) |

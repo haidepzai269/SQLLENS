@@ -23,7 +23,7 @@ Có (UI: `InviteDialog`, `RoomMemberList`, nút "Mời cộng tác" trong toolba
 | Task | Mô tả | Trạng thái |
 |---|---|---|
 | Task160 | Migration **006**: `room_invite_tokens` + `room_baton`, RLS 6 policy + `GRANT` cho `sqllens_app` | **Đã merge** (`84083ef`), 6 lỗi đang sửa ở `SP999/STR117/Task171` |
-| Task161 | Gin API: invite, join, thu hồi thành viên, GET baton, baton/claim, arena-step (**6 endpoint**) | Chờ |
+| Task161 | Gin API: invite, join, thu hồi thành viên, GET baton, baton/claim, arena-step (**6 endpoint**) | **Xong 100%** — Reviewer độc lập nghiệm thu PASS 100% (5/5 AC, 9 ca biên, 8/8 package ok). Đã merge vào `main`. Xem `STR116/Task161/ban_giao_task161.md` |
 | Task162 | UI: `InviteDialog`, `JoinRoomPage` tại `[locale]/join`, nút "Mời" vào `stage.tsx` | Chờ |
 
 > Task160 và Task161 thuộc STR116 (Tầng 3) về mặt thi công thứ tự, nhưng schema và API phòng là của STR113. Xem bảng F trong `BAN_NHAP_STORY_SP024.md` để biết thứ tự chạy thật.
