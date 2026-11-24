@@ -82,6 +82,9 @@ func MountCloud(r *gin.Engine, cfg CloudConfig) {
 	g.GET("/:id", h.get)
 	g.PUT("/:id", h.replace)
 	g.DELETE("/:id", h.remove)
+	// Sáu mục của Task161 (phòng cộng tác) dùng chung nhóm route, nên thừa hưởng nguyên
+	// RequireUser và Guards. Tách hàm riêng chỉ để file này không phình theo.
+	mountRoomRoutes(g, h)
 }
 
 type cloudHandler struct {
