@@ -411,7 +411,149 @@ func TestRoomLogsNoTokenOrSQL(t *testing.T) {
 	}
 }
 
-// AC5: `r.Routes()` không panic trùng handler và liệt kê đủ 6 đường dẫn của hợp đồng.
+// Task162 (D1): `GET /members` trả chủ dự án + thành viên kèm vai trò cho chủ; thành viên thường
+// nhận 403 (policy SELECT của 004 chỉ cho họ thấy hàng của chính mình, nên trả danh sách cụt là
+// nói dối); người ngoài nhận 404 để không lộ dự án tồn tại; `:id` không phải UUID nhận 400.
+func TestRoomListMembers(t *testing.T) {
+	e := newCloudEnv(t)
+	id := roomProject(t, e, e.user, "Phòng danh sách thành viên")
+
+	// Chưa mời ai: chỉ có chủ, vai trò owner, không có hàng rỗng.
+	w := e.do(t, e.user, "GET", "/api/v1/cloud/projects/"+id+"/members", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /members phòng một người = %d %q", w.Code, w.Body.String())
+	}
+	if cc := w.Header().Get("Cache-Control"); cc != "no-store" {
+		t.Fatalf("Cache-Control = %q, mong đợi no-store", cc)
+	}
+	var one struct {
+		Members []struct {
+			UserID    string  `json:"userId"`
+			Name      string  `json:"name"`
+			AvatarURL *string `json:"avatarUrl"`
+			Role      string  `json:"role"`
+		} `json:"members"`
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &one); err != nil {
+		t.Fatalf("body không phải JSON: %q", w.Body.String())
+	}
+	if len(one.Members) != 1 || one.Members[0].UserID != e.user || one.Members[0].Role != "owner" || one.Members[0].Name != "A" {
+		t.Fatalf("danh sách phòng một người = %q, mong đợi đúng chủ A vai trò owner", w.Body.String())
+	}
+	if one.Members[0].AvatarURL != nil {
+		t.Fatalf("avatarUrl phải là null khi chưa có ảnh, nhận %q", w.Body.String())
+	}
+
+	// Mời B vào rồi đọc lại: chủ đứng đầu, B có vai trò editor.
+	inv := roomInvite(t, e, e.user, id)
+	if _, code := roomJoin(t, e, e.other, inv.Token); code != http.StatusOK {
+		t.Fatalf("B join = %d", code)
+	}
+	w = e.do(t, e.user, "GET", "/api/v1/cloud/projects/"+id+"/members", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /members = %d %q", w.Code, w.Body.String())
+	}
+	var two struct {
+		Members []struct {
+			UserID string `json:"userId"`
+			Name   string `json:"name"`
+			Role   string `json:"role"`
+		} `json:"members"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &two); err != nil {
+		t.Fatalf("body không phải JSON: %q", w.Body.String())
+	}
+	if len(two.Members) != 2 {
+		t.Fatalf("danh sách có %d người, mong đợi 2: %q", len(two.Members), w.Body.String())
+	}
+	if two.Members[0].UserID != e.user || two.Members[0].Role != "owner" {
+		t.Fatalf("phần tử đầu = %+v, mong đợi chủ dự án", two.Members[0])
+	}
+	if two.Members[1].UserID != e.other || two.Members[1].Role != "editor" || two.Members[1].Name != "B" {
+		t.Fatalf("phần tử thứ hai = %+v, mong đợi B vai trò editor", two.Members[1])
+	}
+
+	// Chủ tự mở link mời của chính mình: `POST /join` chèn một hàng `cloud_project_members` cho chủ,
+	// nhưng danh sách vẫn phải có chủ đúng MỘT lần. Hai hàng cùng `userId` làm React trùng key, và
+	// hàng thành viên của chủ thì không xoá được (`ErrOwnerCannotLeave`) nên nó sẽ nằm lại mãi.
+	if _, code := roomJoin(t, e, e.user, roomInvite(t, e, e.user, id).Token); code != http.StatusOK {
+		t.Fatalf("chủ join bằng link của mình = %d, mong đợi 200", code)
+	}
+	w = e.do(t, e.user, "GET", "/api/v1/cloud/projects/"+id+"/members", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /members sau khi chủ tự join = %d %q", w.Code, w.Body.String())
+	}
+	var selfJoin struct {
+		Members []struct {
+			UserID string `json:"userId"`
+			Role   string `json:"role"`
+		} `json:"members"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &selfJoin); err != nil {
+		t.Fatalf("body sau khi chủ tự join không phải JSON: %q", w.Body.String())
+	}
+	owners := 0
+	for _, m := range selfJoin.Members {
+		if m.UserID == e.user {
+			owners++
+			if m.Role != "owner" {
+				t.Fatalf("hàng của chủ mang vai trò %q, mong đợi owner", m.Role)
+			}
+		}
+	}
+	if owners != 1 || len(selfJoin.Members) != 2 {
+		t.Fatalf("danh sách sau khi chủ tự join = %q, mong đợi chủ đúng một lần và đủ 2 người", w.Body.String())
+	}
+
+	// Thành viên thường (không phải chủ) nhận 403, không nhận danh sách cụt.
+	w = e.do(t, e.other, "GET", "/api/v1/cloud/projects/"+id+"/members", "")
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("thành viên GET /members = %d %q, mong đợi 403", w.Code, w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), e.user) || strings.Contains(w.Body.String(), "members") {
+		t.Fatalf("403 làm lộ danh sách: %q", w.Body.String())
+	}
+
+	// Xoá thành viên rồi đọc lại: người đã bị xoá phải biến mất khỏi danh sách. Không có ca này
+	// thì một câu JOIN sai vẫn trả người đã xoá mà mọi test khác đều xanh.
+	if w := e.do(t, e.user, "DELETE", "/api/v1/cloud/projects/"+id+"/members/"+e.other, ""); w.Code != http.StatusNoContent {
+		t.Fatalf("chủ xoá thành viên = %d %q, mong đợi 204", w.Code, w.Body.String())
+	}
+	w = e.do(t, e.user, "GET", "/api/v1/cloud/projects/"+id+"/members", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /members sau khi xoá = %d %q", w.Code, w.Body.String())
+	}
+	var afterRemove struct {
+		Members []struct {
+			UserID string `json:"userId"`
+		} `json:"members"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &afterRemove); err != nil {
+		t.Fatalf("body sau khi xoá không phải JSON: %q", w.Body.String())
+	}
+	if len(afterRemove.Members) != 1 || afterRemove.Members[0].UserID != e.user {
+		t.Fatalf("danh sách sau khi xoá = %q, mong đợi chỉ còn chủ", w.Body.String())
+	}
+
+	// Người ngoài: 404, không lộ dự án tồn tại.
+	strangerID := roomProject(t, e, e.other, "Phòng của B")
+	w = e.do(t, e.user, "GET", "/api/v1/cloud/projects/"+strangerID+"/members", "")
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("người ngoài GET /members = %d %q, mong đợi 404", w.Code, w.Body.String())
+	}
+
+	// `:id` không phải UUID = 400, không phải 500.
+	w = e.do(t, e.user, "GET", "/api/v1/cloud/projects/khong-phai-uuid/members", "")
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("id không phải UUID = %d %q, mong đợi 400", w.Code, w.Body.String())
+	}
+}
+
+// AC5: `r.Routes()` không panic trùng handler và liệt kê đủ đường dẫn của hợp đồng
+// (7 route của Task161 + `GET /:id/members` của Task162 = 8).
 //
 // Đây là test cho sai lệch 6 của task161.md: `POST /join` là đoạn tĩnh nằm cạnh tham số `:id`
 // trong cùng nhóm route, và Gin có thể panic `':id' in new path conflicts with existing wildcard`.
@@ -424,6 +566,7 @@ func TestRoomRoutesRegistered(t *testing.T) {
 	want := map[string]int{
 		"POST /api/v1/cloud/projects/:id/invite":         1,
 		"POST /api/v1/cloud/projects/join":               1,
+		"GET /api/v1/cloud/projects/:id/members":         1,
 		"DELETE /api/v1/cloud/projects/:id/members/:uid": 1,
 		"GET /api/v1/cloud/projects/:id/baton":           1,
 		"POST /api/v1/cloud/projects/:id/baton/claim":    1,

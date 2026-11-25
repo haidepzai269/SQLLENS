@@ -38,6 +38,7 @@ const (
 func mountRoomRoutes(g *gin.RouterGroup, h *cloudHandler) {
 	g.POST("/:id/invite", h.invite)
 	g.POST("/join", h.join)
+	g.GET("/:id/members", h.members)
 	g.DELETE("/:id/members/:uid", h.removeMember)
 	g.GET("/:id/baton", h.baton)
 	g.POST("/:id/baton/claim", h.claimBaton)
@@ -61,9 +62,9 @@ func (h *cloudHandler) failRoom(c *gin.Context, err error) {
 	case errors.Is(err, store.ErrInviteExpired):
 		Abort(c, http.StatusGone, codeRoomTokenExpired, "error.notFound")
 	case errors.Is(err, store.ErrNotOwner):
-		// `error.forbidden` chưa có trong `web/messages/*/error.json` (đây là chỗ duy nhất dùng
-		// tới nó, giống `auth/middleware.go`). Client đã có luật "khoá lạ quy về internal" nên
-		// không vỡ; Task162 thêm chuỗi thì route này tự hiện đúng câu.
+		// `error.forbidden` có bản vi/en trong `web/messages/*/error.json` (thêm cùng lúc với
+		// `room.invite.ownerOnly`): thành viên thường nhận 403 khi đọc danh sách, và giao diện
+		// hiện đúng câu "chỉ chủ dự án" thay vì lỗi chung.
 		Abort(c, http.StatusForbidden, codeRoomForbidden, "error.forbidden")
 	case errors.Is(err, store.ErrOwnerCannotLeave):
 		Abort(c, http.StatusBadRequest, codeRoomOwnerLeave, "error.badRequest")
@@ -146,6 +147,44 @@ func (h *cloudHandler) join(c *gin.Context) {
 		"role":          res.Role,
 		"alreadyMember": res.AlreadyMember,
 	})
+}
+
+// members liệt kê thành viên phòng (Task162). Chỉ chủ dự án.
+//
+// Bản nháp Task162 đòi danh sách thành viên có vai trò, mà Task161 không có endpoint nào đọc
+// danh sách; không có dữ liệu thì AC2 không đạt được bằng bất kỳ giao diện nào. Xem sai lệch D1
+// trong `STR113/Task162/task162.md`.
+//
+// `avatarUrl` để nguyên null khi người dùng không có ảnh, không gửi chuỗi rỗng. Không có trường
+// nào khác của `users` (email không bao giờ ra khỏi server).
+func (h *cloudHandler) members(c *gin.Context) {
+	if !h.ready(c) {
+		return
+	}
+	user, ok := h.owner(c)
+	if !ok {
+		return
+	}
+	id, ok := h.cloudID(c)
+	if !ok {
+		return
+	}
+	list, err := h.s.ListMembers(c.Request.Context(), user, id)
+	if err != nil {
+		h.failRoom(c, err)
+		return
+	}
+	members := make([]gin.H, 0, len(list))
+	for _, m := range list {
+		members = append(members, gin.H{
+			"userId":    m.UserID,
+			"name":      m.Name,
+			"avatarUrl": m.AvatarURL,
+			"role":      m.Role,
+		})
+	}
+	c.Header("Cache-Control", "no-store")
+	c.JSON(http.StatusOK, gin.H{"members": members})
 }
 
 // removeMember thu hồi tư cách thành viên. Chỉ chủ dự án.

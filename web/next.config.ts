@@ -20,6 +20,7 @@ function apiOrigin(): string {
 const nextConfig: NextConfig = {
   // Snapshot nằm trong fragment nên trình duyệt không gửi nó đi; referrer của trang share
   // vẫn có thể mang theo URL cho bên thứ ba (ảnh, font). Cắt referrer để link không rò rỉ.
+  // `/join` cũng vậy: token mời nằm trong query và sống 24 giờ, nên referrer không được mang nó đi.
   headers: async () => [
     {
       source: "/:locale(vi|en)/share",
@@ -27,6 +28,10 @@ const nextConfig: NextConfig = {
     },
     {
       source: "/share",
+      headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+    },
+    {
+      source: "/:locale(vi|en)/join",
       headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
     },
   ],

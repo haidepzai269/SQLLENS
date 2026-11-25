@@ -1,0 +1,52 @@
+{
+  "invite": {
+    "button": "Invite",
+    "title": "Invite collaborators",
+    "description": "Share this room with a link that expires in 24 hours. Anyone with the link joins as an editor.",
+    "loading": "Loading members…",
+    "notSaved": "This project is not saved to the cloud yet, so there is no room to invite people to. Save it to the cloud first, then reopen this dialog.",
+    "create": "Create invite link",
+    "creating": "Creating…",
+    "linkLabel": "Invite link",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyFailed": "Your browser blocked copying. The link is selected for you — press Ctrl+C.",
+    "linkExpired": "The previous invite link has expired. Create a new one to keep inviting.",
+    "expires": "The link expires at {time}.",
+    "expiresHint": "Anyone with the link can join the room as an editor until it expires.",
+    "members": "Members",
+    "membersEmpty": "Nobody but you yet.",
+    "ownerOnly": "Only the project owner can invite collaborators and see the member list.",
+    "you": "you",
+    "role": {
+      "owner": "Owner",
+      "editor": "Editor",
+      "viewer": "Viewer",
+      "unknown": "Member"
+    },
+    "authRequired": "Sign in to invite collaborators.",
+    "error": "Could not load this room. Please try again.",
+    "close": "Close"
+  },
+  "join": {
+    "metaTitle": "Join room",
+    "title": "Join a collaboration room",
+    "lead": "You were invited to a SQLLens room. Join to open it in your workspace.",
+    "checking": "Checking your session…",
+    "missingToken": "This link has no invite code. Ask the sender to create a new link.",
+    "join": "Join room",
+    "joining": "Joining…",
+    "success": "Joined. Opening the room…",
+    "signedOut": "You need to sign in to join a room.",
+    "signIn": "Sign in",
+    "expired": "This invite link has expired. Ask the room owner for a new link.",
+    "invalid": "This invite link is invalid or the room was deleted.",
+    "forbidden": "Your account is not allowed into this room.",
+    "unavailable": "Could not reach the server. Please try again.",
+    "storage": "This browser will not let SQLLens save the room. Turn off private browsing and try again.",
+    "failed": "Could not join the room. Please try again.",
+    "retry": "Try again",
+    "home": "Back to home",
+    "openWorkspace": "Open workspace"
+  }
+}
