@@ -28,7 +28,7 @@ Có
 | Task168 | Arena: chọn kịch bản + điều hướng bước | **Xong 100%** — Reviewer độc lập nghiệm thu PASS 100% (23/23 tests, 0 byte mạng, AC1-AC6). Đã merge vào `main`. Xem `Task168/ban_giao_task168.md` |
 | Task169 | Arena: đồ thị Cytoscape + viewer sync qua polling **3 s** gọi `arena-step` | **Xong 100%** — Reviewer độc lập (`reviewer-169`) nghiệm thu PASS 100% (100 req/5 phút, 0 byte SQL, 2/2 E2E `arena-sync.spec.ts`, `npm run check`, `next build` PASS). Đã merge vào `main`. Xem `Task169/ban_giao_task169.md` |
 | Task170 | Arena: AI Mentor phân tích kịch bản (VIP only, gọi `/api/ai/inline-complete`) | **Xong 100%** — Reviewer độc lập (`reviewer-170`) nghiệm thu PASS 100% sau vòng sửa timeout 10s (`arena-mentor.test.tsx` 7/7, 0 SQL workspace, nhãn Mô phỏng, `next build` PASS). Đã merge vào `main`. Xem `Task170/ban_giao_task170.md` |
-| Task172 | Tích hợp UI cuối SP024: trang `/[locale]/arena`, nút Arena + `ForkDialog` trên Stage, `NatWarningBanner` trong Lab | **Code xong, chưa merge** — `npm run check` PASS 1.579 test (18 skip), `next build` PASS (`/vi/arena`, `/en/arena`), E2E `sp024-integration.spec.ts` 2/2 + `arena-sync.spec.ts` 2/2 PASS. Chưa gọi reviewer độc lập. Xem `Task172/ban_giao_task172.md` |
+| Task172 | Tích hợp UI cuối SP024: trang `/[locale]/arena`, nút Arena + `ForkDialog` trên Stage, `NatWarningBanner` trong Lab | **Xong 100%** — Reviewer độc lập (`reviewer-172`) nghiệm thu PASS 100% (0 lỗi confirmed; 147 tests `app`/`arena`/`room`, `next build` PASS `/vi/arena` & `/en/arena`, E2E `sp024-integration.spec.ts` 2/2 PASS) và đã merge vào `main`. Xem `Task172/ban_giao_task172.md` |
 
 ## Tiêu chí nghiệm thu Story
 
