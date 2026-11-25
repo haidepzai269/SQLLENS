@@ -154,5 +154,13 @@
         "description": "Transaction A commits with inconsistent read values."
       }
     }
+  },
+  "graph": {
+    "title": "Wait-For Graph",
+    "ariaLabel": "Cytoscape graph showing lock wait-for state between Transaction A and Transaction B"
+  },
+  "sync": {
+    "viewerNote": "Syncing steps from Host every 3 seconds (read-only).",
+    "hostNote": "You are the Host: current step is synced to viewers."
   }
 }
