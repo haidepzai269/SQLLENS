@@ -36,7 +36,7 @@ _bmad-output/
 | 6 | Amelia | Viết `ban_giao_task0xx.md`, commit, báo cáo chủ dự án |
 | 7 | Phiên chính | Merge vào `main`, push, xóa worktree, đưa phát sinh vào `SP999` |
 
-- Amelia và reviewer mặc định dùng **`gemini hydrogen medium`** khi tạo/gọi sub-agent (xem `.agents/rules/bmad-subagent-model.md`), định nghĩa ở `.agents/agents/amelia-dev.md` và `.agents/agents/task-reviewer.md`.
+- Amelia và reviewer mặc định mở qua `swarm` (`action: "add"`) với model đích danh **`gemini-4-hydrogen-medium`** (xem `.agents/rules/bmad-subagent-model.md`), vai trò định nghĩa ở `.agents/agents/amelia-dev.md` và `.agents/agents/task-reviewer.md`.
 - Mỗi task một reviewer mới. Chủ dự án quyết định task sau dùng Amelia mới hay Amelia cũ, tùy độ dài task.
 - Sau 2 vòng vẫn còn lỗi thì dừng và báo chủ dự án.
 - Server mở ra để kiểm tra phải được tắt trước khi báo cáo, vì trên Windows nó khóa file và làm `npm ci` lỗi `EPERM`.

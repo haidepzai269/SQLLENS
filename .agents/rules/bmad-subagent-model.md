@@ -1,6 +1,6 @@
-# Quy tắc chọn model cho sub-agent BMAD
+# Quy tắc mở sub-agent & chọn model BMAD
 
-- **Bắt buộc:** Mỗi lần tạo hoặc gọi sub-agent (cả dev `amelia-dev` lẫn reviewer `task-reviewer`), truyền tham số model khi tạo sub-agent là **`gemini hydrogen medium`**.
-- **Tương thích công cụ:**
-  - Nếu công cụ tạo/gọi sub-agent hỗ trợ truyền tên model (ví dụ `swarm` hoặc `create sub-agent`), truyền đúng `gemini hydrogen medium`.
-  - Nếu công cụ chỉ chấp nhận tập giá trị cố định (`invoke_subagent`: `inherit | pro | flash | flash_lite`), không truyền chuỗi sai schema và không tự ý chạy `pro`/`inherit` gây tốn token; ưu tiên `flash` hoặc báo chủ dự án dùng `/swarm` khi cần ghim đích danh `gemini hydrogen medium`.
+- **Bắt buộc:** Mỗi khi chủ dự án yêu cầu mở sub-agent hoặc agent tự mở sub-agent (cả dev `amelia-dev` lẫn reviewer `task-reviewer`), **ưu tiên dùng công cụ `swarm` (`action: "add"`) và ghim đích danh `model: "gemini-4-hydrogen-medium"`** (`Gemini 4 Hydrogen (Medium)`) thay vì `invoke_subagent`.
+- **Lý do & Fallback:**
+  - `invoke_subagent` chỉ hỗ trợ 4 bậc cố định (`inherit | pro | flash | flash_lite`), không ghim được đích danh `gemini-4-hydrogen-medium`.
+  - Chỉ khi công cụ `swarm` không khả dụng trong phiên (ví dụ phiên chưa được kích hoạt swarm) thì mới fallback sang `invoke_subagent` với `Model: "flash"` (tuyệt đối không dùng `pro`/`inherit` gây tốn token), hoặc đề nghị chủ dự án kích hoạt `/swarm`.
