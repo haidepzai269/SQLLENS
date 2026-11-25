@@ -162,5 +162,19 @@
   "sync": {
     "viewerNote": "Syncing steps from Host every 3 seconds (read-only).",
     "hostNote": "You are the Host: current step is synced to viewers."
+  },
+  "mentor": {
+    "trigger": "Analyze with AI Mentor",
+    "analyzing": "Analyzing simulation step...",
+    "resultTitle": "AI Mentor Analysis",
+    "retry": "Retry",
+    "errors": {
+      "unauthorized": "Please sign in to use AI Mentor.",
+      "vip_required": "AI Mentor is available for VIP accounts only.",
+      "rate_limited": "Too many requests. Please try again in a few minutes.",
+      "server_error": "AI service is temporarily unavailable. Please try again.",
+      "network_error": "Unable to reach the AI server. Please check your connection.",
+      "empty_response": "AI Mentor returned an empty analysis. Please try again."
+    }
   }
 }
