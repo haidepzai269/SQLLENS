@@ -24,7 +24,7 @@ Có (UI: `InviteDialog`, `RoomMemberList`, nút "Mời cộng tác" trong toolba
 |---|---|---|
 | Task160 | Migration **006**: `room_invite_tokens` + `room_baton`, RLS 6 policy + `GRANT` cho `sqllens_app` | **Đã merge** (`84083ef`), 6 lỗi đang sửa ở `SP999/STR117/Task171` |
 | Task161 | Gin API: invite, join, thu hồi thành viên, GET baton, baton/claim, arena-step (**6 endpoint**) | **Xong 100%** — Reviewer độc lập nghiệm thu PASS 100% (5/5 AC, 9 ca biên, 8/8 package ok). Đã merge vào `main`. Xem `STR116/Task161/ban_giao_task161.md` |
-| Task162 | UI: `InviteDialog`, `JoinRoomPage` tại `[locale]/join`, nút "Mời" vào `stage.tsx` | Chờ |
+| Task162 | UI: `InviteDialog`, `JoinRoomPage` tại `[locale]/join`, nút "Mời" vào `stage.tsx` | **Code xong, CHƯA merge** — kèm sai lệch D1: thêm `GET /:id/members` (Task161 chưa có endpoint đọc thành viên nên AC2 bất khả thi). Review 24/11: 21 phát hiện đã sửa. **Review vòng 2: thêm 8 phát hiện, đã sửa hết 25/11** (chủ phòng hiện trùng trong danh sách, vé hết hạn chặn tạo link mới, màn “đã tham gia” cụt đường, hộp thoại mời nhầm dự án đầu tiên, AC5 kiểm cả 3 endpoint, +3 test còn thiếu). 1514 test web PASS, `next build` PASS, 6/6 E2E Chromium, 8/8 package Go — xem mục “Vòng sửa 2” trong `Task162/ban_giao_task162.md`. **Chờ reviewer độc lập vòng 3.** |
 
 > Task160 và Task161 thuộc STR116 (Tầng 3) về mặt thi công thứ tự, nhưng schema và API phòng là của STR113. Xem bảng F trong `BAN_NHAP_STORY_SP024.md` để biết thứ tự chạy thật.
 

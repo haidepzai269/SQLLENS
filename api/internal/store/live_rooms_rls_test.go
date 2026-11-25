@@ -192,3 +192,68 @@ func TestRoomInviteContextDiesWithTransaction(t *testing.T) {
 		t.Fatalf("đọc được %d hàng vé khi không có ngữ cảnh vé: GUC đã rò sang request sau", n)
 	}
 }
+
+// TestListMembersUnderRLS chứng minh ListMembers chạy dưới role không phải superuser
+// (`rls_test_owner`, NOSUPERUSER NOBYPASSRLS + sở hữu 3 bảng cloud, chân dung Neon thật) đọc
+// được đủ thành viên nhờ `app.owned_projects` + `FORCE ROW LEVEL SECURITY`, lọc bỏ hàng trùng
+// của chủ nếu chủ tự join, đồng thời chặn thành viên thường (ErrNotOwner) và người ngoài
+// (ErrNotFound).
+//
+// Lưu ý: migration 003 cố ý thu hồi quyền trên `users` khỏi `sqllens_app` (kiểm bằng
+// `TestCloudRoleHasNoAuthPrivilege`), nên `sqllens_app` không join được bảng `users`; trên Neon
+// API chạy bằng role chủ non-superuser có quyền đọc `users` nhưng vẫn bị `FORCE ROW LEVEL
+// SECURITY` chặn trên 3 bảng cloud.
+func TestListMembersUnderRLS(t *testing.T) {
+	e := newRLSEnv(t)
+	ctx := context.Background()
+
+	inv, err := e.app.CreateInvite(ctx, rlsUserAn, rlsProjectAn)
+	if err != nil {
+		t.Fatalf("CreateInvite: %v", err)
+	}
+	if _, err := e.app.JoinRoom(ctx, rlsUserDung, inv.Token); err != nil {
+		t.Fatalf("JoinRoom (Dũng): %v", err)
+	}
+
+	ownerStore := e.asNonSuperuserOwner(t)
+	if _, err := e.owner.pool.Exec(ctx, `GRANT SELECT ON TABLE public.users TO `+rlsOwnerRole); err != nil {
+		t.Fatalf("cấp quyền đọc users cho role chủ: %v", err)
+	}
+
+	members, err := ownerStore.ListMembers(ctx, rlsUserAn, rlsProjectAn)
+	if err != nil {
+		t.Fatalf("ListMembers (chủ): %v", err)
+	}
+	if len(members) != 2 {
+		t.Fatalf("số thành viên = %d, mong đợi 2: %+v", len(members), members)
+	}
+	if members[0].UserID != rlsUserAn || members[0].Role != "owner" {
+		t.Fatalf("members[0] = %+v, mong đợi chủ %s vai trò owner", members[0], rlsUserAn)
+	}
+	if members[1].UserID != rlsUserDung || members[1].Role != "editor" {
+		t.Fatalf("members[1] = %+v, mong đợi thành viên %s vai trò editor", members[1], rlsUserDung)
+	}
+
+	// Chủ tự mở vé của chính mình: ListMembers vẫn chỉ trả 2 người, không lặp hàng chủ.
+	if _, err := e.app.JoinRoom(ctx, rlsUserAn, inv.Token); err != nil {
+		t.Fatalf("JoinRoom (chủ tự join): %v", err)
+	}
+	afterSelfJoin, err := ownerStore.ListMembers(ctx, rlsUserAn, rlsProjectAn)
+	if err != nil {
+		t.Fatalf("ListMembers sau khi chủ tự join: %v", err)
+	}
+	if len(afterSelfJoin) != 2 {
+		t.Fatalf("sau khi chủ tự join có %d người, mong đợi 2 (chủ không được lặp): %+v",
+			len(afterSelfJoin), afterSelfJoin)
+	}
+
+	// Thành viên thường: ErrNotOwner (403).
+	if _, err := ownerStore.ListMembers(ctx, rlsUserDung, rlsProjectAn); !errors.Is(err, ErrNotOwner) {
+		t.Fatalf("thành viên thường ListMembers trả %v, mong đợi ErrNotOwner", err)
+	}
+
+	// Người ngoài: ErrNotFound (404).
+	if _, err := ownerStore.ListMembers(ctx, rlsUserChi, rlsProjectAn); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("người ngoài ListMembers trả %v, mong đợi ErrNotFound", err)
+	}
+}

@@ -243,6 +243,83 @@ func (s *Store) RemoveMember(ctx context.Context, ownerID, projectID, memberID s
 	})
 }
 
+// RoomMember là một dòng trong danh sách thành viên phòng (SP024 / STR113 / Task162).
+//
+// Chủ dự án không có hàng trong `cloud_project_members` — chủ phòng là `cloud_projects.owner_id`
+// — nên hàm đọc dựng chủ thành phần tử đầu tiên với vai trò `owner` thay vì bịa một hàng.
+// AvatarURL là con trỏ vì cột `users.avatar_url` cho phép NULL thật.
+type RoomMember struct {
+	UserID    string
+	Name      string
+	AvatarURL *string
+	Role      string
+}
+
+// ListMembers trả danh sách thành viên của phòng, chủ dự án đứng đầu.
+//
+// CHỈ chủ dự án đọc được. Lý do nằm ở policy SELECT của `cloud_project_members` (migration 004):
+// mỗi thành viên chỉ thấy hàng của chính mình, chủ thấy mọi hàng của dự án mình. Trả danh sách
+// cụt cho thành viên thường là nói dối người dùng (họ sẽ tưởng phòng chỉ có mình), nên hàm chặn
+// bằng `requireOwner` — người ngoài nhận ErrNotFound (404), thành viên không phải chủ nhận
+// ErrNotOwner (403).
+func (s *Store) ListMembers(ctx context.Context, userID, projectID string) ([]RoomMember, error) {
+	var out []RoomMember
+	err := s.WithTenant(ctx, userID, func(tx pgx.Tx) error {
+		// `requireReader` phải chạy TRƯỚC `requireOwner`: bộ test handler chạy bằng superuser, mà
+		// superuser bỏ qua RLS, nên nếu chỉ dựa vào policy thì người ngoài nhận 403 (đã biết có dự
+		// án) thay vì 404 — đúng lỗi đã tái hiện ở `GET /baton`.
+		if err := requireReader(ctx, tx, userID, projectID); err != nil {
+			return err
+		}
+		if err := requireOwner(ctx, tx, userID, projectID); err != nil {
+			return err
+		}
+
+		owner := RoomMember{Role: "owner"}
+		if err := tx.QueryRow(ctx, `SELECT p.owner_id::text, u.display_name, NULLIF(u.avatar_url, '')
+			FROM cloud_projects p JOIN users u ON u.id = p.owner_id
+			WHERE p.id = $1`, projectID).
+			Scan(&owner.UserID, &owner.Name, &owner.AvatarURL); err != nil {
+			return fmt.Errorf("store: room list owner: %w", err)
+		}
+
+		// Thứ tự tất định: tên rồi user id. Không sắp theo `created_at` vì bảng đó không có cột
+		// thời gian, và hai người trùng tên vẫn phải ra cùng một thứ tự ở mọi lần đọc.
+		rows, err := tx.Query(ctx, `SELECT m.user_id::text, u.display_name, NULLIF(u.avatar_url, ''), m.role
+			FROM cloud_project_members m JOIN users u ON u.id = m.user_id
+			WHERE m.project_id = $1
+			ORDER BY u.display_name, m.user_id`, projectID)
+		if err != nil {
+			return fmt.Errorf("store: room list members: %w", err)
+		}
+		defer rows.Close()
+
+		members := []RoomMember{owner}
+		for rows.Next() {
+			var m RoomMember
+			if err := rows.Scan(&m.UserID, &m.Name, &m.AvatarURL, &m.Role); err != nil {
+				return fmt.Errorf("store: room member row: %w", err)
+			}
+			// Chủ dự án tự mở link mời của mình sẽ có thêm một hàng thành viên (`JoinRoom` chèn cho
+			// mọi người nhận vé). Bỏ hàng đó: chủ đã đứng đầu danh sách với vai trò `owner`, còn hàng
+			// trùng thì hiện hai lần và không xoá được (`ErrOwnerCannotLeave`).
+			if m.UserID == owner.UserID {
+				continue
+			}
+			members = append(members, m)
+		}
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("store: room list members rows: %w", err)
+		}
+		out = members
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GetBaton đọc trạng thái Baton, đồng thời là nguồn của `GET /arena-step` (dùng `.Step`).
 //
 // Hàm chỉ đọc, không tạo hàng: phòng chưa ai nhận Baton thì trả `{holderId: null, step: 0,

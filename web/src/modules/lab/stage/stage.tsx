@@ -25,6 +25,7 @@ import { LoginDialog } from "@/modules/auth/login-dialog";
 import { buildEvidencePack } from "@/modules/mentor/evidence";
 import { parseSchema, type TableInfo } from "@/modules/data-lab/generate/plan-data";
 import { ExportMenu } from "@/modules/export/components/export-menu";
+import { InviteDialog } from "@/modules/room/components/invite-dialog";
 import { ShareDialog } from "@/modules/share/components/share-dialog";
 import { JoinAnimation } from "@/modules/plan-runner/join-anim/join-animation";
 import { PlanTree } from "@/modules/plan-runner/plan-tree";
@@ -556,6 +557,7 @@ export function Stage({
       <div className="flex h-[var(--h-bar)] flex-none items-center justify-between border-b border-line px-[var(--edge)]">
         <span className="font-semibold">{ts("tab.stage")}</span>
         <div className="flex items-center gap-1.5">
+          <InviteDialog disabled={working} />
           <ShareDialog disabled={working} />
           <ExportMenu
             engine={run?.db.engine ?? "postgres"}
