@@ -1,6 +1,10 @@
 {
   "title": "Deadlock Arena",
   "subtitle": "Interactive simulation of lock contention and deadlock between transactions",
+  "nav": {
+    "openArena": "Arena",
+    "backToLab": "Back to Lab"
+  },
   "simulationBadgeNote": "Local simulation of two contending transaction sessions. Runs entirely inside the browser without network egress.",
   "scenarios": {
     "label": "Scenario",

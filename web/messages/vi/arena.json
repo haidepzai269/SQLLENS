@@ -1,6 +1,10 @@
 {
   "title": "Deadlock Arena",
   "subtitle": "Đấu trường mô phỏng tranh chấp khóa và deadlock",
+  "nav": {
+    "openArena": "Arena",
+    "backToLab": "Quay lại Lab"
+  },
   "simulationBadgeNote": "Mô phỏng cục bộ hai phiên kết nối cạnh tranh khóa. Dữ liệu chạy hoàn toàn trong trình duyệt, không gửi ra mạng.",
   "scenarios": {
     "label": "Kịch bản",
