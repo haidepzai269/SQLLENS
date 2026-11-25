@@ -49,6 +49,8 @@ export type SqlEditorProps = {
    * Runtime tab dùng để dựng state riêng cho từng tab trên cùng một view.
    */
   onEditorReady?: (view: EditorView, getExtensions: () => Extension[]) => void;
+  /** Extension đồng bộ Yjs theo từng tab (tùy chọn); gắn/gỡ động qua Compartment không dựng lại EditorView. */
+  collabExtension?: Extension | null;
 };
 
 // Skeleton cùng chiều cao tối thiểu với ô thật để trang không nhảy khi tải xong.

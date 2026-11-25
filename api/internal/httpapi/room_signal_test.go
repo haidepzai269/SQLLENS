@@ -3,6 +3,8 @@ package httpapi
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -560,5 +562,233 @@ func TestRoomSignalInvalidID(t *testing.T) {
 	}
 	if resp == nil || resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("id sai: HTTP %v, mong đợi 400", resp)
+	}
+}
+
+func newSignalEnvWithNow(t *testing.T, now func() time.Time) *signalEnv {
+	t.Helper()
+	dsn := signalDSN()
+	if dsn == "" {
+		t.Skip("bỏ qua: chưa đặt RLS_TEST_DSN (cần Postgres trong Docker)")
+	}
+	ctx := context.Background()
+	raw, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(raw.Close)
+	if _, err := raw.Exec(ctx, `DROP TABLE IF EXISTS `+migrations.DropAllTablesSQL+` CASCADE`); err != nil {
+		t.Fatal(err)
+	}
+	st, err := store.Open(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(st.Close)
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+
+	e := &signalEnv{st: st, log: &syncBuf{}, hub: newSignalHub()}
+	prevLog, prevFlags := log.Writer(), log.Flags()
+	log.SetOutput(e.log)
+	t.Cleanup(func() { log.SetOutput(prevLog); log.SetFlags(prevFlags) })
+	for _, tc := range []struct {
+		name string
+		dst  *string
+	}{
+		{"chu-du-an", &e.user}, {"thanh-vien", &e.peer}, {"nguoi-ngoai", &e.other},
+	} {
+		if err := raw.QueryRow(ctx, `INSERT INTO users (display_name) VALUES ($1) RETURNING id::text`, tc.name).Scan(tc.dst); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := raw.QueryRow(ctx, `INSERT INTO cloud_projects (owner_id, name, engine)
+		VALUES ($1, 'Phòng 1', 'postgres') RETURNING id::text`, e.user).Scan(&e.room); err != nil {
+		t.Fatal(err)
+	}
+	if err := raw.QueryRow(ctx, `INSERT INTO cloud_projects (owner_id, name, engine)
+		VALUES ($1, 'Phòng 2', 'postgres') RETURNING id::text`, e.user).Scan(&e.room2); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := raw.Exec(ctx, `INSERT INTO cloud_project_members (project_id, user_id, role) VALUES ($1, $2, 'editor')`,
+		e.room, e.peer); err != nil {
+		t.Fatal(err)
+	}
+
+	r := NewRouterWithLog(e.log)
+	guard := func(c *gin.Context) {
+		u := c.GetHeader("X-Test-User")
+		if u == "" {
+			Abort(c, http.StatusUnauthorized, "auth_required", "error.authRequired")
+			return
+		}
+		c.Set("test.user", u)
+		c.Next()
+	}
+	mountRoomSignalWithNow(r, RoomSignalConfig{Store: st, RequireUser: guard, UID: func(c *gin.Context) string {
+		v, _ := c.Get("test.user")
+		s, _ := v.(string)
+		return s
+	}}, e.hub, signalLifetime, now)
+	e.srv = httptest.NewServer(r)
+	t.Cleanup(e.srv.Close)
+	return e
+}
+
+func (e *signalEnv) requestTicket(t *testing.T, user, room string) (*http.Response, string) {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodPost, e.srv.URL+"/api/v1/cloud/projects/"+room+"/signal-ticket", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if user != "" {
+		req.Header.Set("X-Test-User", user)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return resp, ""
+	}
+	var out struct {
+		Ticket    string `json:"ticket"`
+		ExpiresIn int    `json:"expiresIn"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		t.Fatalf("json ticket: %v (%s)", err, body)
+	}
+	if out.Ticket == "" || out.ExpiresIn != 30 {
+		t.Fatalf("payload ticket không hợp lệ: %+v", out)
+	}
+	return resp, out.Ticket
+}
+
+func (e *signalEnv) dialWithTicket(t *testing.T, room, ticket string) (*websocket.Conn, *http.Response, error) {
+	t.Helper()
+	wsURL := "ws" + strings.TrimPrefix(e.srv.URL, "http") + "/api/v1/cloud/projects/" + room + "/signal?ticket=" + ticket
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	conn, resp, err := websocket.Dial(ctx, wsURL, nil)
+	if conn != nil {
+		conn.SetReadLimit(1 << 20)
+		t.Cleanup(func() { _ = conn.CloseNow() })
+	}
+	return conn, resp, err
+}
+
+// AC1: POST /signal-ticket trả 200 cho owner/member, 404 cho người ngoài, 401 chưa đăng nhập, 400 UUID sai.
+func TestRoomSignalTicketIssue(t *testing.T) {
+	e := newSignalEnv(t)
+
+	if resp, tk := e.requestTicket(t, e.user, e.room); resp.StatusCode != http.StatusOK || tk == "" {
+		t.Fatalf("owner xin ticket: HTTP %d, ticket=%q", resp.StatusCode, tk)
+	}
+	if resp, tk := e.requestTicket(t, e.peer, e.room); resp.StatusCode != http.StatusOK || tk == "" {
+		t.Fatalf("member xin ticket: HTTP %d, ticket=%q", resp.StatusCode, tk)
+	}
+	if resp, _ := e.requestTicket(t, e.other, e.room); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("người ngoài xin ticket: HTTP %d, mong đợi 404", resp.StatusCode)
+	}
+	if resp, _ := e.requestTicket(t, "", e.room); resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("chưa đăng nhập xin ticket: HTTP %d, mong đợi 401", resp.StatusCode)
+	}
+	if resp, _ := e.requestTicket(t, e.user, "khong-phai-uuid"); resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("UUID sai xin ticket: HTTP %d, mong đợi 400", resp.StatusCode)
+	}
+}
+
+// AC2 & AC3: mở WebSocket bằng ?ticket=... không cần cookie, dùng lại lần 2 -> 401, sai phòng -> 401, zero-log.
+func TestRoomSignalTicketHandshakeAndOneTime(t *testing.T) {
+	e := newSignalEnv(t)
+
+	_, tkUser := e.requestTicket(t, e.user, e.room)
+	_, tkPeer := e.requestTicket(t, e.peer, e.room)
+
+	// Sai phòng: ticket phòng 1 dùng cho phòng 2 -> 401 (và ticket bị tiêu hủy luôn).
+	_, respWrongRoom, err := e.dialWithTicket(t, e.room2, tkUser)
+	if err == nil || respWrongRoom == nil || respWrongRoom.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("ticket phòng 1 dùng cho phòng 2 phải bị 401, nhận err=%v resp=%v", err, respWrongRoom)
+	}
+
+	// Cấp lại ticket cho owner và mở socket không cần cookie/header.
+	_, tkUser2 := e.requestTicket(t, e.user, e.room)
+	a, respA, err := e.dialWithTicket(t, e.room, tkUser2)
+	if err != nil {
+		t.Fatalf("mở WS bằng ticket thất bại: %v (resp=%v)", err, respA)
+	}
+	b, respB, err := e.dialWithTicket(t, e.room, tkPeer)
+	if err != nil {
+		t.Fatalf("peer mở WS bằng ticket thất bại: %v (resp=%v)", err, respB)
+	}
+	e.waitPeers(t, e.room, 2)
+
+	// Dùng lại ticket lần 2 -> 401.
+	_, respReuse, err := e.dialWithTicket(t, e.room, tkUser2)
+	if err == nil || respReuse == nil || respReuse.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("dùng lại ticket lần 2 phải bị 401, nhận err=%v resp=%v", err, respReuse)
+	}
+
+	// Relay SDP/ICE giữa 2 peer vẫn hoạt động bình thường.
+	e.write(t, a, `{"type":"offer","sdp":"`+signalMark+`"}`)
+	got, err := readWithin(b, 5*time.Second)
+	if err != nil || !strings.Contains(got, signalMark) {
+		t.Fatalf("relay qua ticket thất bại: got=%q err=%v", got, err)
+	}
+
+	// AC3: Zero-Log Transit — log Gin không chứa giá trị ticket lẫn nội dung SQL.
+	logs := e.log.String()
+	for _, secret := range []string{tkUser, tkUser2, tkPeer, signalMark} {
+		if strings.Contains(logs, secret) {
+			t.Fatalf("log Gin làm lộ dữ liệu nhạy cảm %q:\n%s", secret, logs)
+		}
+	}
+}
+
+// AC2: ticket hết hạn sau 30 giây -> 401.
+func TestRoomSignalTicketExpired(t *testing.T) {
+	now := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	var mu sync.Mutex
+	e := newSignalEnvWithNow(t, func() time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		return now
+	})
+
+	_, tk := e.requestTicket(t, e.user, e.room)
+
+	mu.Lock()
+	now = now.Add(30 * time.Second)
+	mu.Unlock()
+
+	_, resp, err := e.dialWithTicket(t, e.room, tk)
+	if err == nil || resp == nil || resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("ticket hết hạn 30s phải bị 401, nhận err=%v resp=%v", err, resp)
+	}
+}
+
+// Kiểm tra trần 4096 và dọn rác hết hạn của signalTicketStore (không cần Postgres).
+func TestSignalTicketStoreCapAndPrune(t *testing.T) {
+	now := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	st := newSignalTicketStore(func() time.Time { return now })
+
+	for i := 0; i < maxSignalTickets; i++ {
+		if _, err := st.issue("u1", "r1"); err != nil {
+			t.Fatalf("issue thứ %d thất bại: %v", i, err)
+		}
+	}
+	if _, err := st.issue("u1", "r1"); err == nil {
+		t.Fatal("vượt trần 4096 ticket mà không bị từ chối")
+	}
+
+	now = now.Add(signalTicketTTL)
+	if _, err := st.issue("u1", "r1"); err != nil {
+		t.Fatalf("sau khi hết hạn phải dọn rác và cấp lại được: %v", err)
 	}
 }

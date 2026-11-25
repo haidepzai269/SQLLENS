@@ -73,6 +73,7 @@ export interface PeerConnectionEventLike {
 
 export interface PeerConnectionLike {
   readonly connectionState?: string;
+  readonly iceConnectionState?: string;
   readonly signalingState?: string;
   createDataChannel: (label: string, options?: { ordered?: boolean }) => DataChannelLike;
   createOffer: () => Promise<RTCSessionDescriptionInit>;
@@ -102,6 +103,7 @@ export interface RoomCollabProviderOptions {
   doc?: Y.Doc;
   awareness?: Awareness;
   signalUrl?: string;
+  resolveSignalUrl?: () => Promise<string>;
   iceServers?: RTCIceServer[];
   webSocketFactory?: WebSocketFactory;
   peerConnectionFactory?: PeerConnectionFactory;
@@ -116,5 +118,7 @@ export interface RoomCollabProvider {
   destroy: () => void;
   sendControl: (message: BatonControlMessage | Record<string, unknown>) => void;
   onControl: (cb: (message: unknown, fromPeerId: string) => void) => () => void;
+  onPeerCountChange?: (cb: (count: number) => void) => () => void;
+  onIceFailed?: (cb: () => void) => () => void;
   getPeerIds: () => string[];
 }

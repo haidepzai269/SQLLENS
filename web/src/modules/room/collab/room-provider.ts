@@ -34,11 +34,13 @@ interface PeerEntry {
   dc: DataChannelLike | null;
   makingOffer: boolean;
   remoteDescriptionSet: boolean;
+  iceFailedNotified: boolean;
   pendingIceCandidates: RTCIceCandidateInit[];
   awarenessClientIds: Set<number>;
   onIceCandidate: (event: PeerConnectionEventLike) => void;
   onDataChannel: (event: PeerConnectionEventLike) => void;
   onConnectionStateChange: () => void;
+  onIceConnectionStateChange: () => void;
   dcCleanup?: () => void;
 }
 
@@ -115,6 +117,9 @@ function createDefaultPeerConnectionFactory(iceServers?: RTCIceServer[]): PeerCo
     return {
       get connectionState() {
         return pc.connectionState;
+      },
+      get iceConnectionState() {
+        return pc.iceConnectionState;
       },
       get signalingState() {
         return pc.signalingState;
@@ -210,10 +215,29 @@ export function createRoomCollabProvider(options: RoomCollabProviderOptions): Ro
 
   const peers = new Map<string, PeerEntry>();
   const controlListeners = new Set<(message: unknown, fromPeerId: string) => void>();
+  const peerCountListeners = new Set<(count: number) => void>();
+  const iceFailedListeners = new Set<() => void>();
 
   let ws: WebSocketLike | null = null;
   let wsCleanup: (() => void) | null = null;
   let destroyed = false;
+  let connecting = false;
+  let connectSeq = 0;
+
+  const notifyPeerCount = () => {
+    const count = peers.size;
+    for (const cb of peerCountListeners) {
+      cb(count);
+    }
+  };
+
+  const notifyIceFailed = (entry: PeerEntry) => {
+    if (entry.iceFailedNotified) return;
+    entry.iceFailedNotified = true;
+    for (const cb of iceFailedListeners) {
+      cb();
+    }
+  };
 
   const sendSignal = (envelope: SignalEnvelope) => {
     if (destroyed || !ws || ws.readyState !== WS_OPEN) return;
@@ -326,6 +350,11 @@ export function createRoomCollabProvider(options: RoomCollabProviderOptions): Ro
     entry.pc.removeEventListener?.("icecandidate", entry.onIceCandidate);
     entry.pc.removeEventListener?.("datachannel", entry.onDataChannel);
     entry.pc.removeEventListener?.("connectionstatechange", entry.onConnectionStateChange);
+    (
+      entry.pc.removeEventListener as
+        | ((type: string, listener: (event: PeerConnectionEventLike) => void) => void)
+        | undefined
+    )?.("iceconnectionstatechange", entry.onIceConnectionStateChange);
 
     try {
       entry.pc.close();
@@ -341,6 +370,8 @@ export function createRoomCollabProvider(options: RoomCollabProviderOptions): Ro
       );
       entry.awarenessClientIds.clear();
     }
+
+    notifyPeerCount();
   };
 
   const attachDataChannel = (entry: PeerEntry, dc: DataChannelLike) => {
@@ -402,6 +433,7 @@ export function createRoomCollabProvider(options: RoomCollabProviderOptions): Ro
       dc: null,
       makingOffer: false,
       remoteDescriptionSet: false,
+      iceFailedNotified: false,
       pendingIceCandidates: [],
       awarenessClientIds: new Set<number>(),
       onIceCandidate: (event) => {
@@ -425,7 +457,17 @@ export function createRoomCollabProvider(options: RoomCollabProviderOptions): Ro
       onConnectionStateChange: () => {
         if (peers.get(remotePeerId) !== entry) return;
         const state = pc.connectionState;
-        if (state === "closed" || state === "failed") {
+        if (state === "failed") {
+          notifyIceFailed(entry);
+          cleanupPeer(remotePeerId);
+        } else if (state === "closed") {
+          cleanupPeer(remotePeerId);
+        }
+      },
+      onIceConnectionStateChange: () => {
+        if (peers.get(remotePeerId) !== entry) return;
+        if (pc.iceConnectionState === "failed") {
+          notifyIceFailed(entry);
           cleanupPeer(remotePeerId);
         }
       },
@@ -434,7 +476,14 @@ export function createRoomCollabProvider(options: RoomCollabProviderOptions): Ro
     pc.addEventListener("icecandidate", entry.onIceCandidate);
     pc.addEventListener("datachannel", entry.onDataChannel);
     pc.addEventListener("connectionstatechange", entry.onConnectionStateChange);
+    (
+      pc.addEventListener as (
+        type: string,
+        listener: (event: PeerConnectionEventLike) => void,
+      ) => void
+    )("iceconnectionstatechange", entry.onIceConnectionStateChange);
     peers.set(remotePeerId, entry);
+    notifyPeerCount();
     return entry;
   };
 
@@ -681,9 +730,9 @@ export function createRoomCollabProvider(options: RoomCollabProviderOptions): Ro
   doc.on("update", onDocUpdate);
   awareness.on("update", onAwarenessUpdate);
 
-  const connect = () => {
+  const openSocket = (targetUrl: string) => {
     if (destroyed || ws) return;
-    const socket = wsFactory(signalUrl);
+    const socket = wsFactory(targetUrl);
     ws = socket;
 
     const onOpen = () => {
@@ -730,7 +779,33 @@ export function createRoomCollabProvider(options: RoomCollabProviderOptions): Ro
     }
   };
 
+  const connect = () => {
+    if (destroyed || ws || connecting) return;
+    if (!options.resolveSignalUrl) {
+      openSocket(signalUrl);
+      return;
+    }
+
+    connecting = true;
+    const mySeq = ++connectSeq;
+    void (async () => {
+      try {
+        const resolvedUrl = await options.resolveSignalUrl!();
+        if (destroyed || ws || connectSeq !== mySeq) return;
+        openSocket(resolvedUrl);
+      } catch {
+        // Không mở socket khi resolve URL/ticket thất bại; caller có thể thử lại connect().
+      } finally {
+        if (connectSeq === mySeq) {
+          connecting = false;
+        }
+      }
+    })();
+  };
+
   const disconnect = () => {
+    connectSeq++;
+    connecting = false;
     if (ws) {
       if (ws.readyState === WS_OPEN) {
         try {
@@ -769,6 +844,8 @@ export function createRoomCollabProvider(options: RoomCollabProviderOptions): Ro
     doc.off("update", onDocUpdate);
     awareness.off("update", onAwarenessUpdate);
     controlListeners.clear();
+    peerCountListeners.clear();
+    iceFailedListeners.clear();
     if (ownsAwareness) {
       (awareness as awarenessProtocol.Awareness & { destroy?: () => void }).destroy?.();
     }
@@ -789,6 +866,20 @@ export function createRoomCollabProvider(options: RoomCollabProviderOptions): Ro
     };
   };
 
+  const onPeerCountChange = (cb: (count: number) => void) => {
+    peerCountListeners.add(cb);
+    return () => {
+      peerCountListeners.delete(cb);
+    };
+  };
+
+  const onIceFailed = (cb: () => void) => {
+    iceFailedListeners.add(cb);
+    return () => {
+      iceFailedListeners.delete(cb);
+    };
+  };
+
   const getPeerIds = () => Array.from(peers.keys());
 
   return {
@@ -800,6 +891,8 @@ export function createRoomCollabProvider(options: RoomCollabProviderOptions): Ro
     destroy,
     sendControl,
     onControl,
+    onPeerCountChange,
+    onIceFailed,
     getPeerIds,
   };
 }

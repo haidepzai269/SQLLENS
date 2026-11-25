@@ -2,7 +2,10 @@ package httpapi
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
@@ -35,7 +38,82 @@ const (
 	signalLifetime = 30 * time.Minute
 	// signalSendBuffer là hàng đợi ghi của mỗi peer; đầy thì bỏ message, xem relay.
 	signalSendBuffer = 16
+	// signalTicketTTL là hạn dùng của ticket 1-lần-dùng khi mở WebSocket cross-origin.
+	signalTicketTTL = 30 * time.Second
+	// maxSignalTickets chặn tràn RAM khi bị spam xin ticket mà không mở socket.
+	maxSignalTickets = 4096
 )
+
+type signalTicketEntry struct {
+	uid       string
+	room      string
+	expiresAt time.Time
+}
+
+// signalTicketStore lưu ticket 1-lần-dùng trong bộ nhớ (TTL 30s, trần 4096).
+type signalTicketStore struct {
+	mu      sync.Mutex
+	tickets map[string]signalTicketEntry
+	now     func() time.Time
+}
+
+func newSignalTicketStore(now func() time.Time) *signalTicketStore {
+	if now == nil {
+		now = time.Now
+	}
+	return &signalTicketStore{
+		tickets: map[string]signalTicketEntry{},
+		now:     now,
+	}
+}
+
+func (s *signalTicketStore) pruneExpiredLocked(now time.Time) {
+	for k, v := range s.tickets {
+		if !now.Before(v.expiresAt) {
+			delete(s.tickets, k)
+		}
+	}
+}
+
+func (s *signalTicketStore) issue(uid, room string) (string, error) {
+	var raw [32]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "", err
+	}
+	ticket := base64.RawURLEncoding.EncodeToString(raw[:])
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := s.now()
+	s.pruneExpiredLocked(now)
+	if len(s.tickets) >= maxSignalTickets {
+		return "", errors.New("signal ticket store full")
+	}
+	s.tickets[ticket] = signalTicketEntry{
+		uid:       uid,
+		room:      room,
+		expiresAt: now.Add(signalTicketTTL),
+	}
+	return ticket, nil
+}
+
+// consume kiểm tra ticket có tồn tại, chưa hết hạn và khớp room; xóa ngay lập tức sau khi kiểm tra (1-lần-dùng).
+func (s *signalTicketStore) consume(ticket, room string) (string, bool) {
+	if ticket == "" {
+		return "", false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	entry, ok := s.tickets[ticket]
+	if !ok {
+		return "", false
+	}
+	delete(s.tickets, ticket)
+	if !s.now().Before(entry.expiresAt) || entry.room != room {
+		return "", false
+	}
+	return entry.uid, true
+}
 
 // signalHub giữ các peer đang mở theo phòng. Một mutex cho cả bản đồ: số phòng nhỏ, và mọi
 // thao tác đều O(số peer trong phòng).
@@ -152,10 +230,10 @@ func MountRoomSignal(r *gin.Engine, cfg RoomSignalConfig) {
 // mountRoomSignal nhận hub và hạn sống từ ngoài để test đo được trần thời gian sống mà không
 // phải chờ 30 phút. Route và hành vi không đổi.
 func mountRoomSignal(r *gin.Engine, cfg RoomSignalConfig, hub *signalHub, lifetime time.Duration) {
-	h := &signalHandler{hub: hub, s: cfg.Store, uid: cfg.UID, origin: cfg.Origin, lifetime: lifetime}
-	if h.uid == nil {
-		h.uid = func(*gin.Context) string { return "" }
-	}
+	mountRoomSignalWithNow(r, cfg, hub, lifetime, nil)
+}
+
+func mountRoomSignalWithNow(r *gin.Engine, cfg RoomSignalConfig, hub *signalHub, lifetime time.Duration, now func() time.Time) {
 	guard := cfg.RequireUser
 	if guard == nil {
 		// Thiếu middleware đăng nhập thì đóng route, không mở socket cho danh tính rỗng.
@@ -163,18 +241,34 @@ func mountRoomSignal(r *gin.Engine, cfg RoomSignalConfig, hub *signalHub, lifeti
 			Abort(c, http.StatusServiceUnavailable, "not_configured", "error.notConfigured")
 		}
 	}
-	r.GET("/api/v1/cloud/projects/:id/signal", guard, h.signal)
+	h := &signalHandler{
+		hub:      hub,
+		s:        cfg.Store,
+		uid:      cfg.UID,
+		guard:    guard,
+		tickets:  newSignalTicketStore(now),
+		origin:   cfg.Origin,
+		lifetime: lifetime,
+	}
+	if h.uid == nil {
+		h.uid = func(*gin.Context) string { return "" }
+	}
+	r.POST("/api/v1/cloud/projects/:id/signal-ticket", guard, h.issueTicket)
+	// Không gắn cứng guard ở router vì client cross-origin đi qua ?ticket=... không có cookie sid.
+	r.GET("/api/v1/cloud/projects/:id/signal", h.signal)
 }
 
 type signalHandler struct {
 	hub      *signalHub
 	s        *store.Store
 	uid      func(*gin.Context) string
+	guard    gin.HandlerFunc
+	tickets  *signalTicketStore
 	origin   string
 	lifetime time.Duration
 }
 
-func (h *signalHandler) signal(c *gin.Context) {
+func (h *signalHandler) issueTicket(c *gin.Context) {
 	uid := h.uid(c)
 	if uid == "" {
 		Abort(c, http.StatusUnauthorized, "auth_required", "error.authRequired")
@@ -189,6 +283,59 @@ func (h *signalHandler) signal(c *gin.Context) {
 		Abort(c, http.StatusBadRequest, codeCloudInvalidID, "error.badRequest")
 		return
 	}
+	allowed, err := h.canJoin(c.Request.Context(), uid, room)
+	if err != nil {
+		log.Printf("signal-ticket: access check failed (%T)", err)
+		Abort(c, http.StatusInternalServerError, "internal", "error.internal")
+		return
+	}
+	if !allowed {
+		Abort(c, http.StatusNotFound, codeCloudNotFound, "error.notFound")
+		return
+	}
+	ticket, err := h.tickets.issue(uid, room)
+	if err != nil {
+		log.Printf("signal-ticket: issue failed (%T)", err)
+		Abort(c, http.StatusTooManyRequests, "ticket_limit", "error.rateLimited")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"ticket":    ticket,
+		"expiresIn": int(signalTicketTTL.Seconds()),
+	})
+}
+
+func (h *signalHandler) signal(c *gin.Context) {
+	if h.s == nil {
+		Abort(c, http.StatusServiceUnavailable, "not_configured", "error.notConfigured")
+		return
+	}
+	room := c.Param("id")
+	if !cloudIDRe.MatchString(room) {
+		Abort(c, http.StatusBadRequest, codeCloudInvalidID, "error.badRequest")
+		return
+	}
+
+	var uid string
+	if ticket := c.Query("ticket"); ticket != "" {
+		var ok bool
+		uid, ok = h.tickets.consume(ticket, room)
+		if !ok {
+			Abort(c, http.StatusUnauthorized, "auth_required", "error.authRequired")
+			return
+		}
+	} else {
+		h.guard(c)
+		if c.IsAborted() {
+			return
+		}
+		uid = h.uid(c)
+		if uid == "" {
+			Abort(c, http.StatusUnauthorized, "auth_required", "error.authRequired")
+			return
+		}
+	}
+
 	allowed, err := h.canJoin(c.Request.Context(), uid, room)
 	if err != nil {
 		// Chỉ loại lỗi, không nội dung: thông điệp pgx có thể mang giá trị cột (Core Rule 7).

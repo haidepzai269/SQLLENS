@@ -66,8 +66,10 @@ import { bindEngine, onProjectSwitch, releaseProjectResources } from "@/modules/
 import { EngineReleaseToast } from "@/modules/workspace/components/engine-release-toast";
 import { ConclusionBadge } from "@/components/ui/conclusion-badge";
 import { useBatonStore } from "@/modules/room/collab/baton-store";
+import { useLabRoomCollab } from "@/modules/room/collab/use-lab-room-collab";
 import { BatonRequestToast } from "@/modules/room/components/baton-request-toast";
 import { NatWarningBanner } from "@/modules/room/components/nat-warning-banner";
+import type { P2pExecutionResult } from "@/modules/room/p2p/types";
 
 type RunData = { statements: number; rows: number };
 type Stop = "cancelled" | "timeout" | "worker_crashed";
@@ -325,6 +327,46 @@ export function LabWorkspace() {
     }
   }
   const stageSeq = useRef(0);
+  const activeProject = projects.find((p) => p.id === activeProjectId);
+  const remoteProjectId = activeProject?.cloud?.remoteId ?? null;
+  const onRemoteResult = useCallback(
+    (res: P2pExecutionResult) => {
+      setOwner(engine);
+      if (res.error) {
+        setState({ phase: "sql_error", message: res.error, sql: "" });
+        return;
+      }
+      const data = { statements: 1, rows: res.rowCount };
+      setDurationMs(res.durationMs);
+      setState({
+        phase: "done",
+        results: [{ columns: res.columns, rows: res.rows }],
+        conclusion: {
+          kind: "conclusion",
+          label: "real",
+          data,
+          evidence: [
+            {
+              kind: "execution",
+              messageKey: engine === "mysql" ? "evidence.executedMysql" : "evidence.executed",
+              values: data,
+            },
+          ],
+        },
+      });
+    },
+    [engine],
+  );
+  const { collabExtension, broadcastResult } = useLabRoomCollab({
+    remoteProjectId,
+    activeTabId: activeTab?.id ?? null,
+    userId: user?.id ?? null,
+    onRemoteResult,
+  });
+  const broadcastResultRef = useRef(broadcastResult);
+  useEffect(() => {
+    broadcastResultRef.current = broadcastResult;
+  }, [broadcastResult]);
   const [focus, setFocus] = useState<(Focus & { nonce: number }) | null>(null); // mục rủi ro vừa bấm
   const [genOpen, setGenOpen] = useState(false);
   const [genLock, setGenLock] = useState(false); // khách bấm Sinh dữ liệu: hiện lời mời thay vì mở hộp thoại
@@ -550,6 +592,15 @@ export function LabWorkspace() {
             evidence: [{ kind: "execution", messageKey: engine === "mysql" ? "evidence.executedMysql" : "evidence.executed", values: data }],
           },
         });
+        broadcastResultRef.current?.({
+          columns: last.columns,
+          rows: last.rows,
+          rowCount: last.rows.length,
+          durationMs: elapsed,
+          tabId: sourceTabId ?? "",
+          executedBy: user?.id ?? "",
+          sentAt: Date.now(),
+        });
       } catch (e) {
         // Lỗi SQL ở bước tạo bảng: quay lại màn hình xác nhận, bản nháp còn nguyên.
         if (step === "schema" && e instanceof EngineError && e.code === "sql" && !e.guard) {
@@ -583,6 +634,18 @@ export function LabWorkspace() {
                 ? { phase: "load_error", message: e.message }
                 : { phase: "sql_error", message: errMsg(e), position: e instanceof EngineError ? e.position : undefined, sql: toRun },
         );
+        if (!code && !guard && !(e instanceof EngineError && e.code === "load_failed")) {
+          broadcastResultRef.current?.({
+            columns: [],
+            rows: [],
+            rowCount: 0,
+            durationMs: 0,
+            error: errMsg(e),
+            tabId: sourceTabId ?? "",
+            executedBy: user?.id ?? "",
+            sentAt: Date.now(),
+          });
+        }
       }
     } finally {
       busy.current = false;
@@ -821,6 +884,7 @@ export function LabWorkspace() {
           foreignKeys={foreignKeys}
           isVip={isVip}
           onRequireUpgrade={() => setIsUpgradeModalOpen(true)}
+          collabExtension={collabExtension}
         />
       </div>
       {saveState === "error" && !warnStorageDismissed && (

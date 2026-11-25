@@ -1,6 +1,6 @@
 "use client";
 
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { sql } from "@codemirror/lang-sql";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
@@ -145,6 +145,7 @@ export default function SqlEditorImpl({
   aiCopilotEnabled,
   onRequireUpgrade,
   onEditorReady,
+  collabExtension,
 }: SqlEditorProps) {
   const settings = useSafeSettings();
   // Trang chỉ đọc không gợi ý gì: ghost text AI có thể gọi mạng, mà snapshot không được rời máy.
@@ -153,6 +154,7 @@ export default function SqlEditorImpl({
   const isAiCopilotEnabled = !readOnly && (aiCopilotEnabled ?? settings.aiCopilotEnabled);
   const errId = useId();
   const [view, setView] = useState<EditorView | null>(null);
+  const collabCompartment = useMemo(() => new Compartment(), []);
   const doc = useMemo(() => normalize(value), [value]);
   const offset = error && Number.isFinite(error.position) && error.position >= 0 ? toDocOffset(value, error.position) : null;
   const onRunRef = useRef(onRun);
@@ -307,6 +309,7 @@ export default function SqlEditorImpl({
       hitField,
       errorGutter,
       docBridge,
+      collabCompartment.of([]),
       EditorView.contentAttributes.of({
         "aria-label": ariaLabel,
         "aria-invalid": invalid ? "true" : "false",
@@ -325,6 +328,7 @@ export default function SqlEditorImpl({
       fontSizeTheme,
       editorSetup,
       docBridge,
+      collabCompartment,
       readOnly,
     ],
   );
@@ -334,6 +338,12 @@ export default function SqlEditorImpl({
   useEffect(() => {
     extensionsRef.current = extensions;
   }, [extensions]);
+
+  // Giữ collabCompartment đồng bộ cả khi `collabExtension` đổi lẫn khi `extensions` đổi (uiw reconfigure).
+  useEffect(() => {
+    if (!view) return;
+    view.dispatch({ effects: collabCompartment.reconfigure(collabExtension ?? []) });
+  }, [view, collabCompartment, collabExtension, extensions]);
 
   // Viền focus kiểu ring của shadcn/ui vẽ bằng lớp phủ trong khung, nên đủ bốn cạnh, không bị gutter che và không bị khung cha cắt.
   return (

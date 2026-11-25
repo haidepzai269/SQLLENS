@@ -132,6 +132,7 @@ class MockDataChannel implements DataChannelLike {
 
 class MockPeerConnection implements PeerConnectionLike {
   connectionState = "new";
+  iceConnectionState = "new";
   signalingState: RTCSignalingState = "stable";
   localChannel: MockDataChannel | null = null;
   remotePeer: MockPeerConnection | null = null;
@@ -636,5 +637,103 @@ describe("createRoomCollabProvider", () => {
       provider.destroy();
       provider.destroy();
     }).not.toThrow();
+  });
+
+  it("resolveSignalUrl async: mở socket với URL đã resolve và hủy an toàn nếu disconnect/destroy giữa chừng", async () => {
+    const openedUrls: string[] = [];
+    const wsFactory = (url: string): WebSocketLike => {
+      openedUrls.push(url);
+      return new MockWebSocket(url, () => {}, () => {});
+    };
+
+    let resolveFn!: (url: string) => void;
+    const provider1 = createRoomCollabProvider({
+      projectId: "room-async",
+      userId: "user-a",
+      peerId: "peer-a",
+      resolveSignalUrl: () =>
+        new Promise<string>((resolve) => {
+          resolveFn = resolve;
+        }),
+      webSocketFactory: wsFactory,
+    });
+
+    provider1.connect();
+    expect(openedUrls).toEqual([]);
+    resolveFn("wss://sqllens.onrender.com/api/v1/cloud/projects/room-async/signal?ticket=tk_1");
+    await flushMicrotasks();
+    expect(openedUrls).toEqual([
+      "wss://sqllens.onrender.com/api/v1/cloud/projects/room-async/signal?ticket=tk_1",
+    ]);
+    provider1.destroy();
+
+    // Hủy bằng disconnect() trong lúc đang await resolveSignalUrl() -> không mở socket
+    let resolveCanceled!: (url: string) => void;
+    const provider2 = createRoomCollabProvider({
+      projectId: "room-async-cancel",
+      userId: "user-a",
+      peerId: "peer-a",
+      resolveSignalUrl: () =>
+        new Promise<string>((resolve) => {
+          resolveCanceled = resolve;
+        }),
+      webSocketFactory: wsFactory,
+    });
+
+    provider2.connect();
+    provider2.disconnect();
+    resolveCanceled("wss://sqllens.onrender.com/api/v1/cloud/projects/room-async-cancel/signal?ticket=tk_2");
+    await flushMicrotasks();
+    expect(openedUrls).toHaveLength(1);
+    provider2.destroy();
+  });
+
+  it("onPeerCountChange và onIceFailed bắn đúng khi peer vào/ra và ICE/connectionState failed", async () => {
+    const hub = createMockSignalHub();
+    const netA = hub.attachPeer("peer-a", "user-a");
+    const netB = hub.attachPeer("peer-b", "user-b");
+
+    const pA = createRoomCollabProvider({
+      projectId: "room-events",
+      userId: "user-a",
+      peerId: "peer-a",
+      webSocketFactory: netA.webSocketFactory,
+      peerConnectionFactory: netA.peerConnectionFactory,
+    });
+    const pB = createRoomCollabProvider({
+      projectId: "room-events",
+      userId: "user-b",
+      peerId: "peer-b",
+      webSocketFactory: netB.webSocketFactory,
+      peerConnectionFactory: netB.peerConnectionFactory,
+    });
+
+    const peerCounts: number[] = [];
+    const iceFailed = vi.fn();
+    const offCount = pA.onPeerCountChange?.((count) => peerCounts.push(count));
+    const offIce = pA.onIceFailed?.(iceFailed);
+
+    pA.connect();
+    netA.openSocket();
+    pB.connect();
+    netB.openSocket();
+    await flushMicrotasks();
+
+    expect(peerCounts).toEqual([1]);
+
+    const pcA = hub.pcRegistry.get("peer-a->peer-b")!;
+    pcA.iceConnectionState = "failed";
+    (pcA as unknown as { emit: (t: string, e: PeerConnectionEventLike) => void }).emit(
+      "iceconnectionstatechange",
+      {},
+    );
+
+    expect(iceFailed).toHaveBeenCalledTimes(1);
+    expect(peerCounts).toEqual([1, 0]);
+
+    offCount?.();
+    offIce?.();
+    pA.destroy();
+    pB.destroy();
   });
 });
