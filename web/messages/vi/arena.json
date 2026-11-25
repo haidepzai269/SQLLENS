@@ -154,5 +154,13 @@
         "description": "Giao dịch A commit với dữ liệu không nhất quán giữa hai lần đọc."
       }
     }
+  },
+  "graph": {
+    "title": "Đồ thị Wait-For",
+    "ariaLabel": "Đồ thị Cytoscape biểu diễn trạng thái chờ khóa giữa Giao dịch A và Giao dịch B"
+  },
+  "sync": {
+    "viewerNote": "Đang đồng bộ bước từ Host mỗi 3 giây (chỉ xem).",
+    "hostNote": "Bạn là Host: bước hiện tại đang được đồng bộ cho người xem."
   }
 }

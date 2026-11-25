@@ -8,6 +8,9 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useArenaStore } from "../arena-store";
+import { useArenaSync, type ArenaRole } from "../arena-sync";
+import { ArenaWaitGraph } from "../graph/arena-wait-graph";
+import { clampArenaStepIndex } from "../graph/graph-elements";
 import { getArenaScenario } from "../scenarios-data";
 import { ScenarioPicker } from "./scenario-picker";
 import { StepController } from "./step-controller";
@@ -16,6 +19,9 @@ import { SimulationBadge } from "./simulation-badge";
 export interface ArenaViewProps {
   className?: string;
   testId?: string;
+  roomId?: string;
+  role?: ArenaRole;
+  fetchImpl?: typeof fetch;
 }
 
 const TX_STATUS_STYLES: Record<string, string> = {
@@ -29,15 +35,22 @@ const TX_STATUS_STYLES: Record<string, string> = {
 export function ArenaView({
   className,
   testId = "arena-view",
+  roomId,
+  role,
+  fetchImpl,
 }: ArenaViewProps) {
   const t = useTranslations("arena");
   const scenarioId = useArenaStore((s) => s.scenarioId);
   const stepIndex = useArenaStore((s) => s.stepIndex);
 
+  useArenaSync({ roomId, role, fetchImpl });
+
   const scenarioConfig = getArenaScenario(scenarioId);
-  const currentStep = scenarioConfig.steps[stepIndex] ?? scenarioConfig.steps[0];
+  const safeStepIndex = clampArenaStepIndex(stepIndex, scenarioConfig.totalSteps);
+  const currentStep = scenarioConfig.steps[safeStepIndex] ?? scenarioConfig.steps[0];
   const txA = currentStep.transactions.A;
   const txB = currentStep.transactions.B;
+  const isViewer = role === "viewer";
 
   return (
     <div
@@ -60,11 +73,27 @@ export function ArenaView({
         </div>
       </header>
 
-      {/* Khu vực điều khiển: ScenarioPicker + StepController */}
-      <div className="grid grid-cols-1 gap-4 rounded-lg border border-line bg-surface p-3 sm:grid-cols-2 sm:p-4">
-        <ScenarioPicker testId="arena-picker" />
-        <StepController testId="arena-controller" />
-      </div>
+      {/* Khu vực điều khiển: ScenarioPicker + StepController (hoặc trạng thái Viewer) */}
+      {isViewer ? (
+        <div
+          className="rounded-lg border border-line bg-surface p-3 text-xs text-dim sm:p-4"
+          data-testid="arena-viewer-sync-note"
+        >
+          {t("sync.viewerNote")}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-3 sm:p-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <ScenarioPicker testId="arena-picker" />
+            <StepController testId="arena-controller" />
+          </div>
+          {role === "host" && roomId && (
+            <p className="m-0 text-xs text-dim" data-testid="arena-host-sync-note">
+              {t("sync.hostNote")}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Thông tin bước hiện tại */}
       <Card className="border border-line bg-surface shadow-none">
@@ -74,7 +103,7 @@ export function ArenaView({
               className="text-xs font-semibold uppercase tracking-wider text-dim"
               data-testid="arena-step-indicator"
             >
-              {t("view.currentStep", { step: stepIndex + 1 })}
+              {t("view.currentStep", { step: safeStepIndex + 1 })}
             </span>
             {currentStep.deadlockDetected && (
               <span
@@ -113,6 +142,9 @@ export function ArenaView({
               </div>
             </div>
           )}
+
+          {/* Đồ thị Cytoscape Wait-For Graph */}
+          <ArenaWaitGraph step={currentStep} />
 
           {/* Danh sách 2 Transaction tại bước này */}
           <div className="flex flex-col gap-2">
