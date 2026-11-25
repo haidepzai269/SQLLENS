@@ -11,12 +11,18 @@ import { markPendingProject } from "@/modules/workspace/pending-project";
 import {
   scopeKey,
   type WorkspaceProject,
+  type WorkspaceRoomForkLink,
   type WorkspaceScope,
   type WorkspaceTab,
 } from "@/modules/workspace/types";
 import type { SnapshotV1 } from "./snapshot";
 
-export type ForkErrorCode = "FORK_STORAGE_UNAVAILABLE" | "FORK_QUOTA_EXCEEDED" | "FORK_FAILED";
+export type ForkErrorCode =
+  | "FORK_STORAGE_UNAVAILABLE"
+  | "FORK_QUOTA_EXCEEDED"
+  | "FORK_TOO_LARGE"
+  | "FORK_LIMIT_REACHED"
+  | "FORK_FAILED";
 
 export class ForkError extends Error {
   readonly code: ForkErrorCode;
@@ -36,6 +42,10 @@ export interface ForkOptions {
   newId?: () => string;
   /** Hậu tố tên dự án, truyền từ bản dịch (` (bản sao)` / ` (fork)`). */
   suffix?: string;
+  /** Ghi đè tên dự án mới (ví dụ `"[Phòng] — Fork [timestamp]"`). */
+  name?: string;
+  /** Đánh dấu dự án là bản fork từ phòng cộng tác (Task167). */
+  roomFork?: WorkspaceRoomForkLink;
   /** localStorage cho lịch sử fork; test truyền storage giả. */
   storage?: Storage | null;
   /** sessionStorage cho id dự án cần mở sau khi điều hướng. */
@@ -136,10 +146,11 @@ export async function forkSnapshot(
   const project: WorkspaceProject = {
     id: projectId,
     scopeKey: scopeKey(scope),
-    name: `${snapshot.project.name}${options.suffix ?? " (fork)"}`,
+    name: options.name ?? `${snapshot.project.name}${options.suffix ?? " (fork)"}`,
     engine: snapshot.project.engine,
     createdAt: at,
     updatedAt: at,
+    ...(options.roomFork ? { roomFork: options.roomFork } : {}),
   };
   const tabs: WorkspaceTab[] = snapshot.tabs.map((tab, index) => ({
     id: newId(),

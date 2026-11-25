@@ -223,9 +223,16 @@ export function ReadonlyWorkspace({ snapshot }: { snapshot: SnapshotV1 }) {
   };
 
   const forkErrorMessage = (code: ForkErrorCode) => {
-    if (code === "FORK_QUOTA_EXCEEDED") return t("view.forkErrorQuota");
-    if (code === "FORK_STORAGE_UNAVAILABLE") return t("view.forkErrorStorage");
-    return t("view.forkError");
+    switch (code) {
+      case "FORK_QUOTA_EXCEEDED":
+        return t("view.forkErrorQuota");
+      case "FORK_STORAGE_UNAVAILABLE":
+        return t("view.forkErrorStorage");
+      case "FORK_TOO_LARGE":
+      case "FORK_LIMIT_REACHED":
+      case "FORK_FAILED":
+        return t("view.forkError");
+    }
   };
 
   // Scope được hỏi đúng lúc bấm Fork: trang /share không gọi /api/me khi tải.

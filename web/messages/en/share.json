@@ -73,5 +73,21 @@
     "runNext": "Next page",
     "runRowNumber": "#",
     "runStarting": "Starting {engine}…"
+  },
+  "roomFork": {
+    "button": "Fork to local",
+    "title": "Fork room to Local Sandbox",
+    "description": "Create an independent local copy on your machine to edit and run freely. No SQL data leaves your device.",
+    "activeCount": "Active forked rooms: {count}/{max}",
+    "tabsCount": "{count} tabs will be copied",
+    "confirm": "Fork to Local Sandbox",
+    "forking": "Forking…",
+    "cancel": "Cancel",
+    "success": "Forked {count} tabs to Local Sandbox",
+    "limitReached": "Reached the maximum of {max} forked rooms ({count}/{max}). Delete an old forked project in your workspace before forking another.",
+    "tooLarge": "Payload exceeds the 512 KB limit ({bytes} bytes), offending tab: {tabName}. Trim the tab content before forking.",
+    "storageUnavailable": "Your browser is blocking local storage (private mode?), so the room could not be forked.",
+    "quotaExceeded": "Browser storage is full, so the room could not be forked. Delete an old project and try again.",
+    "failed": "Could not fork the room to Local Sandbox."
   }
 }

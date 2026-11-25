@@ -73,5 +73,21 @@
     "runNext": "Trang sau",
     "runRowNumber": "STT",
     "runStarting": "Đang khởi tạo {engine}…"
+  },
+  "roomFork": {
+    "button": "Fork về máy",
+    "title": "Fork phòng sang Local Sandbox",
+    "description": "Tạo một bản sao độc lập trên máy bạn để tự do chỉnh sửa và chạy thử. Dữ liệu SQL không gửi lên máy chủ.",
+    "activeCount": "Phòng fork đang lưu: {count}/{max}",
+    "tabsCount": "{count} tab sẽ được sao chép",
+    "confirm": "Fork về Local Sandbox",
+    "forking": "Đang fork…",
+    "cancel": "Hủy",
+    "success": "Đã fork {count} tab về Local Sandbox",
+    "limitReached": "Đã đạt giới hạn tối đa {max} phòng fork ({count}/{max}). Hãy xóa bớt dự án fork cũ trong workspace trước khi fork thêm.",
+    "tooLarge": "Dữ liệu vượt giới hạn 512 KB ({bytes} byte), tab vi phạm: {tabName}. Hãy thu gọn nội dung tab trước khi fork.",
+    "storageUnavailable": "Trình duyệt đang chặn bộ nhớ cục bộ (chế độ riêng tư?), nên chưa fork được.",
+    "quotaExceeded": "Bộ nhớ trình duyệt đã đầy nên chưa fork được. Hãy xóa bớt dự án cũ rồi thử lại.",
+    "failed": "Không fork được phòng sang Local Sandbox."
   }
 }
