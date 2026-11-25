@@ -49,6 +49,9 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: { "/**": ["./messages/**/*.json"] },
   cacheComponents: true,
   partialPrefetching: true,
+  experimental: {
+    agentUpgrade: "security",
+  },
   turbopack: {
     root: path.resolve(process.cwd(), "../../.."),
     rules: {
