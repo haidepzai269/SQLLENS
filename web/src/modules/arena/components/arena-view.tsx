@@ -15,6 +15,7 @@ import { getArenaScenario } from "../scenarios-data";
 import { ScenarioPicker } from "./scenario-picker";
 import { StepController } from "./step-controller";
 import { SimulationBadge } from "./simulation-badge";
+import { ArenaMentorPanel } from "../mentor/arena-mentor-panel";
 
 export interface ArenaViewProps {
   className?: string;
@@ -22,6 +23,7 @@ export interface ArenaViewProps {
   roomId?: string;
   role?: ArenaRole;
   fetchImpl?: typeof fetch;
+  isVip?: boolean;
 }
 
 const TX_STATUS_STYLES: Record<string, string> = {
@@ -38,6 +40,7 @@ export function ArenaView({
   roomId,
   role,
   fetchImpl,
+  isVip,
 }: ArenaViewProps) {
   const t = useTranslations("arena");
   const scenarioId = useArenaStore((s) => s.scenarioId);
@@ -214,6 +217,9 @@ export function ArenaView({
           </div>
         </CardContent>
       </Card>
+
+      {/* AI Mentor cho người dùng VIP (chỉ hiển thị khi isVip === true) */}
+      <ArenaMentorPanel isVip={isVip} fetchImpl={fetchImpl} />
     </div>
   );
 }

@@ -162,5 +162,19 @@
   "sync": {
     "viewerNote": "Đang đồng bộ bước từ Host mỗi 3 giây (chỉ xem).",
     "hostNote": "Bạn là Host: bước hiện tại đang được đồng bộ cho người xem."
+  },
+  "mentor": {
+    "trigger": "Phân tích với AI Mentor",
+    "analyzing": "Đang phân tích bước mô phỏng...",
+    "resultTitle": "Phân tích từ AI Mentor",
+    "retry": "Thử lại",
+    "errors": {
+      "unauthorized": "Vui lòng đăng nhập để sử dụng AI Mentor.",
+      "vip_required": "Tính năng AI Mentor chỉ dành cho tài khoản VIP.",
+      "rate_limited": "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau ít phút.",
+      "server_error": "Hệ thống AI tạm thời gặp sự cố. Vui lòng thử lại.",
+      "network_error": "Không thể kết nối tới máy chủ AI. Vui lòng kiểm tra mạng.",
+      "empty_response": "AI Mentor chưa trả về nội dung phân tích. Vui lòng thử lại."
+    }
   }
 }
