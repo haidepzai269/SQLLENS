@@ -4,6 +4,7 @@
 Chi tiết số đo kiểm chứng thực nghiệm đầy đủ xem tại [CLAUDE.md](file:///c:/SQLLens/CLAUDE.md).
 
 - **Tài liệu gốc:** [Google Doc](https://docs.google.com/document/d/1Rg-zKY2ysY4Z4PChw2sZpVk4ImadZ5U95_0gtz-eXjo/edit)
+- **Model sub-agent (dev & review):** Bắt buộc dùng **`gemini hydrogen medium`** khi tạo/gọi sub-agent — xem chi tiết tại [.agents/rules/bmad-subagent-model.md](file:///c:/SQLLens/.agents/rules/bmad-subagent-model.md).
 - **Giai đoạn hiện tại:** Đã chốt 18 Epic và 87 Story (`_bmad-output/BAN_DO_STORY.md`). **SP001 - SP018 ĐÃ HOÀN THÀNH 100%!**
   - _Task113 (STR080):_ ĐÃ HOÀN THÀNH 100%! Khắc phục triệt để lỗi 1-Click Fix xóa sạch editor bằng thuật toán bóc tách statement boundary và offset locator `applyStatementFix`, bảo toàn 100% các câu lệnh trước/sau và hỗ trợ hoàn tác Undo `Ctrl+Z`, đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
   - _Task114 (STR081):_ ĐÃ HOÀN THÀNH 100%! Hiện thực hóa 6 tùy chọn Settings vào CodeMirror (theme cỡ chữ động 13/14/16px, ngắt dòng động, số dòng, highlight dòng) và đồng bộ Theme/Contrast Boost vào DOM `<html>`, đã được reviewer độc lập nghiệm thu PASS 100% và merge vào `main`.
