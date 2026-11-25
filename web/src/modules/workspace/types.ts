@@ -18,6 +18,11 @@ export interface WorkspaceCloudLink {
   stamp?: string;
 }
 
+export interface WorkspaceRoomForkLink {
+  projectId: string;
+  forkedAt: number;
+}
+
 export interface WorkspaceProject {
   id: string;
   scopeKey: string;
@@ -26,6 +31,8 @@ export interface WorkspaceProject {
   createdAt: number;
   updatedAt: number;
   cloud?: WorkspaceCloudLink;
+  /** Đánh dấu dự án được fork từ phòng cộng tác (Task167); không đồng bộ lên cloud hay projectStamp. */
+  roomFork?: WorkspaceRoomForkLink;
 }
 
 export interface WorkspaceTab {
