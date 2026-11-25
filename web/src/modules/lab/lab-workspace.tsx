@@ -65,6 +65,8 @@ import { changesSchema, notifySchemaChanged, useSchemaChangedNotice, useTabRunti
 import { bindEngine, onProjectSwitch, releaseProjectResources } from "@/modules/workspace/engine-binding";
 import { EngineReleaseToast } from "@/modules/workspace/components/engine-release-toast";
 import { ConclusionBadge } from "@/components/ui/conclusion-badge";
+import { useBatonStore } from "@/modules/room/collab/baton-store";
+import { BatonRequestToast } from "@/modules/room/components/baton-request-toast";
 
 type RunData = { statements: number; rows: number };
 type Stop = "cancelled" | "timeout" | "worker_crashed";
@@ -118,6 +120,18 @@ export function LabWorkspace() {
   const saveState = useWorkspaceStore((s) => s.saveState);
   const [warnStorageDismissed, setWarnStorageDismissed] = useState(false);
   const tw = useTranslations("workspace");
+  const tr = useTranslations("room");
+  const batonProjectId = useBatonStore((s) => s.projectId);
+  const batonHolderId = useBatonStore((s) => s.holderId);
+  const batonMyUserId = useBatonStore((s) => s.myUserId);
+  const batonRole = useBatonStore((s) => s.myRole);
+  const batonMemberNames = useBatonStore((s) => s.memberNames);
+  const batonViewer = batonProjectId !== null && batonRole === "viewer";
+  const batonBlocked = batonProjectId !== null && batonHolderId !== null && batonHolderId !== batonMyUserId;
+  const batonHolderName = batonHolderId ? batonMemberNames[batonHolderId] : undefined;
+  const batonTipLabel = batonHolderName
+    ? tr("baton.blockedTooltip", { name: batonHolderName })
+    : tr("baton.blockedTooltipUnknown");
 
   const tabRuntime = useTabRuntime();
   const schemaNotice = useSchemaChangedNotice();
@@ -717,7 +731,7 @@ export function LabWorkspace() {
     }
   };
   const handleEditorRun = (options?: { targetSql?: string; isSelection?: boolean }) => {
-    if (canRun) void onRun(options?.targetSql);
+    if (canRun && !batonBlocked && !batonViewer) void onRun(options?.targetSql);
   };
 
   const sqlLabel = mysql ? tm("sqlLabel") : t("sqlLabel");
@@ -745,24 +759,30 @@ export function LabWorkspace() {
           {authStatus === "anon" && <Lock className="h-3.5 w-3.5" aria-hidden />}
         </Button>
       </Tip>
-      <Tip label={hasSelectionToRun ? ts("tip.runSelection") : ts("tip.run")} side="bottom">
-        <Button
-          ref={runBtn}
-          size="sm"
-          variant="default"
-          onClick={handlePlayClick}
-          disabled={!canRun}
-          aria-label={hasSelectionToRun ? t("runSelected") : t("run")}
-        >
-          <Play className="h-4 w-4 fill-current" />
-        </Button>
-      </Tip>
+      {!batonViewer && (
+        <Tip label={batonBlocked ? batonTipLabel : hasSelectionToRun ? ts("tip.runSelection") : ts("tip.run")} side="bottom">
+          <span className="inline-flex">
+            <Button
+              ref={runBtn}
+              size="sm"
+              variant="default"
+              data-testid="lab-run-button"
+              onClick={handlePlayClick}
+              disabled={!canRun || batonBlocked}
+              aria-label={hasSelectionToRun ? t("runSelected") : t("run")}
+            >
+              <Play className="h-4 w-4 fill-current" />
+            </Button>
+          </span>
+        </Tip>
+      )}
     </div>
   );
 
   const sqlZone = (
     <Pane title={ts("tab.sql")} headerRight={sqlHeaderRight} bar={<TabBar />}>
       <ImportGuestBanner />
+      {batonProjectId !== null && <BatonRequestToast />}
       <span className="text-sm font-medium">{sqlLabel}</span>
       {schemaNotice.message && (
         <div

@@ -218,8 +218,40 @@ describe("baton-store (The Baton)", () => {
     expect(store.getState().status).toBe("error");
     expect(store.getState().error).toContain("403: forbidden");
 
+    store.getState().setMemberNames({ "user-editor": "Bình" });
+    expect(store.getState().memberNames).toEqual({ "user-editor": "Bình" });
+
     store.getState().reset();
     expect(store.getState().projectId).toBeNull();
+    expect(store.getState().memberNames).toEqual({});
     expect(store.getState().status).toBe("idle");
+  });
+
+  it("Task165: setMemberNames cập nhật tên thành viên và setRoom đổi phòng thì dọn sạch memberNames", () => {
+    const store = createBatonStore();
+    store.getState().setRoom({
+      projectId: "proj-a",
+      myUserId: "u1",
+      myRole: "owner",
+    });
+    store.getState().setMemberNames({ u1: "An", u2: "Bình" });
+    expect(store.getState().memberNames).toEqual({ u1: "An", u2: "Bình" });
+
+    // Cập nhật lại trên cùng phòng: giữ memberNames
+    store.getState().setRoom({
+      projectId: "proj-a",
+      myUserId: "u1",
+      myRole: "owner",
+      holderId: "u2",
+    });
+    expect(store.getState().memberNames).toEqual({ u1: "An", u2: "Bình" });
+
+    // Đổi sang phòng khác: dọn sạch memberNames
+    store.getState().setRoom({
+      projectId: "proj-b",
+      myUserId: "u1",
+      myRole: "editor",
+    });
+    expect(store.getState().memberNames).toEqual({});
   });
 });

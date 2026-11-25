@@ -50,5 +50,15 @@
     "retry": "Try again",
     "home": "Back to home",
     "openWorkspace": "Open workspace"
+  },
+  "baton": {
+    "blockedTooltip": "Waiting for {name} to finish running",
+    "blockedTooltipUnknown": "Another collaborator holds the run baton",
+    "unknownMember": "Collaborator",
+    "requestButton": "Request run",
+    "requestPending": "Request sent",
+    "requestMessage": "{name} wants to run queries",
+    "grantButton": "Grant",
+    "holderLabel": "Held by: {name}"
   }
 }

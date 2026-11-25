@@ -50,5 +50,15 @@
     "retry": "Thử lại",
     "home": "Về trang chủ",
     "openWorkspace": "Mở workspace"
+  },
+  "baton": {
+    "blockedTooltip": "Đang chờ {name} chạy câu lệnh",
+    "blockedTooltipUnknown": "Người khác đang giữ quyền chạy câu lệnh",
+    "unknownMember": "Thành viên",
+    "requestButton": "Xin quyền chạy",
+    "requestPending": "Đã gửi yêu cầu",
+    "requestMessage": "{name} muốn chạy câu lệnh",
+    "grantButton": "Cấp quyền",
+    "holderLabel": "Đang giữ quyền: {name}"
   }
 }

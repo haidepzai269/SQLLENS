@@ -32,11 +32,13 @@ export interface BatonStoreState {
   holderId: string | null;
   myUserId: string | null;
   myRole: RoomRole | null;
+  memberNames: Record<string, string>;
   pendingRequests: string[];
   status: BatonStatus;
   error: string | null;
 
   setRoom: (room: SetBatonRoomInput) => void;
+  setMemberNames: (names: Record<string, string>) => void;
   setTransport: (transport: BatonTransport | null) => void;
   syncFromServer: () => Promise<void>;
   claimBaton: () => Promise<boolean>;
@@ -116,6 +118,7 @@ const INITIAL_STATE = {
   holderId: null as string | null,
   myUserId: null as string | null,
   myRole: null as RoomRole | null,
+  memberNames: {} as Record<string, string>,
   pendingRequests: [] as string[],
   status: "idle" as BatonStatus,
   error: null as string | null,
@@ -144,10 +147,15 @@ export function createBatonStore(
         myUserId,
         myRole,
         holderId: holderId !== undefined ? holderId : state.projectId === projectId ? state.holderId : null,
+        memberNames: state.projectId === projectId ? state.memberNames : {},
         pendingRequests: state.projectId === projectId ? state.pendingRequests : [],
         status: projectId ? state.status : "idle",
         error: null,
       }));
+    },
+
+    setMemberNames: (names) => {
+      set({ memberNames: { ...names } });
     },
 
     setTransport: (transport) => {
