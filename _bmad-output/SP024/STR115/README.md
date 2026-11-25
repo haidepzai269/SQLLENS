@@ -27,7 +27,7 @@ Có
 
 | Task | Mô tả | Trạng thái |
 |---|---|---|
-| Task167 | Fork to Local Sandbox: bọc `forkSnapshot()`, đếm phòng fork, hai trần, i18n | Chờ |
+| Task167 | Fork to Local Sandbox: bọc `forkSnapshot()`, đếm phòng fork, hai trần, i18n | **Xong 100%** — Reviewer độc lập (`reviewer-167`) nghiệm thu PASS 100% (`roomFork?` D20 không bump DB version, 4/4 E2E `room-fork.spec.ts` Chrome thật với đúng 1 `/api/me` và 0 byte SQL, `next build` PASS). Đã merge vào `main`. Xem `Task167/ban_giao_task167.md` |
 
 ## Tiêu chí nghiệm thu Story
 
