@@ -10,11 +10,13 @@ import { useArenaStore } from "../arena-store";
 import { ArenaView } from "../components/arena-view";
 import {
   ARENA_MENTOR_ENDPOINT,
+  ARENA_MENTOR_TIMEOUT_MS,
   analyzeArenaStepWithMentor,
   buildArenaMentorPrompt,
 } from "./arena-mentor-prompt";
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
   vi.restoreAllMocks();
 });
@@ -260,5 +262,39 @@ describe("Arena AI Mentor (Task170)", () => {
     });
     expect(screen.queryByTestId("arena-mentor-error")).toBeNull();
     expect(screen.queryByTestId("arena-mentor-result")).toBeNull();
+  });
+
+  it("Ca biên: hết timeout nội bộ 10s trả về network_error, tắt spinner và hiện nút thử lại", async () => {
+    vi.useFakeTimers();
+
+    const hangingFetch = vi.fn<typeof fetch>().mockImplementation((_url, init) => {
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      });
+    });
+
+    const promise = analyzeArenaStepWithMentor(
+      { scenarioId: "deadlock_reverse_order", stepIndex: 3, locale: "vi" },
+      hangingFetch
+    );
+
+    await vi.advanceTimersByTimeAsync(ARENA_MENTOR_TIMEOUT_MS);
+    await expect(promise).resolves.toEqual({ ok: false, errorKind: "network_error" });
+
+    renderArenaView({ locale: "vi", isVip: true, fetchImpl: hangingFetch });
+    const trigger = screen.getByTestId("arena-mentor-trigger") as HTMLButtonElement;
+    fireEvent.click(trigger);
+    expect(trigger.disabled).toBe(true);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ARENA_MENTOR_TIMEOUT_MS);
+    });
+
+    expect((screen.getByTestId("arena-mentor-trigger") as HTMLButtonElement).disabled).toBe(false);
+    const errorBox = screen.getByTestId("arena-mentor-error");
+    expect(errorBox.textContent).toContain("Không thể kết nối");
+    expect(screen.getByTestId("arena-mentor-retry")).toBeTruthy();
   });
 });

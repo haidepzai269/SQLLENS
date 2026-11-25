@@ -110,7 +110,9 @@ export async function analyzeArenaStepWithMentor(
 
   const payload = buildArenaMentorPrompt({ scenarioId, stepIndex, locale });
   const controller = new AbortController();
+  let timedOut = false;
   const timer = setTimeout(() => {
+    timedOut = true;
     controller.abort();
   }, ARENA_MENTOR_TIMEOUT_MS);
 
@@ -154,7 +156,13 @@ export async function analyzeArenaStepWithMentor(
 
     return { ok: true, analysis: completion };
   } catch (err: unknown) {
-    if (signal?.aborted || (err instanceof DOMException && err.name === "AbortError")) {
+    if (signal?.aborted) {
+      return { ok: false, errorKind: "aborted" };
+    }
+    if (timedOut) {
+      return { ok: false, errorKind: "network_error" };
+    }
+    if (err instanceof DOMException && err.name === "AbortError") {
       return { ok: false, errorKind: "aborted" };
     }
     return { ok: false, errorKind: "network_error" };
