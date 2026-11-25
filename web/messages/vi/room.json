@@ -60,5 +60,14 @@
     "requestMessage": "{name} muốn chạy câu lệnh",
     "grantButton": "Cấp quyền",
     "holderLabel": "Đang giữ quyền: {name}"
+  },
+  "p2p": {
+    "natWarning": "Tính năng hoạt động tốt nhất trên cùng mạng LAN hoặc Open NAT.",
+    "batonReturned": "Quyền chạy đã tự động trả về chủ phòng ({holder}).",
+    "resultReceived": "Đã nhận kết quả P2P từ {name} ({ms}ms)",
+    "runSample": "Chạy SQL mẫu",
+    "simulateDisconnect": "Ngắt kết nối Driver",
+    "holderStatus": "Người giữ quyền: {holder}",
+    "noResultYet": "Chưa có kết quả thực thi."
   }
 }

@@ -60,5 +60,14 @@
     "requestMessage": "{name} wants to run queries",
     "grantButton": "Grant",
     "holderLabel": "Held by: {name}"
+  },
+  "p2p": {
+    "natWarning": "Best experienced on the same LAN or Open NAT.",
+    "batonReturned": "Run baton was automatically returned to the room owner ({holder}).",
+    "resultReceived": "Received P2P result from {name} ({ms}ms)",
+    "runSample": "Run sample SQL",
+    "simulateDisconnect": "Simulate Driver disconnect",
+    "holderStatus": "Baton holder: {holder}",
+    "noResultYet": "No execution result yet."
   }
 }
