@@ -2,12 +2,13 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, type ReactNode, type RefObject } from "react";
-import { BarChart3, FileCode, FolderTree, Lock, Network, SlidersHorizontal, Sparkles, Workflow } from "lucide-react";
+import { BarChart3, FileCode, FolderTree, Lock, Network, SlidersHorizontal, Sparkles, Swords, Workflow } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { StageErrorBoundary } from "@/components/error-boundary";
 import { Tip } from "@/components/shell/tip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ConclusionBadge } from "@/components/ui/conclusion-badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +27,7 @@ import { buildEvidencePack } from "@/modules/mentor/evidence";
 import { parseSchema, type TableInfo } from "@/modules/data-lab/generate/plan-data";
 import { ExportMenu } from "@/modules/export/components/export-menu";
 import { InviteDialog } from "@/modules/room/components/invite-dialog";
+import { ForkDialog } from "@/modules/room/fork/fork-dialog";
 import { ShareDialog } from "@/modules/share/components/share-dialog";
 import { JoinAnimation } from "@/modules/plan-runner/join-anim/join-animation";
 import { PlanTree } from "@/modules/plan-runner/plan-tree";
@@ -508,6 +510,7 @@ export function Stage({
 }) {
   const t = useTranslations("labStage");
   const ts = useTranslations("shell");
+  const ta = useTranslations("arena");
   const [tab, setTab] = useState<Tab>("schema");
   const { guest } = useGuest();
   const locked = (x: Tab) => guest && GUEST_LOCKED_TABS.has(x); // khách xem được Sơ đồ, Plan và Tranh chấp
@@ -532,11 +535,26 @@ export function Stage({
 
   const activeProjectId = useWorkspaceStore((s) => s.activeProjectId);
   const projects = useWorkspaceStore((s) => s.projects);
-  const currentProject = useMemo(() => {
-    if (!activeProjectId) return projects[0];
-    return projects.find((p) => p.id === activeProjectId) ?? projects[0];
-  }, [projects, activeProjectId]);
+  const tabs = useWorkspaceStore((s) => s.tabs);
+  const scope = useWorkspaceStore((s) => s.scope);
+  const activeProject = useMemo(
+    () => (activeProjectId ? projects.find((p) => p.id === activeProjectId) : undefined),
+    [projects, activeProjectId],
+  );
+  const currentProject = activeProject ?? projects[0];
   const projectName = currentProject?.name;
+  const cloudId = activeProject?.cloud?.remoteId?.trim() || undefined;
+  const projectTabs = useMemo(
+    () =>
+      activeProject
+        ? tabs
+            .filter((item) => item.projectId === activeProject.id)
+            .sort((a, b) => a.position - b.position)
+            .map((item) => ({ name: item.name, sql: item.sql }))
+        : [],
+    [tabs, activeProject],
+  );
+  const arenaHref = cloudId ? `/arena?roomId=${encodeURIComponent(cloudId)}&role=host` : "/arena";
 
   // SQLite: adapter trả "chưa mô phỏng được" cho explain, nên không cần chạy câu nào để biết.
   const plan = useLoad<Outcome<Plan>>(!!run?.select && (open("plan") || open("btree") || (!my && open("mentor"))), `${run?.id}`, () => run!.explain(run!.select!.sql));
@@ -557,6 +575,26 @@ export function Stage({
       <div className="flex h-[var(--h-bar)] flex-none items-center justify-between border-b border-line px-[var(--edge)]">
         <span className="font-semibold">{ts("tab.stage")}</span>
         <div className="flex items-center gap-1.5">
+          <Link
+            href={arenaHref}
+            data-testid="stage-open-arena"
+            className={`${buttonVariants({ size: "sm", variant: "outline" })} h-8 gap-1.5 px-2.5 text-xs`}
+          >
+            <Swords className="size-3.5" aria-hidden="true" />
+            <span>{ta("nav.openArena")}</span>
+          </Link>
+          {cloudId && activeProject && (
+            <ForkDialog
+              room={{
+                projectId: cloudId,
+                projectName: activeProject.name,
+                engine: activeProject.engine,
+                tabs: projectTabs,
+              }}
+              scope={scope}
+              disabled={working}
+            />
+          )}
           <InviteDialog disabled={working} />
           <ShareDialog disabled={working} />
           <ExportMenu

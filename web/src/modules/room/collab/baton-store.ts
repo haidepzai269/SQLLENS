@@ -34,11 +34,13 @@ export interface BatonStoreState {
   myRole: RoomRole | null;
   memberNames: Record<string, string>;
   pendingRequests: string[];
+  natWarning: boolean;
   status: BatonStatus;
   error: string | null;
 
   setRoom: (room: SetBatonRoomInput) => void;
   setMemberNames: (names: Record<string, string>) => void;
+  setNatWarning: (visible: boolean) => void;
   setTransport: (transport: BatonTransport | null) => void;
   syncFromServer: () => Promise<void>;
   claimBaton: () => Promise<boolean>;
@@ -120,6 +122,7 @@ const INITIAL_STATE = {
   myRole: null as RoomRole | null,
   memberNames: {} as Record<string, string>,
   pendingRequests: [] as string[],
+  natWarning: false,
   status: "idle" as BatonStatus,
   error: null as string | null,
 };
@@ -149,6 +152,7 @@ export function createBatonStore(
         holderId: holderId !== undefined ? holderId : state.projectId === projectId ? state.holderId : null,
         memberNames: state.projectId === projectId ? state.memberNames : {},
         pendingRequests: state.projectId === projectId ? state.pendingRequests : [],
+        natWarning: false,
         status: projectId ? state.status : "idle",
         error: null,
       }));
@@ -156,6 +160,10 @@ export function createBatonStore(
 
     setMemberNames: (names) => {
       set({ memberNames: { ...names } });
+    },
+
+    setNatWarning: (visible) => {
+      set({ natWarning: visible });
     },
 
     setTransport: (transport) => {

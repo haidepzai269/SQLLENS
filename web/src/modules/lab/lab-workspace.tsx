@@ -67,6 +67,7 @@ import { EngineReleaseToast } from "@/modules/workspace/components/engine-releas
 import { ConclusionBadge } from "@/components/ui/conclusion-badge";
 import { useBatonStore } from "@/modules/room/collab/baton-store";
 import { BatonRequestToast } from "@/modules/room/components/baton-request-toast";
+import { NatWarningBanner } from "@/modules/room/components/nat-warning-banner";
 
 type RunData = { statements: number; rows: number };
 type Stop = "cancelled" | "timeout" | "worker_crashed";
@@ -123,6 +124,7 @@ export function LabWorkspace() {
   const tr = useTranslations("room");
   const batonProjectId = useBatonStore((s) => s.projectId);
   const batonHolderId = useBatonStore((s) => s.holderId);
+  const batonNatWarning = useBatonStore((s) => s.natWarning);
   const batonMyUserId = useBatonStore((s) => s.myUserId);
   const batonRole = useBatonStore((s) => s.myRole);
   const batonMemberNames = useBatonStore((s) => s.memberNames);
@@ -783,6 +785,7 @@ export function LabWorkspace() {
     <Pane title={ts("tab.sql")} headerRight={sqlHeaderRight} bar={<TabBar />}>
       <ImportGuestBanner />
       {batonProjectId !== null && <BatonRequestToast />}
+      <NatWarningBanner visible={batonProjectId !== null && batonNatWarning} />
       <span className="text-sm font-medium">{sqlLabel}</span>
       {schemaNotice.message && (
         <div

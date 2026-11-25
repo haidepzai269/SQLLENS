@@ -254,4 +254,25 @@ describe("baton-store (The Baton)", () => {
     });
     expect(store.getState().memberNames).toEqual({});
   });
+
+  it("Task172: natWarning mặc định false, setNatWarning cập nhật và setRoom/reset đặt lại về false", () => {
+    const store = createBatonStore();
+    expect(store.getState().natWarning).toBe(false);
+
+    store.getState().setNatWarning(true);
+    expect(store.getState().natWarning).toBe(true);
+
+    store.getState().setRoom({
+      projectId: "proj-nat",
+      myUserId: "u1",
+      myRole: "editor",
+    });
+    expect(store.getState().natWarning).toBe(false);
+
+    store.getState().setNatWarning(true);
+    expect(store.getState().natWarning).toBe(true);
+
+    store.getState().reset();
+    expect(store.getState().natWarning).toBe(false);
+  });
 });
