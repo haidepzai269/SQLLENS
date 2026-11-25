@@ -35,8 +35,8 @@ Có
 
 | Task | Mô tả | Trạng thái |
 |---|---|---|
-| Task163 | Gin WebSocket signaling `/signal` (không thêm dep frontend, không có 3 Baton API — xem `Task163/task163.md` D1/D2) | Chờ |
-| Task164 | Yjs Provider + CodeMirror 6 binding (thêm `zustand` thành direct dep) | Chờ |
+| Task163 | Gin WebSocket signaling `/signal` (D1/D2/D3: không thêm dep frontend, 3 Baton API chuyển sang Task161) | **Xong 100%** — Reviewer độc lập nghiệm thu PASS 100% (7/7 AC, 16/16 test PASS, Zero-Log Transit). Đã merge vào `main`. Xem `Task163/ban_giao_task163.md` |
+| Task164 | Yjs Provider (`/signal` + DataChannel lọc `toPeerId`) + CodeMirror 6 binding + Baton store | **Xong 100%** — Sai lệch D1 (tự viết provider thay `y-webrtc`) & D2 (nối `GET /baton` + `POST /baton/claim`, ghi nợ 3 REST endpoint `/baton/request`, `/baton/grant`, `/baton/heartbeat` cho Task165/backend). Reviewer độc lập (`reviewer-164`) nghiệm thu PASS 100% (16/16 collab tests, `npm run check`, `next build` PASS). Đã merge vào `main`. Xem `Task164/ban_giao_task164.md` |
 | Task165 | UI The Baton: nút Play trong `lab-workspace.tsx:748-759`, toast xin quyền, i18n | Chờ |
 | Task166 | WebRTC DataChannel broadcast kết quả P2P + NAT warning | Chờ |
 
