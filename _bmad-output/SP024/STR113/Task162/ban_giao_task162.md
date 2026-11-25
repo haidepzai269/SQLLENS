@@ -105,3 +105,21 @@ Kiểm tra lại sau vòng 2 (chạy thật, 25/11/2026):
 - Đột biến F1 chạy thật (bỏ dòng lọc chủ) → test đỏ, đã khôi phục.
 
 Còn lại: **chưa gọi reviewer độc lập vòng 3**, chưa merge, chưa đo trên bản deploy. Nhãn task vẫn là **Chưa đo**.
+
+## Vòng sửa 3 (25/11/2026)
+
+Đã xử lý đủ 7 mục Review Findings (vòng 3) trên nhánh `task/Task162` (từ commit gốc `eacc891`):
+
+| # | Cách sửa | Bằng chứng |
+|---|---|---|
+| D-V3-1 & P4 | Bỏ `nowMs` và kiểm tra hạn đồng hồ client trong `invite-dialog.tsx`; khi có `current`, luôn hiển thị `room-invite-link`, nút Copy, gợi ý hạn dùng và nút **Tạo liên kết mới** (`room-invite-regenerate`, `variant="outline"`, `size="sm"`, disabled khi `creating`). Cập nhật `invite.regenerate` và gỡ `invite.linkExpired` trong `web/messages/{vi,en}/room.json`. | `invite-dialog.test.tsx`: vé `expiresAt: "2020-01-01T00:00:00Z"` vẫn hiện link + nút tạo mới; bấm `room-invite-regenerate` đổi link từ `tok-cu` sang `tok-moi` (2 lần gọi `POST /invite`). |
+| D-V3-2 | Đặt state `joinedServer = true` ngay sau `await joinRoom(token)` trong `join-room-page.tsx`; thêm `join.joinedSaveFailed` và `join.joinedStorageFailed` (vi/en); nhánh `phase === "error"` khi `joinedServer` hiển thị thông báo đã vào phòng nhưng lỗi lưu máy kèm link `room-join-open-workspace` (`openWorkspace`). | `join-room-page.test.tsx`: 2 unit test mới phủ cả lỗi lưu IndexedDB (`STORAGE_UNAVAILABLE`) và lỗi ghi khác sau khi `joinRoom` đã thành công. |
+| P1 | Thêm `TestListMembersUnderRLS` trong `api/internal/store/live_rooms_rls_test.go` dùng `newRLSEnv(t)` (role `rls_test_owner` non-superuser + `FORCE ROW LEVEL SECURITY` và `e.app` role `sqllens_app`): chủ thấy 2 người (`owner`, `editor`), chủ tự join không bị lặp, thành viên thường nhận `ErrNotOwner`, người ngoài nhận `ErrNotFound`. | `go test -p 1 ./internal/store -run "Room\|ListMembers" -v -count=1` PASS (10,555 s, `TestListMembersUnderRLS` PASS 0,42 s). |
+| P2 | Thêm kịch bản Playwright `390x844` cho `/vi/join?token=<120 ký tự>` ở cả trạng thái sẵn sàng và lỗi 410 trong `web/e2e/room-invite.spec.ts`, khẳng định `scrollWidth - clientWidth <= 0`. | `npx playwright test e2e/room-invite.spec.ts` **7/7 PASS** (12,5 s). |
+| P3 | Bọc `getRepository(db).listProjects(scope)` trong `try/catch` ở `web/src/modules/room/join.ts` để ném `CloudSyncError("STORAGE_UNAVAILABLE", ...)` (giữ nguyên nếu đã là `CloudSyncError`). | `join.test.ts`: unit test giả lập lỗi `transaction()` khi đọc `listProjects`, xác nhận trả về `CloudSyncError("STORAGE_UNAVAILABLE")` và `classifyJoinError` trả `storage`. |
+| P5 | Thay 4 thông điệp nội bộ của `RoomApiError` trong `web/src/modules/room/api.ts` sang tiếng Anh kỹ thuật ngắn, không hardcode tiếng Việt. | `api.test.ts` + `npm run check` PASS. |
+
+Kết quả kiểm tra thật sau vòng sửa 3 (25/11/2026):
+- `api`: `gofmt -l .` sạch, `go vet ./...` sạch, `go test -p 1 ./internal/store -run "Room|ListMembers" -v -count=1` PASS (`ok ... 10.555s`), `go test -p 1 ./... -count=1` **8/8 package PASS** với PostgreSQL 18 Docker thật (`127.0.0.1:54492/app160`, `127.0.0.1:54495/app161`).
+- `web`: `npm run check` **PASS** (125 file passed | 2 skipped, 1517 tests passed | 18 skipped; 0 errors, 1 warning sẵn có ở `e2e/plan-explain.spec.ts`); `API_ORIGIN=http://127.0.0.1:8080 npm run build` **PASS** (69/69 static pages); `npx playwright test e2e/room-invite.spec.ts` **7/7 PASS** (12.5 s).
+- Chưa merge `main`, chưa đo trên bản deploy thật (nhãn task vẫn là **Chưa đo**).

@@ -43,6 +43,10 @@ export function JoinRoomPage() {
   // thì `ready`, server không trả lời được thì `error`.
   const [step, setStep] = useState<Phase | null>(null);
   const [error, setError] = useState<JoinErrorKind | null>(null);
+  // Ghi nhận đã vào phòng trên server hay chưa: nếu `joinRoom` thành công nhưng bước lưu vào
+  // IndexedDB phía sau hỏng, phải báo rõ đã là thành viên + cho nút mở workspace thay vì nói
+  // "Không tham gia được phòng" khiến người dùng tưởng link mời hỏng.
+  const [joinedServer, setJoinedServer] = useState(false);
 
   const phase: Phase =
     step ?? (status === "unavailable" ? "error" : status === "user" ? "ready" : "auth");
@@ -76,10 +80,13 @@ export function JoinRoomPage() {
       return;
     }
     joining.current = true;
+    setJoinedServer(false);
+    setError(null);
     setStep("joining");
     const scope: WorkspaceScope = { kind: "user", userId: user.id };
     try {
       const result = await joinRoom(token);
+      setJoinedServer(true);
       const opened = await ensureJoinedProject(result.projectId, scope);
       setStep("done");
       // Từ đây người dùng ĐÃ là thành viên và dự án đã nằm trên máy: dấu chờ và điều hướng chỉ là
@@ -110,6 +117,9 @@ export function JoinRoomPage() {
   const canRetry = user !== null && errorKind !== "invalid" && errorKind !== "expired";
 
   const message = (() => {
+    if (joinedServer) {
+      return errorKind === "storage" ? t("joinedStorageFailed") : t("joinedSaveFailed");
+    }
     switch (errorKind) {
       case "expired":
         return t("expired");
@@ -199,6 +209,15 @@ export function JoinRoomPage() {
                   {t("retry")}
                 </Button>
               )
+            )}
+            {joinedServer && (
+              <Link
+                href="/"
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+                data-testid="room-join-open-workspace"
+              >
+                {t("openWorkspace")}
+              </Link>
             )}
             <Link href="/" className={buttonVariants({ variant: "outline", size: "sm" })}>
               {t("home")}

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import viRoom from "../../../messages/vi/room.json";
 import { AuthProvider } from "@/modules/auth/auth-provider";
+import { CloudSyncError } from "@/modules/cloud/sync";
 import { JoinRoomPage } from "./join-room-page";
 import { ensureJoinedProject } from "./join";
 
@@ -22,8 +23,17 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/i18n/navigation", () => ({
-  Link: ({ children, href, className }: { children: ReactNode; href: string; className?: string }) => (
-    <a href={href} className={className}>
+  Link: ({
+    children,
+    href,
+    ...rest
+  }: {
+    children: ReactNode;
+    href: string;
+    className?: string;
+    "data-testid"?: string;
+  }) => (
+    <a href={href} {...rest}>
       {children}
     </a>
   ),
@@ -121,5 +131,42 @@ describe("JoinRoomPage", () => {
     const link = screen.getByRole("link", { name: "Mở workspace" });
     expect(link.getAttribute("href")).toBe("/");
     expect(assign).toHaveBeenCalledWith("/vi");
+  });
+
+  it("đã tham gia trên server nhưng lỗi lưu máy: báo rõ đã vào phòng và cho mở workspace + thử lại", async () => {
+    stubFetch(200, (href, init) =>
+      href.endsWith("/join") && init?.method === "POST"
+        ? new Response(JSON.stringify({ projectId: "p-1", role: "editor", alreadyMember: false }), { status: 200 })
+        : undefined,
+    );
+    (ensureJoinedProject as Mock).mockRejectedValue(
+      new CloudSyncError("STORAGE_UNAVAILABLE", "IndexedDB blocked"),
+    );
+    renderPage();
+
+    fireEvent.click(await screen.findByTestId("room-join-button"));
+
+    const box = await screen.findByTestId("room-join-error");
+    expect(box.textContent).toContain("Bạn đã tham gia phòng, nhưng trình duyệt không cho lưu bản sao trên máy này");
+    const openWs = screen.getByTestId("room-join-open-workspace");
+    expect(openWs.getAttribute("href")).toBe("/");
+    expect(box.querySelector("button")?.textContent).toContain("Thử lại");
+  });
+
+  it("đã tham gia trên server nhưng lỗi kéo/lưu khác: báo joinedSaveFailed và cho mở workspace + thử lại", async () => {
+    stubFetch(200, (href, init) =>
+      href.endsWith("/join") && init?.method === "POST"
+        ? new Response(JSON.stringify({ projectId: "p-1", role: "editor", alreadyMember: false }), { status: 200 })
+        : undefined,
+    );
+    (ensureJoinedProject as Mock).mockRejectedValue(new CloudSyncError("NETWORK", "timeout"));
+    renderPage();
+
+    fireEvent.click(await screen.findByTestId("room-join-button"));
+
+    const box = await screen.findByTestId("room-join-error");
+    expect(box.textContent).toContain("Bạn đã tham gia phòng, nhưng chưa lưu được bản sao trên máy này");
+    expect(screen.getByTestId("room-join-open-workspace").getAttribute("href")).toBe("/");
+    expect(box.querySelector("button")?.textContent).toContain("Thử lại");
   });
 });

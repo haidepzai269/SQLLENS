@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, Loader2, UserPlus, Users } from "lucide-react";
+import { Check, Copy, Loader2, RefreshCw, UserPlus, Users } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -78,22 +78,17 @@ export function InviteDialog({ disabled = false, className }: InviteDialogProps)
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<CreateError | null>(null);
   const [copyState, setCopyState] = useState<CopyState>("idle");
-  // Mốc "bây giờ" chốt lúc MỞ hộp thoại. Không đọc `Date.now()` khi render (hàm không thuần, lint
-  // chặn), và cũng không cần đồng hồ chạy: vé chỉ có thể hết hạn trong lúc hộp thoại mở nếu người
-  // dùng ngồi đó qua hạn 24 giờ, mà lúc đó bấm tạo lại vẫn được.
-  const [nowMs, setNowMs] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Vé chỉ được hiện khi còn đúng dự án đã tạo nó: chuyển sang dự án khác mà vẫn thấy link cũ sẽ
   // khiến chủ gửi nhầm phòng, và nút "Tạo liên kết mời" bị link cũ che mất.
+  // Không phán đoán hết hạn bằng đồng hồ client (lệch giờ hoặc mở hộp thoại qua hạn 24h sẽ
+  // giấu mất link hoặc làm mất đường tạo lại): server trả 410 khi người nhận bấm link là nguồn
+  // sự thật duy nhất, còn chủ phòng luôn có nút "Tạo liên kết mới" cạnh link.
   const current = invite && cloudId && invite.cloudId === cloudId ? invite : null;
-  // Vé đã hết hạn thì không được chiếm chỗ nút "Tạo liên kết mời": nếu không, sau 24 giờ hộp thoại
-  // chỉ còn một liên kết chết cho tới khi tải lại trang. Mốc so sánh lấy từ `nowMs` (đặt lúc mở),
-  // nên vé hết hạn bị đẩy về nhánh tạo mới ngay lần mở kế tiếp.
-  const expired = current !== null && nowMs > 0 && Date.parse(current.expiresAt) <= nowMs;
-  const link = current && !expired ? current.url : null;
-  const expiresAt = current && !expired ? current.expiresAt : null;
+  const link = current ? current.url : null;
+  const expiresAt = current ? current.expiresAt : null;
   // Mỗi lần đóng hộp thoại hoặc tạo lại thì tăng số thứ tự: kết quả của request cũ về muộn bị bỏ,
   // không ghi vé của dự án trước vào trạng thái hiện tại.
   const createSeq = useRef(0);
@@ -136,7 +131,6 @@ export function InviteDialog({ disabled = false, className }: InviteDialogProps)
       setCreating(false);
     }
     if (next) {
-      setNowMs(Date.now());
       setCopyState("idle");
       setCreateError(null);
       setMembersState(cloudId ? "loading" : "ready");
@@ -150,6 +144,8 @@ export function InviteDialog({ disabled = false, className }: InviteDialogProps)
     createSeq.current = seq;
     setCreating(true);
     setCreateError(null);
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+    setCopyState("idle");
     try {
       const created = await createInvite(cloudId);
       if (seq !== createSeq.current) return;
@@ -285,14 +281,25 @@ export function InviteDialog({ disabled = false, className }: InviteDialogProps)
                       {expiry ? `${t("expires", { time: expiry })} ` : ""}
                       {t("expiresHint")}
                     </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={create}
+                      disabled={creating}
+                      className="self-start gap-2 text-xs"
+                      data-testid="room-invite-regenerate"
+                    >
+                      {creating ? (
+                        <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <RefreshCw className="size-3.5" aria-hidden="true" />
+                      )}
+                      <span>{creating ? t("creating") : t("regenerate")}</span>
+                    </Button>
                   </>
                 ) : (
                   <>
-                    {current && expired && (
-                      <p className="text-[11px] leading-relaxed text-destructive" data-testid="room-invite-expired">
-                        {t("linkExpired")}
-                      </p>
-                    )}
                     <Button
                       type="button"
                       size="sm"
@@ -301,7 +308,11 @@ export function InviteDialog({ disabled = false, className }: InviteDialogProps)
                       className="w-full gap-2"
                       data-testid="room-invite-create"
                     >
-                      {creating ? <Loader2 className="size-3.5 animate-spin" /> : <UserPlus className="size-3.5" />}
+                      {creating ? (
+                        <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <UserPlus className="size-3.5" aria-hidden="true" />
+                      )}
                       <span>{creating ? t("creating") : t("create")}</span>
                     </Button>
                     <p className="text-[11px] leading-relaxed text-muted-foreground">{t("expiresHint")}</p>

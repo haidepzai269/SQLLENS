@@ -69,9 +69,11 @@ async function readJson(res: Response): Promise<unknown> {
   }
 }
 
+// Thông điệp của RoomApiError chỉ phục vụ debug nội bộ; UI luôn dịch qua `room.json`, không
+// render trực tiếp `err.message`.
 function failureFrom(status: number, body: unknown): RoomApiError {
   const code = isApiError(body) ? body.error.code : "unknown";
-  return new RoomApiError(status, code, `Máy chủ từ chối yêu cầu phòng (${status})`);
+  return new RoomApiError(status, code, `Room API request failed (${status})`);
 }
 
 async function send(
@@ -102,7 +104,7 @@ export async function createInvite(
   const invite = (payload as { token?: unknown; role?: unknown; expiresAt?: unknown } | null) ?? {};
   const role = roleFrom(invite.role);
   if (typeof invite.token !== "string" || !invite.token || !role || typeof invite.expiresAt !== "string") {
-    throw new RoomApiError(0, "invalid_response", "Máy chủ trả về vé mời không hợp lệ");
+    throw new RoomApiError(0, "invalid_response", "Invalid room invite payload");
   }
   return { token: invite.token, role, expiresAt: invite.expiresAt };
 }
@@ -116,7 +118,7 @@ export async function joinRoom(
   const result = (payload as { projectId?: unknown; role?: unknown; alreadyMember?: unknown } | null) ?? {};
   const role = roleFrom(result.role);
   if (typeof result.projectId !== "string" || !result.projectId || !role) {
-    throw new RoomApiError(0, "invalid_response", "Máy chủ trả về kết quả gia nhập không hợp lệ");
+    throw new RoomApiError(0, "invalid_response", "Invalid room join payload");
   }
   return { projectId: result.projectId, role, alreadyMember: result.alreadyMember === true };
 }
@@ -136,7 +138,7 @@ export async function listMembers(
   const payload = await send("GET", `${BASE}/${encodeURIComponent(projectId)}/members`, undefined, options);
   const raw = (payload as { members?: unknown } | null)?.members;
   if (!Array.isArray(raw)) {
-    throw new RoomApiError(0, "invalid_response", "Máy chủ trả về danh sách thành viên không hợp lệ");
+    throw new RoomApiError(0, "invalid_response", "Invalid room members payload");
   }
   return raw.flatMap((item): RoomMember[] => {
     if (typeof item !== "object" || item === null) return [];

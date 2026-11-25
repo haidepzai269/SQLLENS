@@ -167,4 +167,30 @@ test.describe("Task162 — Mời cộng tác", () => {
     expect(overflow).toBeLessThanOrEqual(0);
     await context.close();
   });
+
+  test("AC3: 390px không tràn ngang trên trang /join (sẵn sàng và lỗi 410)", async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    await page.route("**/api/me", (r) => r.fulfill(json(meB)));
+    await page.route("**/api/v1/cloud/projects/join", (r) =>
+      r.fulfill(json({ error: { code: "token_expired", messageKey: "error.notFound" } }, 410)),
+    );
+
+    const longToken = "t".repeat(120);
+    await page.goto(`/vi/join?token=${longToken}`);
+    await expect(page.getByTestId("room-join-button")).toBeVisible();
+    const overflowReady = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflowReady).toBeLessThanOrEqual(0);
+
+    await page.getByTestId("room-join-button").click();
+    await expect(page.getByTestId("room-join-error")).toBeVisible();
+    await expect(page.getByTestId("room-join-error").getByRole("link", { name: "Về trang chủ" })).toBeVisible();
+    const overflowError = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflowError).toBeLessThanOrEqual(0);
+    await context.close();
+  });
 });

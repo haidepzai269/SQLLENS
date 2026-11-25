@@ -113,4 +113,33 @@ describe("ensureJoinedProject", () => {
     expect(err).toBeInstanceOf(CloudSyncError);
     expect(classifyJoinError(err)).toBe("storage");
   });
+
+  it("lỗi đọc IndexedDB ở listProjects được bọc thành STORAGE_UNAVAILABLE và dịch sang storage", async () => {
+    const brokenReadFactory = {
+      open: () => {
+        const req: Record<string, unknown> = {
+          result: {
+            onversionchange: null,
+            close: () => undefined,
+            transaction: () => {
+              throw new DOMException("Transaction failed", "InvalidStateError");
+            },
+          },
+          onsuccess: null,
+          onerror: null,
+          onblocked: null,
+          onupgradeneeded: null,
+        };
+        queueMicrotask(() => {
+          (req.onsuccess as (() => void) | null)?.();
+        });
+        return req as unknown as IDBOpenDBRequest;
+      },
+    } as unknown as IDBFactory;
+
+    const err = await ensureJoinedProject("remote-1", GUEST, { factory: brokenReadFactory }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(CloudSyncError);
+    expect((err as CloudSyncError).code).toBe("STORAGE_UNAVAILABLE");
+    expect(classifyJoinError(err)).toBe("storage");
+  });
 });

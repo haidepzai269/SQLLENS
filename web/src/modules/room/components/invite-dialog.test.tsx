@@ -171,10 +171,11 @@ describe("InviteDialog", () => {
     expect(roomCalls).toEqual([]);
   });
 
-  it("liên kết đã hết hạn: báo rõ và vẫn tạo được liên kết mới", async () => {
+  it("không phán đoán hết hạn bằng đồng hồ client: vẫn hiện liên kết và luôn tạo được liên kết mới", async () => {
+    let inviteCalls = 0;
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string) => {
+      vi.fn(async (url: string, init?: RequestInit) => {
         const href = String(url);
         if (href === "/api/me") {
           return new Response(JSON.stringify({ id: "u1", name: "Tôi", provider: "google" }), { status: 200 });
@@ -182,20 +183,31 @@ describe("InviteDialog", () => {
         if (href.endsWith("/members")) {
           return new Response(JSON.stringify({ members: [] }), { status: 200 });
         }
-        return new Response(
-          JSON.stringify({ token: "tok-cu", role: "editor", expiresAt: "2020-01-01T00:00:00Z" }),
-          { status: 200 },
-        );
+        if (href.endsWith("/invite") && init?.method === "POST") {
+          inviteCalls += 1;
+          const payload =
+            inviteCalls === 1
+              ? { token: "tok-cu", role: "editor", expiresAt: "2020-01-01T00:00:00Z" }
+              : { token: "tok-moi", role: "editor", expiresAt: "2030-01-01T00:00:00Z" };
+          return new Response(JSON.stringify(payload), { status: 200 });
+        }
+        throw new Error(`URL lạ trong test: ${href}`);
       }),
     );
     renderDialog();
     fireEvent.click(screen.getByTestId("room-invite-trigger"));
     fireEvent.click(await screen.findByTestId("room-invite-create"));
 
-    expect(await screen.findByTestId("room-invite-expired")).toBeTruthy();
-    expect(screen.queryByTestId("room-invite-link")).toBeNull();
-    // Nút tạo vẫn ở đó: nếu không, vé chết chiếm chỗ và người dùng phải tải lại trang.
-    expect(screen.getByTestId("room-invite-create")).toBeTruthy();
+    const link = (await screen.findByTestId("room-invite-link")) as HTMLInputElement;
+    expect(link.value).toContain("tok-cu");
+    expect(screen.getByTestId("room-invite-copy")).toBeTruthy();
+    expect(screen.getByTestId("room-invite-hint")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("room-invite-regenerate"));
+    await waitFor(() => {
+      expect((screen.getByTestId("room-invite-link") as HTMLInputElement).value).toContain("tok-moi");
+    });
+    expect(inviteCalls).toBe(2);
   });
 
   it("đóng hộp thoại khi đang tạo vé: vé về muộn bị bỏ, mở lại vẫn thấy nút tạo", async () => {

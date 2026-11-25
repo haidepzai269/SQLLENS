@@ -85,8 +85,13 @@ export async function ensureJoinedProject(
   let existing: string | null = null;
   const db = await openDb(options.factory);
   try {
-    const projects = await getRepository(db).listProjects(scope);
-    existing = projects.find((p) => p.cloud?.remoteId === remoteId)?.id ?? null;
+    try {
+      const projects = await getRepository(db).listProjects(scope);
+      existing = projects.find((p) => p.cloud?.remoteId === remoteId)?.id ?? null;
+    } catch (err) {
+      if (err instanceof CloudSyncError) throw err;
+      throw new CloudSyncError("STORAGE_UNAVAILABLE", "Could not read local workspace", err);
+    }
   } finally {
     closeDb(db);
   }
@@ -97,6 +102,7 @@ export async function ensureJoinedProject(
 }
 
 /**
- * Lỗi lưu máy luôn đi qua `CloudSyncError`: `openDb` (bị chặn IndexedDB) và `pullProject` (hết
- * dung lượng) đều đã dịch sẵn, nên `classifyJoinError` nhận được `storage` chứ không phải `failed`.
+ * Lỗi lưu máy luôn đi qua `CloudSyncError`: `openDb` (bị chặn IndexedDB), `listProjects` (lỗi
+ * transaction/nâng version khi đọc danh sách) và `pullProject` (hết dung lượng) đều đã dịch
+ * sẵn, nên `classifyJoinError` nhận được `storage` chứ không phải `failed`.
  */
