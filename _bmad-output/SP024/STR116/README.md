@@ -26,7 +26,7 @@ Có
 | Task161 | Gin API phòng: invite + Baton (mở rộng cloud API SP023) | **Xong 100%** — Reviewer độc lập nghiệm thu PASS 100% (5/5 AC, 9 ca biên, 8/8 package ok, 7 đột biến M1–M7). Đã merge vào `main`. Xem `Task161/ban_giao_task161.md` |
 | Task162 | UI Mời cộng tác & danh sách thành viên | **Xong 100%** — Reviewer độc lập PASS 100% (vòng 3), đã merge vào `main`. Xem `STR113/Task162/ban_giao_task162.md` |
 | Task168 | Arena: chọn kịch bản + điều hướng bước | **Xong 100%** — Reviewer độc lập nghiệm thu PASS 100% (23/23 tests, 0 byte mạng, AC1-AC6). Đã merge vào `main`. Xem `Task168/ban_giao_task168.md` |
-| Task169 | Arena: đồ thị Cytoscape + viewer sync qua polling **3 s** gọi `arena-step` | Chờ (D17 đã chốt 2026-11-23) |
+| Task169 | Arena: đồ thị Cytoscape + viewer sync qua polling **3 s** gọi `arena-step` | **Xong 100%** — Reviewer độc lập (`reviewer-169`) nghiệm thu PASS 100% (100 req/5 phút, 0 byte SQL, 2/2 E2E `arena-sync.spec.ts`, `npm run check`, `next build` PASS). Đã merge vào `main`. Xem `Task169/ban_giao_task169.md` |
 | Task170 | Arena: AI Mentor phân tích kịch bản (VIP only, gọi `/api/ai/inline-complete`) | Chờ |
 
 ## Tiêu chí nghiệm thu Story
