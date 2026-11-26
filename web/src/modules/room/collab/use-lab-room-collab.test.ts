@@ -102,17 +102,35 @@ function createFakeBroadcaster() {
 
 function createMembersFetchMock(
   members: Array<{ userId: string; name: string; role: string }>,
+  userId: string,
+  holderId: string | null = null,
 ) {
+  const owner = members.find((m) => m.role === "owner") ?? {
+    userId: "u-owner",
+    name: "Owner",
+    role: "owner",
+  };
+  const me = members.find((m) => m.userId === userId);
+  const myRole = me?.role ?? "viewer";
+
   return vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
+    if (url.endsWith("/baton")) {
+      return new Response(
+        JSON.stringify({
+          holderId,
+          ownerId: owner.userId,
+          ownerName: owner.name,
+          myRole,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
     if (url.endsWith("/members")) {
       return new Response(JSON.stringify({ members }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    if (url.endsWith("/baton")) {
-      return new Response(JSON.stringify({ holderId: null }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
@@ -154,11 +172,14 @@ describe("useLabRoomCollab", () => {
     expect(useBatonStore.getState().projectId).toBeNull();
   });
 
-  it("AC2: dự án có remoteId -> gọi /members, set baton-store, nối provider + broadcaster, viewer readOnly=true", async () => {
-    const fetchMock = createMembersFetchMock([
-      { userId: "u-owner", name: "Alice", role: "owner" },
-      { userId: "u-viewer", name: "Bob", role: "viewer" },
-    ]);
+  it("AC2: viewer gọi /baton, không gọi /members, set baton-store với holderId=ownerId, readOnly=true", async () => {
+    const fetchMock = createMembersFetchMock(
+      [
+        { userId: "u-owner", name: "Alice", role: "owner" },
+        { userId: "u-viewer", name: "Bob", role: "viewer" },
+      ],
+      "u-viewer",
+    );
     const fakeProv = createFakeProvider();
     const fakeBc = createFakeBroadcaster();
     const createTabExtension = vi.fn(() => []);
@@ -182,19 +203,23 @@ describe("useLabRoomCollab", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v1/cloud/projects/proj-1/members",
+      "/api/v1/cloud/projects/proj-1/baton",
       expect.objectContaining({
         method: "GET",
         credentials: "same-origin",
         cache: "no-store",
       }),
     );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "/api/v1/cloud/projects/proj-1/members",
+      expect.anything(),
+    );
     expect(fakeProv.connect).toHaveBeenCalledTimes(1);
     expect(useBatonStore.getState().projectId).toBe("proj-1");
     expect(useBatonStore.getState().myRole).toBe("viewer");
+    expect(useBatonStore.getState().holderId).toBe("u-owner");
     expect(useBatonStore.getState().memberNames).toEqual({
       "u-owner": "Alice",
-      "u-viewer": "Bob",
     });
     expect(createTabExtension).toHaveBeenCalledWith(
       fakeProv.provider.doc,
@@ -204,11 +229,117 @@ describe("useLabRoomCollab", () => {
     );
   });
 
+  it("Task175 AC2: editor không gọi /members, nhận đúng myRole='editor', readOnly=false, holderId=ownerId", async () => {
+    const fetchMock = createMembersFetchMock(
+      [
+        { userId: "u-owner", name: "Alice", role: "owner" },
+        { userId: "u-editor", name: "Carol", role: "editor" },
+      ],
+      "u-editor",
+    );
+    const fakeProv = createFakeProvider();
+    const fakeBc = createFakeBroadcaster();
+    const createTabExtension = vi.fn(() => []);
+
+    const { result } = renderHook(() =>
+      useLabRoomCollab({
+        remoteProjectId: "proj-ed",
+        activeTabId: "tab-editor-uuid",
+        activeTabPosition: 1,
+        userId: "u-editor",
+        deps: {
+          fetchImpl: fetchMock,
+          createProvider: () => fakeProv.provider,
+          createBroadcaster: () => fakeBc.broadcaster,
+          createTabExtension,
+        },
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.collabExtension).not.toBeNull();
+    });
+
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "/api/v1/cloud/projects/proj-ed/members",
+      expect.anything(),
+    );
+    expect(useBatonStore.getState().myRole).toBe("editor");
+    expect(useBatonStore.getState().holderId).toBe("u-owner");
+    expect(useBatonStore.getState().memberNames).toEqual({ "u-owner": "Alice" });
+    expect(createTabExtension).toHaveBeenCalledWith(
+      fakeProv.provider.doc,
+      "pos:1",
+      fakeProv.provider.awareness,
+      { readOnly: false },
+    );
+  });
+
+  it("Task175 AC3: owner gọi /members, dùng khóa tab:pos:<position> và seed initialTabSql đúng 1 lần khi yText rỗng", async () => {
+    const fetchMock = createMembersFetchMock(
+      [
+        { userId: "u-owner", name: "Alice", role: "owner" },
+        { userId: "u-editor", name: "Carol", role: "editor" },
+      ],
+      "u-owner",
+    );
+    const fakeProv = createFakeProvider();
+    const fakeBc = createFakeBroadcaster();
+    const createTabExtension = vi.fn(() => []);
+
+    const { result, rerender } = renderHook(
+      ({ initialTabSql }: { initialTabSql: string }) =>
+        useLabRoomCollab({
+          remoteProjectId: "proj-own",
+          activeTabId: "tab-owner-uuid",
+          activeTabPosition: 0,
+          initialTabSql,
+          userId: "u-owner",
+          deps: {
+            fetchImpl: fetchMock,
+            createProvider: () => fakeProv.provider,
+            createBroadcaster: () => fakeBc.broadcaster,
+            createTabExtension,
+          },
+        }),
+      { initialProps: { initialTabSql: "SELECT 1;" } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.collabExtension).not.toBeNull();
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/cloud/projects/proj-own/members",
+      expect.anything(),
+    );
+    expect(useBatonStore.getState().myRole).toBe("owner");
+    expect(useBatonStore.getState().memberNames).toEqual({
+      "u-owner": "Alice",
+      "u-editor": "Carol",
+    });
+    expect(createTabExtension).toHaveBeenCalledWith(
+      fakeProv.provider.doc,
+      "pos:0",
+      fakeProv.provider.awareness,
+      { readOnly: false },
+    );
+    expect(fakeProv.provider.doc.getText("tab:pos:0").toString()).toBe("SELECT 1;");
+
+    // Rerender khi gõ thêm SQL không tái tạo extension và không nhân đôi seed.
+    rerender({ initialTabSql: "SELECT 1; SELECT 2;" });
+    expect(createTabExtension).toHaveBeenCalledTimes(1);
+    expect(fakeProv.provider.doc.getText("tab:pos:0").toString()).toBe("SELECT 1;");
+  });
+
   it("AC3: luồng Baton request/grant/return đi 100% qua provider.sendControl, 0 REST call tới /baton/request|grant|heartbeat", async () => {
-    const fetchMock = createMembersFetchMock([
-      { userId: "u-owner", name: "Alice", role: "owner" },
-      { userId: "u-editor", name: "Carol", role: "editor" },
-    ]);
+    const fetchMock = createMembersFetchMock(
+      [
+        { userId: "u-owner", name: "Alice", role: "owner" },
+        { userId: "u-editor", name: "Carol", role: "editor" },
+      ],
+      "u-editor",
+    );
     const fakeProv = createFakeProvider();
     const fakeBc = createFakeBroadcaster();
     const globalFetchSpy = vi.spyOn(globalThis, "fetch");
@@ -273,9 +404,10 @@ describe("useLabRoomCollab", () => {
   });
 
   it("AC4: natWarning đồng bộ vào baton-store và cleanup gọi destroy() + reset()", async () => {
-    const fetchMock = createMembersFetchMock([
-      { userId: "u-owner", name: "Alice", role: "owner" },
-    ]);
+    const fetchMock = createMembersFetchMock(
+      [{ userId: "u-owner", name: "Alice", role: "owner" }],
+      "u-owner",
+    );
     const fakeProv = createFakeProvider();
     const fakeBc = createFakeBroadcaster();
     const onRemoteResult = vi.fn();

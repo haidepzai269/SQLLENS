@@ -6,6 +6,9 @@ export interface BatonSnapshot {
   holderId: string | null;
   step?: number;
   updatedAt?: string | null;
+  ownerId?: string;
+  ownerName?: string;
+  myRole?: RoomRole;
 }
 
 export interface BatonTransport {
@@ -74,6 +77,8 @@ async function readJsonSafe(res: Response): Promise<unknown> {
   }
 }
 
+const VALID_BATON_ROLES = new Set<RoomRole>(["owner", "editor", "viewer"]);
+
 function parseBatonSnapshot(body: unknown): BatonSnapshot {
   if (typeof body !== "object" || body === null) {
     throw new BatonApiError(0, "invalid_response");
@@ -88,6 +93,12 @@ function parseBatonSnapshot(body: unknown): BatonSnapshot {
     updatedAt:
       obj.updatedAt === null || typeof obj.updatedAt === "string"
         ? obj.updatedAt
+        : undefined,
+    ownerId: typeof obj.ownerId === "string" ? obj.ownerId : undefined,
+    ownerName: typeof obj.ownerName === "string" ? obj.ownerName : undefined,
+    myRole:
+      typeof obj.myRole === "string" && VALID_BATON_ROLES.has(obj.myRole as RoomRole)
+        ? (obj.myRole as RoomRole)
         : undefined,
   };
 }

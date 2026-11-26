@@ -26,6 +26,9 @@
     },
     "authRequired": "Sign in to invite collaborators.",
     "error": "Could not load this room. Please try again.",
+    "removeMember": "Remove",
+    "removingMember": "Removing…",
+    "removeFailed": "Could not remove member. Please try again.",
     "close": "Close"
   },
   "join": {

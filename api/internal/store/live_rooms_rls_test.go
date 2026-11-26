@@ -257,3 +257,53 @@ func TestListMembersUnderRLS(t *testing.T) {
 		t.Fatalf("người ngoài ListMembers trả %v, mong đợi ErrNotFound", err)
 	}
 }
+
+// TestGetBatonUnderRLS xác minh owner, editor, viewer đều gọi được GetBaton dưới role
+// non-superuser chịu FORCE ROW LEVEL SECURITY và nhận đúng myRole, ownerId, ownerName;
+// đồng thời người ngoài vẫn nhận ErrNotFound.
+func TestGetBatonUnderRLS(t *testing.T) {
+	e := newRLSEnv(t)
+	ctx := context.Background()
+
+	inv, err := e.app.CreateInvite(ctx, rlsUserAn, rlsProjectAn)
+	if err != nil {
+		t.Fatalf("CreateInvite: %v", err)
+	}
+	if _, err := e.app.JoinRoom(ctx, rlsUserDung, inv.Token); err != nil {
+		t.Fatalf("JoinRoom (Dũng - editor): %v", err)
+	}
+	if _, err := e.owner.pool.Exec(ctx,
+		`INSERT INTO cloud_project_members (project_id, user_id, role) VALUES ($1, $2, 'viewer')`,
+		rlsProjectAn, rlsUserChi); err != nil {
+		t.Fatalf("thêm viewer (Chi): %v", err)
+	}
+
+	ownerStore := e.asNonSuperuserOwner(t)
+	if _, err := e.owner.pool.Exec(ctx, `GRANT SELECT ON TABLE public.users TO `+rlsOwnerRole); err != nil {
+		t.Fatalf("cấp quyền đọc users cho role chủ: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name   string
+		userID string
+		want   string
+	}{
+		{name: "owner", userID: rlsUserAn, want: "owner"},
+		{name: "editor", userID: rlsUserDung, want: "editor"},
+		{name: "viewer", userID: rlsUserChi, want: "viewer"},
+	} {
+		b, err := ownerStore.GetBaton(ctx, tc.userID, rlsProjectAn)
+		if err != nil {
+			t.Fatalf("%s GetBaton: %v", tc.name, err)
+		}
+		if b.MyRole != tc.want || b.OwnerID != rlsUserAn || b.OwnerName == "" {
+			t.Fatalf("%s GetBaton = %+v, mong đợi myRole=%s ownerId=%s ownerName!=empty",
+				tc.name, b, tc.want, rlsUserAn)
+		}
+	}
+
+	// Người ngoài không thấy dự án của Bình.
+	if _, err := ownerStore.GetBaton(ctx, rlsUserAn, rlsProjectBinh); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("người ngoài GetBaton trả %v, mong đợi ErrNotFound", err)
+	}
+}

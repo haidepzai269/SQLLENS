@@ -77,7 +77,7 @@ function failureFrom(status: number, body: unknown): RoomApiError {
 }
 
 async function send(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "DELETE",
   path: string,
   body: unknown,
   options: RoomRequestOptions,
@@ -146,6 +146,20 @@ export async function listMembers(
     if (typeof m.userId !== "string" || typeof m.name !== "string") return [];
     return [{ userId: m.userId, name: m.name, role: roleFrom(m.role) ?? "unknown" }];
   });
+}
+
+/** Thu hồi quyền tham gia phòng của một thành viên. Chỉ chủ dự án; server trả 403 cho người khác. */
+export async function removeMember(
+  projectId: string,
+  memberUserId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  await send(
+    "DELETE",
+    `${BASE}/${encodeURIComponent(projectId)}/members/${encodeURIComponent(memberUserId)}`,
+    undefined,
+    { fetchImpl },
+  );
 }
 
 /** Liên kết mời dùng chung: token nằm trong query, không có payload SQL nào. */

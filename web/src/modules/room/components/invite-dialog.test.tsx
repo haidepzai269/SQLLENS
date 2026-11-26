@@ -315,4 +315,86 @@ describe("InviteDialog", () => {
     const note = await screen.findByTestId("room-members-forbidden");
     expect(note.textContent).toContain("Chỉ chủ dự án");
   });
+
+  it("hiển thị nút Thu hồi cho editor/viewer (không hiện cho owner) và xóa khỏi danh sách khi thành công (AC2)", async () => {
+    const deleteCalls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const href = String(url);
+        if (href === "/api/me") {
+          return new Response(JSON.stringify({ id: "u1", name: "Tôi", provider: "google" }), { status: 200 });
+        }
+        if (href.endsWith("/members") && (!init?.method || init.method === "GET")) {
+          return new Response(
+            JSON.stringify({
+              members: [
+                { userId: "u1", name: "Tôi", role: "owner" },
+                { userId: "u2", name: "Bạn Editor", role: "editor" },
+                { userId: "u3", name: "Bạn Viewer", role: "viewer" },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+        if (href.includes("/members/") && init?.method === "DELETE") {
+          deleteCalls.push(href);
+          return new Response(null, { status: 204 });
+        }
+        throw new Error(`URL lạ trong test: ${href}`);
+      }),
+    );
+
+    renderDialog();
+    fireEvent.click(screen.getByTestId("room-invite-trigger"));
+
+    await waitFor(() => expect(screen.getAllByTestId("room-member-row")).toHaveLength(3));
+    const removeButtons = screen.getAllByTestId("room-member-remove");
+    expect(removeButtons).toHaveLength(2);
+
+    fireEvent.click(removeButtons[0]);
+
+    await waitFor(() => expect(screen.getAllByTestId("room-member-row")).toHaveLength(2));
+    expect(deleteCalls).toEqual([`/api/v1/cloud/projects/${CLOUD_ID}/members/u2`]);
+    const remainingText = screen.getAllByTestId("room-member-row").map((r) => r.textContent ?? "").join("|");
+    expect(remainingText).not.toContain("Bạn Editor");
+    expect(remainingText).toContain("Bạn Viewer");
+  });
+
+  it("thu hồi thành viên thất bại: giữ nguyên danh sách và hiện thông báo lỗi gọn", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const href = String(url);
+        if (href === "/api/me") {
+          return new Response(JSON.stringify({ id: "u1", name: "Tôi", provider: "google" }), { status: 200 });
+        }
+        if (href.endsWith("/members") && (!init?.method || init.method === "GET")) {
+          return new Response(
+            JSON.stringify({
+              members: [
+                { userId: "u1", name: "Tôi", role: "owner" },
+                { userId: "u2", name: "Bạn", role: "editor" },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+        if (href.includes("/members/") && init?.method === "DELETE") {
+          return new Response(JSON.stringify({ error: { code: "forbidden" } }), { status: 403 });
+        }
+        throw new Error(`URL lạ trong test: ${href}`);
+      }),
+    );
+
+    renderDialog();
+    fireEvent.click(screen.getByTestId("room-invite-trigger"));
+
+    await waitFor(() => expect(screen.getAllByTestId("room-member-row")).toHaveLength(2));
+    fireEvent.click(screen.getByTestId("room-member-remove"));
+
+    const err = await screen.findByTestId("room-member-remove-error");
+    expect(err.textContent).toContain("Không thu hồi được");
+    expect(screen.getAllByTestId("room-member-row")).toHaveLength(2);
+  });
 });

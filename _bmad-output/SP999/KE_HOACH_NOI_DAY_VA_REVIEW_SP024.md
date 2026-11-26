@@ -90,6 +90,6 @@
 
 - [x] **Chặng 1.1:** Băm & hoàn thành Task nối WebSocket `signal-ticket` (Gin + Frontend `room-provider.ts`) — **Task173 PASS 100%** (`reviewer-173` nghiệm thu 0 lỗi).
 - [x] **Chặng 1.2:** Băm & hoàn thành Task nối Yjs P2P + `ResultBroadcaster` + `natWarning` vào `lab-workspace.tsx` — **Task174 PASS 100%** (`reviewer-174` re-review 0 lỗi, đã nối `requestSignalTicket` + `buildDirectSignalUrl` vào `use-lab-room-collab.ts`).
-- [ ] **Chặng 1.3:** Xác minh Neon Migration `006/007` + `REVOKE CREATE` + cấu hình `NEXT_PUBLIC_WS_ORIGIN` & deploy Vercel/Render.
-- [ ] **Chặng 2.1:** Cài `agent-browser` + Admin nạp 2–3 session OAuth thật.
-- [ ] **Chặng 2.2:** Chạy sub-agent review toàn trình K1–K7 trên Production thật & nghiệm thu báo cáo.
+- [x] **Chặng 1.3:** Xác minh Neon Migration `006/007` + `REVOKE CREATE` + cấu hình `NEXT_PUBLIC_WS_ORIGIN` & deploy Vercel/Render (`a8a0219`, `VERCEL_TICKET_STATUS=401`, `RENDER_TICKET_STATUS=401`, `VERCEL_ARENA_STATUS=200`).
+- [x] **Chặng 2.1:** Cài `agent-browser` + Admin nạp 2–3 session OAuth thật (`host` VIP, `editor` thường).
+- [x] **Chặng 2.2:** Chạy sub-agent review toàn trình K1–K7 trên Production thật & nghiệm thu báo cáo ([BAO_CAO_REVIEW_SP024_PRODUCTION.md](file:///c:/SQLLens/_bmad-output/SP999/STR118/BAO_CAO_REVIEW_SP024_PRODUCTION.md)): **3 PASS** (K5, K6, K7), **3 FAIL** (K1, K2, K3), **1 BLOCKED** (K4) — phát hiện 4 lỗi thật (`403 /members` cho Editor, lệch `tabId` khi `pullProject`, nút `Xin quyền chạy` dư trên Host, `InviteDialog` thiếu nút thu hồi quyền).

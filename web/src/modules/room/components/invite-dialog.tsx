@@ -22,6 +22,7 @@ import {
   createInvite,
   inviteUrl,
   listMembers,
+  removeMember,
   RoomApiError,
   type RoomMember,
 } from "../api";
@@ -78,6 +79,8 @@ export function InviteDialog({ disabled = false, className }: InviteDialogProps)
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<CreateError | null>(null);
   const [copyState, setCopyState] = useState<CopyState>("idle");
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -129,13 +132,31 @@ export function InviteDialog({ disabled = false, className }: InviteDialogProps)
       // không vé được tạo ngầm và lần mở sau link xuất hiện bất ngờ.
       createSeq.current += 1;
       setCreating(false);
+      setRemovingId(null);
+      setRemoveError(false);
     }
     if (next) {
       setCopyState("idle");
       setCreateError(null);
+      setRemovingId(null);
+      setRemoveError(false);
       setMembersState(cloudId ? "loading" : "ready");
     }
     setOpen(next);
+  };
+
+  const handleRemoveMember = async (memberUserId: string) => {
+    if (!cloudId || removingId) return;
+    setRemovingId(memberUserId);
+    setRemoveError(false);
+    try {
+      await removeMember(cloudId, memberUserId);
+      setMembers((prev) => prev.filter((m) => m.userId !== memberUserId));
+    } catch {
+      setRemoveError(true);
+    } finally {
+      setRemovingId((prev) => (prev === memberUserId ? null : prev));
+    }
   };
 
   const create = async () => {
@@ -383,13 +404,34 @@ export function InviteDialog({ disabled = false, className }: InviteDialogProps)
                               <span className="ml-1.5 text-[11px] text-muted-foreground">({t("you")})</span>
                             )}
                           </span>
-                          <Badge variant={m.role === "owner" ? "default" : "secondary"} className="shrink-0 text-[10px]">
-                            {t(`role.${m.role}`)}
-                          </Badge>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            <Badge variant={m.role === "owner" ? "default" : "secondary"} className="shrink-0 text-[10px]">
+                              {t(`role.${m.role}`)}
+                            </Badge>
+                            {m.role !== "owner" && m.userId !== user?.id && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                disabled={removingId === m.userId}
+                                onClick={() => void handleRemoveMember(m.userId)}
+                                className="h-6 px-2 text-[11px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                data-testid="room-member-remove"
+                              >
+                                {removingId === m.userId ? t("removingMember") : t("removeMember")}
+                              </Button>
+                            )}
+                          </div>
                         </li>
                       ))
                     )}
                   </ul>
+                )}
+
+                {membersState === "ready" && removeError && (
+                  <p role="alert" className="text-[11px] leading-relaxed text-destructive" data-testid="room-member-remove-error">
+                    {t("removeFailed")}
+                  </p>
                 )}
               </div>
             </div>

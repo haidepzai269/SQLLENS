@@ -26,6 +26,9 @@
     },
     "authRequired": "Bạn cần đăng nhập để mời cộng tác.",
     "error": "Không tải được thông tin phòng. Hãy thử lại.",
+    "removeMember": "Thu hồi",
+    "removingMember": "Đang thu hồi…",
+    "removeFailed": "Không thu hồi được quyền thành viên. Hãy thử lại.",
     "close": "Đóng"
   },
   "join": {

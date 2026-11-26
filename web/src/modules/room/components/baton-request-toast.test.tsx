@@ -38,6 +38,39 @@ describe("BatonRequestToast", () => {
     expect(screen.queryByTestId("baton-request-button")).toBeNull();
   });
 
+  it("chủ phòng khi holderId === null và chưa có pendingRequests: trả null (AC1)", () => {
+    useBatonStore.getState().setRoom({
+      projectId: "proj-1",
+      myUserId: "u-owner",
+      myRole: "owner",
+      holderId: null,
+    });
+    const { container } = renderToast("vi");
+    expect(container.firstChild).toBeNull();
+    expect(screen.queryByTestId("baton-request-bar")).toBeNull();
+    expect(screen.queryByTestId("baton-request-button")).toBeNull();
+  });
+
+  it("chủ phòng khi holderId === null nhưng có người xin quyền: hiện thông báo Cấp quyền", () => {
+    useBatonStore.getState().setRoom({
+      projectId: "proj-1",
+      myUserId: "u-owner",
+      myRole: "owner",
+      holderId: null,
+    });
+    useBatonStore.getState().setMemberNames({ "u-owner": "An", "u-b": "Bình" });
+    useBatonStore.getState().applyControlMessage({
+      kind: "baton:request",
+      roomId: "proj-1",
+      fromUserId: "u-b",
+      sentAt: 100,
+    });
+
+    renderToast("vi");
+    expect(screen.queryByTestId("baton-request-bar")).toBeNull();
+    expect(screen.getByTestId("baton-request-toast").textContent).toContain("Bình");
+  });
+
   it("editor khác giữ Baton: hiện tên người giữ, nút Xin quyền chạy và chuyển sang Đã gửi yêu cầu sau khi bấm", async () => {
     const sendControl = vi.fn();
     useBatonStore.getState().setTransport({ sendControl });

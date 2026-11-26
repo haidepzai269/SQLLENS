@@ -25,7 +25,7 @@ export function BatonRequestToast() {
     return null;
   }
 
-  const isHolder = myUserId !== null && holderId === myUserId;
+  const isHolder = myUserId !== null && (holderId === myUserId || (holderId === null && myRole === "owner"));
 
   if (!isHolder) {
     const holderName = holderId ? (memberNames[holderId] ?? t("unknownMember")) : null;

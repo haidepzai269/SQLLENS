@@ -21,6 +21,8 @@ export interface UseLabRoomCollabDeps {
 export interface UseLabRoomCollabOptions {
   remoteProjectId: string | null;
   activeTabId: string | null;
+  activeTabPosition?: number | null;
+  initialTabSql?: string;
   userId: string | null;
   onRemoteResult?: (res: P2pExecutionResult) => void;
   deps?: UseLabRoomCollabDeps;
@@ -61,23 +63,55 @@ function isBatonControlMessage(value: unknown): value is BatonControlMessage {
   );
 }
 
-interface ParsedMembersInfo {
+interface RoomBootstrapInfo {
   myRole: RoomRole;
   ownerId: string;
+  ownerName: string;
+  holderId: string | null;
   memberNames: Record<string, string>;
 }
 
-async function fetchRoomMembers(
+async function fetchBatonBootstrap(
   remoteProjectId: string,
   userId: string,
   fetchImpl: typeof fetch,
-): Promise<ParsedMembersInfo> {
-  const fallback: ParsedMembersInfo = {
-    myRole: "viewer",
+): Promise<{ myRole: RoomRole; ownerId: string; ownerName: string; holderId: string | null }> {
+  const fallback = {
+    myRole: "viewer" as RoomRole,
     ownerId: userId,
-    memberNames: {},
+    ownerName: "",
+    holderId: null as string | null,
   };
+  try {
+    const res = await fetchImpl(
+      `/api/v1/cloud/projects/${encodeURIComponent(remoteProjectId)}/baton`,
+      {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store",
+      },
+    );
+    if (!res.ok) return fallback;
+    const payload = (await res.json()) as Record<string, unknown> | null;
+    if (!payload || typeof payload !== "object") return fallback;
 
+    const myRole = isRoomRole(payload.myRole) ? payload.myRole : "viewer";
+    const ownerId = typeof payload.ownerId === "string" && payload.ownerId ? payload.ownerId : userId;
+    const ownerName = typeof payload.ownerName === "string" ? payload.ownerName : "";
+    const holderId = typeof payload.holderId === "string" ? payload.holderId : null;
+    return { myRole, ownerId, ownerName, holderId };
+  } catch {
+    return fallback;
+  }
+}
+
+async function fetchOwnerMemberNames(
+  remoteProjectId: string,
+  ownerId: string,
+  ownerName: string,
+  fetchImpl: typeof fetch,
+): Promise<Record<string, string>> {
+  const base: Record<string, string> = ownerName ? { [ownerId]: ownerName } : {};
   try {
     const res = await fetchImpl(
       `/api/v1/cloud/projects/${encodeURIComponent(remoteProjectId)}/members`,
@@ -87,33 +121,42 @@ async function fetchRoomMembers(
         cache: "no-store",
       },
     );
-    if (!res.ok) return fallback;
+    if (!res.ok) return base;
 
     const payload = (await res.json()) as { members?: unknown } | null;
     const raw = payload?.members;
-    if (!Array.isArray(raw)) return fallback;
+    if (!Array.isArray(raw)) return base;
 
-    const memberNames: Record<string, string> = {};
-    let ownerId = userId;
-    let myRole: RoomRole = "viewer";
-
+    const memberNames: Record<string, string> = { ...base };
     for (const item of raw) {
       if (typeof item !== "object" || item === null) continue;
       const m = item as Record<string, unknown>;
       if (typeof m.userId !== "string" || typeof m.name !== "string") continue;
       memberNames[m.userId] = m.name;
-      if (m.role === "owner") {
-        ownerId = m.userId;
-      }
-      if (m.userId === userId && isRoomRole(m.role)) {
-        myRole = m.role;
-      }
     }
-
-    return { myRole, ownerId, memberNames };
+    return memberNames;
   } catch {
-    return fallback;
+    return base;
   }
+}
+
+async function fetchRoomBootstrap(
+  remoteProjectId: string,
+  userId: string,
+  fetchImpl: typeof fetch,
+): Promise<RoomBootstrapInfo> {
+  const { myRole, ownerId, ownerName, holderId } = await fetchBatonBootstrap(
+    remoteProjectId,
+    userId,
+    fetchImpl,
+  );
+  const memberNames =
+    myRole === "owner"
+      ? await fetchOwnerMemberNames(remoteProjectId, ownerId, ownerName, fetchImpl)
+      : ownerName
+        ? { [ownerId]: ownerName }
+        : {};
+  return { myRole, ownerId, ownerName, holderId, memberNames };
 }
 
 /**
@@ -124,6 +167,8 @@ async function fetchRoomMembers(
 export function useLabRoomCollab({
   remoteProjectId,
   activeTabId,
+  activeTabPosition = null,
+  initialTabSql = "",
   userId,
   onRemoteResult,
   deps,
@@ -131,9 +176,11 @@ export function useLabRoomCollab({
   const [session, setSession] = useState<RoomSession | null>(null);
   const depsRef = useRef(deps);
   const onRemoteResultRef = useRef(onRemoteResult);
+  const initialTabSqlRef = useRef(initialTabSql);
   useEffect(() => {
     depsRef.current = deps;
     onRemoteResultRef.current = onRemoteResult;
+    initialTabSqlRef.current = initialTabSql;
   });
 
   useEffect(() => {
@@ -158,21 +205,22 @@ export function useLabRoomCollab({
       const createProvider = currentDeps?.createProvider ?? createRoomCollabProvider;
       const createBroadcaster = currentDeps?.createBroadcaster ?? createResultBroadcaster;
 
-      const { myRole, ownerId, memberNames } = await fetchRoomMembers(
+      const { myRole, ownerId, holderId, memberNames } = await fetchRoomBootstrap(
         remoteProjectId,
         userId,
         fetchImpl,
       );
       if (cancelled) return;
 
+      const effectiveHolderId = holderId ?? ownerId;
       const batonStore = useBatonStore.getState();
       batonStore.setRoom({
         projectId: remoteProjectId,
         myUserId: userId,
         myRole,
+        holderId: effectiveHolderId,
       });
       batonStore.setMemberNames(memberNames);
-      void batonStore.syncFromServer();
 
       const customSignalUrl = currentDeps?.resolveSignalUrl
         ? await currentDeps.resolveSignalUrl(remoteProjectId)
@@ -276,16 +324,35 @@ export function useLabRoomCollab({
       ? session
       : null;
 
+  const collabTabKey =
+    activeTabPosition !== null && activeTabPosition !== undefined
+      ? `pos:${activeTabPosition}`
+      : activeTabId;
+
+  useEffect(() => {
+    if (!activeSession || !collabTabKey || activeSession.myRole !== "owner") return;
+    const seedSql = initialTabSqlRef.current ?? "";
+    if (seedSql.length === 0) return;
+    const yText = activeSession.provider.doc.getText(`tab:${collabTabKey}`);
+    if (yText.length === 0) {
+      activeSession.provider.doc.transact(() => {
+        if (yText.length === 0) {
+          yText.insert(0, seedSql);
+        }
+      });
+    }
+  }, [activeSession, collabTabKey]);
+
   const createTabExt = deps?.createTabExtension ?? createTabCollabExtension;
   const collabExtension = useMemo(() => {
-    if (!activeSession || !activeTabId) return null;
+    if (!activeSession || !collabTabKey) return null;
     return createTabExt(
       activeSession.provider.doc,
-      activeTabId,
+      collabTabKey,
       activeSession.provider.awareness,
       { readOnly: activeSession.myRole === "viewer" },
     );
-  }, [activeSession, activeTabId, createTabExt]);
+  }, [activeSession, collabTabKey, createTabExt]);
 
   const broadcastResult = useMemo(() => {
     if (!activeSession) return null;

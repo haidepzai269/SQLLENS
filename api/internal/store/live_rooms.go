@@ -69,6 +69,9 @@ type Baton struct {
 	HolderID  *string
 	Step      int
 	UpdatedAt *time.Time
+	OwnerID   string
+	OwnerName string
+	MyRole    string
 }
 
 // inviteRole là vai trò mà vé mời cấp. Cố định `editor`: người được mời phải chạy được câu SQL
@@ -330,6 +333,31 @@ func (s *Store) ListMembers(ctx context.Context, userID, projectID string) ([]Ro
 // `requireReader` gọi trước để tách hai ca có cùng kết quả SELECT: "không phải thành viên" (404) và
 // "phòng chưa có baton" (200 với null). Thiếu bước này thì người ngoài nhận 200 rỗng và học được
 // rằng dự án có tồn tại.
+// fillBatonMeta điền thông tin chủ phòng và vai trò của userID trong cùng transaction.
+func fillBatonMeta(ctx context.Context, tx pgx.Tx, userID, projectID string, out *Baton) error {
+	if err := tx.QueryRow(ctx, `SELECT p.owner_id::text, u.display_name
+		FROM cloud_projects p JOIN users u ON u.id = p.owner_id
+		WHERE p.id = $1`, projectID).Scan(&out.OwnerID, &out.OwnerName); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("store: room baton owner: %w", err)
+	}
+	if userID == out.OwnerID {
+		out.MyRole = "owner"
+		return nil
+	}
+	err := tx.QueryRow(ctx, `SELECT role FROM cloud_project_members WHERE project_id = $1 AND user_id = $2`,
+		projectID, userID).Scan(&out.MyRole)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("store: room baton role: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) GetBaton(ctx context.Context, userID, projectID string) (Baton, error) {
 	var out Baton
 	err := s.WithTenant(ctx, userID, func(tx pgx.Tx) error {
@@ -339,14 +367,13 @@ func (s *Store) GetBaton(ctx context.Context, userID, projectID string) (Baton, 
 		err := tx.QueryRow(ctx, `SELECT holder_id::text, arena_step, updated_at
 			FROM room_baton WHERE project_id = $1`, projectID).
 			Scan(&out.HolderID, &out.Step, &out.UpdatedAt)
-		if errors.Is(err, pgx.ErrNoRows) {
-			out = Baton{}
-			return nil
-		}
-		if err != nil {
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("store: room baton get: %w", err)
 		}
-		return nil
+		if errors.Is(err, pgx.ErrNoRows) {
+			out = Baton{}
+		}
+		return fillBatonMeta(ctx, tx, userID, projectID, &out)
 	})
 	if err != nil {
 		return Baton{}, err
@@ -372,7 +399,7 @@ func (s *Store) ClaimBaton(ctx context.Context, ownerID, projectID string) (Bato
 		if err != nil {
 			return fmt.Errorf("store: room baton claim: %w", err)
 		}
-		return nil
+		return fillBatonMeta(ctx, tx, ownerID, projectID, &out)
 	})
 	if err != nil {
 		return Baton{}, err

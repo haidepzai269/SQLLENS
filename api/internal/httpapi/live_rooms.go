@@ -81,7 +81,14 @@ func (h *cloudHandler) failRoom(c *gin.Context, err error) {
 // batonJSON dựng response Baton. `holderId` và `updatedAt` để nguyên null khi phòng chưa ai giữ,
 // thay vì bịa UUID rỗng hay mốc thời gian zero: client phân biệt "chưa ai giữ" bằng null.
 func batonJSON(b store.Baton) gin.H {
-	return gin.H{"holderId": b.HolderID, "step": b.Step, "updatedAt": b.UpdatedAt}
+	return gin.H{
+		"holderId":  b.HolderID,
+		"step":      b.Step,
+		"updatedAt": b.UpdatedAt,
+		"ownerId":   b.OwnerID,
+		"ownerName": b.OwnerName,
+		"myRole":    b.MyRole,
+	}
 }
 
 // invite tạo vé mời 24 giờ. Chỉ chủ dự án.

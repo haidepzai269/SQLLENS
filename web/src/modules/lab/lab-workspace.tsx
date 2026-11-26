@@ -360,6 +360,8 @@ export function LabWorkspace() {
   const { collabExtension, broadcastResult } = useLabRoomCollab({
     remoteProjectId,
     activeTabId: activeTab?.id ?? null,
+    activeTabPosition: activeTab?.position ?? null,
+    initialTabSql: activeTab?.sql ?? "",
     userId: user?.id ?? null,
     onRemoteResult,
   });

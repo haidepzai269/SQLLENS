@@ -25,6 +25,9 @@ type roomResp struct {
 	HolderID      *string `json:"holderId"`
 	Step          *int    `json:"step"`
 	UpdatedAt     *string `json:"updatedAt"`
+	OwnerID       string  `json:"ownerId"`
+	OwnerName     string  `json:"ownerName"`
+	MyRole        string  `json:"myRole"`
 	Error         struct {
 		Code       string `json:"code"`
 		MessageKey string `json:"messageKey"`
@@ -272,6 +275,9 @@ func TestRoomBaton(t *testing.T) {
 	if empty.HolderID != nil || empty.UpdatedAt != nil || empty.Step == nil || *empty.Step != 0 {
 		t.Fatalf("phòng chưa ai giữ phải là {null, 0, null}, nhận %q", w.Body.String())
 	}
+	if empty.OwnerID != e.user || empty.OwnerName == "" || empty.MyRole != "owner" {
+		t.Fatalf("GET /baton thiếu owner/myRole cho chủ: %+v", empty)
+	}
 
 	// Chủ nhận Baton.
 	w = e.do(t, e.user, "POST", "/api/v1/cloud/projects/"+id+"/baton/claim", "")
@@ -285,6 +291,9 @@ func TestRoomBaton(t *testing.T) {
 	if claimed.UpdatedAt == nil {
 		t.Fatal("claim phải trả updatedAt")
 	}
+	if claimed.OwnerID != e.user || claimed.OwnerName == "" || claimed.MyRole != "owner" {
+		t.Fatalf("POST /baton/claim thiếu owner/myRole: %+v", claimed)
+	}
 
 	// Thành viên đọc được trạng thái Baton nhưng không claim được.
 	inv := roomInvite(t, e, e.user, id)
@@ -295,8 +304,25 @@ func TestRoomBaton(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("thành viên GET /baton = %d %q, mong đợi 200", w.Code, w.Body.String())
 	}
-	if got := roomJSON(t, w.Body); got.HolderID == nil || *got.HolderID != e.user {
+	got := roomJSON(t, w.Body)
+	if got.HolderID == nil || *got.HolderID != e.user {
 		t.Fatalf("thành viên thấy người giữ %v, mong đợi %s", got.HolderID, e.user)
+	}
+	if got.OwnerID != e.user || got.OwnerName == "" || got.MyRole != "editor" {
+		t.Fatalf("thành viên GET /baton sai owner/myRole: %+v", got)
+	}
+	// Hạ B xuống viewer để xác nhận myRole trả đúng "viewer" khi GET /baton.
+	if _, err := e.raw.Exec(context.Background(),
+		`UPDATE cloud_project_members SET role = 'viewer' WHERE project_id = $1 AND user_id = $2`,
+		id, e.other); err != nil {
+		t.Fatalf("cập nhật viewer: %v", err)
+	}
+	w = e.do(t, e.other, "GET", "/api/v1/cloud/projects/"+id+"/baton", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("viewer GET /baton = %d %q", w.Code, w.Body.String())
+	}
+	if gotViewer := roomJSON(t, w.Body); gotViewer.MyRole != "viewer" || gotViewer.OwnerID != e.user {
+		t.Fatalf("viewer GET /baton sai myRole/ownerId: %+v", gotViewer)
 	}
 	w = e.do(t, e.other, "POST", "/api/v1/cloud/projects/"+id+"/baton/claim", "")
 	if w.Code != http.StatusForbidden {
